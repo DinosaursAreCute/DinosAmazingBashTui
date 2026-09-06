@@ -1,0 +1,109 @@
+version: 1.0
+imports:
+  # The parser will source this file to load our Bash logic
+  - ./bin/callbacks.sh
+
+layout:
+  type: hsplit
+  id: root
+  children:
+    # ── LEFT COLUMN ──
+    - type: vsplit
+      id: form
+      weight: 45
+      children:
+        # Top Left: Input Fields
+        - type: pane
+          id: fields
+          weight: 75
+          title: "Form"
+          border: single
+          title_style:
+            fg: br_blue
+            modifiers: [bold]
+          widgets:
+            - type: label
+              id: lbl_intro
+              row: 0
+              text: "Fill in the form below:"
+              style:
+                modifiers: [dim]
+            - type: input
+              id: inp_name
+              row: 2
+              label: "Name:"
+              placeholder: "John Doe"
+              focus_style:
+                fg: br_cyan
+                modifiers: [bold]
+            - type: input
+              id: inp_email
+              row: 4
+              label: "Email:"
+              placeholder: "john@example.com"
+              focus_style:
+                fg: br_cyan
+                modifiers: [bold]
+        
+        # Bottom Left: Action Buttons
+        - type: pane
+          id: actions
+          weight: 25
+          title: "Actions"
+          border: single
+          widgets:
+            - type: button
+              id: btn_ok
+              row: 1
+              text: "[ Submit ]"
+              action: on_submit
+              style:
+                fg: br_green
+              focus_style:
+                fg: black
+                bg: br_green
+            - type: button
+              id: btn_clear
+              row: 2
+              text: "[ Clear ]"
+              action: on_clear
+              style:
+                fg: br_yellow
+              focus_style:
+                fg: black
+                bg: br_yellow
+            - type: button
+              id: btn_quit
+              row: 3
+              text: "[ Quit ]"
+              action: on_quit
+              style:
+                fg: br_red
+              focus_style:
+                fg: black
+                bg: br_red
+                
+    # ── RIGHT COLUMN ──
+    - type: pane
+      id: output
+      weight: 55
+      title: "Output"
+      border: double
+      border_style:
+        fg: br_magenta
+      widgets:
+        - type: label
+          id: out1
+          row: 1
+          text: ""
+        - type: label
+          id: out2
+          row: 2
+          text: ""
+        - type: label
+          id: out3
+          row: 4
+          text: "Waiting for input..."
+          style:
+            fg: br_white
+            modifiers: [italic]

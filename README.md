@@ -15,27 +15,27 @@ Think HTML pages, but for your terminal.<br/>
 
 ## What is this?
 
-DABT lets you build multi-page terminal interfaces the way you'd build a website: write markup, point at a stylesheet, wire up callbacks. The framework handles layout, rendering, focus management, mouse support, and live background process execution — all in pure bash.<br/>
+DinosAmazingBashTui or D.A.B.T for short,  lets you build multi-page terminal interfaces the way you'd build a website: write markup, point at a stylesheet, wire up callbacks. The framework handles layout, rendering, focus management, mouse support, and live background process execution - all in pure bash.<br/>
 
 <br/>
-No Python. No Node. No ncurses. No curses bindings of any kind.<br/>
+No Python. No Node. No ncurses. abstraction of any kind.<br/>
 Just bash, doing things bash was never meant to do.<br/>
 
 ## ✨ Features
 
 | | |
 |---|---|
-| 📄 **Declarative XML markup** | Define panes, buttons, inputs, and labels in config files — not imperative code |
-| 🔗 **Multi-page navigation** | Link between pages like HTML anchors with `page="other.xml"` on any button |
-| 🎨 **CSS-like theming** | Reusable `.class` styles with `fg`, `bg`, `mods`, and `:focus`/`:border`/`:title` pseudo-states |
-| 📐 **Flexible alignment** | `left` / `center` / `right` / `fill` horizontal, `top` / `middle` / `bottom` vertical |
-| 📏 **Min/max sizing** | Constraint-based layout with automatic warnings when space runs out |
-| 🧩 **Runtime templates** | `${command args…}` expressions in text attributes, re-evaluated on every redraw |
-| 🖥️ **Live terminal execution** | Stream a real PTY process into a pane with stdin piping, cancel, save, and retry |
-| 🖱️ **Mouse + keyboard** | Click routing, Tab/Shift-Tab focus cycling, arrow key navigation — it all works |
-| 📦 **Includes & fragments** | `<include src="_nav.xml"/>` for shared components across pages |
+| **Declarative XML markup** | Define panes, buttons, inputs, and labels in config files — not imperative code |
+|**Multi-page navigation** | Link between pages like HTML anchors with `page="other.xml"` on any button |
+|**CSS-like theming** | Reusable `.class` styles with `fg`, `bg`, `mods`, and `:focus`/`:border`/`:title` pseudo-states |
+|**Flexible alignment** | `left` / `center` / `right` / `fill` horizontal, `top` / `middle` / `bottom` vertical |
+|**Min/max sizing** | Constraint-based layout with automatic warnings when space runs out |
+|**Runtime templates** | `${command args…}` expressions in text attributes, re-evaluated on every redraw |
+|**Live terminal execution** | Stream a real PTY process into a pane with stdin piping, cancel, save, and retry |
+|**Mouse + keyboard** | Click routing, Tab/Shift-Tab focus cycling, arrow key navigation — it all works |
+|**Includes & fragments** | `<include src="_nav.xml"/>` for shared components across pages |
 
-## 📸 Screenshots
+## Screenshots
 
 <details>
 <summary><b>Styles — themed buttons and color swatches</b></summary>
@@ -65,7 +65,7 @@ Just bash, doing things bash was never meant to do.<br/>
 
 </details>
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone it
@@ -81,7 +81,7 @@ bin/DABT_demo.sh
 
 That's it. No install step, no package manager, no build tool. If you have bash, you're good.
 
-## 📝 How it works
+## How it works
 
 A page is just an XML file:
 
@@ -140,13 +140,13 @@ config/
 └── demo_callbacks.sh       # Button/input callback functions
 ```
 
-## 🎯 Requirements
+## Requirements
 
 - **Bash 4.3+** (associative arrays, `declare -g`, nameref)
 - A terminal emulator with mouse support (virtually all modern ones)
 - That's the whole list
 
-## 🧑‍💻 Going beyond the demo
+## Going beyond the demo
 
 Write your own pages, drop them in `config/`, and link to them with `page="yourpage.xml"` on a button. Callbacks are plain bash functions — source them with `<script>` and reference them by name in `action="…"` or `submit="…"` attributes.
 

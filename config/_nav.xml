@@ -1,0 +1,6 @@
+  <button id="btn_home"     pane="nav" row="0" text="  Home"     page="home.xml"     class="nav_link" align="fill"/>
+  <button id="btn_features" pane="nav" row="1" text="  Features" page="features.xml" class="nav_link" align="fill"/>
+  <button id="btn_styles"   pane="nav" row="2" text="  Styles"   page="styles.xml"   class="nav_link" align="fill"/>
+  <button id="btn_terminal" pane="nav" row="3" text="  Terminal" page="terminal.xml" class="nav_link" align="fill"/>
+  <button id="btn_forms"    pane="nav" row="4" text="  Forms"    page="settings.xml" class="nav_link" align="fill"/>
+  <button id="btn_quit"     pane="nav" row="6" text="  Quit"     action="on_quit"    class="danger_button" align="fill"/>

@@ -1,0 +1,17 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="demo_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="78">
+      <pane id="term_output"  weight="75" title="Live Terminal (bash)" border="heavy" class="panel"/>
+      <pane id="term_actions" weight="25" title="Terminal Controls"/>
+    </pane>
+  </pane>
+
+  <!-- input at the bottom (term_actions), output on top (term_output) — a real bash session -->
+  <script src="terminal_init.sh"/>
+
+  <include src="_nav.xml"/>
+</tui>

@@ -1,169 +1,820 @@
-[17:03:21] [debug] tui.run() starting
-[17:03:21] [debug] tui.run() rendered
-[17:06:16] [debug] tui.run() starting
-[17:06:16] [debug] tui.run() rendered
-[17:11:16] [debug] tui.run() starting
-[17:11:16] [debug] tui.run() rendered
-[17:14:00] [debug] tui.run() starting
-[17:14:00] [debug] tui.run() rendered
-[17:16:14] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[17:16:14] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[17:16:14] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[17:16:14] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[17:16:14] [debug] Pane 'fields' parsed with 3 widgets.
-[17:16:14] [debug] tui.run() starting
-[17:16:14] [debug] tui.run() rendered
-[17:16:32] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[17:16:32] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[17:16:33] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[17:16:33] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[17:16:33] [debug] Pane 'fields' parsed with 3 widgets.
-[17:16:33] [debug] tui.run() starting
-[17:16:33] [debug] tui.run() rendered
-[17:17:54] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[17:17:54] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[17:17:54] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[17:17:54] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[17:17:54] [debug] Pane 'fields' parsed with 3 widgets.
-[17:17:54] [debug] tui.run() starting
-[17:17:54] [debug] tui.run() rendered
-[17:52:52] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[17:52:52] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[17:52:52] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[17:52:52] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[17:52:52] [debug] Pane 'fields' parsed with 3 widgets.
-[17:52:52] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form'...
-[17:52:52] [debug] Pane 'actions' parsed with 4 widgets.
-[17:52:52] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[17:52:53] [debug] Pane 'output' parsed with 3 widgets.
-[17:52:53] [debug] tui.run() starting
-[17:52:53] [debug] tui.run() rendered
-[17:53:00] [info] Running 'lsh' command...
-[17:53:00] [info] tui.exec() initiating command: 'lsh'
-[17:53:00] [error] tui.exec: Fatal config error. Missing arguments.
-[17:53:02] [info] Running 'lsh' command...
-[17:53:02] [info] tui.exec() initiating command: 'lsh'
-[17:53:02] [error] tui.exec: Fatal config error. Missing arguments.
-[17:53:49] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[17:53:49] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[17:53:49] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[17:53:50] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[17:53:50] [debug] Pane 'fields' parsed with 3 widgets.
-[17:53:50] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form'...
-[17:53:50] [debug] Pane 'actions' parsed with 4 widgets.
-[17:53:50] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[17:53:50] [debug] Pane 'output' parsed with 3 widgets.
-[17:53:50] [debug] tui.run() starting
-[17:53:50] [debug] tui.run() rendered
-[17:53:53] [info] Running 'lsh' command...
-[17:53:53] [info] tui.exec() initiating command: 'lsh'
-[17:53:53] [error] tui.exec: Fatal config error. Missing arguments.
-[17:53:56] [info] Running 'lsh' command...
-[17:53:56] [info] tui.exec() initiating command: 'lsh'
-[17:53:56] [error] tui.exec: Fatal config error. Missing arguments.
-[17:59:52] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[17:59:52] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[17:59:52] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[17:59:52] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[17:59:53] [debug] Pane 'fields' parsed with 3 widgets.
-[17:59:53] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form'...
-[17:59:53] [debug] Pane 'actions' parsed with 4 widgets.
-[17:59:53] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[17:59:53] [debug] Pane 'output' parsed with 3 widgets.
-[17:59:53] [debug] tui.run() starting
-[17:59:53] [debug] tui.run() rendered
-[17:59:56] [info] tui.exec() initiating command: 'lsh'
-[17:59:56] [warn] tui.exec: Pane configuration broken. 'output' or 'actions' missing.
-[18:02:51] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:02:51] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:02:51] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:02:51] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form_stack'...
-[18:02:51] [debug] Pane 'fields' parsed with 3 widgets.
-[18:02:51] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form_stack'...
-[18:02:52] [debug] Pane 'actions' parsed with 2 widgets.
-[18:02:52] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:02:52] [debug] Parsing node at path '.layout.children[1].children[0]' with parent ID 'right_stack'...
-[18:02:52] [debug] Pane 'output' parsed with 1 widgets.
-[18:02:52] [debug] Parsing node at path '.layout.children[1].children[1]' with parent ID 'right_stack'...
-[18:02:52] [debug] Pane 'exec_controls' parsed with 1 widgets.
-[18:02:52] [debug] tui.run() starting
-[18:02:52] [debug] tui.run() rendered
-[18:03:29] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:03:29] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:03:29] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:03:29] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form_stack'...
-[18:03:29] [debug] Pane 'fields' parsed with 3 widgets.
-[18:03:29] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form_stack'...
-[18:03:30] [debug] Pane 'actions' parsed with 2 widgets.
-[18:03:30] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:03:30] [debug] Parsing node at path '.layout.children[1].children[0]' with parent ID 'right_stack'...
-[18:03:30] [debug] Pane 'output' parsed with 1 widgets.
-[18:03:30] [debug] Parsing node at path '.layout.children[1].children[1]' with parent ID 'right_stack'...
-[18:03:30] [debug] Pane 'exec_controls' parsed with 1 widgets.
-[18:03:30] [debug] tui.run() starting
-[18:03:30] [debug] tui.run() rendered
-[18:03:32] [info] tui.exec() initiating command: 'lsh'
-[18:03:43] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:03:43] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:03:43] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:03:43] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form_stack'...
-[18:03:43] [debug] Pane 'fields' parsed with 3 widgets.
-[18:03:43] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form_stack'...
-[18:03:43] [debug] Pane 'actions' parsed with 2 widgets.
-[18:03:43] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:03:43] [debug] Parsing node at path '.layout.children[1].children[0]' with parent ID 'right_stack'...
-[18:03:43] [debug] Pane 'output' parsed with 1 widgets.
-[18:03:43] [debug] Parsing node at path '.layout.children[1].children[1]' with parent ID 'right_stack'...
-[18:03:44] [debug] Pane 'exec_controls' parsed with 1 widgets.
-[18:03:44] [debug] tui.run() starting
-[18:03:44] [debug] tui.run() rendered
-[18:05:46] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:05:46] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:05:46] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:05:46] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form_stack'...
-[18:05:46] [debug] Pane 'fields' parsed with 3 widgets.
-[18:05:46] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form_stack'...
-[18:05:46] [debug] Pane 'actions' parsed with 2 widgets.
-[18:05:46] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:05:46] [debug] Parsing node at path '.layout.children[1].children[0]' with parent ID 'right_stack'...
-[18:05:47] [debug] Pane 'output' parsed with 1 widgets.
-[18:05:47] [debug] Parsing node at path '.layout.children[1].children[1]' with parent ID 'right_stack'...
-[18:05:47] [debug] Pane 'exec_controls' parsed with 1 widgets.
-[18:05:47] [debug] tui.run() starting
-[18:05:47] [debug] tui.run() rendered
-[18:06:46] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:06:46] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:06:46] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:06:46] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form_stack'...
-[18:06:46] [debug] Pane 'fields' parsed with 3 widgets.
-[18:06:46] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form_stack'...
-[18:06:47] [debug] Pane 'actions' parsed with 2 widgets.
-[18:06:47] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:06:47] [debug] Parsing node at path '.layout.children[1].children[0]' with parent ID 'right_stack'...
-[18:06:47] [debug] Pane 'output' parsed with 1 widgets.
-[18:06:47] [debug] Parsing node at path '.layout.children[1].children[1]' with parent ID 'right_stack'...
-[18:06:47] [debug] Pane 'exec_controls' parsed with 1 widgets.
-[18:06:47] [debug] tui.run() starting
-[18:06:47] [debug] tui.run() rendered
-[18:08:20] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:08:20] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:08:20] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:08:20] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[18:08:20] [debug] Pane 'fields' parsed with 3 widgets.
-[18:08:20] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form'...
-[18:08:20] [debug] Pane 'actions' parsed with 4 widgets.
-[18:08:20] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:08:21] [debug] Pane 'output' parsed with 3 widgets.
-[18:08:21] [debug] tui.run() starting
-[18:08:21] [debug] tui.run() rendered
-[18:08:45] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashStuff/DinosAmazingBashTui/config/tui.config.yml'...
-[18:08:45] [debug] Parsing node at path '.layout' with parent ID 'root'...
-[18:08:45] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
-[18:08:45] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
-[18:08:46] [debug] Pane 'fields' parsed with 3 widgets.
-[18:08:46] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form'...
-[18:08:46] [debug] Pane 'actions' parsed with 3 widgets.
-[18:08:46] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
-[18:08:46] [debug] Pane 'output' parsed with 3 widgets.
-[18:08:46] [debug] tui.run() starting
-[18:08:46] [debug] tui.run() rendered
+[17:04:17] [info] Loading TUI configuration from '/home/dino/DinosAmazingScripts/DinosAmazingBashTui/config/tui.config.yml'...
+[17:04:17] [debug] Parsing node at path '.layout' with parent ID 'root'...
+[17:04:17] [debug] Parsing node at path '.layout.children[0]' with parent ID 'root'...
+[17:04:17] [debug] Parsing node at path '.layout.children[0].children[0]' with parent ID 'form'...
+[17:04:17] [debug] Pane 'fields' parsed with 3 widgets.
+[17:04:17] [debug] Parsing node at path '.layout.children[0].children[1]' with parent ID 'form'...
+[17:04:17] [debug] Pane 'actions' parsed with 3 widgets.
+[17:04:17] [debug] Parsing node at path '.layout.children[1]' with parent ID 'root'...
+[17:04:17] [debug] Pane 'output' parsed with 3 widgets.
+[17:04:17] [debug] tui.run() starting
+[17:04:17] [debug] tui.run() rendered
+[17:10:04] [debug] tui.run() starting
+[17:10:04] [debug] tui.run() rendered
+[17:10:07] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1269092.sh'
+[17:10:07] [debug] tui.exec() called with cmd='/tmp/_tui_exec_demo_1269092.sh', out_pane='output', ctl_pane='controls'
+[17:10:56] [debug] tui.run() starting
+[17:10:56] [debug] tui.run() rendered
+[17:11:00] [info] Launch Shell button clicked.
+[17:11:00] [info] tui.exec() initiating command: 'lsh install'
+[17:11:00] [error] tui.exec: Fatal config error. Missing arguments.
+[17:11:02] [info] Launch Shell button clicked.
+[17:11:02] [info] tui.exec() initiating command: 'lsh install'
+[17:11:02] [error] tui.exec: Fatal config error. Missing arguments.
+[17:11:06] [debug] tui.run() starting
+[17:11:06] [debug] tui.run() rendered
+[17:11:07] [info] Launch Shell button clicked.
+[17:11:07] [info] tui.exec() initiating command: 'lsh install'
+[17:11:07] [error] tui.exec: Fatal config error. Missing arguments.
+[17:11:09] [info] Launch Shell button clicked.
+[17:11:09] [info] tui.exec() initiating command: 'lsh install'
+[17:11:09] [error] tui.exec: Fatal config error. Missing arguments.
+[17:11:09] [info] Launch Shell button clicked.
+[17:11:09] [info] tui.exec() initiating command: 'lsh install'
+[17:11:09] [error] tui.exec: Fatal config error. Missing arguments.
+[17:11:09] [info] Launch Shell button clicked.
+[17:11:09] [info] tui.exec() initiating command: 'lsh install'
+[17:11:09] [error] tui.exec: Fatal config error. Missing arguments.
+[17:11:12] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1273392.sh'
+[17:11:12] [debug] tui.exec() called with cmd='/tmp/_tui_exec_demo_1273392.sh', out_pane='output', ctl_pane='controls'
+[17:12:52] [debug] tui.run() starting
+[17:12:52] [debug] tui.run() rendered
+[17:18:22] [debug] tui.run() starting
+[17:18:22] [debug] tui.run() rendered
+[17:18:23] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1303701.sh'
+[17:18:55] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1303701.sh'
+[17:19:04] [debug] Sending input: [REDACTED]
+[17:19:13] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1303701.sh'
+[17:19:30] [debug] tui.run() starting
+[17:19:30] [debug] tui.run() rendered
+[17:19:31] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1308699.sh'
+[17:21:51] [debug] tui.run() starting
+[17:21:51] [debug] tui.run() rendered
+[17:21:56] [debug] tui.run() starting
+[17:21:56] [debug] tui.run() rendered
+[17:21:58] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1318563.sh'
+[17:22:05] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1318563.sh'
+[17:22:14] [debug] Sending input: [REDACTED]
+[17:23:01] [debug] tui.run() starting
+[17:23:01] [debug] tui.run() rendered
+[17:23:08] [debug] tui.run() starting
+[17:23:08] [debug] tui.run() rendered
+[17:23:10] [info] tui.exec() initiating command: 'lsh verify'
+[17:23:12] [info] tui.exec() initiating command: 'lsh verify'
+[17:23:13] [info] tui.exec() initiating command: 'lsh verify'
+[17:23:13] [info] tui.exec() initiating command: 'lsh verify'
+[17:23:14] [info] tui.exec() initiating command: 'lsh verify'
+[17:23:37] [debug] tui.run() starting
+[17:23:37] [debug] tui.run() rendered
+[17:23:51] [debug] tui.run() starting
+[17:23:51] [debug] tui.run() rendered
+[17:23:54] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1327945.sh'
+[17:23:58] [debug] Sending input: [REDACTED]
+[17:24:07] [info] tui.exec() initiating command: 'lsh verify'
+[17:28:56] [debug] tui.run() starting
+[17:28:56] [debug] tui.run() rendered
+[17:29:18] [debug] tui.run() starting
+[17:29:18] [debug] tui.run() rendered
+[17:29:27] [info] tui.exec() initiating command: 'echo "hello world"'
+[17:29:36] [info] tui.exec() initiating command: 'lsh menu'
+[17:29:48] [debug] Sending input: [REDACTED]
+[17:29:54] [info] tui.exec() initiating command: '/tmp/_tui_exec_demo_1350560.sh'
+[17:31:48] [info] tui.exec() initiating command: 'lsh wds'
+[17:33:22] [debug] tui.run() starting
+[17:33:22] [debug] tui.run() rendered
+[17:35:38] [debug] tui.run() starting
+[17:35:38] [debug] tui.run() rendered
+[17:35:42] [info] tui.exec() initiating command: 'lsh menu'
+[17:35:49] [debug] Sending input: [REDACTED]
+[17:35:54] [debug] Sending input: [REDACTED]
+[17:36:01] [debug] Sending input: [REDACTED]
+[17:36:11] [debug] Sending input: [REDACTED]
+[17:38:00] [debug] tui.run() starting
+[17:38:00] [debug] tui.run() rendered
+[17:38:04] [info] tui.exec() initiating command: 'lsh menu'
+[17:38:08] [debug] Sending input: [REDACTED]
+[17:38:23] [debug] tui.run() starting
+[17:38:23] [debug] tui.run() rendered
+[17:38:31] [info] tui.exec() initiating command: 'nano test.txt'
+[17:51:45] [debug] tui.run() starting
+[17:51:45] [debug] tui.run() rendered
+[17:52:18] [debug] tui.run() starting
+[17:52:18] [debug] tui.run() rendered
+[17:52:21] [debug] tui.run() starting
+[17:52:21] [debug] tui.run() rendered
+[17:52:30] [info] tui.exec() initiating command: 'lsh'
+[17:52:30] [warn] tui.exec: Pane configuration broken. 'output' or 'controls' missing.
+[17:52:40] [debug] tui.run() starting
+[17:52:40] [debug] tui.run() rendered
+[17:53:29] [debug] tui.run() starting
+[17:53:29] [debug] tui.run() rendered
+[17:54:01] [info] tui.exec() initiating command: 'lsh'
+[17:57:05] [debug] tui.run() starting
+[17:57:05] [debug] tui.run() rendered
+[17:57:08] [info] tui.exec() initiating command: 'lsh'
+[18:00:07] [debug] tui.run() starting
+[18:00:07] [debug] tui.run() rendered
+[18:00:14] [info] tui.exec() initiating command: 'lsh'
+[18:01:16] [debug] tui.run() starting
+[18:01:16] [debug] tui.run() rendered
+[18:04:03] [debug] tui.run() starting
+[18:04:03] [debug] tui.run() rendered
+[18:08:14] [debug] tui.run() starting
+[18:08:14] [debug] tui.run() rendered
+[18:08:56] [debug] tui.run() starting
+[18:08:56] [debug] tui.run() rendered
+[18:09:30] [debug] tui.run() starting
+[18:09:30] [debug] tui.run() rendered
+[18:09:54] [debug] tui.run() starting
+[18:09:54] [debug] tui.run() rendered
+[18:11:22] [debug] tui.run() starting
+[18:11:22] [debug] tui.run() rendered
+[18:11:53] [debug] tui.run() starting
+[18:11:53] [debug] tui.run() rendered
+[18:11:57] [debug] tui.run() starting
+[18:11:58] [debug] tui.run() rendered
+[18:12:22] [debug] tui.run() starting
+[18:12:22] [debug] tui.run() rendered
+[18:12:32] [debug] tui.run() starting
+[18:12:32] [debug] tui.run() rendered
+[18:12:35] [debug] tui.run() starting
+[18:12:35] [debug] tui.run() rendered
+[18:12:52] [debug] tui.run() starting
+[18:12:52] [debug] tui.run() rendered
+[18:14:36] [debug] tui.run() starting
+[18:14:36] [debug] tui.run() rendered
+[18:15:23] [debug] tui.run() starting
+[18:15:23] [debug] tui.run() rendered
+[18:16:56] [debug] tui.run() starting
+[18:16:56] [debug] tui.run() rendered
+[18:19:12] [debug] tui.run() starting
+[18:19:12] [debug] tui.run() rendered
+[18:20:23] [debug] tui.run() starting
+[18:20:23] [debug] tui.run() rendered
+[18:21:07] [debug] tui.run() starting
+[18:21:07] [debug] tui.run() rendered
+[18:21:22] [debug] tui.run() starting
+[18:21:22] [debug] tui.run() rendered
+[18:21:39] [debug] tui.run() starting
+[18:21:39] [debug] tui.run() rendered
+[18:22:27] [debug] tui.run() starting
+[18:22:27] [debug] tui.run() rendered
+[18:23:02] [debug] tui.run() starting
+[18:23:03] [debug] tui.run() rendered
+[18:26:44] [debug] tui.run() starting
+[18:26:44] [debug] tui.run() rendered
+[18:27:00] [debug] tui.run() starting
+[18:27:00] [debug] tui.run() rendered
+[18:27:38] [debug] tui.run() starting
+[18:27:39] [debug] tui.run() rendered
+[18:29:10] [debug] tui.run() starting
+[18:29:10] [debug] tui.run() rendered
+[18:30:15] [debug] tui.run() starting
+[18:30:15] [debug] tui.run() rendered
+[18:40:09] [debug] tui.run() starting
+[18:40:09] [debug] tui.run() rendered
+[18:40:13] [info] tui.exec() initiating command: 'lsh'
+[18:40:17] [debug] tui.run() starting
+[18:40:17] [debug] tui.run() rendered
+[18:40:20] [info] tui.exec() initiating command: 'lsh'
+[18:40:23] [debug] tui.run() starting
+[18:40:23] [debug] tui.run() rendered
+[18:40:24] [info] tui.exec() initiating command: 'lsh'
+[18:40:31] [info] tui.exec() initiating command: 'lsh'
+[18:40:41] [info] tui.exec() initiating command: 'lsh'
+[18:41:21] [debug] tui.run() starting
+[18:41:21] [debug] tui.run() rendered
+[18:41:24] [info] tui.exec() initiating command: 'lsh'
+[18:42:29] [debug] tui.run() starting
+[18:42:29] [debug] tui.run() rendered
+[18:43:19] [debug] tui.run() starting
+[18:43:19] [debug] tui.run() rendered
+[18:43:29] [info] tui.exec() initiating command: 'lsh'
+[18:43:32] [info] tui.exec() initiating command: 'lsh'
+[18:45:56] [debug] tui.run() starting
+[18:45:56] [debug] tui.run() rendered
+[18:46:05] [info] tui.exec() initiating command: 'lsh'
+[18:46:28] [debug] tui.run() starting
+[18:46:28] [debug] tui.run() rendered
+[18:47:38] [debug] tui.run() starting
+[18:47:38] [debug] tui.run() rendered
+[18:48:11] [debug] tui.run() starting
+[18:48:11] [debug] tui.run() rendered
+[18:49:00] [info] tui.exec() initiating command: 'lsh'
+[18:49:03] [debug] tui.run() starting
+[18:49:03] [debug] tui.run() rendered
+[18:49:13] [info] tui.exec() initiating command: 'lsh'
+[18:49:18] [debug] Sending input: [REDACTED]
+[18:49:18] [warn] Attempted to send input, but process is not running.
+[18:49:39] [debug] tui.run() starting
+[18:49:39] [debug] tui.run() rendered
+[18:50:25] [debug] tui.run() starting
+[18:50:25] [debug] tui.run() rendered
+[18:50:43] [info] tui.exec() initiating command: 'lsh'
+[18:57:32] [debug] tui.run() starting
+[18:57:32] [debug] tui.run() rendered
+[18:58:36] [info] tui.exec() initiating command: 'bash'
+[18:58:47] [debug] Sending input: [REDACTED]
+[18:59:08] [info] tui.exec() initiating command: 'bash'
+[19:02:52] [debug] tui.run() starting
+[19:02:52] [debug] tui.run() rendered
+[19:11:13] [info] tui.exec() initiating command: 'bash'
+[19:11:23] [debug] Sending input: [REDACTED]
+[19:11:29] [debug] Sending input: [REDACTED]
+[19:11:37] [debug] Sending input: [REDACTED]
+[19:12:53] [info] tui.exec() initiating command: 'bash'
+[19:14:45] [info] tui.exec() initiating command: 'bash'
+[19:14:49] [info] tui.exec() initiating command: 'bash'
+[19:15:19] [info] tui.exec() initiating command: 'bash'
+[19:23:39] [debug] tui.run() starting
+[19:23:39] [debug] tui.run() rendered
+[19:23:58] [debug] tui.run() starting
+[19:23:58] [debug] tui.run() rendered
+[19:26:49] [debug] tui.run() starting
+[19:26:49] [debug] tui.run() rendered
+[19:30:56] [info] tui.exec() initiating command: 'bash'
+[19:35:33] [info] tui.exec() initiating command: 'bash'
+[19:35:39] [debug] tui.run() starting
+[19:35:39] [debug] tui.run() rendered
+[19:35:40] [info] tui.exec() initiating command: 'bash'
+[19:36:58] [debug] tui.run() starting
+[19:36:58] [debug] tui.run() rendered
+[19:37:19] [debug] tui.run() starting
+[19:37:19] [debug] tui.run() rendered
+[19:37:58] [info] tui.exec() initiating command: 'bash'
+[19:38:06] [info] tui.exec() initiating command: 'bash'
+[19:38:31] [debug] tui.run() starting
+[19:38:31] [debug] tui.run() rendered
+[19:38:38] [info] tui.exec() initiating command: 'bash'
+[19:38:40] [info] tui.exec() initiating command: 'bash'
+[19:43:55] [debug] tui.run() starting
+[19:43:56] [debug] tui.run() rendered
+[19:44:31] [info] tui.exec() initiating command: 'bash'
+[19:44:59] [debug] Sending input: [REDACTED]
+[19:45:43] [debug] tui.run() starting
+[19:45:43] [debug] tui.run() rendered
+[19:49:28] [debug] tui.run() starting
+[19:49:28] [debug] tui.run() rendered
+[19:50:23] [debug] tui.run() starting
+[19:50:23] [debug] tui.run() rendered
+[19:50:35] [debug] tui.run() starting
+[19:50:35] [debug] tui.run() rendered
+[19:51:28] [debug] tui.run() starting
+[19:51:28] [debug] tui.run() rendered
+[19:52:10] [info] tui.exec() initiating command: 'bash'
+[19:52:47] [debug] tui.run() starting
+[19:52:47] [debug] tui.run() rendered
+[19:53:02] [debug] tui.run() starting
+[19:53:02] [debug] tui.run() rendered
+[19:53:55] [debug] tui.run() starting
+[19:53:55] [debug] tui.run() rendered
+[19:55:28] [debug] tui.run() starting
+[19:55:29] [debug] tui.run() rendered
+[19:55:32] [info] tui.exec() initiating command: 'bash'
+[19:55:48] [debug] tui.run() detected terminal resize
+[19:57:11] [debug] tui.run() detected terminal resize
+[19:58:20] [debug] tui.run() starting
+[19:58:20] [debug] tui.run() rendered
+[19:59:43] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[19:59:43] [debug] Received resize event: recalculating layout and redrawing
+[19:59:47] [debug] tui.run() starting
+[19:59:47] [debug] tui.run() rendered
+[20:00:07] [debug] tui.run() starting
+[20:00:07] [debug] tui.run() rendered
+[20:00:51] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:00:51] [debug] Received resize event: recalculating layout and redrawing
+[20:01:36] [info] tui.exec() initiating command: 'bash'
+[20:01:36] [debug] _exec_remove_widgets() called
+[20:01:36] [debug] _exec_setup_controls() called
+[20:01:36] [debug] _exec_render_status() called
+[20:01:36] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:01:36] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:01:36] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:01:36] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:01:36] [debug] _exec_render_output() called
+[20:01:53] [debug] _exec_render_status() called
+[20:01:53] [debug] _exec_render_output() called
+[20:01:53] [debug] _exec_render_output() called
+[20:01:54] [debug] _exec_render_output() called
+[20:01:54] [debug] _exec_render_output() called
+[20:01:55] [debug] _exec_render_output() called
+[20:01:55] [debug] _exec_render_output() called
+[20:01:55] [debug] _exec_render_output() called
+[20:01:55] [debug] _exec_render_output() called
+[20:01:55] [debug] _exec_render_output() called
+[20:01:56] [debug] _exec_render_output() called
+[20:01:56] [debug] _exec_render_output() called
+[20:01:56] [debug] _exec_render_output() called
+[20:01:58] [debug] tui.run() starting
+[20:01:58] [debug] tui.run() rendered
+[20:02:00] [info] tui.exec() initiating command: 'bash'
+[20:02:00] [debug] _exec_remove_widgets() called
+[20:02:00] [debug] _exec_setup_controls() called
+[20:02:00] [debug] _exec_render_status() called
+[20:02:00] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:00] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:00] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:00] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:00] [debug] _exec_render_output() called
+[20:02:04] [info] tui.exec() initiating command: 'bash'
+[20:02:04] [debug] _exec_remove_widgets() called
+[20:02:04] [debug] _exec_setup_controls() called
+[20:02:04] [debug] _exec_render_status() called
+[20:02:05] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:05] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:05] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:05] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:05] [debug] _exec_render_output() called
+[20:02:11] [info] tui.exec() initiating command: 'bash'
+[20:02:11] [debug] _exec_remove_widgets() called
+[20:02:11] [debug] _exec_setup_controls() called
+[20:02:11] [debug] _exec_render_status() called
+[20:02:11] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:11] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:11] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:11] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:11] [debug] _exec_render_output() called
+[20:02:15] [info] tui.exec() initiating command: 'bash'
+[20:02:15] [debug] _exec_remove_widgets() called
+[20:02:15] [debug] _exec_setup_controls() called
+[20:02:15] [debug] _exec_render_status() called
+[20:02:16] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:16] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:16] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:16] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:02:16] [debug] _exec_render_output() called
+[20:02:17] [debug] _exec_render_status() called
+[20:02:17] [debug] _exec_render_output() called
+[20:02:17] [debug] _exec_render_output() called
+[20:02:17] [debug] _exec_render_output() called
+[20:02:18] [debug] _exec_render_output() called
+[20:02:19] [debug] _exec_render_output() called
+[20:02:19] [debug] _exec_render_output() called
+[20:02:28] [debug] _exec_render_output() called
+[20:02:29] [debug] _exec_render_output() called
+[20:02:29] [debug] _exec_render_output() called
+[20:02:29] [debug] _exec_render_output() called
+[20:02:29] [debug] _exec_render_output() called
+[20:02:29] [debug] _exec_render_output() called
+[20:02:30] [debug] _exec_render_output() called
+[20:02:30] [debug] _exec_render_output() called
+[20:02:30] [debug] _exec_render_output() called
+[20:02:30] [debug] _exec_render_output() called
+[20:02:31] [debug] _exec_render_output() called
+[20:02:31] [debug] _exec_render_output() called
+[20:02:31] [debug] _exec_render_output() called
+[20:02:31] [debug] _exec_render_output() called
+[20:02:31] [debug] _exec_render_output() called
+[20:02:32] [debug] _exec_render_output() called
+[20:02:32] [debug] _exec_render_output() called
+[20:02:32] [debug] _exec_render_output() called
+[20:02:32] [debug] _exec_render_output() called
+[20:02:32] [debug] _exec_render_output() called
+[20:02:33] [debug] _exec_render_output() called
+[20:02:33] [debug] _exec_render_output() called
+[20:02:33] [debug] _exec_render_output() called
+[20:02:33] [debug] _exec_render_output() called
+[20:02:33] [debug] _exec_render_output() called
+[20:02:34] [debug] _exec_render_output() called
+[20:02:34] [debug] _exec_render_output() called
+[20:02:34] [debug] _exec_render_output() called
+[20:02:34] [debug] _exec_render_output() called
+[20:02:35] [debug] _exec_render_output() called
+[20:02:35] [debug] _exec_render_output() called
+[20:02:35] [debug] _exec_render_output() called
+[20:02:35] [debug] _exec_render_output() called
+[20:02:35] [debug] _exec_render_output() called
+[20:02:36] [debug] _exec_render_output() called
+[20:02:36] [debug] _exec_render_output() called
+[20:02:36] [debug] _exec_render_output() called
+[20:02:36] [debug] _exec_render_output() called
+[20:02:36] [debug] _exec_render_output() called
+[20:02:37] [debug] _exec_render_output() called
+[20:02:37] [debug] _exec_render_output() called
+[20:02:37] [debug] _exec_render_output() called
+[20:02:37] [debug] _exec_render_output() called
+[20:02:37] [debug] _exec_render_output() called
+[20:02:38] [debug] _exec_render_output() called
+[20:02:38] [debug] _exec_render_output() called
+[20:02:38] [debug] _exec_render_output() called
+[20:02:38] [debug] _exec_render_output() called
+[20:02:39] [debug] _exec_render_output() called
+[20:02:39] [debug] _exec_render_output() called
+[20:02:39] [debug] _exec_render_output() called
+[20:02:39] [debug] _exec_render_output() called
+[20:02:39] [debug] _exec_render_output() called
+[20:02:40] [debug] _exec_render_output() called
+[20:02:40] [debug] _exec_render_output() called
+[20:02:40] [debug] _exec_render_output() called
+[20:02:40] [debug] _exec_render_output() called
+[20:02:40] [debug] _exec_render_output() called
+[20:02:41] [debug] _exec_render_output() called
+[20:02:41] [debug] _exec_render_output() called
+[20:02:41] [debug] _exec_render_output() called
+[20:02:41] [debug] _exec_render_output() called
+[20:02:41] [debug] _exec_render_output() called
+[20:02:42] [debug] _exec_render_output() called
+[20:02:42] [debug] _exec_render_output() called
+[20:02:42] [debug] _exec_render_output() called
+[20:02:42] [debug] _exec_render_output() called
+[20:02:43] [debug] _exec_render_output() called
+[20:02:43] [debug] _exec_render_output() called
+[20:04:09] [debug] tui.run() starting
+[20:04:09] [debug] tui.run() rendered
+[20:04:11] [info] tui.exec() initiating command: 'bash'
+[20:04:11] [debug] _exec_remove_widgets() called
+[20:04:11] [debug] _exec_render_status() called
+[20:04:11] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:11] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:11] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:11] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:11] [debug] _exec_render_output() called
+[20:04:15] [info] tui.exec() initiating command: 'bash'
+[20:04:15] [debug] _exec_remove_widgets() called
+[20:04:15] [debug] _exec_render_status() called
+[20:04:15] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:15] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:15] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:16] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:04:16] [debug] _exec_render_output() called
+[20:08:43] [debug] tui.run() starting
+[20:08:43] [debug] tui.run() rendered
+[20:08:44] [info] tui.exec() initiating command: 'bash'
+[20:08:44] [debug] _exec_remove_widgets() called
+[20:08:44] [debug] _exec_setup_controls() called
+[20:08:44] [debug] _exec_render_status() called
+[20:08:45] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:45] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:45] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:45] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:45] [debug] _exec_render_output() called
+[20:08:59] [debug] Sending input: [REDACTED]
+[20:08:59] [debug] _exec_render_output() called
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m                     exec_output_20260908_200237.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m                     exec_output_20260908_200237.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m                     exec_output_20260908_200237.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m                     exec_output_20260908_200237.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: '[01;32mcolors.sh[0m                        exec_output_20260908_200238.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: '[01;32mcolors.sh[0m                        exec_output_20260908_200238.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: '[01;32mcolors.sh[0m                        exec_output_20260908_200238.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: '[01;32mcolors.sh[0m                        exec_output_20260908_200238.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_195211.log  exec_output_20260908_200239.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_195211.log  exec_output_20260908_200239.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_195211.log  exec_output_20260908_200239.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_195211.log  exec_output_20260908_200239.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200154.log  exec_output_20260908_200240.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200154.log  exec_output_20260908_200240.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200154.log  exec_output_20260908_200240.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200154.log  exec_output_20260908_200240.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200217.log  exec_output_20260908_200241.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200217.log  exec_output_20260908_200241.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200217.log  exec_output_20260908_200241.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200217.log  exec_output_20260908_200241.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200219.log  exec_output_20260908_200242.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200219.log  exec_output_20260908_200242.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200219.log  exec_output_20260908_200242.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200219.log  exec_output_20260908_200242.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200228.log  exec_output_20260908_200243.log'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200228.log  exec_output_20260908_200243.log'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200228.log  exec_output_20260908_200243.log'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200228.log  exec_output_20260908_200243.log'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200229.log  [01;32mmarkup_demo.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200229.log  [01;32mmarkup_demo.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200229.log  [01;32mmarkup_demo.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200229.log  [01;32mmarkup_demo.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200230.log  [01;32mmouse_integration.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200230.log  [01;32mmouse_integration.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200230.log  [01;32mmouse_integration.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200230.log  [01;32mmouse_integration.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200231.log  [01;32mterminal_controls.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200231.log  [01;32mterminal_controls.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200231.log  [01;32mterminal_controls.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200231.log  [01;32mterminal_controls.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200232.log  [01;32mterminal_renderer.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200232.log  [01;32mterminal_renderer.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200232.log  [01;32mterminal_renderer.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200232.log  [01;32mterminal_renderer.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200233.log  [01;32mtest.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200233.log  [01;32mtest.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200233.log  [01;32mtest.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200233.log  [01;32mtest.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200234.log  [01;32mtui_markup.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200234.log  [01;32mtui_markup.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200234.log  [01;32mtui_markup.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200234.log  [01;32mtui_markup.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200235.log  [01;32mtui.sh[0m'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200235.log  [01;32mtui.sh[0m'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200235.log  [01;32mtui.sh[0m'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200235.log  [01;32mtui.sh[0m'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: 'exec_output_20260908_200236.log  tui_style.sh'
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: 'exec_output_20260908_200236.log  tui_style.sh'
+[20:08:59] [debug] _exec_is_line_clear() called with raw: 'exec_output_20260908_200236.log  tui_style.sh'
+[20:08:59] [debug] _exec_strip_ansi() called with raw: 'exec_output_20260908_200236.log  tui_style.sh'
+[20:08:59] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:59] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:59] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:59] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:08:59] [debug] _exec_render_output() called
+[20:09:11] [debug] Sending input: [REDACTED]
+[20:09:11] [debug] _exec_render_output() called
+[20:09:11] [debug] _exec_is_screen_clear() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:11] [debug] _exec_is_alt_buffer_toggle() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:11] [debug] _exec_is_line_clear() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:11] [debug] _exec_strip_ansi() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:11] [debug] _exec_is_screen_clear() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:11] [debug] _exec_is_alt_buffer_toggle() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:11] [debug] _exec_is_line_clear() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:11] [debug] _exec_strip_ansi() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:11] [debug] _exec_is_screen_clear() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:11] [debug] _exec_is_alt_buffer_toggle() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:11] [debug] _exec_is_line_clear() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:11] [debug] _exec_strip_ansi() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:11] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:11] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:11] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:11] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:11] [debug] _exec_render_output() called
+[20:09:19] [debug] Sending input: [REDACTED]
+[20:09:19] [debug] _exec_render_output() called
+[20:09:19] [debug] _exec_is_screen_clear() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:19] [debug] _exec_is_alt_buffer_toggle() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:19] [debug] _exec_is_line_clear() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:19] [debug] _exec_strip_ansi() called with raw: '[?2004l[0m[01;32mcallbacks.sh[0m    [01;32mmouse_integration.sh[0m  [01;32mtest.sh[0m        tui_style.sh'
+[20:09:19] [debug] _exec_is_screen_clear() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:19] [debug] _exec_is_alt_buffer_toggle() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:19] [debug] _exec_is_line_clear() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:19] [debug] _exec_strip_ansi() called with raw: '[01;32mcolors.sh[0m       [01;32mterminal_controls.sh[0m  [01;32mtui_markup.sh[0m'
+[20:09:19] [debug] _exec_is_screen_clear() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:19] [debug] _exec_is_alt_buffer_toggle() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:19] [debug] _exec_is_line_clear() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:19] [debug] _exec_strip_ansi() called with raw: '[01;32mmarkup_demo.sh[0m  [01;32mterminal_renderer.sh[0m  [01;32mtui.sh[0m'
+[20:09:19] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:19] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:19] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:19] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:19] [debug] _exec_render_output() called
+[20:09:28] [debug] Sending input: [REDACTED]
+[20:09:28] [debug] _exec_render_output() called
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '[?2004ltotal 204'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '[?2004ltotal 204'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '[?2004ltotal 204'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '[?2004ltotal 204'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rw-r--r-- 1 dino dino 38972  8. Sep 20:09 .tui_exec.log'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rw-r--r-- 1 dino dino 38972  8. Sep 20:09 .tui_exec.log'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rw-r--r-- 1 dino dino 38972  8. Sep 20:09 .tui_exec.log'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rw-r--r-- 1 dino dino 38972  8. Sep 20:09 .tui_exec.log'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:09:28] [debug] _exec_is_line_clear() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:09:28] [debug] _exec_strip_ansi() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:09:28] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:28] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:28] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:28] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:28] [debug] _exec_render_output() called
+[20:09:52] [info] tui.exec() initiating command: 'bash'
+[20:09:52] [debug] _exec_remove_widgets() called
+[20:09:52] [debug] _exec_setup_controls() called
+[20:09:52] [debug] _exec_render_status() called
+[20:09:53] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:53] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:53] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:53] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:09:53] [debug] _exec_render_output() called
+[20:10:40] [debug] Sending input: [REDACTED]
+[20:10:40] [debug] _exec_render_output() called
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '[?2004lls -la; echo "Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo "test"; done!";'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '[?2004lls -la; echo "Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo "test"; done!";'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '[?2004lls -la; echo "Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo "test"; done!";'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '[?2004lls -la; echo "Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo "test"; done!";'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: 'total 212'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: 'total 212'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: 'total 212'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: 'total 212'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: 'drwxr-xr-x 1 dino dino   292  8. Sep 20:09 [0m[01;34m.[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: 'drwxr-xr-x 1 dino dino    60  8. Sep 17:06 [01;34m..[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino   582  6. Sep 18:00 [01;32mcallbacks.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino  1035  4. Sep 16:34 [01;32mcolors.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino   181  8. Sep 17:56 [01;32mmarkup_demo.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino  4303  5. Sep 14:51 [01;32mmouse_integration.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 38079  6. Sep 14:41 [01;32mterminal_controls.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 32573  6. Sep 14:50 [01;32mterminal_renderer.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino   219  8. Sep 17:57 [01;32mtest.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rw-r--r-- 1 dino dino 47691  8. Sep 20:10 .tui_exec.log'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rw-r--r-- 1 dino dino 47691  8. Sep 20:10 .tui_exec.log'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rw-r--r-- 1 dino dino 47691  8. Sep 20:10 .tui_exec.log'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rw-r--r-- 1 dino dino 47691  8. Sep 20:10 .tui_exec.log'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 13229  8. Sep 19:43 [01;32mtui_markup.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rwxr-xr-x 1 dino dino 47230  8. Sep 20:08 [01;32mtui.sh[0m'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: '-rw-r--r-- 1 dino dino  3086  8. Sep 18:41 tui_style.sh'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: 'Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo test; done!'
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: 'Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo test; done!'
+[20:10:40] [debug] _exec_is_line_clear() called with raw: 'Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo test; done!'
+[20:10:40] [debug] _exec_strip_ansi() called with raw: 'Welcome to the world of bash tuis. Actually usabel suprisinglywhile true; do echo test; done!'
+[20:10:40] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:10:40] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:10:40] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:10:40] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:10:40] [debug] _exec_render_output() called
+[20:13:11] [debug] tui.run() starting
+[20:13:11] [debug] tui.run() rendered
+[20:14:36] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:14:36] [debug] Received resize event: recalculating layout and redrawing
+[20:18:01] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:01] [debug] Received resize event: recalculating layout and redrawing
+[20:18:37] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:37] [debug] Received resize event: recalculating layout and redrawing
+[20:18:46] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:46] [debug] Received resize event: recalculating layout and redrawing
+[20:18:46] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:47] [debug] Received resize event: recalculating layout and redrawing
+[20:18:48] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:48] [debug] Received resize event: recalculating layout and redrawing
+[20:18:48] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:48] [debug] Received resize event: recalculating layout and redrawing
+[20:18:49] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:49] [debug] Received resize event: recalculating layout and redrawing
+[20:18:50] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:51] [debug] Received resize event: recalculating layout and redrawing
+[20:18:51] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:51] [debug] Received resize event: recalculating layout and redrawing
+[20:18:52] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:52] [debug] Received resize event: recalculating layout and redrawing
+[20:18:53] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:53] [debug] Received resize event: recalculating layout and redrawing
+[20:18:53] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:53] [debug] Received resize event: recalculating layout and redrawing
+[20:18:54] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:54] [debug] Received resize event: recalculating layout and redrawing
+[20:18:56] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:56] [debug] Received resize event: recalculating layout and redrawing
+[20:18:57] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:57] [debug] Received resize event: recalculating layout and redrawing
+[20:18:58] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:58] [debug] Received resize event: recalculating layout and redrawing
+[20:18:59] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:59] [debug] Received resize event: recalculating layout and redrawing
+[20:18:59] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:18:59] [debug] Received resize event: recalculating layout and redrawing
+[20:19:00] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:00] [debug] Received resize event: recalculating layout and redrawing
+[20:19:01] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:01] [debug] Received resize event: recalculating layout and redrawing
+[20:19:01] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:01] [debug] Received resize event: recalculating layout and redrawing
+[20:19:02] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:02] [debug] Received resize event: recalculating layout and redrawing
+[20:19:03] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:03] [debug] Received resize event: recalculating layout and redrawing
+[20:19:03] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:03] [debug] Received resize event: recalculating layout and redrawing
+[20:19:04] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:04] [debug] Received resize event: recalculating layout and redrawing
+[20:19:04] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:04] [debug] Received resize event: recalculating layout and redrawing
+[20:19:05] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:05] [debug] Received resize event: recalculating layout and redrawing
+[20:19:06] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:06] [debug] Received resize event: recalculating layout and redrawing
+[20:19:06] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:06] [debug] Received resize event: recalculating layout and redrawing
+[20:19:08] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:08] [debug] Received resize event: recalculating layout and redrawing
+[20:19:09] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:09] [debug] Received resize event: recalculating layout and redrawing
+[20:19:09] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:09] [debug] Received resize event: recalculating layout and redrawing
+[20:19:10] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:19:25] [debug] tui.run() starting
+[20:19:26] [debug] tui.run() rendered
+[20:19:29] [info] tui.exec() initiating command: 'bash'
+[20:19:29] [debug] _exec_remove_widgets() called
+[20:19:29] [debug] _exec_setup_controls() called
+[20:19:29] [debug] _exec_render_status() called
+[20:19:29] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:29] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:29] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:29] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:29] [debug] _exec_render_output() called
+[20:19:32] [info] tui.exec() initiating command: 'bash'
+[20:19:32] [debug] _exec_remove_widgets() called
+[20:19:32] [debug] _exec_setup_controls() called
+[20:19:32] [debug] _exec_render_status() called
+[20:19:32] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:32] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:32] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:32] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:19:32] [debug] _exec_render_output() called
+[20:21:39] [info] tui.exec() initiating command: 'bash'
+[20:21:39] [debug] _exec_remove_widgets() called
+[20:21:39] [debug] _exec_setup_controls() called
+[20:21:39] [debug] _exec_render_status() called
+[20:21:39] [debug] _exec_is_screen_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:21:39] [debug] _exec_is_alt_buffer_toggle() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:21:39] [debug] _exec_is_line_clear() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:21:39] [debug] _exec_strip_ansi() called with raw: ']0;dino@cachyos-x8664:~/DinosAmazingScripts/DinosAmazingBashTui/bin[?2004h[dino@cachyos-x8664 bin]$ '
+[20:21:39] [debug] _exec_render_output() called
+[20:21:45] [debug] tui.run() starting
+[20:21:45] [debug] tui.run() rendered
+[20:32:53] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:32:53] [debug] Received resize event: recalculating layout and redrawing
+[20:36:43] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:36:43] [debug] Received resize event: recalculating layout and redrawing
+[20:36:44] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:36:44] [debug] Received resize event: recalculating layout and redrawing
+[20:36:46] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:36:46] [debug] Received resize event: recalculating layout and redrawing
+[20:36:47] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:36:47] [debug] Received resize event: recalculating layout and redrawing
+[20:36:49] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:36:49] [debug] Received resize event: recalculating layout and redrawing
+[20:36:53] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:36:53] [debug] Received resize event: recalculating layout and redrawing
+[20:37:26] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:37:26] [debug] Received resize event: recalculating layout and redrawing
+[20:37:28] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:37:28] [debug] Received resize event: recalculating layout and redrawing
+[20:41:32] [debug] tui.run() starting
+[20:41:32] [debug] tui.run() rendered
+[20:41:34] [debug] tui.run detected terminal resize: setting _TUI_RESIZED=1
+[20:41:34] [debug] Received resize event: recalculating layout and redrawing

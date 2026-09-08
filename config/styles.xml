@@ -1,0 +1,31 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="demo_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="78">
+      <pane id="buttons_demo"  weight="30" title="Button classes" class="panel"/>
+      <pane id="swatches_demo" weight="45" title="Color swatches" class="panel"/>
+      <pane id="pane_bg_demo"  weight="25" border="none" class="swatch_blue"/>
+    </pane>
+  </pane>
+
+  <button id="btn_style_info"    pane="buttons_demo" row="0" text="[ Info    ]"    action="on_noop" class="info_button"    align="fill"/>
+  <button id="btn_style_success" pane="buttons_demo" row="1" text="[ Success ]" action="on_noop" class="success_button" align="fill"/>
+  <button id="btn_style_warning" pane="buttons_demo" row="2" text="[ Warning ]" action="on_noop" class="warning_button" align="fill"/>
+  <button id="btn_style_danger"  pane="buttons_demo" row="3" text="[ Danger  ]"  action="on_noop" class="danger_button"  align="fill"/>
+
+  <label id="lbl_swatch_red"     pane="swatches_demo" row="0" text="  #e53e3e  swatch_red"     class="swatch_red"     align="fill"/>
+  <label id="lbl_swatch_green"   pane="swatches_demo" row="1" text="  #38a169  swatch_green"   class="swatch_green"   align="fill"/>
+  <label id="lbl_swatch_blue"    pane="swatches_demo" row="2" text="  #3182ce  swatch_blue"    class="swatch_blue"    align="fill"/>
+  <label id="lbl_swatch_yellow"  pane="swatches_demo" row="3" text="  #ecc94b  swatch_yellow"  class="swatch_yellow"  align="fill"/>
+  <label id="lbl_swatch_magenta" pane="swatches_demo" row="4" text="  #d53f8c  swatch_magenta" class="swatch_magenta" align="fill"/>
+  <label id="lbl_swatch_cyan"    pane="swatches_demo" row="5" text="  #319795  swatch_cyan" align="fill"/>
+
+  <!-- border="none" pane painted entirely via its class; the label below has
+       no class/bg of its own, so it inherits the pane's bg+fg automatically -->
+  <label id="lbl_pane_bg_demo" pane="pane_bg_demo" row="1" text="  This whole pane is background-colored via class=\"swatch_blue\" — this label inherits it." align="center"/>
+
+  <include src="_nav.xml"/>
+</tui>

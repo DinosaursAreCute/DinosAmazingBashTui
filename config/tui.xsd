@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <!-- Schema for the tui_markup.sh declarative TUI format. Not enforced at
+       parse time (the loader is a lightweight bash regex parser) — this file
+       exists purely so editors can offer autocompletion/validation. -->
+
+  <xs:simpleType name="alignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="right"/>
+      <xs:enumeration value="fill"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="valignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="top"/>
+      <xs:enumeration value="middle"/>
+      <xs:enumeration value="bottom"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="splitType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="h"/>
+      <xs:enumeration value="v"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="borderType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="single"/>
+      <xs:enumeration value="double"/>
+      <xs:enumeration value="heavy"/>
+      <xs:enumeration value="none"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="tui">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="script"/>
+        <xs:element ref="theme"/>
+        <xs:element ref="include"/>
+        <xs:element ref="pane"/>
+        <xs:element ref="label"/>
+        <xs:element ref="input"/>
+        <xs:element ref="button"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="script">
+    <xs:complexType>
+      <xs:attribute name="src" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="theme">
+    <xs:complexType>
+      <xs:attribute name="src" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="include">
+    <xs:complexType>
+      <xs:attribute name="src" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="pane">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="pane"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="split" type="splitType"/>
+      <xs:attribute name="weight" type="xs:positiveInteger"/>
+      <xs:attribute name="title" type="xs:string"/>
+      <xs:attribute name="border" type="borderType"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_height" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="class" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="label">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="pane" type="xs:string" use="required"/>
+      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="text" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="class" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="input">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="pane" type="xs:string" use="required"/>
+      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="label" type="xs:string"/>
+      <xs:attribute name="placeholder" type="xs:string"/>
+      <xs:attribute name="submit" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="label_align" type="alignType"/>
+      <xs:attribute name="label_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="class" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="button">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="pane" type="xs:string" use="required"/>
+      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="text" type="xs:string"/>
+      <xs:attribute name="action" type="xs:string"/>
+      <xs:attribute name="page" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="class" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

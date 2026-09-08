@@ -1,0 +1,112 @@
+/* theme.css — CSS-like stylesheet for tui.sh, loaded via <theme src="theme.css"/>.
+ * fg/bg: a colors.sh name (e.g. red) or a #RRGGBB hex value.
+ * mods: space-separated style.* modifiers (e.g. bold underline).
+ * :focus/:border/:title are optional pseudo-state variants of a class.
+ */
+
+.danger_button {
+  fg: white;
+  bg: #b00020;
+  mods: bold;
+}
+.danger_button:focus {
+  fg: white;
+  bg: #ff3333;
+  mods: bold;
+}
+
+.success_button {
+  fg: black;
+  bg: #33cc66;
+  mods: bold;
+}
+.success_button:focus {
+  fg: black;
+  bg: #66ff99;
+  mods: bold;
+}
+
+.muted_label {
+  fg: #888888;
+}
+
+/* Pane background colors: "normal" fills the content area, "border"/"title"
+ * color the frame — labels/inputs/buttons inside inherit fg+bg from the
+ * pane's "normal" state whenever they don't set their own. */
+.panel {
+  fg: #c9d6e3;
+  bg: #1c2336;
+}
+.panel:border {
+  fg: #61afef;
+}
+.panel:title {
+  fg: #61afef;
+  mods: bold;
+}
+
+.sidebar {
+  fg: #dbe4ff;
+  bg: #1a1c2c;
+}
+.sidebar:border {
+  fg: #61afef;
+}
+.sidebar:title {
+  fg: #61afef;
+  mods: bold;
+}
+
+.info_button {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+.info_button:focus {
+  fg: white;
+  bg: #4299e1;
+  mods: bold;
+}
+
+.warning_button {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+.warning_button:focus {
+  fg: black;
+  bg: #f6e05e;
+  mods: bold;
+}
+
+.swatch_red     { fg: white; bg: #e53e3e; }
+.swatch_green   { fg: black; bg: #38a169; }
+.swatch_blue    { fg: white; bg: #3182ce; }
+.swatch_yellow  { fg: black; bg: #ecc94b; }
+.swatch_magenta { fg: white; bg: #d53f8c; }
+.swatch_cyan    { fg: black; bg: #319795; }
+
+.nav_link {
+  fg: #83f5f0;
+  bg: #1a1c2c;
+}
+.nav_link:focus {
+  fg: #01484e;
+  bg: #ff93f4;
+  mods: bold;
+}
+
+.brand {
+  fg: #ed61c8;
+  mods: bold;
+}
+
+.panes {
+  fg: #c9d6e3;
+  bg: #1a1c2c;
+}
+
+.test {
+  fg: #c9d6e3;
+  bg: #1a1c2c;
+}

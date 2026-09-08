@@ -1,0 +1,22 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="demo_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
+    <pane id="output" weight="78" title="Forms Demo" class="panel"/>
+  </pane>
+
+  <label id="lbl_appearance" pane="output" row="0" text="Appearance settings" class="brand"/>
+  <input id="inp_theme" pane="output" row="2" label="Theme:" label_width="10" label_align="left" placeholder="Theme name" submit="on_theme_apply"/>
+  <input id="inp_font"  pane="output" row="3" label="Font:"  label_width="10" label_align="left" placeholder="Font name"  submit="on_theme_apply"/>
+  <button id="btn_apply"  pane="output" row="5" text="[ Apply ]" action="on_theme_apply" class="success_button" align="fill"/>
+  <button id="btn_reset"  pane="output" row="6" text="[ Reset ]" action="on_reset"       class="danger_button"  align="fill"/>
+
+  <label id="out1" pane="output" row="8" text=""/>
+  <label id="out2" pane="output" row="9" text=""/>
+  <label id="out3" pane="output" row="10" text=""/>
+
+  <include src="_nav.xml"/>
+</tui>
+

@@ -19,6 +19,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/terminal_controls.sh"
 source "${SCRIPT_DIR}/colors.sh"
+source "${SCRIPT_DIR}/tui_markup.sh"
+source "${SCRIPT_DIR}/tui_style.sh"
 
 # ═══════════════════════════════════════════════════════════════════════
 #  INTERNAL STATE (UI & LAYOUT)
@@ -31,7 +33,12 @@ declare -gA _TUI_P_CHILDREN=()
 declare -gA _TUI_P_WEIGHTS=()  
 declare -gA _TUI_P_TITLE=()    
 declare -gA _TUI_P_BORDER=()   
+declare -gA _TUI_P_ALIGN=()    
+declare -gA _TUI_P_VALIGN=()   
+declare -gA _TUI_P_MINW=() _TUI_P_MINH=()
+declare -gA _TUI_P_MAXW=() _TUI_P_MAXH=()
 declare -ga _TUI_P_LEAVES=()
+declare -ga _TUI_P_ALL=()
 
 declare -gA _TUI_W_TYPE=()     
 declare -gA _TUI_W_PANE=()     
@@ -39,7 +46,13 @@ declare -gA _TUI_W_ROW=()
 declare -gA _TUI_W_LABEL=()    
 declare -gA _TUI_W_VALUE=()    
 declare -gA _TUI_W_ACTION=()   
+declare -gA _TUI_W_SUBMIT=()  
 declare -gA _TUI_W_PH=()       
+declare -gA _TUI_W_ALIGN=()    
+declare -gA _TUI_W_VALIGN=()   
+declare -gA _TUI_W_MINW=() _TUI_W_MAXW=()
+declare -gA _TUI_W_LABEL_ALIGN=()
+declare -gA _TUI_W_LABEL_WIDTH=()
 declare -ga _TUI_W_ORDER=()    
 declare -ga _TUI_FOCUSABLE=()  
 
@@ -50,7 +63,7 @@ declare -g  _TUI_RUNNING=0
 declare -g  _TUI_OLD_STTY=""
 declare -g  _TUI_ROWS=0
 declare -g  _TUI_COLS=0
-declare -g  _WSR=0 _WSC=0 _WSW=0
+declare -g  _WSR=0 _WSC=0 _WSW=0 _WSW_AVAIL=0
 declare -g  _HIT=""
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -108,6 +121,7 @@ tui.init() {
     _TUI_P_BORDER[root]="single"
     _TUI_P_TITLE[root]=""
     _TUI_P_LEAVES=(root)
+    _TUI_P_ALL=(root)
 }
 
 _kill_process_tree() {
@@ -186,11 +200,16 @@ _tui._split() {
     _tui._layout "$parent"
 
     _TUI_P_LEAVES=()
+    _TUI_P_ALL=()
     _tui._collect_leaves "root"
 }
 
+# Pre-order traversal: records every pane (containers and leaves alike) in
+# _TUI_P_ALL so containers can be background-painted too, and every leaf in
+# _TUI_P_LEAVES for full border/title/content drawing.
 _tui._collect_leaves() {
     local id="$1"
+    _TUI_P_ALL+=("$id")
     if [[ -z "${_TUI_P_CHILDREN[$id]:-}" ]]; then
         _TUI_P_LEAVES+=("$id")
     else
@@ -222,6 +241,7 @@ _tui._layout() {
         if [[ "$dir" == "h" ]]; then
             local cw=$(( pw * w / total ))
             (( i == last )) && cw=$(( pw - offset ))
+            [[ -n "${_TUI_P_MAXW[$name]:-}" ]] && (( cw > _TUI_P_MAXW[$name] )) && cw=${_TUI_P_MAXW[$name]}
             _TUI_P_ROW[$name]=$pr
             _TUI_P_COL[$name]=$(( pc + offset ))
             _TUI_P_H[$name]=$ph
@@ -230,6 +250,7 @@ _tui._layout() {
         else
             local ch_h=$(( ph * w / total ))
             (( i == last )) && ch_h=$(( ph - offset ))
+            [[ -n "${_TUI_P_MAXH[$name]:-}" ]] && (( ch_h > _TUI_P_MAXH[$name] )) && ch_h=${_TUI_P_MAXH[$name]}
             _TUI_P_ROW[$name]=$(( pr + offset ))
             _TUI_P_COL[$name]=$pc
             _TUI_P_H[$name]=$ch_h
@@ -241,8 +262,13 @@ _tui._layout() {
     done
 }
 
-tui.pane_title()  { _TUI_P_TITLE[$1]="$2"; }
-tui.pane_border() { _TUI_P_BORDER[$1]="$2"; }
+tui.pane_title()   { _TUI_P_TITLE[$1]="$2"; }
+tui.pane_border()  { _TUI_P_BORDER[$1]="$2"; }
+# Empty values are no-ops so an unset/blank attribute keeps built-in defaults in effect.
+tui.pane_align()   { [[ -n "$2" ]] && _TUI_P_ALIGN[$1]="$2"; }
+tui.pane_valign()  { [[ -n "$2" ]] && _TUI_P_VALIGN[$1]="$2"; }
+tui.pane_minsize() { [[ -n "$2" ]] && _TUI_P_MINW[$1]="$2"; [[ -n "$3" ]] && _TUI_P_MINH[$1]="$3"; }
+tui.pane_maxsize() { [[ -n "$2" ]] && _TUI_P_MAXW[$1]="$2"; [[ -n "$3" ]] && _TUI_P_MAXH[$1]="$3"; }
 
 # ═══════════════════════════════════════════════════════════════════════
 #  WIDGETS
@@ -250,6 +276,10 @@ tui.pane_border() { _TUI_P_BORDER[$1]="$2"; }
 
 tui.label() {
     local id="$1"
+    if [[ -z "$id" || -z "$2" ]]; then
+        echo "tui.label: missing id or pane, skipping widget" >&2
+        return 1
+    fi
     _TUI_W_TYPE[$id]="label"
     _TUI_W_PANE[$id]="$2"
     _TUI_W_ROW[$id]="$3"
@@ -260,6 +290,10 @@ tui.label() {
 
 tui.button() {
     local id="$1"
+    if [[ -z "$id" || -z "$2" ]]; then
+        echo "tui.button: missing id or pane, skipping widget" >&2
+        return 1
+    fi
     _TUI_W_TYPE[$id]="button"
     _TUI_W_PANE[$id]="$2"
     _TUI_W_ROW[$id]="$3"
@@ -272,6 +306,11 @@ tui.button() {
 
 tui.input() {
     local id="$1"
+    if [[ -z "$id" || -z "$2" ]]; then
+        echo "tui.input: missing id or pane, skipping widget" >&2
+        return 1
+    fi
+    local submit_fn="${6:-}"
     _TUI_W_TYPE[$id]="input"
     _TUI_W_PANE[$id]="$2"
     _TUI_W_ROW[$id]="$3"
@@ -279,14 +318,23 @@ tui.input() {
     _TUI_W_LABEL[$id]="${5:-}"
     _TUI_W_VALUE[$id]=""
     _TUI_W_ACTION[$id]=""
+    _TUI_W_SUBMIT[$id]="${submit_fn}"
     _TUI_W_ORDER+=("$id")
     _TUI_FOCUSABLE+=("$id")
 }
 
-tui.get()       { printf '%s' "${_TUI_W_VALUE[$1]:-}"; }
-tui.set()       { _TUI_W_VALUE[$1]="$2"; }
-tui.update()    { _TUI_W_VALUE[$1]="$2"; _tui._draw_widget "$1"; }
-tui.on_action() { _TUI_W_ACTION[$1]="$2"; }
+tui.get()          { printf '%s' "${_TUI_W_VALUE[$1]:-}"; }
+tui.set()          { _TUI_W_VALUE[$1]="$2"; }
+tui.update()       { _TUI_W_VALUE[$1]="$2"; _tui._draw_widget "$1"; }
+tui.on_action()    { _TUI_W_ACTION[$1]="$2"; }
+tui.on_submit()    { _TUI_W_SUBMIT[$1]="$2"; }
+# Empty values are no-ops so an unset/blank attribute keeps built-in defaults in effect.
+tui.align()        { [[ -n "$2" ]] && _TUI_W_ALIGN[$1]="$2"; }
+tui.valign()       { [[ -n "$2" ]] && _TUI_W_VALIGN[$1]="$2"; }
+tui.minsize()      { [[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"; }
+tui.maxsize()      { [[ -n "$2" ]] && _TUI_W_MAXW[$1]="$2"; }
+tui.label_align()  { [[ -n "$2" ]] && _TUI_W_LABEL_ALIGN[$1]="$2"; }
+tui.label_width()  { [[ -n "$2" ]] && _TUI_W_LABEL_WIDTH[$1]="$2"; }
 
 # ═══════════════════════════════════════════════════════════════════════
 #  GEOMETRY & RENDERING
@@ -299,22 +347,91 @@ _tui._repeat() {
     printf '%s' "${out// /$ch}"
 }
 
+# Effective alignment for a widget: its own override, else its pane's default,
+# else a per-type default (buttons center, everything else left).
+_tui._widget_align() {
+    local id="$1" pane="${_TUI_W_PANE[$1]}" default="left"
+    [[ "${_TUI_W_TYPE[$1]}" == "button" ]] && default="center"
+    printf '%s' "${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[$pane]:-$default}}"
+}
+
+# Effective vertical alignment for a widget: its own override, else its pane's default, else "top".
+_tui._widget_valign() {
+    local id="$1" pane="${_TUI_W_PANE[$1]}"
+    printf '%s' "${_TUI_W_VALIGN[$id]:-${_TUI_P_VALIGN[$pane]:-top}}"
+}
+
+# Left-padding (in columns) to align content_len within width, for align in left|center|right.
+# "fill" is handled separately by callers (it doesn't just pad, it colors the whole row).
+_tui._align_pad() {
+    local align="$1" content_len="$2" width="$3" pad=0
+    case "$align" in
+        center) pad=$(( (width - content_len) / 2 )) ;;
+        right)  pad=$(( width - content_len )) ;;
+        *)      pad=0 ;;
+    esac
+    (( pad < 0 )) && pad=0
+    printf '%s' "$pad"
+}
+
+# Expands ${command args…} runtime expressions embedded in text, e.g.
+# text="${terminal_renderer.sh divider 'hi'}" runs that command (with the
+# tui.sh bin/ dir on PATH) and substitutes its stdout. Re-evaluated on every
+# redraw, so pair with tui.redraw to refresh dynamic content on demand.
+_tui._resolve_text() {
+    local text="$1" out="" pre expr result
+    local rest="$text"
+    while [[ "$rest" == *'${'*'}'* ]]; do
+        pre="${rest%%\$\{*}"
+        rest="${rest#*\$\{}"
+        expr="${rest%%\}*}"
+        rest="${rest#*\}}"
+        result="$(PATH="${SCRIPT_DIR:-.}:$PATH" eval "$expr" 2>/dev/null)"
+        out+="${pre}${result}"
+    done
+    out+="$rest"
+    printf '%s' "$out"
+}
+
+# True (0) if a pane is smaller than its declared min_width/min_height.
+_tui._pane_too_small() {
+    local id="$1"
+    local minw="${_TUI_P_MINW[$id]:-0}" minh="${_TUI_P_MINH[$id]:-0}"
+    local w=${_TUI_P_W[$id]:-0} h=${_TUI_P_H[$id]:-0}
+    (( minw > 0 && w < minw )) && return 0
+    (( minh > 0 && h < minh )) && return 0
+    return 1
+}
+
 _tui._widget_pos() {
     local pane="${_TUI_W_PANE[$1]}"
     local wrow="${_TUI_W_ROW[$1]}"
     local pr=${_TUI_P_ROW[$pane]}  pc=${_TUI_P_COL[$pane]}
-    local pw=${_TUI_P_W[$pane]}
+    local pw=${_TUI_P_W[$pane]}    ph=${_TUI_P_H[$pane]}
     local border="${_TUI_P_BORDER[$pane]:-single}"
+    local content_top content_h
 
     if [[ "$border" == "none" ]]; then
-        _WSR=$(( pr + wrow ))
+        content_top=$pr; content_h=$ph
         _WSC=$(( pc + 1 ))
         _WSW=$(( pw - 2 ))
     else
-        _WSR=$(( pr + 1 + wrow ))
+        content_top=$(( pr + 1 )); content_h=$(( ph - 2 ))
         _WSC=$(( pc + 2 ))
         _WSW=$(( pw - 4 ))
     fi
+    (( _WSW < 1 )) && _WSW=1
+    (( content_h < 1 )) && content_h=1
+
+    case "$(_tui._widget_valign "$1")" in
+        middle) _WSR=$(( content_top + content_h / 2 + wrow )) ;;
+        bottom) _WSR=$(( content_top + content_h - 1 - wrow )) ;;
+        *)      _WSR=$(( content_top + wrow )) ;;
+    esac
+
+    _WSW_AVAIL=$_WSW
+    local maxw="${_TUI_W_MAXW[$1]:-}"
+    if [[ -n "$maxw" ]] && (( _WSW > maxw )); then _WSW=$maxw; fi
     (( _WSW < 1 )) && _WSW=1
 }
 
@@ -328,13 +445,45 @@ tui.content_area() {
     fi
 }
 
+# Fills an RxC box with a "min space = WxH" warning when available space is below a declared minimum.
+_tui._draw_size_warning() {
+    local r="$1" c="$2" h="$3" w="$4" minw="$5" minh="$6"
+    (( h < 1 )) && h=1
+    (( w < 1 )) && w=1
+
+    style.reset; style.bold; fg.hex "FF3333" 2>/dev/null
+    local blank; printf -v blank '%*s' "$w" ""
+    local row
+    for (( row = 0; row < h; row++ )); do
+        cur.goto $(( r + row )) "$c"
+        echo -n "$blank"
+    done
+
+    local msg="min space = ${minw}x${minh}"
+    local shown="${msg:0:$w}"
+    local pad=$(( (w - ${#shown}) / 2 ))
+    (( pad < 0 )) && pad=0
+    cur.goto $(( r + h / 2 )) $(( c + pad ))
+    echo -n "$shown"
+    style.reset
+}
+
 # ── Style Applier ──
+# _tui._apply_style KEY [FALLBACK_KEY] — applies fg/bg/mods for KEY, falling
+# back to FALLBACK_KEY's fg/bg/mods for whichever of those KEY doesn't set
+# (e.g. a widget with no bg of its own inherits its pane's background).
 _tui._apply_style() {
-    local key="$1"
+    local key="$1" fallback="${2:-}"
     local fg="${_TUI_STYLE_FG[$key]:-}"
     local bg="${_TUI_STYLE_BG[$key]:-}"
     local mods="${_TUI_STYLE_MOD[$key]:-}"
-    
+
+    if [[ -n "$fallback" ]]; then
+        [[ -z "$fg" ]]   && fg="${_TUI_STYLE_FG[$fallback]:-}"
+        [[ -z "$bg" ]]   && bg="${_TUI_STYLE_BG[$fallback]:-}"
+        [[ -z "$mods" ]] && mods="${_TUI_STYLE_MOD[$fallback]:-}"
+    fi
+
     if [[ -n "$fg" ]]; then
         if [[ "$fg" == \#* ]]; then fg.hex "$fg"; else "fg.$fg" 2>/dev/null; fi
     fi
@@ -346,6 +495,24 @@ _tui._apply_style() {
     fi
 }
 
+# Paints a pane's content area with its "${id}_normal" fg/bg/mods (used for
+# border="none" panes, which have no border/title rows to draw instead).
+_tui._fill_pane_bg() {
+    local id="$1" r="$2" c="$3" h="$4" w="$5"
+    local key="${id}_normal"
+    [[ -z "${_TUI_STYLE_FG[$key]:-}${_TUI_STYLE_BG[$key]:-}${_TUI_STYLE_MOD[$key]:-}" ]] && return
+    (( h < 1 )) && h=1
+    (( w < 1 )) && w=1
+    local blank; printf -v blank '%*s' "$w" ""
+    _tui._apply_style "$key"
+    local row
+    for (( row = 0; row < h; row++ )); do
+        cur.goto $(( r + row )) "$c"
+        echo -n "$blank"
+    done
+    style.reset
+}
+
 _tui._draw_pane() {
     local id="$1"
     local r=${_TUI_P_ROW[$id]}  c=${_TUI_P_COL[$id]}
@@ -353,7 +520,15 @@ _tui._draw_pane() {
     local border="${_TUI_P_BORDER[$id]:-single}"
     local title="${_TUI_P_TITLE[$id]:-}"
 
-    [[ "$border" == "none" ]] && return
+    if _tui._pane_too_small "$id"; then
+        _tui._draw_size_warning "$r" "$c" "$h" "$w" "${_TUI_P_MINW[$id]:-0}" "${_TUI_P_MINH[$id]:-0}"
+        return
+    fi
+
+    if [[ "$border" == "none" ]]; then
+        _tui._fill_pane_bg "$id" "$r" "$c" "$h" "$w"
+        return
+    fi
 
     local tl tr bl br hz vt
     case "$border" in
@@ -387,56 +562,101 @@ _tui._draw_pane() {
     else
         echo -n "${tl}$(_tui._repeat "$hz" "$inner")${tr}"
     fi
+    style.reset
 
     local blank
     printf -v blank '%*s' "$inner" ""
     for (( row = 1; row < h - 1; row++ )); do
         cur.goto $(( r + row )) "$c"
-        echo -n "${vt}${blank}${vt}"
+        _tui._apply_style "${id}_border"; echo -n "$vt"; style.reset
+        _tui._apply_style "${id}_normal"; echo -n "$blank"; style.reset
+        _tui._apply_style "${id}_border"; echo -n "$vt"; style.reset
     done
 
     cur.goto $(( r + h - 1 )) "$c"
+    _tui._apply_style "${id}_border"
     echo -n "${bl}$(_tui._repeat "$hz" "$inner")${br}"
     style.reset
 }
 
 _tui._draw_widget() {
     local id="$1"
-    local type="${_TUI_W_TYPE[$id]}"
+    local type="${_TUI_W_TYPE[$id]:-}"
+    [[ -z "$type" ]] && return
     local focused=0
     [[ "$_TUI_FOCUS_ID" == "$id" ]] && focused=1
 
+    _tui._pane_too_small "${_TUI_W_PANE[$id]}" && return
+
     _tui._widget_pos "$id"
     local sr=$_WSR sc=$_WSC sw=$_WSW
+
+    local minw="${_TUI_W_MINW[$id]:-0}"
+    if (( minw > 0 && _WSW_AVAIL < minw )); then
+        cur.goto "$sr" "$sc"
+        printf '%*s' "$_WSW_AVAIL" ""
+        cur.goto "$sr" "$sc"
+        style.reset; style.bold; fg.hex "FF3333" 2>/dev/null
+        printf '%.*s' "$_WSW_AVAIL" "min space = ${minw}"
+        style.reset
+        return
+    fi
 
     cur.goto "$sr" "$sc"
     printf '%*s' "$sw" ""
     cur.goto "$sr" "$sc"
 
-    # Determine which style key to use
+    # Determine which style key to use; falls back to the pane's own
+    # background/foreground so widgets inherit their pane's coloring.
+    local pane_id="${_TUI_W_PANE[$id]}"
+    local pane_key="${pane_id}_normal"
     local style_key="${id}_normal"
     (( focused )) && style_key="${id}_focus"
 
     case "$type" in
         label)
-            _tui._apply_style "$style_key"
-            echo -n "${_TUI_W_VALUE[$id]:0:$sw}"
+            local calign; calign="$(_tui._widget_align "$id")"
+            local text; text="$(_tui._resolve_text "${_TUI_W_VALUE[$id]}")"
+            text="${text:0:$sw}"
+            _tui._apply_style "$style_key" "$pane_key"
+            if [[ "$calign" == "fill" ]]; then
+                local pad=$(( (sw - ${#text}) / 2 )); (( pad < 0 )) && pad=0
+                local rem=$(( sw - pad - ${#text} )); (( rem < 0 )) && rem=0
+                cur.goto "$sr" "$sc"
+                printf '%*s%s%*s' "$pad" "" "$text" "$rem" ""
+            else
+                cur.goto "$sr" "$sc"
+                printf '%*s' "$sw" ""
+                local pad; pad=$(_tui._align_pad "$calign" "${#text}" "$sw")
+                cur.goto "$sr" $(( sc + pad ))
+                echo -n "$text"
+            fi
             style.reset
             ;;
         button)
-            local lbl="${_TUI_W_LABEL[$id]}"
-            local pad=$(( (sw - ${#lbl}) / 2 ))
-            (( pad < 0 )) && pad=0
-            cur.goto "$sr" $(( sc + pad ))
-            
-            _tui._apply_style "$style_key"
+            local calign; calign="$(_tui._widget_align "$id")"
+            local lbl; lbl="$(_tui._resolve_text "${_TUI_W_LABEL[$id]}")"
+
+            _tui._apply_style "$style_key" "$pane_key"
             if (( focused )); then
                 # Fallback in case yaml didn't define a focus style
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" && -z "${_TUI_STYLE_BG[$style_key]:-}" ]] && style.reverse
             else
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" ]] && style.dim
             fi
-            echo -n "$lbl"
+
+            if [[ "$calign" == "fill" ]]; then
+                local pad=$(( (sw - ${#lbl}) / 2 )); (( pad < 0 )) && pad=0
+                local rem=$(( sw - pad - ${#lbl} )); (( rem < 0 )) && rem=0
+                cur.goto "$sr" "$sc"
+                printf '%*s%s%*s' "$pad" "" "$lbl" "$rem" ""
+            else
+                cur.goto "$sr" "$sc"
+                printf '%*s' "$sw" ""
+                local pad; pad=$(_tui._align_pad "$calign" "${#lbl}" "$sw")
+                cur.goto "$sr" $(( sc + pad ))
+                echo -n "$lbl"
+            fi
             style.reset
             ;;
         input)
@@ -446,16 +666,23 @@ _tui._draw_widget() {
 
             local plen=0
             if [[ -n "$prefix" ]]; then
+                local lbox="${_TUI_W_LABEL_WIDTH[$id]:-$(( ${#prefix} + 1 ))}"
+                (( lbox < 1 )) && lbox=1
+                local lshown="${prefix:0:$lbox}"
+                local lpad; lpad=$(_tui._align_pad "${_TUI_W_LABEL_ALIGN[$id]:-left}" "${#lshown}" "$lbox")
+
                 style.bold
-                echo -n "${prefix} "
+                printf '%*s' "$lpad" ""
+                printf '%s' "$lshown"
+                printf '%*s' "$(( lbox - lpad - ${#lshown} ))" ""
                 style.reset
-                plen=$(( ${#prefix} + 1 ))
+                plen=$lbox
             fi
 
             local fw=$(( sw - plen ))       
             (( fw < 2 )) && fw=2
 
-            _tui._apply_style "$style_key"
+            _tui._apply_style "$style_key" "$pane_key"
             if (( focused )); then
                 local scroll=0
                 if (( _TUI_CURSOR >= fw )); then
@@ -465,7 +692,7 @@ _tui._draw_widget() {
 
                 style.underline
                 printf '%-*s' "$fw" "$visible"
-                style.reset; _tui._apply_style "$style_key"
+                style.reset; _tui._apply_style "$style_key" "$pane_key"
 
                 local cpos=$(( _TUI_CURSOR - scroll ))
                 cur.goto "$sr" $(( sc + plen + cpos ))
@@ -477,11 +704,11 @@ _tui._draw_widget() {
                 fi
             else
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" ]] && style.dim
-                if [[ -z "$value" ]]; then
-                    printf '%-*s' "$fw" "${placeholder:0:$fw}"
-                else
-                    printf '%-*s' "$fw" "${value:0:$fw}"
-                fi
+                local shown="${value:-$placeholder}"
+                shown="${shown:0:$fw}"
+                local pad; pad=$(_tui._align_pad "$(_tui._widget_align "$id")" "${#shown}" "$fw")
+                printf '%*s' "$pad" ""
+                printf '%-*s' "$(( fw - pad ))" "$shown"
             fi
             style.reset
             ;;
@@ -489,15 +716,32 @@ _tui._draw_widget() {
 }
 
 tui.render() {
+    # Build the whole frame in memory first, then write it in one burst —
+    # avoids the flicker of many small direct writes while the UI is drawn.
+    local buf
+    buf="$(
+        for pane in "${_TUI_P_ALL[@]}"; do
+            if [[ -n "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
+                # Container panes have no border/title of their own, but are
+                # still worth painting so their background shows through any
+                # gaps between their leaf children.
+                _tui._fill_pane_bg "$pane" "${_TUI_P_ROW[$pane]}" "${_TUI_P_COL[$pane]}" "${_TUI_P_H[$pane]}" "${_TUI_P_W[$pane]}"
+            else
+                _tui._draw_pane "$pane"
+            fi
+        done
+        for wid in "${_TUI_W_ORDER[@]}"; do
+            _tui._draw_widget "$wid"
+        done
+    )"
     mode.sync_start
-    for pane in "${_TUI_P_LEAVES[@]}"; do
-        _tui._draw_pane "$pane"
-    done
-    for wid in "${_TUI_W_ORDER[@]}"; do
-        _tui._draw_widget "$wid"
-    done
+    printf '%s' "$buf"
     mode.sync_end
 }
+
+# Force a full repaint on demand (e.g. after external state changes a
+# ${…}-templated label's output, or a resize).
+tui.redraw() { tui.render; }
 
 tui.clear_pane() {
     local id="$1"
@@ -724,6 +968,7 @@ _exec_setup_output_pane() {
 }
 
 _exec_setup_controls() {
+    tui.log.debug "_exec_setup_controls() called"
     local pane="$_EXEC_CTL_PANE"
 
     tui.label  "_xstat"    "$pane" 0 ""
@@ -740,6 +985,7 @@ _exec_setup_controls() {
 }
 
 _exec_remove_widgets() {
+    tui.log.debug "_exec_remove_widgets() called"
     local new_order=() new_focus=()
     for w in "${_TUI_W_ORDER[@]}"; do
         [[ "$w" == _x* ]] || new_order+=("$w")
@@ -753,6 +999,42 @@ _exec_remove_widgets() {
     [[ "${_TUI_FOCUS_ID:-}" == _x* ]] && _TUI_FOCUS_ID="" && _TUI_FOCUS_IDX=-1
 }
 
+_exec_strip_ansi() {
+    tui.log.debug "_exec_strip_ansi() called with raw: '$1'"
+    local raw="$1"
+  printf '%s' "$1" | awk '{
+    gsub(/\r/, "")
+    gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
+    gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
+    gsub(/\033[@A-Z\\\-_]/, "")
+    gsub(/\033P[^\033]*\033\\/, "")
+    printf "%s", $0
+  }'
+}
+
+_exec_is_screen_clear() {
+    tui.log.debug "_exec_is_screen_clear() called with raw: '$1'"
+    local raw="$1"
+    # Catch full-terminal reset / clear commands that would otherwise wipe the actual terminal.
+    [[ "$raw" == *$'\033c'* ]] || [[ "$raw" == *$'\033[H'* ]] || [[ "$raw" == *$'\033[J'* ]] || [[ "$raw" == *$'\033[2J'* ]]
+}
+
+_exec_is_alt_buffer_toggle() {
+    tui.log.debug "_exec_is_alt_buffer_toggle() called with raw: '$1'"
+    local raw="$1"
+    # Catch alternate-screen transitions used by whiptail/dialog/curses-style apps.
+    [[ "$raw" == *$'\033[?1049h'* ]] || [[ "$raw" == *$'\033[?1049l'* ]] ||
+    [[ "$raw" == *$'\033[?47h'* ]] || [[ "$raw" == *$'\033[?47l'* ]] ||
+    [[ "$raw" == *$'\033[?1047h'* ]] || [[ "$raw" == *$'\033[?1047l'* ]]
+}
+
+_exec_is_line_clear() {
+    tui.log.debug "_exec_is_line_clear() called with raw: '$1'"
+    local raw="$1"
+    # Catch line-clearing sequences like clear-to-end-of-line or clear-line, which should only affect one pane row.
+    [[ "$raw" == *$'\033[K'* ]] || [[ "$raw" == *$'\033[2K'* ]]
+}
+
 _exec_tick() {
     [[ "$_EXEC_STATUS" == "running" ]] || return
 
@@ -763,9 +1045,29 @@ _exec_tick() {
             tail -n +"$(( _EXEC_LAST_READ + 1 ))" "$_EXEC_OUTFILE" 2>/dev/null
         )
         if (( ${#new_lines[@]} > 0 )); then
-            _EXEC_BUF+=("${new_lines[@]}")
+            local raw_line clean_line
+            for raw_line in "${new_lines[@]}"; do
+                if _exec_is_screen_clear "$raw_line" || _exec_is_alt_buffer_toggle "$raw_line"; then
+                    _EXEC_BUF=()
+                    changed=1
+                    continue
+                fi
+
+                if _exec_is_line_clear "$raw_line"; then
+                    if (( ${#_EXEC_BUF[@]} > 0 )); then
+                        _EXEC_BUF[$(( ${#_EXEC_BUF[@]} - 1 ))]=""
+                        changed=1
+                    fi
+                    continue
+                fi
+
+                clean_line="$(_exec_strip_ansi "$raw_line")"
+                if [[ -n "$clean_line" ]]; then
+                    _EXEC_BUF+=("$clean_line")
+                    changed=1
+                fi
+            done
             (( _EXEC_LAST_READ += ${#new_lines[@]} ))
-            changed=1
         fi
     fi
 
@@ -777,7 +1079,30 @@ _exec_tick() {
         mapfile -t leftover < <(
             tail -n +"$(( _EXEC_LAST_READ + 1 ))" "$_EXEC_OUTFILE" 2>/dev/null
         )
-        (( ${#leftover[@]} > 0 )) && _EXEC_BUF+=("${leftover[@]}")
+        if (( ${#leftover[@]} > 0 )); then
+            local raw_line clean_line
+            for raw_line in "${leftover[@]}"; do
+                if _exec_is_screen_clear "$raw_line" || _exec_is_alt_buffer_toggle "$raw_line"; then
+                    _EXEC_BUF=()
+                    changed=1
+                    continue
+                fi
+
+                if _exec_is_line_clear "$raw_line"; then
+                    if (( ${#_EXEC_BUF[@]} > 0 )); then
+                        _EXEC_BUF[$(( ${#_EXEC_BUF[@]} - 1 ))]=""
+                        changed=1
+                    fi
+                    continue
+                fi
+
+                clean_line="$(_exec_strip_ansi "$raw_line")"
+                if [[ -n "$clean_line" ]]; then
+                    _EXEC_BUF+=("$clean_line")
+                    changed=1
+                fi
+            done
+        fi
 
         _EXEC_STATUS=$(( _EXEC_EXIT == 0 )) && _EXEC_STATUS="done" || _EXEC_STATUS="error"
         if (( _EXEC_EXIT == 0 )); then _EXEC_STATUS="done"; else _EXEC_STATUS="error"; fi
@@ -790,6 +1115,7 @@ _exec_tick() {
 }
 
 _exec_render_status() {
+    tui.log.debug "_exec_render_status() called"
     local icon
     case "$_EXEC_STATUS" in
         running)   icon="● RUNNING  PID ${_EXEC_PID}"  ;;
@@ -808,6 +1134,7 @@ _exec_render_status() {
 }
 
 _exec_render_output() {
+    tui.log.debug "_exec_render_output() called"
     local orows=$(( _EXEC_VROWS - 1 ))
     local total=${#_EXEC_BUF[@]}
     local start=0
@@ -893,23 +1220,45 @@ _exec_on_send() {
 #  MAIN EVENT LOOP
 # ═══════════════════════════════════════════════════════════════════════
 
+declare -g _TUI_RESIZED=0
+
+tui.on_resize() {
+    tui.log.debug "tui.run detected terminal resize: setting _TUI_RESIZED=1"
+    _TUI_RESIZED=1
+}
+
 tui.run() {
     tui.log.debug "tui.run() starting"
     _TUI_RUNNING=1
-    
+    _TUI_RESIZED=0
+
     trap '_master_cleanup; exit 1' INT TERM
+    trap 'tui.on_resize' WINCH
 
     tui.render
     tui.log.debug "tui.run() rendered"
+
     while (( _TUI_RUNNING )); do
+
+        # ── Handle any pending resize before doing anything else ──
+        if (( _TUI_RESIZED )); then
+            tui.log.debug "Received resize event: recalculating layout and redrawing"
+            _TUI_RESIZED=0
+            term.size _TUI_ROWS _TUI_COLS
+            _TUI_P_ROW[root]=1; _TUI_P_COL[root]=1
+            _TUI_P_H[root]=$_TUI_ROWS; _TUI_P_W[root]=$_TUI_COLS
+            _tui._layout "root"
+            erase.all
+            tui.render
+        fi
 
         local char=""
         local got_char=0
-        
+
         if [[ -n "${_TUI_TICK_FN:-}" ]]; then
             IFS= read -rsn1 -t 0.05 char && got_char=1
         else
-            IFS= read -rsn1 char && got_char=1 || break
+            IFS= read -rsn1 -t 0.2 char && got_char=1
         fi
 
         [[ -z "$char" && got_char -eq 1 ]] && char=$'\n'
@@ -944,7 +1293,12 @@ tui.run() {
                     if [[ "$ftype" == "button" ]]; then
                         [[ -n "$faction" ]] && "$faction" "$_TUI_FOCUS_ID"
                     elif [[ "$ftype" == "input" ]]; then
-                        [[ -n "$faction" ]] && "$faction" "$_TUI_FOCUS_ID"
+                        local submit_fn="${_TUI_W_SUBMIT[$_TUI_FOCUS_ID]:-}"
+                        if [[ -n "$submit_fn" ]]; then
+                            "$submit_fn" "$(tui.get "$_TUI_FOCUS_ID")"
+                        elif [[ -n "$faction" ]]; then
+                            "$faction" "$_TUI_FOCUS_ID"
+                        fi
                         _tui._unfocus
                     fi
                 fi
@@ -960,3 +1314,21 @@ tui.run() {
 }
 
 tui.stop() { _TUI_RUNNING=0; }
+
+# tui.on_resize() {
+#     # 1. Read new terminal dimensions
+#     term.size _TUI_ROWS _TUI_COLS
+
+#     # 2. Update root pane to fill the new screen
+#     _TUI_P_ROW[root]=1
+#     _TUI_P_COL[root]=1
+#     _TUI_P_H[root]=$_TUI_ROWS
+#     _TUI_P_W[root]=$_TUI_COLS
+
+#     # 3. Recursively recalculate every split pane's geometry
+#     _tui._layout "root"
+
+#     # 4. Clear and repaint everything with the preserved state
+#     erase.all
+#     tui.render
+# }

@@ -1,0 +1,42 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="demo_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="78">
+      <pane id="welcome" weight="95" title="Welcome" border="heavy" class="panel"/>
+      <pane id ="footer" weight="5" title="Footer" border="none" class="muted_label"/>
+    </pane>
+  </pane>
+    <pane id="main" weight="78" title="Welcome" border="heavy" class="panel"/>
+  </pane>
+  <label id="lbl_title"  pane="main" row="0"  text="DinosAmazingBashTui" class="brand" align="center"/>
+    <label id="lbl_-1" pane="main" row="1" text="" align="center" class="muted_label"/>
+
+  <label id="lbl_sub"    pane="main" row="2"  text="A declarative, file-based Terminal UI framework." align="center"/>
+  <label id="lbl_sub2"   pane="main" row="3"  text="Pure bash + POSIX utilities only - no external deps." align="center"/>
+  <label id="lbl_sub3"   pane="main" row="4"  text="I use arch btw :D " align="center"/>
+    <label id="lbl_-1" pane="main" row="5" text="" align="center" class="muted_label"/>
+
+  <label id="lbl_sub4" pane="main" row="6"  text="DABT is currently in an experimental state" align="center" class="warning_button"/>
+
+  <label id="lbl_feat_hd" pane="main" row="8"  text="Features:" class="brand"/>
+  <label id="lbl_f1" pane="main" row="9"  text="  - XML/HTML-like markup: build TUIs by writing config files, not bash calls"/>
+  <label id="lbl_f2" pane="main" row="10"  text="  - Multi-page navigation between files, like links between web pages"/>
+  <label id="lbl_f3" pane="main" row="11"  text="  - Alignment: left / center / right / fill, and top / middle / bottom"/>
+  <label id="lbl_f4" pane="main" row="12"  text="  - Min/max sizing, with automatic warnings when space runs out"/>
+  <label id="lbl_f5" pane="main" row="13"  text="  - CSS-like theming: reusable classes for colors and styles"/>
+  <label id="lbl_f6" pane="main" row="14" text="  - Runtime templated text expressions, refreshed with tui.redraw"/>
+  <label id="lbl_f7" pane="main" row="15" text="  - Live background process execution over a real PTY"/>
+  <label id="lbl_cta1" pane="main" row="16" text="" align="center" class="muted_label"/>
+  <label id="lbl_cta2" pane="main" row="17" text="Use the menu on the left to explore — try Styles or Terminal." align="center" class="muted_label"/>
+  <label id="lbl_cta1" pane="main" row="17" text="" align="center" class="muted_label"/>
+  <label id="lbl_cta2" pane="main" row="18" text="Use the menu on the left to explore — try Styles or Terminal." align="center" class="muted_label"/>
+
+
+    <label id="lbl_footer" pane="footer" row="0" text="DinosAmazingBashTui v0.1.0 | Copyright (c) DinosaursAreCute | github.com/dinosaursarecute/DinosAmazingBashTui" align="center" class="muted_label"/>
+  <include src="_nav.xml"/>
+</tui>
+
+</tui>

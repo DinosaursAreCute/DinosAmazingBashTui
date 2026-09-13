@@ -1,0 +1,24 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="case_study_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="nav" weight="20" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="80">
+        <pane id="header" weight="12" title="Real World: High-Performance Viewports" border="single" class="panel"/>
+        <pane id="tabs" weight="4" split="h" border="none">
+            <pane id="tab_doc" weight="50" border="none"/>
+            <pane id="tab_tbl" weight="50" border="none"/>
+        </pane>
+        <pane id="content" weight="84" border="heavy" class="panel" scroll="both"/>
+    </pane>
+  </pane>
+
+  <label id="lbl_inst" pane="header" row="0" text="Stress test the new AWK shader architecture." align="center"/>
+  <label id="lbl_inst2" pane="header" row="1" text="Click a tab below to generate and render the layouts." align="center" class="muted_label"/>
+  
+  <button id="btn_tab_doc" pane="tab_doc" row="0" text="[ Technical Document ]" action="on_tab_doc" class="info_button" align="fill"/>
+  <button id="btn_tab_tbl" pane="tab_tbl" row="0" text="[ Live Metrics Table ]" action="on_tab_tbl" class="sc_purple" align="fill"/>
+
+  <include src="_nav.xml"/>
+</tui>

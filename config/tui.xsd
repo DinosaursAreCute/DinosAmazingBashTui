@@ -39,6 +39,15 @@
     </xs:restriction>
   </xs:simpleType>
 
+<xs:simpleType name="scroll">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="none"/>
+      <xs:enumeration value="v"/>
+      <xs:enumeration value="h"/>
+      <xs:enumeration value="both"/>
+    </xs:restriction>
+</xs:simpleType>
+
   <xs:element name="tui">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
@@ -83,6 +92,7 @@
       <xs:attribute name="border" type="borderType"/>
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="scroll" type="scroll"/>
       <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
       <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>

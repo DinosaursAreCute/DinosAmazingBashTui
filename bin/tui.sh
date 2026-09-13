@@ -39,6 +39,14 @@ declare -gA _TUI_P_MINW=() _TUI_P_MINH=()
 declare -gA _TUI_P_MAXW=() _TUI_P_MAXH=()
 declare -ga _TUI_P_LEAVES=()
 declare -ga _TUI_P_ALL=()
+declare -gA _TUI_P_CONTENT=()
+declare -gA _TUI_P_SCROLL=()
+declare -gA _TUI_P_SOFF_V=()
+declare -gA _TUI_P_SOFF_H=()
+declare -g _TUI_DRAG_PANE=""
+declare -g _TUI_DRAG_AXIS=""
+declare -gA _TUI_P_LINES=()
+declare -gA _TUI_P_MAX_W=()
 
 declare -gA _TUI_W_TYPE=()     
 declare -gA _TUI_W_PANE=()     
@@ -66,6 +74,12 @@ declare -g  _TUI_COLS=0
 declare -g  _WSR=0 _WSC=0 _WSW=0 _WSW_AVAIL=0
 declare -g  _HIT=""
 
+declare -g _TUI_DRAG_LINES=0
+declare -g _TUI_DRAG_MAX_W=0
+declare -g _TUI_HOVERED_PANE=""
+declare -gA _TUI_PENDING_RENDER=()
+declare -g  _TUI_RENDER_TIMEOUT=-1
+
 # ═══════════════════════════════════════════════════════════════════════
 #  INTERNAL STATE (BACKGROUND EXECUTION)
 # ═══════════════════════════════════════════════════════════════════════
@@ -92,7 +106,7 @@ declare -g  _TUI_TICK_FN=""
 tui.log(){
     local msg="$1"
     local level="${2:-info}"
-    echo "[$(date +%H:%M:%S)] [$level] $msg" >> ".tui_exec.log"
+    printf "[%s] [%s] %s\n" "$(date +%H:%M:%S)" "$level" "$msg" >> ".tui_exec.log"
 }
 tui.log.debug() { tui.log "$1" "debug"; }
 tui.log.info()  { tui.log "$1" "info"; }
@@ -204,9 +218,6 @@ _tui._split() {
     _tui._collect_leaves "root"
 }
 
-# Pre-order traversal: records every pane (containers and leaves alike) in
-# _TUI_P_ALL so containers can be background-painted too, and every leaf in
-# _TUI_P_LEAVES for full border/title/content drawing.
 _tui._collect_leaves() {
     local id="$1"
     _TUI_P_ALL+=("$id")
@@ -233,8 +244,7 @@ _tui._layout() {
     local total=0
     for w in "${wt[@]}"; do (( total += w )); done
 
-    local offset=0 last=$(( ${#ch[@]} - 1 ))
-
+    local i offset=0 last=$(( ${#ch[@]} - 1 ))
     for (( i = 0; i <= last; i++ )); do
         local name="${ch[$i]}" w="${wt[$i]}"
 
@@ -264,11 +274,16 @@ _tui._layout() {
 
 tui.pane_title()   { _TUI_P_TITLE[$1]="$2"; }
 tui.pane_border()  { _TUI_P_BORDER[$1]="$2"; }
-# Empty values are no-ops so an unset/blank attribute keeps built-in defaults in effect.
 tui.pane_align()   { [[ -n "$2" ]] && _TUI_P_ALIGN[$1]="$2"; }
 tui.pane_valign()  { [[ -n "$2" ]] && _TUI_P_VALIGN[$1]="$2"; }
 tui.pane_minsize() { [[ -n "$2" ]] && _TUI_P_MINW[$1]="$2"; [[ -n "$3" ]] && _TUI_P_MINH[$1]="$3"; }
 tui.pane_maxsize() { [[ -n "$2" ]] && _TUI_P_MAXW[$1]="$2"; [[ -n "$3" ]] && _TUI_P_MAXH[$1]="$3"; }
+
+tui.pane_scroll() {
+    [[ -n "$2" ]] && _TUI_P_SCROLL[$1]="$2"
+    _TUI_P_SOFF_V[$1]=0
+    _TUI_P_SOFF_H[$1]=0
+}
 
 # ═══════════════════════════════════════════════════════════════════════
 #  WIDGETS
@@ -328,7 +343,6 @@ tui.set()          { _TUI_W_VALUE[$1]="$2"; }
 tui.update()       { _TUI_W_VALUE[$1]="$2"; _tui._draw_widget "$1"; }
 tui.on_action()    { _TUI_W_ACTION[$1]="$2"; }
 tui.on_submit()    { _TUI_W_SUBMIT[$1]="$2"; }
-# Empty values are no-ops so an unset/blank attribute keeps built-in defaults in effect.
 tui.align()        { [[ -n "$2" ]] && _TUI_W_ALIGN[$1]="$2"; }
 tui.valign()       { [[ -n "$2" ]] && _TUI_W_VALIGN[$1]="$2"; }
 tui.minsize()      { [[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"; }
@@ -347,22 +361,17 @@ _tui._repeat() {
     printf '%s' "${out// /$ch}"
 }
 
-# Effective alignment for a widget: its own override, else its pane's default,
-# else a per-type default (buttons center, everything else left).
 _tui._widget_align() {
     local id="$1" pane="${_TUI_W_PANE[$1]}" default="left"
     [[ "${_TUI_W_TYPE[$1]}" == "button" ]] && default="center"
     printf '%s' "${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[$pane]:-$default}}"
 }
 
-# Effective vertical alignment for a widget: its own override, else its pane's default, else "top".
 _tui._widget_valign() {
     local id="$1" pane="${_TUI_W_PANE[$1]}"
     printf '%s' "${_TUI_W_VALIGN[$id]:-${_TUI_P_VALIGN[$pane]:-top}}"
 }
 
-# Left-padding (in columns) to align content_len within width, for align in left|center|right.
-# "fill" is handled separately by callers (it doesn't just pad, it colors the whole row).
 _tui._align_pad() {
     local align="$1" content_len="$2" width="$3" pad=0
     case "$align" in
@@ -374,10 +383,6 @@ _tui._align_pad() {
     printf '%s' "$pad"
 }
 
-# Expands ${command args…} runtime expressions embedded in text, e.g.
-# text="${terminal_renderer.sh divider 'hi'}" runs that command (with the
-# tui.sh bin/ dir on PATH) and substitutes its stdout. Re-evaluated on every
-# redraw, so pair with tui.redraw to refresh dynamic content on demand.
 _tui._resolve_text() {
     local text="$1" out="" pre expr result
     local rest="$text"
@@ -393,7 +398,6 @@ _tui._resolve_text() {
     printf '%s' "$out"
 }
 
-# True (0) if a pane is smaller than its declared min_width/min_height.
 _tui._pane_too_small() {
     local id="$1"
     local minw="${_TUI_P_MINW[$id]:-0}" minh="${_TUI_P_MINH[$id]:-0}"
@@ -445,7 +449,6 @@ tui.content_area() {
     fi
 }
 
-# Fills an RxC box with a "min space = WxH" warning when available space is below a declared minimum.
 _tui._draw_size_warning() {
     local r="$1" c="$2" h="$3" w="$4" minw="$5" minh="$6"
     (( h < 1 )) && h=1
@@ -468,10 +471,6 @@ _tui._draw_size_warning() {
     style.reset
 }
 
-# ── Style Applier ──
-# _tui._apply_style KEY [FALLBACK_KEY] — applies fg/bg/mods for KEY, falling
-# back to FALLBACK_KEY's fg/bg/mods for whichever of those KEY doesn't set
-# (e.g. a widget with no bg of its own inherits its pane's background).
 _tui._apply_style() {
     local key="$1" fallback="${2:-}"
     local fg="${_TUI_STYLE_FG[$key]:-}"
@@ -495,8 +494,6 @@ _tui._apply_style() {
     fi
 }
 
-# Paints a pane's content area with its "${id}_normal" fg/bg/mods (used for
-# border="none" panes, which have no border/title rows to draw instead).
 _tui._fill_pane_bg() {
     local id="$1" r="$2" c="$3" h="$4" w="$5"
     local key="${id}_normal"
@@ -544,7 +541,6 @@ _tui._draw_pane() {
     _tui._apply_style "${id}_border"
     
     if [[ -n "$title" ]]; then
-        # Leave room for corners and spaces (at least 4 chars smaller than inner width)
         local max_t=$(( inner - 4 ))
         (( max_t < 1 )) && max_t=1
         (( ${#title} > max_t )) && title="${title:0:$max_t}"
@@ -606,8 +602,6 @@ _tui._draw_widget() {
     printf '%*s' "$sw" ""
     cur.goto "$sr" "$sc"
 
-    # Determine which style key to use; falls back to the pane's own
-    # background/foreground so widgets inherit their pane's coloring.
     local pane_id="${_TUI_W_PANE[$id]}"
     local pane_key="${pane_id}_normal"
     local style_key="${id}_normal"
@@ -639,7 +633,6 @@ _tui._draw_widget() {
 
             _tui._apply_style "$style_key" "$pane_key"
             if (( focused )); then
-                # Fallback in case yaml didn't define a focus style
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" && -z "${_TUI_STYLE_BG[$style_key]:-}" ]] && style.reverse
             else
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" ]] && style.dim
@@ -716,15 +709,10 @@ _tui._draw_widget() {
 }
 
 tui.render() {
-    # Build the whole frame in memory first, then write it in one burst —
-    # avoids the flicker of many small direct writes while the UI is drawn.
     local buf
     buf="$(
         for pane in "${_TUI_P_ALL[@]}"; do
             if [[ -n "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
-                # Container panes have no border/title of their own, but are
-                # still worth painting so their background shows through any
-                # gaps between their leaf children.
                 _tui._fill_pane_bg "$pane" "${_TUI_P_ROW[$pane]}" "${_TUI_P_COL[$pane]}" "${_TUI_P_H[$pane]}" "${_TUI_P_W[$pane]}"
             else
                 _tui._draw_pane "$pane"
@@ -733,14 +721,15 @@ tui.render() {
         for wid in "${_TUI_W_ORDER[@]}"; do
             _tui._draw_widget "$wid"
         done
+        for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
+            [[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output "$_oid"
+        done
     )"
     mode.sync_start
     printf '%s' "$buf"
     mode.sync_end
 }
 
-# Force a full repaint on demand (e.g. after external state changes a
-# ${…}-templated label's output, or a resize).
 tui.redraw() { tui.render; }
 
 tui.clear_pane() {
@@ -761,6 +750,76 @@ tui.clear_pane() {
         cur.goto $(( sr + row )) "$sc"
         echo -n "$blank"
     done
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Scrolling
+# ═══════════════════════════════════════════════════════════════════════
+
+_tui._pane_at() {
+    local mx="$1" my="$2"
+    for p in "${_TUI_P_ALL[@]}"; do
+        [[ -z "${_TUI_P_CHILDREN[$p]:-}" ]] || continue
+        if (( my >= _TUI_P_ROW[$p] && my < _TUI_P_ROW[$p] + _TUI_P_H[$p] &&
+              mx >= _TUI_P_COL[$p] && mx < _TUI_P_COL[$p] + _TUI_P_W[$p] )); then
+            printf '%s' "$p"
+            return
+        fi
+    done
+}
+
+_tui._scroll_kb() {
+    local dir="$1"
+    local p="${_TUI_HOVERED_PANE:-}"
+    
+    [[ -z "$p" && -n "$_TUI_FOCUS_ID" ]] && p="${_TUI_W_PANE[$_TUI_FOCUS_ID]}"
+    
+    if [[ -z "$p" || "${_TUI_P_SCROLL[$p]:-none}" == "none" ]]; then
+        for target in "${_TUI_P_ALL[@]}"; do
+            if [[ "${_TUI_P_SCROLL[$target]:-none}" != "none" ]]; then
+                p="$target"
+                break
+            fi
+        done
+    fi
+    
+    [[ -z "$p" || "${_TUI_P_SCROLL[$p]:-none}" == "none" ]] && return
+
+    case "$dir" in
+        up)    (( _TUI_P_SOFF_V[$p] -= 3 )) ;;
+        down)  (( _TUI_P_SOFF_V[$p] += 3 )) ;;
+        left)  (( _TUI_P_SOFF_H[$p] -= 5 )) ;;
+        right) (( _TUI_P_SOFF_H[$p] += 5 )) ;;
+    esac
+    
+    _tui._queue_render "$p"
+}
+
+_tui._queue_render() {
+    local p="$1"
+    _TUI_PENDING_RENDER[$p]=1
+    [[ $_TUI_RENDER_TIMEOUT -lt 0 ]] && _TUI_RENDER_TIMEOUT=3
+}
+
+_tui._calc_bounds() {
+    local pane="$1"
+    declare -n arr="_TUI_PANE_CONTENT_${pane}"
+    local total=${#arr[@]}
+    _TUI_P_LINES[$pane]=$total
+    
+    if (( total == 0 )); then
+        _TUI_P_MAX_W[$pane]=0
+        return
+    fi
+    
+    local max_w=$(printf '%s\n' "${arr[@]}" | awk '{
+        gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
+        gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
+        gsub(/\033[@A-Z\\\-_]/, "")
+        l = length($0)
+        if (l > max) max = l
+    } END { print max+0 }')
+    _TUI_P_MAX_W[$pane]=$max_w
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -861,9 +920,46 @@ _tui._handle_mouse() {
     seq="${seq%[Mm]}"
 
     IFS=';' read -r btn mx my <<< "$seq"
+    
+    _TUI_HOVERED_PANE="$(_tui._pane_at "$mx" "$my")"
 
     [[ "$end" == "m" ]] && return
-    (( btn != 0 && btn != 32 )) && return
+
+    if (( btn >= 64 && btn <= 69 )); then
+        local p="$_TUI_HOVERED_PANE"
+        if [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != "none" ]]; then
+            case "$btn" in
+                64) (( _TUI_P_SOFF_V[$p] -= 3 )) ;;
+                65) (( _TUI_P_SOFF_V[$p] += 3 )) ;;
+                68) (( _TUI_P_SOFF_H[$p] -= 5 )) ;;
+                69) (( _TUI_P_SOFF_H[$p] += 5 )) ;;
+            esac
+            _tui._queue_render "$p"
+        fi
+        return
+    fi
+
+    local p="$_TUI_HOVERED_PANE"
+    if [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != "none" ]]; then
+        if (( mx == _TUI_P_COL[$p] + _TUI_P_W[$p] - 1 )); then
+            local rel_y=$(( my - _TUI_P_ROW[$p] ))
+            local total_lines=${_TUI_P_LINES[$p]:-1}
+            local target=$(( (rel_y * total_lines) / _TUI_P_H[$p] ))
+            _TUI_P_SOFF_V[$p]=$target
+            _tui._queue_render "$p"
+            return
+        fi
+        if (( my == _TUI_P_ROW[$p] + _TUI_P_H[$p] - 1 )); then
+            local rel_x=$(( mx - _TUI_P_COL[$p] ))
+            local max_w=${_TUI_P_MAX_W[$p]:-1}
+            local target=$(( (rel_x * max_w) / _TUI_P_W[$p] ))
+            _TUI_P_SOFF_H[$p]=$target
+            _tui._queue_render "$p"
+            return
+        fi
+    fi
+    
+    (( btn != 0 )) && return
 
     if _tui._hit_test "$mx" "$my"; then
         local wid="$_HIT"
@@ -961,10 +1057,6 @@ _exec_setup_output_pane() {
     fi
 
     tui.label "_xhdr" "$pane" 0 ""
-    local orows=$(( _EXEC_VROWS - 1 ))
-    for (( i = 0; i < orows; i++ )); do
-        tui.label "_xo_${i}" "$pane" $(( i + 1 )) ""
-    done
 }
 
 _exec_setup_controls() {
@@ -976,8 +1068,6 @@ _exec_setup_controls() {
     tui.button "_xsave"    "$pane" 2 "[ Save Output ]"   _exec_on_save
     tui.button "_xview"    "$pane" 3 "[ View Command ]"  _exec_on_view
     tui.button "_xretry"   "$pane" 4 "[ Retry ]"         _exec_on_retry
-    
-    # New Back button
     tui.button "_xback"    "$pane" 5 "[ Back ]"          _exec_on_back
     
     tui.input  "_xinput"   "$pane" 6 "type and press Enter…" "stdin▸"
@@ -1000,7 +1090,6 @@ _exec_remove_widgets() {
 }
 
 _exec_strip_ansi() {
-    tui.log.debug "_exec_strip_ansi() called with raw: '$1'"
     local raw="$1"
   printf '%s' "$1" | awk '{
     gsub(/\r/, "")
@@ -1012,26 +1101,46 @@ _exec_strip_ansi() {
   }'
 }
 
+_exec_clean_line() {
+    printf '%s' "$1" | awk '{
+        gsub(/\r/, "")
+        gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
+        gsub(/\033P[^\033]*\033\\/, "")
+        gsub(/\033[@A-Z\\\-_]/, "")
+        out = ""
+        s = $0
+        while (s != "") {
+            p = index(s, "\033")
+            if (p == 0) { out = out s; break }
+            if (p > 1)  { out = out substr(s, 1, p - 1) }
+            s = substr(s, p)
+            if (substr(s, 2, 1) == "[") {
+                if (match(s, /^\033\[[0-9;?]*[a-zA-Z]/)) {
+                    seq = substr(s, 1, RLENGTH)
+                    fin = substr(seq, RLENGTH, 1)
+                    if (fin == "m") out = out seq
+                    s = substr(s, RLENGTH + 1)
+                } else { s = substr(s, 2) }
+            } else { s = substr(s, 2) }
+        }
+        printf "%s", out
+    }'
+}
+
 _exec_is_screen_clear() {
-    tui.log.debug "_exec_is_screen_clear() called with raw: '$1'"
     local raw="$1"
-    # Catch full-terminal reset / clear commands that would otherwise wipe the actual terminal.
     [[ "$raw" == *$'\033c'* ]] || [[ "$raw" == *$'\033[H'* ]] || [[ "$raw" == *$'\033[J'* ]] || [[ "$raw" == *$'\033[2J'* ]]
 }
 
 _exec_is_alt_buffer_toggle() {
-    tui.log.debug "_exec_is_alt_buffer_toggle() called with raw: '$1'"
     local raw="$1"
-    # Catch alternate-screen transitions used by whiptail/dialog/curses-style apps.
     [[ "$raw" == *$'\033[?1049h'* ]] || [[ "$raw" == *$'\033[?1049l'* ]] ||
     [[ "$raw" == *$'\033[?47h'* ]] || [[ "$raw" == *$'\033[?47l'* ]] ||
     [[ "$raw" == *$'\033[?1047h'* ]] || [[ "$raw" == *$'\033[?1047l'* ]]
 }
 
 _exec_is_line_clear() {
-    tui.log.debug "_exec_is_line_clear() called with raw: '$1'"
     local raw="$1"
-    # Catch line-clearing sequences like clear-to-end-of-line or clear-line, which should only affect one pane row.
     [[ "$raw" == *$'\033[K'* ]] || [[ "$raw" == *$'\033[2K'* ]]
 }
 
@@ -1061,11 +1170,17 @@ _exec_tick() {
                     continue
                 fi
 
-                clean_line="$(_exec_strip_ansi "$raw_line")"
-                if [[ -n "$clean_line" ]]; then
-                    _EXEC_BUF+=("$clean_line")
-                    changed=1
+                clean_line="$(_exec_clean_line "$raw_line")"
+                _EXEC_BUF+=("$clean_line")
+                
+                if (( ${#_EXEC_BUF[@]} > 2500 )); then
+                    _EXEC_BUF=("${_EXEC_BUF[@]:500}")
                 fi
+                _TUI_P_LINES[$_EXEC_OUT_PANE]=${#_EXEC_BUF[@]}
+                local last_len=$(printf '%s' "${_EXEC_BUF[-1]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
+                (( last_len > ${_TUI_P_MAX_W[$_EXEC_OUT_PANE]:-0} )) && _TUI_P_MAX_W[$_EXEC_OUT_PANE]=$last_len
+                
+                changed=1
             done
             (( _EXEC_LAST_READ += ${#new_lines[@]} ))
         fi
@@ -1096,15 +1211,20 @@ _exec_tick() {
                     continue
                 fi
 
-                clean_line="$(_exec_strip_ansi "$raw_line")"
-                if [[ -n "$clean_line" ]]; then
-                    _EXEC_BUF+=("$clean_line")
-                    changed=1
+                clean_line="$(_exec_clean_line "$raw_line")"
+                _EXEC_BUF+=("$clean_line")
+                
+                if (( ${#_EXEC_BUF[@]} > 2500 )); then
+                    _EXEC_BUF=("${_EXEC_BUF[@]:500}")
                 fi
+                _TUI_P_LINES[$_EXEC_OUT_PANE]=${#_EXEC_BUF[@]}
+                local last_len=$(printf '%s' "${_EXEC_BUF[-1]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
+                (( last_len > ${_TUI_P_MAX_W[$_EXEC_OUT_PANE]:-0} )) && _TUI_P_MAX_W[$_EXEC_OUT_PANE]=$last_len
+                
+                changed=1
             done
         fi
 
-        _EXEC_STATUS=$(( _EXEC_EXIT == 0 )) && _EXEC_STATUS="done" || _EXEC_STATUS="error"
         if (( _EXEC_EXIT == 0 )); then _EXEC_STATUS="done"; else _EXEC_STATUS="error"; fi
 
         _exec_render_status
@@ -1134,22 +1254,10 @@ _exec_render_status() {
 }
 
 _exec_render_output() {
-    tui.log.debug "_exec_render_output() called"
-    local orows=$(( _EXEC_VROWS - 1 ))
-    local total=${#_EXEC_BUF[@]}
-    local start=0
-    (( total > orows )) && start=$(( total - orows ))
-
-    mode.sync_start
-    for (( i = 0; i < orows; i++ )); do
-        local idx=$(( start + i ))
-        local text=""
-        (( idx < total )) && text="${_EXEC_BUF[$idx]}"
-
-        _tui._widget_pos "_xo_${i}"
-        tui.update "_xo_${i}" "${text:0:$_WSW}"
-    done
-    mode.sync_end
+    declare -g -a "_TUI_PANE_CONTENT_${_EXEC_OUT_PANE}"
+    declare -n pane_arr="_TUI_PANE_CONTENT_${_EXEC_OUT_PANE}"
+    pane_arr=("${_EXEC_BUF[@]}")
+    _tui._render_output "$_EXEC_OUT_PANE"
 }
 
 _exec_on_cancel() {
@@ -1198,15 +1306,12 @@ _exec_on_send() {
     text=$(tui.get "_xinput")
     [[ -z "$text" ]] && return
     
-    tui.log.debug "Sending input: [REDACTED]"
-
     if [[ "$_EXEC_STATUS" == "running" ]]; then
         ( printf "%s\n" "$text" >&"$_EXEC_FIFO_FD" & ) 2>/dev/null
         local masked
         masked="$(printf '%*s' "${#text}" | tr ' ' '*')"
         _EXEC_BUF+=("▸ ${masked}")
     else
-        tui.log.warn "Attempted to send input, but process is not running."
         _EXEC_BUF+=("(process not running — input discarded)")
     fi
 
@@ -1215,6 +1320,198 @@ _exec_on_send() {
     _exec_render_output
 }
 
+# ═══════════════════════════════════════════════════════════════════════
+#  PANE OUTPUT — render arbitrary multi-line content into a pane
+# ═══════════════════════════════════════════════════════════════════════
+
+tui.output() {
+    local pane="$1"; shift
+    _TUI_PANE_CONTENT[$pane]=1
+    declare -g -a "_TUI_PANE_CONTENT_${pane}"
+    declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
+
+    pane_arr=()
+    if [[ $# -gt 0 ]]; then
+        mapfile -t pane_arr < <(printf '%s' "$*")
+    else
+        mapfile -t pane_arr
+    fi
+    _tui._calc_bounds "$pane"
+    (( _TUI_RUNNING )) && _tui._queue_render "$pane"
+}
+
+tui.output_append() {
+    local pane="$1"; shift
+    _TUI_PANE_CONTENT[$pane]=1
+    declare -g -a "_TUI_PANE_CONTENT_${pane}"
+    declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
+
+    if [[ $# -gt 0 ]]; then
+        local -a new_lines
+        mapfile -t new_lines < <(printf '%s' "$*")
+        pane_arr+=("${new_lines[@]}")
+    else
+        local -a new_lines
+        mapfile -t new_lines
+        pane_arr+=("${new_lines[@]}")
+    fi
+    _tui._calc_bounds "$pane"
+    (( _TUI_RUNNING )) && _tui._queue_render "$pane"
+}
+
+tui.output_clear() {
+    local pane="$1"
+    _TUI_PANE_CONTENT[$pane]=""
+    declare -g -a "_TUI_PANE_CONTENT_${pane}"
+    declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
+    pane_arr=()
+    
+    if (( _TUI_RUNNING )); then
+        tui.clear_pane "$pane"
+        _tui._draw_pane "$pane"
+    fi
+}
+
+_tui._render_output() {
+    local pane="$1"
+    declare -n lines="_TUI_PANE_CONTENT_${pane}"
+    local scroll="${_TUI_P_SCROLL[$pane]:-none}"
+
+    local pr=${_TUI_P_ROW[$pane]}  pc=${_TUI_P_COL[$pane]}
+    local ph=${_TUI_P_H[$pane]}    pw=${_TUI_P_W[$pane]}
+    local border="${_TUI_P_BORDER[$pane]:-single}"
+
+    local ct_row ct_col ct_w ct_h
+    if [[ "$border" == "none" ]]; then
+        ct_row=$pr; ct_col=$(( pc + 1 )); ct_w=$(( pw - 2 )); ct_h=$ph
+    else
+        ct_row=$(( pr + 1 )); ct_col=$(( pc + 2 )); ct_w=$(( pw - 4 )); ct_h=$(( ph - 2 ))
+    fi
+    (( ct_w < 1 )) && ct_w=1
+    (( ct_h < 1 )) && ct_h=1
+
+    local total_lines=${_TUI_P_LINES[$pane]:-0}
+    local max_w=${_TUI_P_MAX_W[$pane]:-0}
+    
+    # 1. Enforce Offset Clamping
+    local v_off=${_TUI_P_SOFF_V[$pane]:-0}
+    local h_off=${_TUI_P_SOFF_H[$pane]:-0}
+    
+    (( total_lines <= ct_h )) && v_off=0
+    (( v_off > total_lines - ct_h && total_lines > ct_h )) && v_off=$(( total_lines - ct_h ))
+    (( v_off < 0 )) && v_off=0
+    _TUI_P_SOFF_V[$pane]=$v_off
+
+    (( max_w <= ct_w )) && h_off=0
+    (( h_off > max_w - ct_w && max_w > ct_w )) && h_off=$(( max_w - ct_w ))
+    (( h_off < 0 )) && h_off=0
+    _TUI_P_SOFF_H[$pane]=$h_off
+
+    # Collect visible slice directly from memory
+    local -a view_lines=()
+    local start_idx=$v_off
+    local end_idx=$(( v_off + ct_h ))
+    (( end_idx > total_lines )) && end_idx=$total_lines
+    
+    for (( i=start_idx; i<end_idx; i++ )); do
+        view_lines+=("${lines[$i]:-}")
+    done
+
+    local pane_style="${pane}_normal"
+    local sty="$(printf '%b' "$(_tui._apply_style "$pane_style")")"
+    local res="$(printf '%b' "\e[0m")"
+
+    # 2. Render Text Area via AWK (SINGLE PASS)
+    local frame_buf=""
+    if (( ct_h > 0 )); then
+        frame_buf=$(
+            { (( ${#view_lines[@]} > 0 )) && printf '%s\n' "${view_lines[@]}"; } | awk -v r="$ct_row" -v c="$ct_col" -v w="$ct_w" -v h="$ct_h" -v hoff="$h_off" -v sty="$sty" -v res="$res" '
+            function visible_slice(s, off, max) {
+                out = ""; vis = 0; skipped = 0
+                while (s != "" && vis < max) {
+                    p = index(s, "\033")
+                    if (p == 0) {
+                        if (skipped < off) {
+                            chunk_len = length(s)
+                            if (skipped + chunk_len <= off) { skipped += chunk_len; break }
+                            s = substr(s, off - skipped + 1)
+                            skipped = off
+                        }
+                        remain = max - vis
+                        out = out (length(s) > remain ? substr(s, 1, remain) : s)
+                        break
+                    }
+                    if (p > 1) {
+                        chunk = substr(s, 1, p - 1)
+                        if (skipped < off) {
+                            chunk_len = length(chunk)
+                            if (skipped + chunk_len <= off) { skipped += chunk_len; chunk = "" } 
+                            else { chunk = substr(chunk, off - skipped + 1); skipped = off }
+                        }
+                        if (length(chunk) > 0) {
+                            remain = max - vis
+                            if (length(chunk) > remain) chunk = substr(chunk, 1, remain)
+                            out = out chunk
+                            vis += length(chunk)
+                        }
+                        if (vis >= max) break
+                        s = substr(s, p)
+                    }
+                    if (substr(s, 2, 1) == "[" && match(s, /^\033\[[0-9;?]*[a-zA-Z]/)) {
+                        out = out substr(s, 1, RLENGTH)
+                        s = substr(s, RLENGTH + 1)
+                    } else if (length(s) >= 2) { s = substr(s, 3) } else { break }
+                }
+                return out res
+            }
+            BEGIN { clear_spaces = sprintf("%*s", w, "") }
+            {
+                sliced = visible_slice($0, hoff, w)
+                printf "\033[%d;%dH%s%s%s\033[%d;%dH%s", r + NR - 1, c, sty, clear_spaces, res, r + NR - 1, c, sliced
+            }
+            END {
+                for (i = NR; i < h; i++) {
+                    printf "\033[%d;%dH%s%s%s", r + i, c, sty, clear_spaces, res
+                }
+            }'
+        )
+    fi
+
+    # 3. Draw Scrollbars
+    if [[ "$scroll" == "v" || "$scroll" == "both" ]] && (( total_lines > ct_h )); then
+        local track_x=$(( pc + pw - 1 ))
+        local thumb_h=$(( ct_h * ct_h / total_lines ))
+        (( thumb_h < 1 )) && thumb_h=1
+        local thumb_y=$(( ct_row + (v_off * (ct_h - thumb_h) / (total_lines - ct_h)) ))
+
+        for (( i = 0; i < ct_h; i++ )); do
+            if (( ct_row + i >= thumb_y && ct_row + i < thumb_y + thumb_h )); then
+                frame_buf+=$(printf "\033[%d;%dH\033[7m \033[0m" $((ct_row + i)) "$track_x")
+            else
+                frame_buf+=$(printf "\033[%d;%dH\033[2m│\033[0m" $((ct_row + i)) "$track_x")
+            fi
+        done
+    fi
+
+    if [[ "$scroll" == "h" || "$scroll" == "both" ]] && (( max_w > ct_w )); then
+        local track_y=$(( pr + ph - 1 ))
+        local thumb_w=$(( ct_w * ct_w / max_w ))
+        (( thumb_w < 1 )) && thumb_w=1
+        local thumb_x=$(( ct_col + (h_off * (ct_w - thumb_w) / (max_w - ct_w)) ))
+
+        for (( i = 0; i < ct_w; i++ )); do
+            if (( ct_col + i >= thumb_x && ct_col + i < thumb_x + thumb_w )); then
+                frame_buf+=$(printf "\033[%d;%dH\033[7m \033[0m" "$track_y" $((ct_col + i)))
+            else
+                frame_buf+=$(printf "\033[%d;%dH\033[2m─\033[0m" "$track_y" $((ct_col + i)))
+            fi
+        done
+    fi
+
+    mode.sync_start
+    printf '%s' "$frame_buf"
+    mode.sync_end
+}
 
 # ═══════════════════════════════════════════════════════════════════════
 #  MAIN EVENT LOOP
@@ -1240,7 +1537,6 @@ tui.run() {
 
     while (( _TUI_RUNNING )); do
 
-        # ── Handle any pending resize before doing anything else ──
         if (( _TUI_RESIZED )); then
             tui.log.debug "Received resize event: recalculating layout and redrawing"
             _TUI_RESIZED=0
@@ -1281,6 +1577,13 @@ tui.run() {
                     _tui._focus_prev
                 elif [[ "$seq" == "[A" || "$seq" == "[B" ]]; then
                     [[ "$seq" == "[A" ]] && _tui._focus_prev || _tui._focus_next
+                
+                # --- SHIFT ARROWS (Keyboard Scrolling) ---
+                elif [[ "$seq" == "[1;2A" ]]; then _tui._scroll_kb "up"
+                elif [[ "$seq" == "[1;2B" ]]; then _tui._scroll_kb "down"
+                elif [[ "$seq" == "[1;2C" ]]; then _tui._scroll_kb "right"
+                elif [[ "$seq" == "[1;2D" ]]; then _tui._scroll_kb "left"
+                
                 elif [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]]; then
                     _tui._input_seq "$_TUI_FOCUS_ID" "$seq"
                 fi
@@ -1302,9 +1605,37 @@ tui.run() {
                         _tui._unfocus
                     fi
                 fi
+            
+            # --- VIM KEYS (Gated by Input Focus) ---
+            elif [[ "$char" == "k" || "$char" == "j" || "$char" == "h" || "$char" == "l" ]]; then
+                if [[ -z "$_TUI_FOCUS_ID" || "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" != "input" ]]; then
+                    case "$char" in
+                        k) _tui._scroll_kb "up" ;;
+                        j) _tui._scroll_kb "down" ;;
+                        h) _tui._scroll_kb "left" ;;
+                        l) _tui._scroll_kb "right" ;;
+                    esac
+                else
+                    _tui._input_key "$_TUI_FOCUS_ID" "$char"
+                fi
+            
+            # --- ALL OTHER TYPING ---
             elif [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]]; then
                 _tui._input_key "$_TUI_FOCUS_ID" "$char"
             fi
+        fi
+
+        # ── SCROLL BATCHING / DEBOUNCING ──
+        if (( _TUI_RENDER_TIMEOUT > 0 )); then
+            (( _TUI_RENDER_TIMEOUT-- ))
+        fi
+
+        if (( _TUI_RENDER_TIMEOUT == 0 )) || [[ $got_char -eq 0 && ${#_TUI_PENDING_RENDER[@]} -gt 0 ]]; then
+            for p in "${!_TUI_PENDING_RENDER[@]}"; do
+                _tui._render_output "$p"
+            done
+            _TUI_PENDING_RENDER=()
+            _TUI_RENDER_TIMEOUT=-1
         fi
 
         [[ -n "${_TUI_TICK_FN:-}" ]] && "$_TUI_TICK_FN"
@@ -1314,21 +1645,3 @@ tui.run() {
 }
 
 tui.stop() { _TUI_RUNNING=0; }
-
-# tui.on_resize() {
-#     # 1. Read new terminal dimensions
-#     term.size _TUI_ROWS _TUI_COLS
-
-#     # 2. Update root pane to fill the new screen
-#     _TUI_P_ROW[root]=1
-#     _TUI_P_COL[root]=1
-#     _TUI_P_H[root]=$_TUI_ROWS
-#     _TUI_P_W[root]=$_TUI_COLS
-
-#     # 3. Recursively recalculate every split pane's geometry
-#     _tui._layout "root"
-
-#     # 4. Clear and repaint everything with the preserved state
-#     erase.all
-#     tui.render
-# }

@@ -195,14 +195,22 @@ _alert_build() {
     TR_RESULT=()
     [[ -z "$msg" ]] && return 1
 
+    # 1. Expand user escape sequences (like \e, \n, \t) into raw bytes immediately.
+    # This ensures _tr_wordwrap and _tr_visible_len evaluate the actual ANSI codes.
+    msg="$(printf '%b' "$msg")"
+
     local icon label
     case "$type" in
-        info)    icon="ℹ"; label="INFO"    ;;
-        warn)    icon="⚠"; label="WARNING" ;;
-        error)   icon="✖"; label="ERROR"   ;;
-        success) icon="✔"; label="SUCCESS" ;;
+        info)    icon="${BOLD}${CYAN}ℹ${RESET}"; label="INFO"    ;;
+        warn)    icon="${BOLD}${YELLOW}⚠${RESET}"; label="WARNING" ;;
+        error)   icon="${BOLD}${RED}✖${RESET}"; label="ERROR"   ;;
+        success) icon="${BOLD}${GREEN}✔${RESET}"; label="SUCCESS" ;;
         *)       icon="●"; label="${type^^}" ;;
     esac
+
+    # Expand the icons and labels so literal '\e' codes become real 0-width ESC bytes
+    icon="$(printf '%b' "$icon")"
+    label="$(printf '%b' "$label")"
 
     local tw; tw="$(_tr_term_width)"
     local chrome=4 min_inner=36
@@ -213,9 +221,14 @@ _alert_build() {
 
     local longest=0
     for ln in "${_TR_WRAPPED[@]}"; do
-        (( ${#ln} > longest )) && longest=${#ln}
+        local ln_len="$(_tr_visible_len "$ln")"
+        (( ln_len > longest )) && longest=$ln_len
     done
-    local header_len=$(( ${#icon} + 1 + ${#label} ))
+    
+    local icon_len="$(_tr_visible_len "$icon")"
+    local label_len="$(_tr_visible_len "$label")"
+    local header_len=$(( icon_len + 1 + label_len ))
+    
     (( header_len > longest )) && longest=$header_len
 
     local inner=$longest
@@ -228,9 +241,13 @@ _alert_build() {
     local hpad=$(( inner - header_len ))
     TR_RESULT+=("$(printf '┃ %s %s%*s ┃' "$icon" "$label" "$hpad" "")")
     TR_RESULT+=("┠${hbar}┨")
+    
     for ln in "${_TR_WRAPPED[@]}"; do
-        local pad=$(( inner - ${#ln} ))
-        TR_RESULT+=("$(printf '┃ %s%*s ┃' "$ln" "$pad" "")")
+        local ln_len="$(_tr_visible_len "$ln")"
+        local pad=$(( inner - ln_len ))
+        # 2. Add ${RESET} before the padding. If the user passes unclosed 
+        # color sequences, this stops the color from bleeding into the right border.
+        TR_RESULT+=("$(printf '┃ %s%b%*s ┃' "$ln" "${RESET:-\e[0m}" "$pad" "")")
     done
     TR_RESULT+=("┗${hbar_heavy}┛")
 }
@@ -498,7 +515,7 @@ hbar_string() {
 #  Usage: banner "HELLO"
 #  Supports A-Z, 0-9, space, and common punctuation.
 
-declare -A _BANNER_FONT
+declare -gA _BANNER_FONT
 _banner_font_init() {
     [[ -n "${_BANNER_FONT[A]+x}" ]] && return
     # Each letter is 5 rows, pipe-separated

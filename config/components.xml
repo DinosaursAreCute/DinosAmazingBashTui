@@ -1,0 +1,57 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="showcase_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="sidebar" weight="18" split="v" border="none">
+      <pane id="nav"      weight="70" title="Menu"     border="single" class="sidebar"/>
+      <pane id="controls" weight="30" title="Controls" border="single" class="sidebar"/>
+    </pane>
+    <pane id="main" split="v" border="single" weight="82" class="panel">
+      <pane id="toolbar" split="h" weight="4"  border="none">
+        <pane id="tb_box"     weight="1" border="none"/>
+        <pane id="tb_divider" weight="1" border="none"/>
+        <pane id="tb_alert"   weight="1" border="none"/>
+        <pane id="tb_table"   weight="1" border="none"/>
+        <pane id="tb_kv"      weight="1" border="none"/>
+        <pane id="tb_hbar"    weight="1" border="none"/>
+      </pane>
+      <pane id="toolbar2" weight="4" split="h" border="none">
+        <pane id="tb_banner"  weight="1" border="none"/>
+        <pane id="tb_tree"    weight="1" border="none"/>
+        <pane id="tb_columns" weight="1" border="none"/>
+        <pane id="tb_badges"  weight="1" border="none"/>
+        <pane id="tb_list"    weight="1" border="none"/>
+        <pane id="tb_quote"   weight="1" border="none"/>
+        <pane id="tb_all"     weight="1" border="none"/>
+      </pane>
+      
+      <!-- Added scroll="both" so large renderer components can be navigated easily -->
+      <pane id="output" weight="84" title="Components Showcase" border="heavy" class="panel" scroll="both"/>
+    </pane>
+  </pane>
+
+  <!-- Toolbar row 1 -->
+  <button id="btn_box"     pane="tb_box"     row="0" text="[ Box ]"     action="show_box"     class="info_button"    align="fill"/>
+  <button id="btn_divider" pane="tb_divider" row="0" text="[ Divider ]" action="show_divider" class="success_button" align="fill"/>
+  <button id="btn_alert"   pane="tb_alert"   row="0" text="[ Alert ]"   action="show_alert"   class="warning_button" align="fill"/>
+  <button id="btn_table"   pane="tb_table"   row="0" text="[ Table ]"   action="show_table"   class="danger_button"  align="fill"/>
+  <button id="btn_kv"      pane="tb_kv"      row="0" text="[ KV ]"      action="show_kv"      class="info_button"    align="fill"/>
+  <button id="btn_hbar"    pane="tb_hbar"    row="0" text="[ Bar ]"     action="show_hbar"    class="success_button" align="fill"/>
+
+  <!-- Toolbar row 2 -->
+  <button id="btn_banner"  pane="tb_banner"  row="0" text="[ Banner ]"  action="show_banner"  class="sc_purple"      align="fill"/>
+  <button id="btn_tree"    pane="tb_tree"    row="0" text="[ Tree ]"    action="show_tree"    class="warning_button" align="fill"/>
+  <button id="btn_columns" pane="tb_columns" row="0" text="[ Columns ]" action="show_columns" class="danger_button"  align="fill"/>
+  <button id="btn_badges"  pane="tb_badges"  row="0" text="[ Badges ]"  action="show_badges"  class="info_button"    align="fill"/>
+  <button id="btn_list"    pane="tb_list"    row="0" text="[ List ]"    action="show_list"    class="success_button" align="fill"/>
+  <button id="btn_quote"   pane="tb_quote"   row="0" text="[ Quote ]"   action="show_quote"   class="sc_purple"      align="fill"/>
+  <button id="btn_all"     pane="tb_all"     row="0" text="[ ALL ]"     action="show_all"     class="danger_button"  align="fill"/>
+
+  <!-- Controls sidebar -->
+  <label  id="lbl_current" pane="controls" row="0" text="Current:" class="muted_label"/>
+  <label  id="lbl_status"  pane="controls" row="1" text="—" class="brand"/>
+  <button id="btn_clear"   pane="controls" row="3" text="[ Clear ]" action="on_clear" class="danger_button" align="fill"/>
+
+  <include src="_nav.xml"/>
+</tui>

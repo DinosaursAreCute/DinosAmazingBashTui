@@ -38,11 +38,16 @@
   bg: #1c2336;
 }
 .panel:border {
-  fg: #61afef;
+  fg: #de61ef;
 }
 .panel:title {
   fg: #61afef;
   mods: bold;
+}
+
+.panel:focus {
+  fg: #ffffff;
+  bg: #2c3e50;
 }
 
 .sidebar {
@@ -50,10 +55,10 @@
   bg: #1a1c2c;
 }
 .sidebar:border {
-  fg: #61afef;
+  fg: #ff5bef;
 }
 .sidebar:title {
-  fg: #61afef;
+  fg: #00f7ff;
   mods: bold;
 }
 

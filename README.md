@@ -1,4 +1,3 @@
-
 # 🦕 DinosAmazingBashTui<br/>
 
 **A declarative, file-based Terminal UI framework.**<br/>
@@ -11,11 +10,9 @@ Think HTML pages, but for your terminal.<br/>
 
 ![Home](screenshots/home.png)
 
-</div>
-
 ## What is this?
 
-DinosAmazingBashTui or D.A.B.T for short,  lets you build multi-page terminal interfaces the way you'd build a website: write markup, point at a stylesheet, wire up callbacks. The framework handles layout, rendering, focus management, mouse support, and live background process execution - all in pure bash.<br/>
+DinosAmazingBashTui or D.A.B.T for short, lets you build multi-page terminal interfaces the way you'd build a website: write markup, point at a stylesheet, wire up callbacks. The framework handles layout, rendering, focus management, mouse support, and live background process execution - all in pure bash.<br/>
 
 <br/>
 No Python. No Node. No ncurses. abstraction of any kind.<br/>
@@ -27,6 +24,7 @@ Just bash, doing things bash was never meant to do.<br/>
 |---|---|
 | **Declarative XML markup** | Define panes, buttons, inputs, and labels in config files — not imperative code |
 |**Multi-page navigation** | Link between pages like HTML anchors with `page="other.xml"` on any button |
+|**High-Performance Scrolling** | Batched AWK-shader viewports supporting Jump-to-Click scrollbars, Mouse Wheel, and Vim navigation |
 |**CSS-like theming** | Reusable `.class` styles with `fg`, `bg`, `mods`, and `:focus`/`:border`/`:title` pseudo-states |
 |**Flexible alignment** | `left` / `center` / `right` / `fill` horizontal, `top` / `middle` / `bottom` vertical |
 |**Min/max sizing** | Constraint-based layout with automatic warnings when space runs out |
@@ -36,6 +34,27 @@ Just bash, doing things bash was never meant to do.<br/>
 |**Includes & fragments** | `<include src="_nav.xml"/>` for shared components across pages |
 
 ## Screenshots
+
+<details>
+<summary><b>Case Study — real world layout stress test</b></summary>
+
+![Case Study](screenshots/case_study.png)
+
+</details>
+
+<details>
+<summary><b>Components — all terminal renderers</b></summary>
+
+![Components](screenshots/components_all.png)
+
+</details>
+
+<details>
+<summary><b>Scrolling — high performance AWK shader viewports</b></summary>
+
+![Scrolling](screenshots/srolling.png)
+
+</details>
 
 <details>
 <summary><b>Styles — themed buttons and color swatches</b></summary>
@@ -69,7 +88,7 @@ Just bash, doing things bash was never meant to do.<br/>
 
 ```bash
 # Clone it
-git clone https://github.com/yourname/DinosAmazingBashTui.git
+git clone [https://github.com/yourname/DinosAmazingBashTui.git](https://github.com/yourname/DinosAmazingBashTui.git)
 cd DinosAmazingBashTui
 
 # Make everything executable
@@ -77,6 +96,7 @@ chmod +x bin/*
 
 # Run the demo
 bin/DABT_demo.sh
+
 ```
 
 That's it. No install step, no package manager, no build tool. If you have bash, you're good.
@@ -98,6 +118,7 @@ A page is just an XML file:
   <label  id="greeting" pane="main" row="0" text="Hello from DABT!" align="center"/>
   <button id="btn_quit" pane="sidebar" row="5" text="Quit" action="tui.stop" class="danger_button"/>
 </tui>
+
 ```
 
 Style it with a CSS-like stylesheet:
@@ -107,6 +128,7 @@ Style it with a CSS-like stylesheet:
 .sidebar:border  { fg: #4c566a; }
 .danger_button        { fg: white; bg: #b00020; mods: bold; }
 .danger_button:focus  { fg: white; bg: #ff3333; mods: bold; }
+
 ```
 
 Launch it from bash:
@@ -115,6 +137,7 @@ Launch it from bash:
 #!/usr/bin/env bash
 source bin/tui.sh
 tui.start "config/home.xml"
+
 ```
 
 ## 🏗️ Project Structure
@@ -129,22 +152,39 @@ bin/
 ├── terminal_renderer.sh    # Runtime text rendering utilities
 └── DABT_demo.sh            # Entry point for the demo
 
-config/
-├── home.xml                # Demo home page
-├── features.xml            # Alignment & layout showcase
-├── styles.xml              # Theming demo
-├── terminal.xml            # Live bash session page
-├── forms.xml               # Form inputs demo
-├── _nav.xml                # Shared navigation fragment
-├── theme.css               # Demo stylesheet
-└── demo_callbacks.sh       # Button/input callback functions
+config
+├── terminal.xml               # live terminal demo 
+├── _nav.xml                   # reusable navigation pane
+├── case_study_callbacks.sh    # callbacks for the case study page
+├── case_study.xml             # case study page 
+├── components.xml             # components page 
+├── demo_callbacks.sh          # base callbacks 
+├── docu_callbacks.sh          # callbacks for the documentation page
+├── docu.xml                   # documentation page 
+├── features.xml               # features page 
+├── home.xml                   # entry point 
+├── scroll_callbacks.sh        # scroll page callbacks 
+├── scrolling.xml              # scrolling page 
+├── settings.xml               # settings page 
+├── showcase_callbacks.sh      # callbacks for the showcase page 
+├── styles.xml                 # style page 
+├── terminal_init.sh           # terminal callback 
+├── theme.css                  # css like style sheet 
+└── tui.xsd                    # DABT xml syntax xsd  
+
 ```
 
 ## Requirements
 
-- **Bash 4.3+** (associative arrays, `declare -g`, nameref)
-- A terminal emulator with mouse support (virtually all modern ones)
-- That's the whole list
+* **Bash 4.3+** (associative arrays, `declare -g`, nameref)
+
+
+* A terminal emulator with mouse support (virtually all modern ones)
+
+
+* That's the whole list
+
+
 
 ## Going beyond the demo
 
@@ -155,14 +195,12 @@ For a real embedded terminal, point `tui.exec` at any command:
 ```xml
 <script src="my_init.sh"/>
 <!-- my_init.sh just contains: tui.exec "htop" "output_pane" "controls_pane" -->
+
 ```
 
 The process runs in a real PTY. You can pipe stdin to it, cancel it, save its output, or retry it — all from the TUI.
 
 ---
 
-
 *I use arch btw :D*
 
-</div>
-]]>

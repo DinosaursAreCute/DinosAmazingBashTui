@@ -5,7 +5,7 @@
   <pane id="root" split="h">
     <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="78">
-      <pane id="term_output"  weight="75" title="Live Terminal (bash)" border="heavy" class="panel"/>
+      <pane id="term_output"  weight="75" title="Live Terminal (bash)" border="heavy" class="panel" scroll="both"/>
       <pane id="term_actions" weight="25" title="Terminal Controls"/>
     </pane>
   </pane>

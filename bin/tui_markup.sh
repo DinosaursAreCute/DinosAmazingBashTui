@@ -158,7 +158,7 @@ tui.load() {
                     continue
                 fi
 
-                local id split weight title border align valign minw minh maxw maxh class
+                local id split weight title border align valign minw minh maxw maxh class scroll
                 id="$(_markup_attr "$line" id)"
                 split="$(_markup_attr "$line" split)"
                 weight="$(_markup_attr "$line" weight)"
@@ -171,6 +171,9 @@ tui.load() {
                 maxw="$(_markup_attr "$line" max_width)"
                 maxh="$(_markup_attr "$line" max_height)"
                 class="$(_markup_attr "$line" class)"
+                
+                # Extract scroll attribute here
+                scroll="$(_markup_attr "$line" scroll)"
 
                 if [[ -n "$id" && "$id" != "root" ]]; then
                     local n=${#stack_id[@]}
@@ -188,6 +191,9 @@ tui.load() {
                 tui.pane_minsize "$id" "$minw" "$minh"
                 tui.pane_maxsize "$id" "$maxw" "$maxh"
                 tui.class "$id" "$class"
+                
+                # Apply the scroll attribute here
+                tui.pane_scroll "$id" "$scroll"
 
                 if [[ -n "$split" && $selfclose -eq 0 ]]; then
                     stack_id+=("$id")
@@ -269,7 +275,7 @@ tui.reset_ui() {
     _TUI_P_ROW=(); _TUI_P_COL=(); _TUI_P_H=(); _TUI_P_W=()
     _TUI_P_DIR=(); _TUI_P_CHILDREN=(); _TUI_P_WEIGHTS=()
     _TUI_P_TITLE=(); _TUI_P_BORDER=(); _TUI_P_LEAVES=()
-    _TUI_P_ALIGN=(); _TUI_P_VALIGN=()
+    _TUI_P_ALIGN=(); _TUI_P_VALIGN=(); _TUI_P_CONTENT=()
     _TUI_P_MINW=(); _TUI_P_MINH=(); _TUI_P_MAXW=(); _TUI_P_MAXH=()
     _TUI_W_TYPE=(); _TUI_W_PANE=(); _TUI_W_ROW=(); _TUI_W_LABEL=()
     _TUI_W_VALUE=(); _TUI_W_ACTION=(); _TUI_W_SUBMIT=(); _TUI_W_PH=()

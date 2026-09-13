@@ -7,7 +7,6 @@
     <pane id="main" split="v" weight="78">
       <pane id="buttons_demo"  weight="30" title="Button classes" class="panel"/>
       <pane id="swatches_demo" weight="45" title="Color swatches" class="panel"/>
-      <pane id="pane_bg_demo"  weight="25" border="none" class="swatch_blue"/>
     </pane>
   </pane>
 
@@ -22,10 +21,6 @@
   <label id="lbl_swatch_yellow"  pane="swatches_demo" row="3" text="  #ecc94b  swatch_yellow"  class="swatch_yellow"  align="fill"/>
   <label id="lbl_swatch_magenta" pane="swatches_demo" row="4" text="  #d53f8c  swatch_magenta" class="swatch_magenta" align="fill"/>
   <label id="lbl_swatch_cyan"    pane="swatches_demo" row="5" text="  #319795  swatch_cyan" align="fill"/>
-
-  <!-- border="none" pane painted entirely via its class; the label below has
-       no class/bg of its own, so it inherits the pane's bg+fg automatically -->
-  <label id="lbl_pane_bg_demo" pane="pane_bg_demo" row="1" text="  This whole pane is background-colored via class=\"swatch_blue\" — this label inherits it." align="center"/>
 
   <include src="_nav.xml"/>
 </tui>

@@ -84,6 +84,13 @@ Just bash, doing things bash was never meant to do.<br/>
 
 </details>
 
+<details>
+<summary><b>Debug - A live monitoring tool to see each mouse movement, keyboard press and focus event. Stress test the new rendering engine to its limit with the randomly generated layouts! </b></summary>
+
+![Debug](screenshots/debug.png)
+
+</details>
+
 ## Quick Start
 
 ```bash

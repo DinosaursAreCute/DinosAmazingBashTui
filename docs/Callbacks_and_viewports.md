@@ -55,7 +55,58 @@ on_generate_report() {
 
 ```
 
-## 2. Building Scrolling Viewports
+## 2. Hover and Focus Feedback
+
+`tui.init` enables xterm any-motion mouse tracking (`\e[?1003h`), so the
+framework receives a stream of position reports even when no button is
+pressed. On every report, `_tui._handle_mouse` recomputes which pane
+(`_tui._pane_at`) and which focusable widget (`_tui._hit_test`) sit under the
+pointer and hands each to a setter (`_tui._set_hovered_pane` /
+`_tui._set_hovered_widget`).
+
+These two setters do very different things, deliberately:
+
+* **`_tui._set_hovered_pane`** just records `_TUI_HOVERED_PANE`. That's it —
+  no redraw. It exists purely as routing state so scroll-wheel and
+  keyboard-scroll events (`_tui._scroll_kb`, the wheel branch of
+  `_tui._handle_mouse`) know which viewport to move. Pane borders never
+  react to hover.
+* **`_tui._set_hovered_widget`** is change-gated (a no-op unless the hovered
+  widget actually differs) and, when it does change, redraws immediately via
+  `_tui._draw_widgets_now` — no debounce, no queue. A button redraw is one
+  cheap, single-widget write, so there's no fan-out burst to collapse the
+  way a multi-pane border sweep once caused; deferring it only added
+  latency between "pointer arrives" and "button lights up" for no
+  throughput benefit. `_tui._draw_widget` resolves `${id}_hover` from a
+  `.class:hover` rule (behind `${id}_focus`, which always wins), falling
+  back to the normal look if the class defines no `:hover` state.
+
+A pane's border reacts to *focus* instead of hover. `_tui._draw_pane_border`
+checks whether `_TUI_FOCUS_ID` belongs to that pane and resolves
+`${id}_focus` (falling back to `${id}_border`) — the same self-contained
+style resolution `_tui._draw_widget` already used for its own state, just
+keyed off `_TUI_FOCUS_ID` rather than the hover trackers. `tui.focus` and
+`_tui._unfocus` redraw the old and new focused widget's panes right after
+moving focus, via `_tui._draw_pane_borders_now` — a thin wrapper (shared with
+`_tui._draw_widgets_now`) around the generic `_tui._draw_ids_now` helper,
+which calls a draw function once per unique id and flushes the result as one
+synchronized write. Either way, only the border ring is touched — never the
+pane's interior, so it's safe to call without disturbing a live `scroll="…"`
+viewport's `tui.output` content.
+
+Give a pane's border a focus color with a `:focus` block, and a widget a
+hover color with `:hover`:
+
+```css
+.panel:focus { fg: #ffffff; bg: #2c3e50; }
+.info_button:hover { fg: white; bg: #3a80ca; mods: bold; }
+```
+
+Leaving either pseudo-state out of a class leaves that transition with no
+visual effect — the fallback in `_tui._apply_style` resolves straight
+through to the normal/border style.
+
+## 3. Building Scrolling Viewports
 
 DABT handles text overflow gracefully through a custom, single-pass AWK shader. This enables massive blocks of text, complex tables, and raw logs to be scrolled smoothly using the mouse wheel, jump-to-click scrollbars, or keyboard bindings (`hjkl` / Shift+Arrows).
 

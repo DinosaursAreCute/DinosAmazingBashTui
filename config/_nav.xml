@@ -6,5 +6,6 @@
 <button id="btn_components" pane="nav" row="5" text="  Components" page="components.xml" class="nav_link" align="left"/>
 <button id="btn_scrolling"  pane="nav" row="6" text="  Scrolling"  page="scrolling.xml"  class="nav_link" align="left"/>
 <button id="btn_case"       pane="nav" row="7" text="  Case Study" page="case_study.xml" class="nav_link" align="left"/>
-<button id="btn_documentation" pane="nav" row="8" text="  Documentation" page="docu.xml" class="nav_link" align="left"/>
-<button id="btn_quit"       pane="nav" row="9" text="  Quit"       action="on_quit"      class="danger_button" align="left"/>
+<button id="btn_documentation" pane="nav" row="8" text="  Docs"       page="docu.xml" class="nav_link" align="left"/>
+<button id="btn_debug"      pane="nav" row="9" text="  Debug"      page="debug.xml"      class="nav_link" align="left"/>
+<button id="btn_quit"       pane="nav" row="11" text="  Quit"       action="on_quit"      class="danger_button" align="left"/>

@@ -144,35 +144,46 @@ tui.start "config/home.xml"
 
 ```
 bin/
-├── tui.sh                  # Core framework — layout, widgets, event loop
-├── tui_markup.sh           # XML config loader
-├── tui_style.sh            # CSS-like theme engine
-├── terminal_controls.sh    # Low-level terminal escape sequences
-├── colors.sh               # Color helpers (named + hex)
-├── terminal_renderer.sh    # Runtime text rendering utilities
-└── DABT_demo.sh            # Entry point for the demo
+├── callbacks.sh         # Legacy imperative demo callbacks
+├── colors.sh            # Color helpers (named + hex)
+├── DABT_demo.sh         # Entry point for the demo
+├── mouse_integration.sh # Standalone mouse-tracking/color test harness
+├── terminal_controls.sh # Low-level terminal escape sequences
+├── terminal_renderer.sh # Runtime text rendering utilities
+├── test.sh              # Ad-hoc terminal color/cursor test script
+├── tui_markup.sh        # XML config loader
+├── tui.sh               # Core framework — layout, widgets, event loop
+└── tui_style.sh         # CSS-like theme engine
 
-config
-├── terminal.xml               # live terminal demo 
-├── _nav.xml                   # reusable navigation pane
-├── case_study_callbacks.sh    # callbacks for the case study page
-├── case_study.xml             # case study page 
-├── components.xml             # components page 
-├── demo_callbacks.sh          # base callbacks 
-├── docu_callbacks.sh          # callbacks for the documentation page
-├── docu.xml                   # documentation page 
-├── features.xml               # features page 
-├── home.xml                   # entry point 
-├── scroll_callbacks.sh        # scroll page callbacks 
-├── scrolling.xml              # scrolling page 
-├── settings.xml               # settings page 
-├── showcase_callbacks.sh      # callbacks for the showcase page 
-├── styles.xml                 # style page 
-├── terminal_init.sh           # terminal callback 
-├── theme.css                  # css like style sheet 
-└── tui.xsd                    # DABT xml syntax xsd  
+config/
+├── case_study_callbacks.sh # callbacks for the case study page
+├── case_study.xml          # case study page
+├── components.xml          # renderer components showcase page
+├── debug_callbacks.sh      # callbacks for the debug page
+├── debug.xml               # hover/focus/input observability page
+├── demo_callbacks.sh       # base callbacks
+├── docu_callbacks.sh       # callbacks for the documentation page
+├── docu.xml                # documentation page (tabs built dynamically from docs/*.md)
+├── features.xml            # features page
+├── home.xml                # entry point
+├── _nav.xml                # reusable navigation pane
+├── scroll_callbacks.sh     # scrolling page callbacks
+├── scrolling.xml           # scrolling page
+├── settings.xml            # settings/forms page
+├── showcase_callbacks.sh   # callbacks for the components showcase page
+├── styles.xml              # style page
+├── terminal_init.sh        # terminal page callback
+├── terminal.xml            # live terminal demo
+├── theme.css               # css-like style sheet
+└── tui.xsd                 # DABT xml syntax xsd
 
 ```
+
+Regenerate this tree any time the file layout changes with
+`scripts/gen_tree.sh` — it walks `bin/` and `config/` live and renders
+them through `terminal_renderer.sh`'s own `tree` command, so it can't
+silently drift out of sync with the actual files the way a hand-edited
+one can.
 
 ## Requirements
 

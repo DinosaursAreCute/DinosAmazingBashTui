@@ -48,7 +48,7 @@ This high-performance architecture relies on three core principles:
   keyboard, the event handlers update the viewport offset states instantly by
   reading from the cached bounds. To prevent the terminal from choking on
   input floods, rapid scroll requests are batched into a pending queue
-  (`_TUI_PENDING_RENDER`). The actual drawing sequence is delayed until the
+  (`_TUI_PENDING_OUTPUT`). The actual drawing sequence is delayed until the
   input stream pauses or a strict timeout triggers.
 
 * **Single-Pass Subshell Injection:** Instead of looping line-by-line to
@@ -101,7 +101,7 @@ offset and `_TUI_P_SOFF_H` for the horizontal offset.
 The main event loop (`tui.run`) processes input continuously using
 non-blocking `read` commands. When a scroll event occurs, instead of
 directly invoking the drawing function, the framework flags the specific pane
-in a sparse associative array (`_TUI_PENDING_RENDER[$pane]=1`) and
+in a sparse associative array (`_TUI_PENDING_OUTPUT[$pane]=1`) and
 initializes a countdown timer (`_TUI_RENDER_TIMEOUT=3`). As the loop
 continues to cycle and absorb rapid input events, this timer decrements. The
 actual flush to the screen (`_tui._render_output`) only triggers when the

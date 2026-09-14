@@ -27,6 +27,28 @@
     <xs:restriction base="xs:string">
       <xs:enumeration value="h"/>
       <xs:enumeration value="v"/>
+      <xs:enumeration value="grid"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="tabsStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="framed"/>
+      <xs:enumeration value="compact"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="fitType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="pack"/>
+      <xs:enumeration value="stretch"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="boolType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/>
+      <xs:enumeration value="false"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -58,7 +80,10 @@
         <xs:element ref="label"/>
         <xs:element ref="input"/>
         <xs:element ref="button"/>
+        <xs:element ref="checkbox"/>
+        <xs:element ref="tabs"/>
       </xs:choice>
+      <xs:attribute name="on_visit" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -98,6 +123,16 @@
       <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="max_height" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="strict_fit" type="boolType"/>
+      <!-- split="grid" only -->
+      <xs:attribute name="rows" type="xs:positiveInteger"/>
+      <xs:attribute name="cols" type="xs:positiveInteger"/>
+      <xs:attribute name="fit" type="fitType"/>
+      <xs:attribute name="row_weights" type="xs:string"/>
+      <xs:attribute name="col_weights" type="xs:string"/>
+      <!-- direct child of a split="grid" parent only -->
+      <xs:attribute name="grid_row" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="grid_col" type="xs:nonNegativeInteger"/>
     </xs:complexType>
   </xs:element>
 
@@ -146,6 +181,43 @@
       <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="checkbox">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="pane" type="xs:string" use="required"/>
+      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="label" type="xs:string"/>
+      <xs:attribute name="checked" type="boolType"/>
+      <xs:attribute name="action" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="class" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="tabs">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="tab" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="header_pane" type="xs:string" use="required"/>
+      <xs:attribute name="content_pane" type="xs:string" use="required"/>
+      <xs:attribute name="style" type="tabsStyleType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="tab">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="text" type="xs:string"/>
+      <xs:attribute name="action" type="xs:string"/>
+      <xs:attribute name="default" type="boolType"/>
     </xs:complexType>
   </xs:element>
 

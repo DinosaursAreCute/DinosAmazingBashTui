@@ -4,7 +4,7 @@
 source "${SCRIPT_DIR:-.}/terminal_renderer.sh"
 
 on_tab_doc() {
-    local doc_path="../docs/Beding-The-World-To-Your-Will_architectural-Strategies-for-High-Performance-Viewport Scrolling-in-Pure-Bash-Terminal-Interfaces.md"
+    local doc_path="${SCRIPT_DIR:-.}/../docs/Bending-The-World-To-Your-Will_architectural-Strategies-for-High-Performance-Viewport Scrolling-in-Pure-Bash-Terminal-Interfaces.md"
     local raw_doc=""
     
     # Prepend a generated banner

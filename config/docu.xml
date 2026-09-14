@@ -1,28 +1,18 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd" on_visit="on_docu_visit">
   <script src="docu_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="h">
     <pane id="nav" weight="20" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="80">
-        <pane id="header" weight="12" title="Real World: High-Performance Viewports" border="single" class="panel"/>
-        <pane id="tabs" weight="4" split="h" border="none">
-            <pane id="tab_readme" weight="30" border="none"/>
-            <pane id="tab_ui-markup" weight="30" border="none"/>
-            <pane id="tab_callbacks_viewport" weight="30" border="none"/>
-            <pane id="tab_doc" weight="30" border="none"/>  
-        </pane>
-        <pane id="content" weight="84" border="heavy" class="panel" scroll="both"/>
+        <pane id="header" weight="10" title="Documentation" border="single" class="panel"/>
+        <pane id="tabs_header" weight="4" border="none"/>
+        <pane id="content" weight="86" border="heavy" class="panel" scroll="both"/>
     </pane>
   </pane>
 
   <label id="lbl_inst" pane="header" row="0" text="Read Dinos Amazing Bash Tui Documentation." align="center"/>
-  <label id="lbl_inst2" pane="header" row="1" text="Click a tab below to open the documentation." align="center" class="muted_label"/>
-  
-  <button id="btn_tab_doc" pane="tab_doc" row="0" text="[ Technical Document ]" action="on_tab_doc" class="info_button" align="fill"/>
-  <button id="btn_tab_readme" pane="tab_readme" row="0" text="[ README ]" action="on_tab_readme" class="info_button" align="fill"/>
-  <button id="btn_tab_ui-markup" pane="tab_ui-markup" row="0" text="[ UI Markup ]" action="on_tab_ui_markup" class="info_button" align="fill"/>
-  <button id="btn_tab_callbacks_viewport" pane="tab_callbacks_viewport" row="0" text="[ Callbacks Viewport ]" action="on_tab_callbacks_viewport" class="info_button" align="fill"/>
+  <label id="lbl_inst2" pane="header" row="1" text="Every .md file in docs/, plus the README, gets a tab here automatically." align="center" class="muted_label"/>
 
   <include src="_nav.xml"/>
 </tui>

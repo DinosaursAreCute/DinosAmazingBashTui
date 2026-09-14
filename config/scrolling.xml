@@ -1,4 +1,4 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd" on_visit="on_load_scroll_data">
   <script src="scroll_callbacks.sh"/>
   <theme src="theme.css"/>
 

@@ -3,9 +3,16 @@
 #
 # Stylesheet format (see config/theme.css):
 #   .classname { fg: red; bg: black; mods: bold underline; }
-#   .classname:focus { ... }   pseudo-state, applied only while focused
-#   .classname:border { ... }  applied to a pane's border
+#   .classname:focus { ... }   applied while a widget is focused; on a pane,
+#                               applied to its border ring while any widget
+#                               inside it is focused — see _tui._draw_pane_border
+#                               and _tui._draw_widget in tui.sh.
+#   .classname:border { ... }  a pane's border in its normal (unfocused) state
 #   .classname:title { ... }   applied to a pane's title text
+#   .classname:hover { ... }   applied to a *widget* (button/input) while the
+#                               mouse is over it; a widget with no :hover
+#                               rules keeps its normal look. Has no effect on
+#                               panes — pane borders only react to :focus.
 #
 # fg/bg accept a colors.sh name (e.g. "red") or a "#RRGGBB" hex value.
 # mods is a space-separated list of style.* modifiers (e.g. "bold underline").
@@ -13,7 +20,7 @@
 # tui.load_theme FILE   parses a stylesheet into the class table.
 # tui.class ID CLASS    applies a class's rules to a pane or widget id.
 # tui.style ID:STATE FG BG MODS   sets style directly, bypassing classes.
-#   STATE is one of: normal (default), focus, border, title.
+#   STATE is one of: normal (default), focus, border, title, hover.
 
 declare -gA _TUI_STYLE_FG=() _TUI_STYLE_BG=() _TUI_STYLE_MOD=()
 declare -gA _TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=()
@@ -68,7 +75,7 @@ tui.class() {
     [[ -z "$cls" ]] && return
 
     local state suffix
-    for state in normal focus border title; do
+    for state in normal focus border title hover; do
         suffix="$cls"
         [[ "$state" != "normal" ]] && suffix="${cls}_${state}"
         if [[ -n "${_TUI_CLASS_FG[$suffix]:-}${_TUI_CLASS_BG[$suffix]:-}${_TUI_CLASS_MOD[$suffix]:-}" ]]; then

@@ -1,4 +1,4 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd" on_visit="show_all">
   <script src="showcase_callbacks.sh"/>
   <theme src="theme.css"/>
 

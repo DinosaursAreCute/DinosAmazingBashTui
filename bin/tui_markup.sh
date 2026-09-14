@@ -24,7 +24,11 @@
 # paints the whole row with the element's fg/bg instead of just the text.
 #
 # `class` applies a named style from a loaded <theme> stylesheet — see
-# bin/tui_style.sh and config/theme.css.
+# bin/tui_style.sh and config/theme.css. A `.class:hover { … }` rule is
+# applied to a widget (button/input) while the mouse sits over it; it has
+# no effect on panes. A pane's border instead uses the class's `.class:focus`
+# rule while any widget inside it has keyboard focus (falling back to
+# `.class:border` otherwise).
 #
 # `text="…"`/`label="…"` on label/button support ${command args…} runtime
 # expressions (see _tui._resolve_text in tui.sh); call tui.redraw to refresh
@@ -44,6 +48,31 @@ declare -gA _TUI_MARKUP_PENDING=()
 declare -gA _TUI_MARKUP_TITLE=()
 declare -gA _TUI_MARKUP_BORDER=()
 declare -g  _TUI_MARKUP_DIR=""
+declare -g  _TUI_MARKUP_ON_VISIT=""
+
+# split="grid" only: a grid pane's own rows/cols/fit/weight attributes,
+# stashed at its open tag and consumed at its close tag once every child's
+# grid_row/grid_col (also stashed via _TUI_MARKUP_PENDING, see the pane
+# tag handler) is known. Kept as separate arrays rather than packed into
+# one string because row_weights/col_weights are themselves space-separated
+# lists.
+declare -gA _TUI_MARKUP_GRID_ROWS=()
+declare -gA _TUI_MARKUP_GRID_COLS=()
+declare -gA _TUI_MARKUP_GRID_FIT=()
+declare -gA _TUI_MARKUP_GRID_ROWW=()
+declare -gA _TUI_MARKUP_GRID_COLW=()
+
+# <tabs>...</tabs> collection state — mirrors the grid arrays above: a
+# <tabs> tag stashes its own attributes and an ordered list of the <tab>
+# children it collects until its closing tag, where
+# _tui_markup_resolve_tabs hands everything to tui.tabs.add/tui.tabs.build.
+declare -gA _TUI_MARKUP_TABS_HEADER=()   # tabs id -> header_pane
+declare -gA _TUI_MARKUP_TABS_CONTENT=()  # tabs id -> content_pane
+declare -gA _TUI_MARKUP_TABS_ORDER=()    # tabs id -> "tabid1 tabid2 ..."
+declare -gA _TUI_MARKUP_TAB_TEXT=()      # tab id -> text
+declare -gA _TUI_MARKUP_TAB_ACTION=()    # tab id -> action
+declare -gA _TUI_MARKUP_TAB_DEFAULT=()   # tab id -> "true"/""
+declare -g  _TUI_MARKUP_CURRENT_TABS=""
 
 _markup_attr() {
     local line="$1" name="$2"
@@ -92,6 +121,118 @@ _markup_expand() {
     done < "$key"
 }
 
+# _tui_markup_resolve_grid ID — called when a <pane split="grid"> closes.
+# Reads that grid's stashed rows/cols/fit/weights and its children's
+# pending "childid:row:col" entries ("-" standing in for "no override" on
+# a loose child — see how the pane tag handler above builds these) and
+# resolves explicit-vs-auto-flow placement into one flat, row-major name
+# list before handing it to tui.grid, which only deals in already-resolved
+# geometry:
+#   1. Cells with both grid_row and grid_col given are reserved first; a
+#      collision keeps the later child and warns.
+#   2. Remaining ("loose") children fill the remaining empty cells in
+#      document order.
+#   3. Any children left over once every cell is full grow the grid with
+#      additional rows rather than being dropped.
+_tui_markup_resolve_grid() {
+    local id="$1"
+    local -a entries=()
+    read -ra entries <<< "${_TUI_MARKUP_PENDING[$id]:-}"
+    unset '_TUI_MARKUP_PENDING[$id]'
+
+    local total=${#entries[@]}
+    local rows="${_TUI_MARKUP_GRID_ROWS[$id]:-}"
+    local cols="${_TUI_MARKUP_GRID_COLS[$id]:-}"
+    local fit="${_TUI_MARKUP_GRID_FIT[$id]:-pack}"
+    local roww="${_TUI_MARKUP_GRID_ROWW[$id]:-}"
+    local colw="${_TUI_MARKUP_GRID_COLW[$id]:-}"
+    unset '_TUI_MARKUP_GRID_ROWS[$id]' '_TUI_MARKUP_GRID_COLS[$id]' \
+          '_TUI_MARKUP_GRID_FIT[$id]' '_TUI_MARKUP_GRID_ROWW[$id]' '_TUI_MARKUP_GRID_COLW[$id]'
+
+    if (( total == 0 )); then
+        tui.grid "$id" "${rows:-1}" "${cols:-1}" "$fit" "$roww" "$colw"
+        return
+    fi
+
+    if [[ -z "$cols" && -z "$rows" ]]; then
+        cols=$(_tui._ceil_sqrt "$total")
+        rows=$(( (total + cols - 1) / cols ))
+    elif [[ -z "$cols" ]]; then
+        cols=$(( (total + rows - 1) / rows ))
+    elif [[ -z "$rows" ]]; then
+        rows=$(( (total + cols - 1) / cols ))
+    fi
+    (( rows < 1 )) && rows=1
+    (( cols < 1 )) && cols=1
+
+    local total_cells=$(( rows * cols ))
+    local -a flat=()
+    local i
+    for (( i = 0; i < total_cells; i++ )); do flat[$i]=""; done
+
+    local -a loose=()
+    local entry cid gr gc
+    for entry in "${entries[@]}"; do
+        IFS=: read -r cid gr gc <<< "$entry"
+        [[ "$gr" == "-" ]] && gr=""
+        [[ "$gc" == "-" ]] && gc=""
+        if [[ -n "$gr" && -n "$gc" ]]; then
+            local ci=$(( gr * cols + gc ))
+            if (( ci >= 0 && ci < total_cells )); then
+                if [[ -n "${flat[$ci]}" ]]; then
+                    echo "tui.load: grid '$id' cell (${gr},${gc}) already occupied by '${flat[$ci]}' — '$cid' overrides it" >&2
+                fi
+                flat[$ci]="$cid"
+            else
+                echo "tui.load: grid '$id' child '$cid' grid_row/grid_col out of bounds — treating as loose" >&2
+                loose+=("$cid")
+            fi
+        else
+            loose+=("$cid")
+        fi
+    done
+
+    local li=0
+    for (( i = 0; i < total_cells && li < ${#loose[@]}; i++ )); do
+        if [[ -z "${flat[$i]}" ]]; then
+            flat[$i]="${loose[$li]}"
+            (( li++ ))
+        fi
+    done
+    while (( li < ${#loose[@]} )); do
+        (( rows++ ))
+        local base=$(( (rows - 1) * cols )) c
+        for (( c = 0; c < cols && li < ${#loose[@]}; c++ )); do
+            flat[$(( base + c ))]="${loose[$li]}"
+            (( li++ ))
+        done
+    done
+
+    tui.grid "$id" "$rows" "$cols" "$fit" "$roww" "$colw" "${flat[@]}"
+}
+
+# _tui_markup_resolve_tabs TABS_ID — called when a <tabs> closes. Hands
+# every <tab> child collected since the matching open tag to
+# tui.tabs.add/tui.tabs.build, then clears this tabs group's scratch state.
+_tui_markup_resolve_tabs() {
+    local tabs_id="$1"
+    local header_pane="${_TUI_MARKUP_TABS_HEADER[$tabs_id]:-}"
+    local content_pane="${_TUI_MARKUP_TABS_CONTENT[$tabs_id]:-}"
+    local -a tab_ids=()
+    read -ra tab_ids <<< "${_TUI_MARKUP_TABS_ORDER[$tabs_id]:-}"
+
+    local tid
+    for tid in "${tab_ids[@]}"; do
+        tui.tabs.add "$tid" "${_TUI_MARKUP_TAB_TEXT[$tid]:-}" "${_TUI_MARKUP_TAB_ACTION[$tid]:-}" "${_TUI_MARKUP_TAB_DEFAULT[$tid]:-}"
+    done
+    tui.tabs.build "$tabs_id" "$header_pane" "$content_pane" "${tab_ids[@]}"
+
+    unset '_TUI_MARKUP_TABS_HEADER[$tabs_id]' '_TUI_MARKUP_TABS_CONTENT[$tabs_id]' '_TUI_MARKUP_TABS_ORDER[$tabs_id]'
+    for tid in "${tab_ids[@]}"; do
+        unset '_TUI_MARKUP_TAB_TEXT[$tid]' '_TUI_MARKUP_TAB_ACTION[$tid]' '_TUI_MARKUP_TAB_DEFAULT[$tid]'
+    done
+}
+
 # tui.load FILE — parse a markup file and build panes/widgets via tui.* calls.
 tui.load() {
     local file="$1"
@@ -101,6 +242,8 @@ tui.load() {
     _TUI_MARKUP_PENDING=()
     _TUI_MARKUP_TITLE=()
     _TUI_MARKUP_BORDER=()
+    _TUI_MARKUP_CURRENT_TABS=""
+    _TUI_MARKUP_ON_VISIT=""
     _TUI_MARKUP_DIR="$(cd "$(dirname "$file")" && pwd)"
 
     local -a stack_id=() stack_dir=()
@@ -119,7 +262,12 @@ tui.load() {
         [[ -z "$tag" ]] && continue
 
         case "$tag" in
-            tui) continue ;;
+            tui)
+                (( closing )) && continue
+                local visit; visit="$(_markup_attr "$line" on_visit)"
+                [[ -n "$visit" ]] && _TUI_MARKUP_ON_VISIT="$visit"
+                continue
+                ;;
 
             script)
                 local src resolved
@@ -147,7 +295,9 @@ tui.load() {
                     local id="${stack_id[$((n-1))]}" dirn="${stack_dir[$((n-1))]}"
                     unset 'stack_id[n-1]' 'stack_dir[n-1]'
 
-                    if [[ -n "${_TUI_MARKUP_PENDING[$id]:-}" ]]; then
+                    if [[ "$dirn" == "grid" ]]; then
+                        _tui_markup_resolve_grid "$id"
+                    elif [[ -n "${_TUI_MARKUP_PENDING[$id]:-}" ]]; then
                         if [[ "$dirn" == "v" ]]; then
                             tui.vsplit "$id" ${_TUI_MARKUP_PENDING[$id]}
                         else
@@ -158,7 +308,8 @@ tui.load() {
                     continue
                 fi
 
-                local id split weight title border align valign minw minh maxw maxh class scroll
+                local id split weight title border align valign minw minh maxw maxh class scroll strictfit
+                local rows cols fit roww colw gridrow gridcol
                 id="$(_markup_attr "$line" id)"
                 split="$(_markup_attr "$line" split)"
                 weight="$(_markup_attr "$line" weight)"
@@ -171,19 +322,41 @@ tui.load() {
                 maxw="$(_markup_attr "$line" max_width)"
                 maxh="$(_markup_attr "$line" max_height)"
                 class="$(_markup_attr "$line" class)"
-                
+
                 # Extract scroll attribute here
                 scroll="$(_markup_attr "$line" scroll)"
+                strictfit="$(_markup_attr "$line" strict_fit)"
+
+                # split="grid" attributes (see _tui_markup_resolve_grid)
+                rows="$(_markup_attr "$line" rows)"
+                cols="$(_markup_attr "$line" cols)"
+                fit="$(_markup_attr "$line" fit)"
+                roww="$(_markup_attr "$line" row_weights)"
+                colw="$(_markup_attr "$line" col_weights)"
+                gridrow="$(_markup_attr "$line" grid_row)"
+                gridcol="$(_markup_attr "$line" grid_col)"
 
                 if [[ -n "$id" && "$id" != "root" ]]; then
                     local n=${#stack_id[@]}
                     if (( n > 0 )); then
                         local parent="${stack_id[$((n-1))]}"
-                        _TUI_MARKUP_PENDING[$parent]="${_TUI_MARKUP_PENDING[$parent]:+${_TUI_MARKUP_PENDING[$parent]} }${id}:${weight:-1}"
+                        if [[ "${stack_dir[$((n-1))]}" == "grid" ]]; then
+                            _TUI_MARKUP_PENDING[$parent]="${_TUI_MARKUP_PENDING[$parent]:+${_TUI_MARKUP_PENDING[$parent]} }${id}:${gridrow:--}:${gridcol:--}"
+                        else
+                            _TUI_MARKUP_PENDING[$parent]="${_TUI_MARKUP_PENDING[$parent]:+${_TUI_MARKUP_PENDING[$parent]} }${id}:${weight:-1}"
+                        fi
                     fi
                 fi
 
-                # tui.hsplit/vsplit reset child title/border to defaults, so these are applied afterwards.
+                if [[ "$split" == "grid" ]]; then
+                    _TUI_MARKUP_GRID_ROWS[$id]="$rows"
+                    _TUI_MARKUP_GRID_COLS[$id]="$cols"
+                    _TUI_MARKUP_GRID_FIT[$id]="${fit:-pack}"
+                    _TUI_MARKUP_GRID_ROWW[$id]="$roww"
+                    _TUI_MARKUP_GRID_COLW[$id]="$colw"
+                fi
+
+                # tui.hsplit/vsplit/tui.grid reset child title/border to defaults, so these are applied afterwards.
                 [[ -n "$title" ]]  && _TUI_MARKUP_TITLE[$id]="$title"
                 [[ -n "$border" ]] && _TUI_MARKUP_BORDER[$id]="$border"
                 tui.pane_align "$id" "$align"
@@ -191,9 +364,10 @@ tui.load() {
                 tui.pane_minsize "$id" "$minw" "$minh"
                 tui.pane_maxsize "$id" "$maxw" "$maxh"
                 tui.class "$id" "$class"
-                
+
                 # Apply the scroll attribute here
                 tui.pane_scroll "$id" "$scroll"
+                [[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 
                 if [[ -n "$split" && $selfclose -eq 0 ]]; then
                     stack_id+=("$id")
@@ -258,6 +432,62 @@ tui.load() {
                 tui.maxsize "$bid" "$bmaxw"
                 tui.class "$bid" "$bclass"
                 ;;
+
+            checkbox)
+                local kid kpane krow klabel kchecked kaction kalign kvalign kminw kmaxw kclass
+                kid="$(_markup_attr "$line" id)"
+                kpane="$(_markup_attr "$line" pane)"
+                krow="$(_markup_attr "$line" row)"
+                klabel="$(_markup_attr "$line" label)"
+                kchecked="$(_markup_attr "$line" checked)"
+                kaction="$(_markup_attr "$line" action)"
+                kalign="$(_markup_attr "$line" align)"
+                kvalign="$(_markup_attr "$line" valign)"
+                kminw="$(_markup_attr "$line" min_width)"
+                kmaxw="$(_markup_attr "$line" max_width)"
+                kclass="$(_markup_attr "$line" class)"
+
+                tui.checkbox "$kid" "$kpane" "$krow" "$klabel" "$kchecked" "$kaction"
+                tui.align "$kid" "$kalign"
+                tui.valign "$kid" "$kvalign"
+                tui.minsize "$kid" "$kminw"
+                tui.maxsize "$kid" "$kmaxw"
+                tui.class "$kid" "$kclass"
+                ;;
+
+            tabs)
+                if (( closing )); then
+                    [[ -n "$_TUI_MARKUP_CURRENT_TABS" ]] && _tui_markup_resolve_tabs "$_TUI_MARKUP_CURRENT_TABS"
+                    _TUI_MARKUP_CURRENT_TABS=""
+                    continue
+                fi
+                local tabsid thp tcp tstyle
+                tabsid="$(_markup_attr "$line" id)"
+                thp="$(_markup_attr "$line" header_pane)"
+                tcp="$(_markup_attr "$line" content_pane)"
+                tstyle="$(_markup_attr "$line" style)"
+                _TUI_MARKUP_TABS_HEADER[$tabsid]="$thp"
+                _TUI_MARKUP_TABS_CONTENT[$tabsid]="$tcp"
+                _TUI_MARKUP_TABS_ORDER[$tabsid]=""
+                [[ "$tstyle" == "compact" ]] && tui.tabs.compact "$tabsid" true
+                _TUI_MARKUP_CURRENT_TABS="$tabsid"
+                ;;
+
+            tab)
+                local tabid tabtext tabaction tabdefault
+                tabid="$(_markup_attr "$line" id)"
+                tabtext="$(_markup_attr "$line" text)"
+                tabaction="$(_markup_attr "$line" action)"
+                tabdefault="$(_markup_attr "$line" default)"
+                if [[ -z "$_TUI_MARKUP_CURRENT_TABS" ]]; then
+                    echo "tui.load: <tab id=\"$tabid\"> outside a <tabs> block, skipping" >&2
+                    continue
+                fi
+                _TUI_MARKUP_TABS_ORDER[$_TUI_MARKUP_CURRENT_TABS]="${_TUI_MARKUP_TABS_ORDER[$_TUI_MARKUP_CURRENT_TABS]:+${_TUI_MARKUP_TABS_ORDER[$_TUI_MARKUP_CURRENT_TABS]} }${tabid}"
+                _TUI_MARKUP_TAB_TEXT[$tabid]="$tabtext"
+                _TUI_MARKUP_TAB_ACTION[$tabid]="$tabaction"
+                _TUI_MARKUP_TAB_DEFAULT[$tabid]="$tabdefault"
+                ;;
         esac
     done < <(_markup_expand "$file")
 
@@ -268,6 +498,15 @@ tui.load() {
     for pid in "${!_TUI_MARKUP_BORDER[@]}"; do
         tui.pane_border "$pid" "${_TUI_MARKUP_BORDER[$pid]}"
     done
+
+    # <tui on_visit="fn"> — runs once the page's panes/widgets are fully
+    # built, so a page can, say, scan a directory and build dynamic tabs
+    # (see config/docu_callbacks.sh) instead of needing every widget known
+    # up front in the markup. Fires on every tui.load, including a
+    # tui.goto back to a page already visited before.
+    if [[ -n "$_TUI_MARKUP_ON_VISIT" ]]; then
+        "$_TUI_MARKUP_ON_VISIT"
+    fi
 }
 
 # tui.reset_ui — wipe all panes/widgets and rebuild a full-screen root pane.
@@ -277,12 +516,19 @@ tui.reset_ui() {
     _TUI_P_TITLE=(); _TUI_P_BORDER=(); _TUI_P_LEAVES=()
     _TUI_P_ALIGN=(); _TUI_P_VALIGN=(); _TUI_P_CONTENT=()
     _TUI_P_MINW=(); _TUI_P_MINH=(); _TUI_P_MAXW=(); _TUI_P_MAXH=()
+    _TUI_P_STRICT_FIT=(); _TUI_P_EFFECTIVE_MINW=(); _TUI_P_EFFECTIVE_MINH=()
+    _TUI_FACTORY_IDS=(); _TUI_FACTORY_GRID_PARENTS=(); _TUI_FACTORY_COUNTER=()
+    _TUI_TABS_ACTIVE=(); _TUI_TABS_CONTENT_PANE=(); _TUI_TABS_COMPACT=(); _TUI_TAB_TEXT=()
+    _TUI_TAB_ACTION=(); _TUI_TAB_DEFAULT=(); _TUI_TAB_GROUP=()
     _TUI_W_TYPE=(); _TUI_W_PANE=(); _TUI_W_ROW=(); _TUI_W_LABEL=()
     _TUI_W_VALUE=(); _TUI_W_ACTION=(); _TUI_W_SUBMIT=(); _TUI_W_PH=()
     _TUI_W_ALIGN=(); _TUI_W_VALIGN=(); _TUI_W_MINW=(); _TUI_W_MAXW=()
     _TUI_W_LABEL_ALIGN=(); _TUI_W_LABEL_WIDTH=()
     _TUI_W_ORDER=(); _TUI_FOCUSABLE=()
     _TUI_FOCUS_ID=""; _TUI_FOCUS_IDX=-1; _TUI_CURSOR=0
+    _TUI_HOVERED_PANE=""; _TUI_HOVERED_WIDGET=""
+    _TUI_PENDING_OUTPUT=()
+    _TUI_RENDER_TIMEOUT=-1
     _TUI_TICK_FN=""
     _TUI_MARKUP_PENDING=()
     _TUI_STYLE_FG=(); _TUI_STYLE_BG=(); _TUI_STYLE_MOD=()

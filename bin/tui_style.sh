@@ -66,6 +66,70 @@ tui.load_theme() {
             esac
         fi
     done < "$file"
+
+    _tui._find_theme_collisions
+    local finding
+    for finding in "${_TUI_THEME_COLLISIONS[@]}"; do
+        tui.log.warn "tui.load_theme($file): $finding"
+    done
+}
+
+# _tui._find_theme_collisions — scans the just-loaded theme for classes
+# where a pane's border ring, in the state it actually shows while
+# focused, resolves to the exact same fg/bg/mods as that class's :title.
+# These two are drawn immediately adjacent to each other — the border
+# ring, then the title tag right after it — any time a pane using that
+# class has a title and gets focused (_tui._draw_pane_border in tui.sh).
+# Identical styles there don't produce a visible error; they produce a
+# run of same-colored characters that reads, in a screenshot, like
+# garbled output rather than what it actually is: nobody chose to make
+# the border and the title look different once the pane has focus. This
+# is exactly the bug `.sidebar:focus` shipped with earlier in this
+# project's history (copied from `.sidebar:title` verbatim) — findings
+# are populated into _TUI_THEME_COLLISIONS as plain description strings;
+# tui.load_theme logs each one via tui.log.warn, and scripts/lint_theme.sh
+# prints them for a human to look at directly, both reading the exact
+# same array so there's one place this check can ever be wrong.
+declare -ga _TUI_THEME_COLLISIONS=()
+
+_tui._theme_state_triplet() {
+    local class="$1"
+    local state="$2"
+    local suffix="$class"
+    [[ "$state" != "normal" ]] && suffix="${class}_${state}"
+    printf '%s\x1f%s\x1f%s' "${_TUI_CLASS_FG[$suffix]:-}" "${_TUI_CLASS_BG[$suffix]:-}" "${_TUI_CLASS_MOD[$suffix]:-}"
+}
+
+_tui._theme_triplet_set() { [[ "$1" != $'\x1f\x1f' ]]; }
+
+_tui._find_theme_collisions() {
+    _TUI_THEME_COLLISIONS=()
+
+    local -A bases=()
+    local key base
+    for key in "${!_TUI_CLASS_FG[@]}" "${!_TUI_CLASS_BG[@]}" "${!_TUI_CLASS_MOD[@]}"; do
+        base="$key"
+        base="${base%_focus}"; base="${base%_border}"; base="${base%_title}"; base="${base%_hover}"
+        bases[$base]=1
+    done
+
+    local title ring focus
+    for base in "${!bases[@]}"; do
+        title="$(_tui._theme_state_triplet "$base" title)"
+        _tui._theme_triplet_set "$title" || continue
+
+        focus="$(_tui._theme_state_triplet "$base" focus)"
+        if _tui._theme_triplet_set "$focus"; then
+            ring="$focus"
+        else
+            ring="$(_tui._theme_state_triplet "$base" border)"
+        fi
+        _tui._theme_triplet_set "$ring" || continue
+
+        if [[ "$title" == "$ring" ]]; then
+            _TUI_THEME_COLLISIONS+=(".$base — :focus (falling back to :border) resolves identically to :title. A pane using this class will show its title tag blending into its border ring the moment it's focused.")
+        fi
+    done
 }
 
 # tui.class ID CLASS — applies .class (+ optional :focus/:border/:title

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source colors.sh
+source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 # ╔════════════════════════════════════════════════════════════════════════════╗
 # ║  terminal_renderer.sh — pure-bash terminal rendering toolkit             ║
 # ║                                                                          ║
@@ -13,8 +13,9 @@ source colors.sh
 # ║    cmd_string "args"        → returns single string with literal \n      ║
 # ║  CLI flag -s triggers string mode.                                       ║
 # ║                                                                          ║
-# ║  Commands: box, divider, alert, table, kv, hbar, banner, tree,          ║
-# ║            columns, badges, list, quote                                  ║
+# ║  Commands: box, divider, alert, table, kv, hbar, gauge, sparkline,      ║
+# ║            vbar, linechart, csv_hbar, csv_vbar, csv_linechart, banner,   ║
+# ║            tree, columns, badges, list, quote                            ║
 # ╚════════════════════════════════════════════════════════════════════════════╝
 
 # ===========================================================================
@@ -100,6 +101,88 @@ _tr_visible_len() {
     local stripped
     stripped="$(_tr_strip_ansi "$1")"
     printf '%d' "${#stripped}"
+}
+
+# Default color cycle used by multi-series/multi-bar charts when the user
+# doesn't pass an explicit -c list.
+_TR_DEFAULT_PALETTE=(CYAN MAGENTA GREEN YELLOW BLUE RED BRIGHT_CYAN BRIGHT_MAGENTA BRIGHT_GREEN BRIGHT_YELLOW)
+
+# Resolve a color name (e.g. "RED", "bright_cyan") to its escape sequence.
+# Accepts a raw escape sequence too (passed through unchanged).
+# Unknown names resolve to "" (no color).
+_tr_resolve_color() {
+    local name="$1"
+    [[ -z "$name" ]] && { printf ''; return; }
+    if [[ "$name" == *$'\033'* ]]; then printf '%s' "$name"; return; fi
+    local varname="${name^^}"
+    if [[ -n "${!varname+x}" ]]; then
+        printf '%s' "${!varname}"
+    else
+        printf ''
+    fi
+}
+
+# Split a comma-separated -c argument into the _TR_COLORS array.
+# Falls back to _TR_DEFAULT_PALETTE when no argument was given.
+_tr_colors_or_default() {
+    local arg="$1"
+    if [[ -n "$arg" ]]; then
+        IFS=',' read -ra _TR_COLORS <<< "$arg"
+    else
+        _TR_COLORS=("${_TR_DEFAULT_PALETTE[@]}")
+    fi
+}
+
+# Resample a value series to exactly _TR_RESAMPLE_TARGET points via
+# nearest-neighbor mapping, so a chart can be pinned to a fixed width
+# regardless of how many samples the caller actually has (fewer samples
+# get stretched, more get thinned) — first/last points always map through
+# unchanged. Input in _TR_RESAMPLE_IN, output in _TR_RESAMPLE_OUT.
+_tr_resample() {
+    local target="$1"
+    local -a in=("${_TR_RESAMPLE_IN[@]}")
+    local n=${#in[@]}
+    _TR_RESAMPLE_OUT=()
+    (( n == 0 || target <= 0 )) && return
+    if (( target == n )); then
+        _TR_RESAMPLE_OUT=("${in[@]}")
+        return
+    fi
+    local i idx
+    for (( i = 0; i < target; i++ )); do
+        if (( target == 1 || n == 1 )); then
+            idx=0
+        else
+            idx=$(( i * (n - 1) / (target - 1) ))
+        fi
+        _TR_RESAMPLE_OUT+=("${in[$idx]}")
+    done
+}
+
+# Parse a simple "label,value,label,value" CSV-like file into _TR_CSV_ROWS,
+# one entry per row with fields joined by \x01. Blank lines are skipped and
+# fields are whitespace-trimmed.
+_tr_csv_parse() {
+    local file="$1" delim="${2:-,}"
+    _TR_CSV_ROWS=()
+    [[ -f "$file" ]] || return 1
+
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" ]] && continue
+        local -a fields=()
+        IFS="$delim" read -ra fields <<< "$line"
+        for i in "${!fields[@]}"; do
+            local f="${fields[$i]}"
+            f="${f#"${f%%[![:space:]]*}"}"
+            f="${f%"${f##*[![:space:]]}"}"
+            fields[$i]="$f"
+        done
+        _TR_CSV_ROWS+=("$(IFS=$'\x01'; printf '%s' "${fields[*]}")")
+    done < "$file"
+
+    [[ ${#_TR_CSV_ROWS[@]} -eq 0 ]] && return 1
+    return 0
 }
 
 
@@ -442,19 +525,31 @@ kv_string() {
 # ===========================================================================
 #  Usage: hbar "Revenue:78" "Costs:45" "Profit:33"
 #         hbar -m 100 "A:30" "B:90"       ← explicit max
-#         hbar -w 50 "X:40" "Y:60"        ← bar area width
+#         hbar -n 0 -m 100 "A:30" "B:90"  ← explicit min+max (baseline other than 0)
+#         hbar -w 50 "X:40" "Y:60"        ← fixed bar area width
+#         hbar -lw 12 "X:40" "LongLabel:60"  ← fixed label column width (pad/truncate)
+#         hbar -c "GREEN" "A:30" "B:90"          ← single color for all bars
+#         hbar -c "GREEN,YELLOW,RED" "A:30" "B:90" "C:10"  ← per-bar colors
 #  Delimiter between label and value is : by default, override with -d.
+#  No color is applied unless -c is given (keeps plain output for embedding
+#  in tables/columns where escape codes would break alignment).
+#  Pass both -m and -lw (and -w) with a fixed value across calls to get an
+#  identically-sized chart every render regardless of the data/labels that
+#  particular call happens to have — see linechart/vbar for the same idea.
 
 _hbar_build() {
-    local delim=":" max_val=0 bar_width=0
+    local delim=":" max_val="" min_val=0 bar_width=0 label_width=0 color_arg=""
     local entries=()
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -d) delim="$2"; shift 2 ;;
-            -m) max_val="$2"; shift 2 ;;
-            -w) bar_width="$2"; shift 2 ;;
-            *)  entries+=("$1"); shift ;;
+            -d)  delim="$2"; shift 2 ;;
+            -m)  max_val="$2"; shift 2 ;;
+            -n)  min_val="$2"; shift 2 ;;
+            -w)  bar_width="$2"; shift 2 ;;
+            -lw) label_width="$2"; shift 2 ;;
+            -c)  color_arg="$2"; shift 2 ;;
+            *)   entries+=("$1"); shift ;;
         esac
     done
 
@@ -469,6 +564,7 @@ _hbar_build() {
 
     local -a labels=() values=()
     local max_label=0
+    local auto_max=""
 
     for entry in "${entries[@]}"; do
         local label="${entry%%${delim}*}"
@@ -476,10 +572,13 @@ _hbar_build() {
         labels+=("$label")
         values+=("$val")
         (( ${#label} > max_label )) && max_label=${#label}
-        (( val > max_val )) && max_val=$val
+        [[ -z "$auto_max" || "$val" -gt "$auto_max" ]] && auto_max=$val
     done
 
-    (( max_val == 0 )) && max_val=1
+    [[ -z "$max_val" ]] && max_val=$auto_max
+    (( max_val == min_val )) && max_val=$(( min_val + 1 ))
+
+    (( label_width > 0 )) && max_label=$label_width
 
     local tw; tw="$(_tr_term_width)"
     # bar_width: label + " " + bar + " " + value(up to 7 chars)
@@ -489,15 +588,29 @@ _hbar_build() {
         (( bar_width > 60 )) && bar_width=60
     fi
 
+    local -a colors=()
+    [[ -n "$color_arg" ]] && IFS=',' read -ra colors <<< "$color_arg"
+
+    local span=$(( max_val - min_val ))
     for (( i = 0; i < ${#labels[@]}; i++ )); do
         local l="${labels[$i]}" v="${values[$i]}"
-        local filled=$(( v * bar_width / max_val ))
+        (( label_width > 0 && ${#l} > label_width )) && l="${l:0:label_width}"
+
+        local clamped=$v
+        (( clamped < min_val )) && clamped=$min_val
+        (( clamped > max_val )) && clamped=$max_val
+        local filled=$(( (clamped - min_val) * bar_width / span ))
         local empty=$(( bar_width - filled ))
 
         local bar_full; bar_full="$(_tr_repeat "█" "$filled")"
         local bar_empty; bar_empty="$(_tr_repeat "░" "$empty")"
 
-        TR_RESULT+=("$(printf '%-*s %s%s %s' "$max_label" "$l" "$bar_full" "$bar_empty" "$v")")
+        if [[ ${#colors[@]} -gt 0 ]]; then
+            local colval; colval="$(_tr_resolve_color "${colors[$(( i % ${#colors[@]} ))]}")"
+            TR_RESULT+=("$(printf '%-*s %b%s%b%s %s' "$max_label" "$l" "$colval" "$bar_full" "$RESET" "$bar_empty" "$v")")
+        else
+            TR_RESULT+=("$(printf '%-*s %s%s %s' "$max_label" "$l" "$bar_full" "$bar_empty" "$v")")
+        fi
     done
 }
 
@@ -506,6 +619,586 @@ hbar() {
 }
 hbar_string() {
     _hbar_build "$@" || return; _tr_to_string
+}
+
+
+# ===========================================================================
+#  6b. GAUGE — single-value meter (single-element chart)
+# ===========================================================================
+#  Usage: gauge 72                          → auto-colored (red/yellow/green)
+#         gauge -l "CPU" 85                 → with label
+#         gauge -m 200 150                  → explicit max (default 100)
+#         gauge -n 10 -m 200 150            → explicit min+max (default min 0)
+#         gauge -c CYAN 60                  → force a color
+#         gauge -w 40 72                    → bar area width (default 30)
+#         gauge -lw 8 -l "RAM" 72           → fixed label-column width, so
+#                                              lines stay the same length
+#                                              across different labels
+#  Without -c, color is chosen by threshold: <40 red, <70 yellow, else green.
+#  Pass -w (and -lw, if using labels) with a fixed value across refreshes to
+#  get a gauge that's exactly the same width every render.
+
+_gauge_build() {
+    local color="" width=30 label="" label_width=0 max=100 min=0 value=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -c)  color="$2"; shift 2 ;;
+            -w)  width="$2"; shift 2 ;;
+            -l)  label="$2"; shift 2 ;;
+            -lw) label_width="$2"; shift 2 ;;
+            -m)  max="$2"; shift 2 ;;
+            -n)  min="$2"; shift 2 ;;
+            *)   value="$1"; shift ;;
+        esac
+    done
+
+    TR_RESULT=()
+    [[ -z "$value" ]] && return 1
+    (( max == min )) && max=$(( min + 1 ))
+
+    local clamped=$value
+    (( clamped < min )) && clamped=$min
+    (( clamped > max )) && clamped=$max
+    local pct=$(( (clamped - min) * 100 / (max - min) ))
+
+    local col
+    if [[ -n "$color" ]]; then
+        col="$(_tr_resolve_color "$color")"
+    elif (( pct >= 70 )); then
+        col="$GREEN"
+    elif (( pct >= 40 )); then
+        col="$YELLOW"
+    else
+        col="$RED"
+    fi
+
+    local filled=$(( pct * width / 100 ))
+    local empty=$(( width - filled ))
+    local bar_full; bar_full="$(_tr_repeat "█" "$filled")"
+    local bar_empty; bar_empty="$(_tr_repeat "░" "$empty")"
+
+    local prefix=""
+    if [[ -n "$label" ]]; then
+        if (( label_width > 0 )); then
+            prefix="$(printf '%-*s ' "$label_width" "$label")"
+        else
+            prefix="${label} "
+        fi
+    fi
+
+    TR_RESULT+=("$(printf '%s[%b%s%b%s] %3d%%' "$prefix" "$col" "$bar_full" "$RESET" "$bar_empty" "$pct")")
+}
+
+gauge() {
+    _gauge_build "$@" || return; _tr_print
+}
+gauge_string() {
+    _gauge_build "$@" || return; _tr_to_string
+}
+
+
+# ===========================================================================
+#  6c. SPARKLINE — single-line mini chart from a series of numbers
+# ===========================================================================
+#  Usage: sparkline "3 5 8 2 9 4"
+#         sparkline -d "," "1,4,2,8,5,9,3"
+#         sparkline -c CYAN "1 4 2 8 5"
+#         sparkline -w 20 "1 4 2 8 5"      ← resampled to exactly 20 chars,
+#                                             however many values were given
+#         sparkline -n 0 -m 100 "40 55 62" ← fixed scale instead of auto-range
+#         printf "3\n5\n8\n2\n" | sparkline
+#  Single-element chart — one line of block characters scaled to the range
+#  of the data. No color by default; pass -c to color it. Pass -w with a
+#  fixed value across refreshes to keep it a constant width regardless of
+#  how many samples are fed in each time (fills available space).
+
+_sparkline_build() {
+    local color="" delim=" " data="" width=0 max_val="" min_val=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -c) color="$2"; shift 2 ;;
+            -d) delim="$2"; shift 2 ;;
+            -w) width="$2"; shift 2 ;;
+            -m) max_val="$2"; shift 2 ;;
+            -n) min_val="$2"; shift 2 ;;
+            *)  data="$1"; shift ;;
+        esac
+    done
+
+    if [[ -z "$data" && ! -t 0 ]]; then
+        data="$(cat | tr '\n' ' ')"
+        delim=" "
+    fi
+
+    TR_RESULT=()
+    [[ -z "$data" ]] && return 1
+
+    local -a values=()
+    IFS="$delim" read -ra values <<< "$data"
+    [[ ${#values[@]} -eq 0 ]] && return 1
+
+    if (( width > 0 )); then
+        _TR_RESAMPLE_IN=("${values[@]}")
+        _tr_resample "$width"
+        values=("${_TR_RESAMPLE_OUT[@]}")
+    fi
+
+    local levels=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
+    local min="$min_val" max="$max_val"
+    for v in "${values[@]}"; do
+        [[ -z "$min" || "$v" -lt "$min" ]] && min=$v
+        [[ -z "$max" || "$v" -gt "$max" ]] && max=$v
+    done
+    local range=$(( max - min ))
+    (( range == 0 )) && range=1
+
+    local out=""
+    for v in "${values[@]}"; do
+        local clamped=$v
+        (( clamped < min )) && clamped=$min
+        (( clamped > max )) && clamped=$max
+        local idx=$(( (clamped - min) * (${#levels[@]} - 1) / range ))
+        out+="${levels[$idx]}"
+    done
+
+    if [[ -n "$color" ]]; then
+        local colval; colval="$(_tr_resolve_color "$color")"
+        TR_RESULT+=("$(printf '%b%s%b' "$colval" "$out" "$RESET")")
+    else
+        TR_RESULT+=("$out")
+    fi
+}
+
+sparkline() {
+    _sparkline_build "$@" || return; _tr_print
+}
+sparkline_string() {
+    _sparkline_build "$@" || return; _tr_to_string
+}
+
+
+# ===========================================================================
+#  6d. VBAR — vertical bar / column chart (single or multiple columns)
+# ===========================================================================
+#  Usage: vbar "CPU:72"                              ← single column
+#         vbar "Q1:60" "Q2:72" "Q3:98" "Q4:85"        ← multiple columns
+#         vbar -h 12 "A:30" "B:90"                    ← chart height in rows
+#         vbar -n 0 -m 100 "A:30" "B:90"              ← fixed min/max scale
+#         vbar -c "GREEN,YELLOW,RED" "A:30" "B:90" "C:10"
+#         vbar -cw 5 "A:30" "B:90"                    ← fixed column width
+#         vbar -tw 40 "A:30" "B:90" "C:10"            ← fixed TOTAL width,
+#                                                         columns divide it evenly
+#  Colored with the default palette unless -c overrides it. Pass -h and
+#  either -cw or -tw with fixed values across refreshes (e.g. sized from
+#  the pane's actual dimensions) to get a chart that always renders at
+#  exactly the same size and fills the available space, regardless of how
+#  the data/labels happen to look that particular call.
+
+_vbar_build() {
+    local delim=":" height=8 max_val="" min_val=0 color_arg="" total_width=0 col_width_arg=0
+    local entries=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -d)  delim="$2"; shift 2 ;;
+            -h)  height="$2"; shift 2 ;;
+            -m)  max_val="$2"; shift 2 ;;
+            -n)  min_val="$2"; shift 2 ;;
+            -c)  color_arg="$2"; shift 2 ;;
+            -tw) total_width="$2"; shift 2 ;;
+            -cw) col_width_arg="$2"; shift 2 ;;
+            *)   entries+=("$1"); shift ;;
+        esac
+    done
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        while IFS= read -r ln; do
+            [[ -n "$ln" ]] && entries+=("$ln")
+        done
+    fi
+
+    TR_RESULT=()
+    [[ ${#entries[@]} -eq 0 ]] && return 1
+
+    local -a labels=() values=()
+    local auto_max=""
+    for entry in "${entries[@]}"; do
+        local label="${entry%%${delim}*}"
+        local val="${entry#*${delim}}"
+        labels+=("$label"); values+=("$val")
+        [[ -z "$auto_max" || "$val" -gt "$auto_max" ]] && auto_max=$val
+    done
+    [[ -z "$max_val" ]] && max_val=$auto_max
+    (( max_val == min_val )) && max_val=$(( min_val + 1 ))
+
+    local -a colors=()
+    _tr_colors_or_default "$color_arg"
+    colors=("${_TR_COLORS[@]}")
+
+    local n=${#labels[@]}
+    local col_width=0
+    if (( col_width_arg > 0 )); then
+        col_width=$col_width_arg
+    elif (( total_width > 0 )); then
+        col_width=$(( (total_width - (n - 1)) / n ))
+        (( col_width < 1 )) && col_width=1
+    else
+        for l in "${labels[@]}"; do (( ${#l} > col_width )) && col_width=${#l}; done
+        for v in "${values[@]}"; do (( ${#v} > col_width )) && col_width=${#v}; done
+        (( col_width < 3 )) && col_width=3
+    fi
+
+    local span=$(( max_val - min_val ))
+    local -a heights=()
+    for v in "${values[@]}"; do
+        local clamped=$v
+        (( clamped < min_val )) && clamped=$min_val
+        (( clamped > max_val )) && clamped=$max_val
+        local h=$(( (clamped - min_val) * height / span ))
+        (( h == 0 && clamped > min_val )) && h=1
+        heights+=("$h")
+    done
+
+    for (( r = height; r >= 1; r-- )); do
+        local row=""
+        for (( i = 0; i < n; i++ )); do
+            local colval; colval="$(_tr_resolve_color "${colors[$(( i % ${#colors[@]} ))]}")"
+            local cell
+            if (( heights[i] >= r )); then
+                cell="$(_tr_repeat "█" "$col_width")"
+                [[ -n "$colval" ]] && cell="$(printf '%b%s%b' "$colval" "$cell" "$RESET")"
+            else
+                cell="$(_tr_repeat " " "$col_width")"
+            fi
+            (( i > 0 )) && row+=" "
+            row+="$cell"
+        done
+        TR_RESULT+=("$row")
+    done
+
+    local base=""
+    for (( i = 0; i < n; i++ )); do
+        (( i > 0 )) && base+=" "
+        base+="$(_tr_repeat "─" "$col_width")"
+    done
+    TR_RESULT+=("$base")
+
+    local lbl_row=""
+    for (( i = 0; i < n; i++ )); do
+        (( i > 0 )) && lbl_row+=" "
+        local l="${labels[$i]}"
+        (( ${#l} > col_width )) && l="${l:0:col_width}"
+        local pad=$(( col_width - ${#l} ))
+        local lp=$(( pad / 2 )) rp=$(( pad - pad / 2 ))
+        lbl_row+="$(_tr_repeat " " "$lp")${l}$(_tr_repeat " " "$rp")"
+    done
+    TR_RESULT+=("$lbl_row")
+
+    local val_row=""
+    for (( i = 0; i < n; i++ )); do
+        (( i > 0 )) && val_row+=" "
+        local v="${values[$i]}"
+        (( ${#v} > col_width )) && v="${v:0:col_width}"
+        local pad=$(( col_width - ${#v} ))
+        (( pad < 0 )) && pad=0
+        local lp=$(( pad / 2 )) rp=$(( pad - pad / 2 ))
+        val_row+="$(_tr_repeat " " "$lp")${v}$(_tr_repeat " " "$rp")"
+    done
+    TR_RESULT+=("$val_row")
+}
+
+vbar() {
+    _vbar_build "$@" || return; _tr_print
+}
+vbar_string() {
+    _vbar_build "$@" || return; _tr_to_string
+}
+
+
+# ===========================================================================
+#  6e. LINECHART — multi-series line/point chart
+# ===========================================================================
+#  Usage: linechart "CPU:10,20,15,30,45,40"
+#         linechart "CPU:10,20,15,30" "Mem:40,42,41,45"
+#         linechart -h 12 -c "GREEN,RED" "A:1,5,3,8" "B:8,4,6,2"
+#         linechart -m 100 -n 0 "Load:20,55,80,60"     ← fixed y-axis range
+#         linechart -w 30 "Load:20,55,80,60"           ← fixed plot width;
+#                                                          each series is
+#                                                          resampled to
+#                                                          exactly 30 points
+#  Plots each series as points against a shared y-axis, colored with the
+#  default palette unless -c overrides it. A legend is printed below.
+#  Without -w, plot width tracks the longest series (so it grows/shrinks
+#  as a live history buffer fills up); pass -w with a fixed value (e.g.
+#  sized from the pane's actual width) to keep the chart a constant size
+#  and fill the available space regardless of how much history exists yet.
+
+_linechart_build() {
+    local height=10 max_val="" min_val="" color_arg="" plot_width=0
+    local -a series_labels=() series_data=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h) height="$2"; shift 2 ;;
+            -m) max_val="$2"; shift 2 ;;
+            -n) min_val="$2"; shift 2 ;;
+            -c) color_arg="$2"; shift 2 ;;
+            -w) plot_width="$2"; shift 2 ;;
+            *)
+                series_labels+=("${1%%:*}")
+                series_data+=("${1#*:}")
+                shift ;;
+        esac
+    done
+
+    TR_RESULT=()
+    [[ ${#series_labels[@]} -eq 0 ]] && return 1
+
+    _tr_colors_or_default "$color_arg"
+    local -a colors=("${_TR_COLORS[@]}")
+
+    local -a parsed=()
+    local width=0
+    for vals in "${series_data[@]}"; do
+        local -a arr=()
+        IFS=',' read -ra arr <<< "$vals"
+        if (( plot_width > 0 )); then
+            _TR_RESAMPLE_IN=("${arr[@]}")
+            _tr_resample "$plot_width"
+            arr=("${_TR_RESAMPLE_OUT[@]}")
+        fi
+        (( ${#arr[@]} > width )) && width=${#arr[@]}
+        parsed+=("$(IFS=$'\x01'; printf '%s' "${arr[*]}")")
+    done
+    (( width == 0 )) && return 1
+
+    local gmin="" gmax=""
+    for pd in "${parsed[@]}"; do
+        local -a arr=()
+        IFS=$'\x01' read -ra arr <<< "$pd"
+        for v in "${arr[@]}"; do
+            [[ -z "$gmin" || "$v" -lt "$gmin" ]] && gmin=$v
+            [[ -z "$gmax" || "$v" -gt "$gmax" ]] && gmax=$v
+        done
+    done
+    [[ -n "$min_val" ]] && gmin=$min_val
+    [[ -n "$max_val" ]] && gmax=$max_val
+    (( gmax == gmin )) && gmax=$(( gmin + 1 ))
+
+    local rows=$height
+    local total=$(( rows * width ))
+    local -a grid=() gridcolor=()
+    for (( k = 0; k < total; k++ )); do grid[$k]=" "; gridcolor[$k]=""; done
+
+    local marker="●"
+    for (( s = 0; s < ${#parsed[@]}; s++ )); do
+        local -a arr=()
+        IFS=$'\x01' read -ra arr <<< "${parsed[$s]}"
+        local colval; colval="$(_tr_resolve_color "${colors[$(( s % ${#colors[@]} ))]}")"
+        for (( x = 0; x < ${#arr[@]}; x++ )); do
+            local v="${arr[$x]}"
+            local row=$(( (gmax - v) * (rows - 1) / (gmax - gmin) ))
+            (( row < 0 )) && row=0
+            (( row >= rows )) && row=$(( rows - 1 ))
+            local idx=$(( row * width + x ))
+            grid[$idx]="$marker"
+            gridcolor[$idx]="$colval"
+        done
+    done
+
+    local label_width=${#gmax}
+    (( ${#gmin} > label_width )) && label_width=${#gmin}
+
+    for (( r = 0; r < rows; r++ )); do
+        local yval=""
+        (( r == 0 )) && yval=$gmax
+        (( r == rows - 1 )) && yval=$gmin
+        local line; line="$(printf '%*s │' "$label_width" "$yval")"
+        for (( x = 0; x < width; x++ )); do
+            local idx=$(( r * width + x ))
+            local ch="${grid[$idx]}" cv="${gridcolor[$idx]}"
+            if [[ -n "$cv" && "$ch" != " " ]]; then
+                line+="$(printf '%b%s%b' "$cv" "$ch" "$RESET")"
+            else
+                line+="$ch"
+            fi
+        done
+        TR_RESULT+=("$line")
+    done
+
+    TR_RESULT+=("$(_tr_repeat " " "$label_width") └$(_tr_repeat "─" "$width")")
+
+    local legend=""
+    for (( s = 0; s < ${#series_labels[@]}; s++ )); do
+        local colval; colval="$(_tr_resolve_color "${colors[$(( s % ${#colors[@]} ))]}")"
+        (( s > 0 )) && legend+="  "
+        legend+="$(printf '%b%s%b %s' "$colval" "$marker" "$RESET" "${series_labels[$s]}")"
+    done
+    TR_RESULT+=("$legend")
+}
+
+linechart() {
+    _linechart_build "$@" || return; _tr_print
+}
+linechart_string() {
+    _linechart_build "$@" || return; _tr_to_string
+}
+
+
+# ===========================================================================
+#  6f. CSV-DRIVEN CHARTS — build multi-element graphs straight from a CSV file
+# ===========================================================================
+#  csv_hbar / csv_vbar expect rows of "label,value" (no header by default):
+#    label,value
+#    Q1,60
+#    Q2,72
+#  Usage: csv_hbar data.csv
+#         csv_hbar -d ";" --header data.csv     ← skip a header row
+#         csv_hbar -c "GREEN,YELLOW,RED" data.csv
+#         csv_vbar -h 12 data.csv
+#
+#  csv_linechart expects a header row naming each series, first column is
+#  the x-axis label (kept for future use, not currently plotted):
+#    x,CPU,Memory
+#    t0,10,40
+#    t1,20,42
+#  Usage: csv_linechart data.csv
+#         csv_linechart -h 12 -c "GREEN,RED" data.csv
+
+_csv_hbar_build() {
+    local file="" delim="," header=0
+    local -a extra=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -d) delim="$2"; shift 2 ;;
+            --header) header=1; shift ;;
+            -c)  extra+=("-c" "$2"); shift 2 ;;
+            -m)  extra+=("-m" "$2"); shift 2 ;;
+            -n)  extra+=("-n" "$2"); shift 2 ;;
+            -w)  extra+=("-w" "$2"); shift 2 ;;
+            -lw) extra+=("-lw" "$2"); shift 2 ;;
+            *)   file="$1"; shift ;;
+        esac
+    done
+
+    TR_RESULT=()
+    [[ -z "$file" ]] && return 1
+    _tr_csv_parse "$file" "$delim" || return 1
+
+    local -a entries=()
+    local start=0
+    (( header )) && start=1
+    for (( i = start; i < ${#_TR_CSV_ROWS[@]}; i++ )); do
+        local -a f=()
+        IFS=$'\x01' read -ra f <<< "${_TR_CSV_ROWS[$i]}"
+        entries+=("${f[0]}:${f[1]}")
+    done
+
+    _hbar_build "${extra[@]}" "${entries[@]}"
+}
+
+csv_hbar() {
+    _csv_hbar_build "$@" || return; _tr_print
+}
+csv_hbar_string() {
+    _csv_hbar_build "$@" || return; _tr_to_string
+}
+
+_csv_vbar_build() {
+    local file="" delim="," header=0
+    local -a extra=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -d) delim="$2"; shift 2 ;;
+            --header) header=1; shift ;;
+            -c)  extra+=("-c" "$2"); shift 2 ;;
+            -h)  extra+=("-h" "$2"); shift 2 ;;
+            -m)  extra+=("-m" "$2"); shift 2 ;;
+            -n)  extra+=("-n" "$2"); shift 2 ;;
+            -tw) extra+=("-tw" "$2"); shift 2 ;;
+            -cw) extra+=("-cw" "$2"); shift 2 ;;
+            *)   file="$1"; shift ;;
+        esac
+    done
+
+    TR_RESULT=()
+    [[ -z "$file" ]] && return 1
+    _tr_csv_parse "$file" "$delim" || return 1
+
+    local -a entries=()
+    local start=0
+    (( header )) && start=1
+    for (( i = start; i < ${#_TR_CSV_ROWS[@]}; i++ )); do
+        local -a f=()
+        IFS=$'\x01' read -ra f <<< "${_TR_CSV_ROWS[$i]}"
+        entries+=("${f[0]}:${f[1]}")
+    done
+
+    _vbar_build "${extra[@]}" "${entries[@]}"
+}
+
+csv_vbar() {
+    _csv_vbar_build "$@" || return; _tr_print
+}
+csv_vbar_string() {
+    _csv_vbar_build "$@" || return; _tr_to_string
+}
+
+_csv_linechart_build() {
+    local file="" delim=","
+    local -a extra=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -d) delim="$2"; shift 2 ;;
+            -h) extra+=("-h" "$2"); shift 2 ;;
+            -c) extra+=("-c" "$2"); shift 2 ;;
+            -m) extra+=("-m" "$2"); shift 2 ;;
+            -n) extra+=("-n" "$2"); shift 2 ;;
+            -w) extra+=("-w" "$2"); shift 2 ;;
+            *)  file="$1"; shift ;;
+        esac
+    done
+
+    TR_RESULT=()
+    [[ -z "$file" ]] && return 1
+    _tr_csv_parse "$file" "$delim" || return 1
+    (( ${#_TR_CSV_ROWS[@]} < 2 )) && return 1
+
+    local -a header=()
+    IFS=$'\x01' read -ra header <<< "${_TR_CSV_ROWS[0]}"
+    local ncols=${#header[@]}
+    (( ncols < 2 )) && return 1
+
+    local -a series_vals=()
+    for (( c = 1; c < ncols; c++ )); do series_vals[$c]=""; done
+
+    for (( i = 1; i < ${#_TR_CSV_ROWS[@]}; i++ )); do
+        local -a f=()
+        IFS=$'\x01' read -ra f <<< "${_TR_CSV_ROWS[$i]}"
+        for (( c = 1; c < ncols; c++ )); do
+            [[ -n "${series_vals[$c]}" ]] && series_vals[$c]+=","
+            series_vals[$c]+="${f[$c]:-0}"
+        done
+    done
+
+    local -a series_args=()
+    for (( c = 1; c < ncols; c++ )); do
+        series_args+=("${header[$c]}:${series_vals[$c]}")
+    done
+
+    _linechart_build "${extra[@]}" "${series_args[@]}"
+}
+
+csv_linechart() {
+    _csv_linechart_build "$@" || return; _tr_print
+}
+csv_linechart_string() {
+    _csv_linechart_build "$@" || return; _tr_to_string
 }
 
 
@@ -991,13 +1684,38 @@ Commands:
   alert     <info|warn|error|success> "msg"  Callout box
   table     "H1|H2" "r1|r2" ...             Data table
   kv        "Key: Val" ... [-t dots|plain|dashes]
-  hbar      "Label:Value" ... [-m max]       Bar chart
+  hbar      "Label:Value" ... [-m max] [-n min] [-w width] [-lw label_width] [-c "COLOR,..."]
+  vbar      "Label:Value" ... [-h rows] [-m max] [-n min] [-tw total_width] [-cw col_width] [-c "COLOR,..."]
+  gauge     <value> [-m max] [-n min] [-l label] [-lw label_width] [-w width] [-c COLOR]
+  sparkline "v1 v2 v3 ..." [-d delim] [-w width] [-m max] [-n min] [-c COLOR]
+  linechart "Series:v1,v2,.." ... [-h rows] [-w plot_width] [-m max] [-n min] [-c "C,.."]
+  csv_hbar      <file.csv> [--header] [-d delim] [-m max] [-n min] [-w width] [-lw label_width] [-c "C,.."]
+  csv_vbar      <file.csv> [--header] [-h rows] [-m max] [-n min] [-tw total_width] [-cw col_width] [-c "C,.."]
+  csv_linechart <file.csv> [-h rows] [-w plot_width] [-m max] [-n min] [-c "C,.."]
   banner    "TEXT"                            Big block letters
   tree      "root" "  child" ...             Tree hierarchy
   columns   [-h "Hdr"] "col1" "col2" ...     Side-by-side
   badges    "pass:Build" "fail:Test" ...      Status tags
   list      [-n] [-s "▸"] "item" ...         Bullet/numbered
   quote     [-a "Author"] "text"             Block quote
+
+Coloring:
+  Chart commands accept -c with color name(s) matching bin/colors.sh vars
+  (e.g. RED, BRIGHT_CYAN, DIM_YELLOW), comma-separated for multiple
+  bars/series. hbar and sparkline are uncolored by default (safe to embed
+  in tables); vbar, linechart and gauge apply sensible defaults
+  automatically when -c is omitted.
+
+Fixed-size / fill-available-space charts:
+  Every chart above accepts -m/-n (explicit max/min, instead of scaling to
+  whatever that particular call's data happens to contain) and a sizing
+  flag — -w/-h/-tw/-cw/-lw depending on the chart — so it can be pinned to
+  an exact, unchanging size (e.g. computed once from a pane's real
+  dimensions via `tui.content_area`) instead of resizing itself between
+  refreshes as the data changes. linechart/sparkline resample their data
+  to fit -w exactly, rather than growing one column per sample, so a live
+  history buffer that's still filling up already renders at full width.
+  See config/monitor_callbacks.sh for a live example driving all four.
 
 Flags:
   -s    String mode — returns \n-joined string, no stdout
@@ -1018,7 +1736,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 
     # Map to function
     case "$cmd" in
-        box|divider|alert|table|kv|hbar|banner|tree|columns|badges|list|quote)
+        box|divider|alert|table|kv|hbar|vbar|gauge|sparkline|linechart|csv_hbar|csv_vbar|csv_linechart|banner|tree|columns|badges|list|quote)
             if (( string_mode )); then
                 "${cmd}_string" "${args[@]}"
             else

@@ -8,4 +8,5 @@
 <button id="btn_case"       pane="nav" row="7" text="  Case Study" page="case_study.xml" class="nav_link" align="left"/>
 <button id="btn_documentation" pane="nav" row="8" text="  Docs"       page="docu.xml" class="nav_link" align="left"/>
 <button id="btn_debug"      pane="nav" row="9" text="  Debug"      page="debug.xml"      class="nav_link" align="left"/>
+<button id="btn_monitor"    pane="nav" row="10" text="  Monitor"    page="monitor.xml"    class="nav_link" align="left"/>
 <button id="btn_quit"       pane="nav" row="11" text="  Quit"       action="on_quit"      class="danger_button" align="left"/>

@@ -32,8 +32,9 @@ on_tab_tbl() {
     raw_content+="$(alert_string info "Cluster 01 has been rebalanced successfully.")\n\n"
 
     # Complex nested table combining strings, badges, and hbars
+    hbar_24="$(printf '%b' "$(hbar_string -w 20 -m 100 " :24")")"
     raw_content+="$(table_string "Hostname|Status|CPU Usage|Memory|Uptime|Load Avg" \
-        "sv-web-01|$(badges_string "pass:Online")|$(hbar_string -w 20 -m 100 " :24")|16GB|42 days|0.45" \
+        "sv-web-01|$(badges_string "pass:Online")|$hbar_24|16GB|42 days|0.45" \
         "sv-web-02|$(badges_string "pass:Online")|$(hbar_string -w 20 -m 100 " :38")|16GB|42 days|0.88" \
         "sv-db-01|$(badges_string "warn:High Load")|$(hbar_string -w 20 -m 100 " :92")|64GB|110 days|4.12" \
         "sv-db-02|$(badges_string "pass:Online")|$(hbar_string -w 20 -m 100 " :45")|64GB|110 days|1.15" \

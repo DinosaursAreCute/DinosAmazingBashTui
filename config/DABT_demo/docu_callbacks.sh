@@ -27,6 +27,23 @@ _docu_short_title() {
     printf '%s' "${heading:0:16}"
 }
 
+# Banner text for a doc: the full part of its first H1 heading before a
+# colon, unlike _docu_short_title above this is not capped to tab-label
+# length — the banner has the width of the whole content pane to work
+# with, not a narrow tab strip.
+_docu_banner_title() {
+    local file="$1"
+    local base; base="$(basename "$file" .md)"
+    if [[ "${base,,}" == "readme" ]]; then
+        printf 'README'
+        return
+    fi
+    local heading; heading="$(head -1 "$file")"
+    heading="${heading#\# }"
+    heading="${heading%%:*}"
+    printf '%s' "$heading"
+}
+
 on_docu_visit() {
     _DOCU_TAB_FILE=()
     _DOCU_TAB_TITLE=()
@@ -76,14 +93,14 @@ on_docu_visit() {
 
 on_docu_tab_activate() {
     local tab_id="$1"
-    load_document "${_DOCU_TAB_FILE[$tab_id]}" "${_DOCU_TAB_TITLE[$tab_id]}"
+    load_document "${_DOCU_TAB_FILE[$tab_id]}"
 }
 
 load_document() {
-    local doc_path="$1" title="$2"
+    local doc_path="$1"
     local raw_doc=""
 
-    raw_doc+="\n$(banner_string "${title:-$(basename "$doc_path")}")\n\n"
+    raw_doc+="\n$(banner_string "$(_docu_banner_title "$doc_path")")\n\n"
 
     if [[ -f "$doc_path" ]]; then
         raw_doc+="$(cat "$doc_path")\n"

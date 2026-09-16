@@ -55,6 +55,7 @@ _mon_output_fit() {
     read -r car cac cah caw <<< "$(tui.content_area "$pane")"
     local -a lines=()
     mapfile -t lines <<< "$content"
+    (( cah < 0 )) && cah=0
     if (( ${#lines[@]} > cah )); then
         lines=("${lines[@]:0:cah}")
     fi

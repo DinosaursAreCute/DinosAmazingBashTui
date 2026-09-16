@@ -1,1 +1,3 @@
 bin/.tui_exec.log
+logs/
+.cache/

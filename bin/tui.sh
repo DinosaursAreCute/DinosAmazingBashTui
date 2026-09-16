@@ -21,6 +21,7 @@ source "${SCRIPT_DIR}/terminal_controls.sh"
 source "${SCRIPT_DIR}/colors.sh"
 source "${SCRIPT_DIR}/tui_markup.sh"
 source "${SCRIPT_DIR}/tui_style.sh"
+source "${SCRIPT_DIR}/tui_cache.sh"
 
 # ═══════════════════════════════════════════════════════════════════════
 #  INPUT TUNABLES — override any of these (after sourcing, before tui.run)
@@ -137,21 +138,63 @@ declare -g  _TUI_RENDER_TIMEOUT=-1
 # ═══════════════════════════════════════════════════════════════════════
 #  INTERNAL STATE (BACKGROUND EXECUTION)
 # ═══════════════════════════════════════════════════════════════════════
+#  tui.exec is multi-instance: every call starts its own tracked instance
+#  (its own PID, its own dedicated named pipe — never shared/multiplexed
+#  across processes), keyed by an opaque instance id ("e1", "e2", ...).
+#  Instances are also indexed by output pane (_EXEC_PANE_INSTANCES), so
+#  several concurrently-running processes can feed the SAME pane — their
+#  lines interleave into that pane's buffer, tagged with their instance id
+#  once more than one instance is sharing it. A control pane is optional
+#  per instance: pass "" (or omit it) for a headless/background process
+#  with no Cancel/Save/Retry/etc. buttons and no stdin input box.
+# ═══════════════════════════════════════════════════════════════════════
 
-declare -ga _EXEC_BUF=()
-declare -g  _EXEC_PID=0
-declare -g  _EXEC_CMD=""
-declare -g  _EXEC_OUTFILE=""
-declare -g  _EXEC_FIFO=""
-declare -g  _EXEC_FIFO_FD=""
-declare -g  _EXEC_STATUS="idle"
-declare -g  _EXEC_EXIT=""
-declare -g  _EXEC_TMPDIR=""
-declare -g  _EXEC_OUT_PANE=""
-declare -g  _EXEC_CTL_PANE=""
-declare -g  _EXEC_VROWS=0
-declare -g  _EXEC_LAST_READ=0
+declare -gA _EXEC_CMD=()          # iid -> command string
+declare -gA _EXEC_OUT_PANE=()     # iid -> output pane id
+declare -gA _EXEC_CTL_PANE=()     # iid -> control pane id, "" if none
+declare -gA _EXEC_NS=()           # iid -> factory namespace for its controls, "" if none
+declare -gA _EXEC_PID=()          # iid -> pid
+declare -gA _EXEC_STATUS=()       # iid -> running|done|error|cancelled
+declare -gA _EXEC_EXIT=()         # iid -> exit code
+declare -gA _EXEC_TMPDIR=()       # iid -> tmp dir holding its fifo + outfile
+declare -gA _EXEC_OUTFILE=()      # iid -> outfile path
+declare -gA _EXEC_FIFO=()         # iid -> fifo path (this instance's own pipe)
+declare -gA _EXEC_FIFO_FD=()      # iid -> open fd number for that fifo
+declare -gA _EXEC_LAST_READ=()    # iid -> lines already consumed from outfile
+declare -g  _EXEC_NEXT_ID=1
+declare -g  _TUI_EXEC_LAST_ID=""  # set (not printed) by tui.exec, same convention as _TUI_FACTORY_LAST_ID
+
+declare -gA _EXEC_WIDGET_TO_IID=()     # control/input widget id -> owning iid
+declare -gA _EXEC_PANE_INSTANCES=()    # out_pane -> "iid1 iid2 ..." (oldest→newest, finished ones stay until dismissed)
+declare -gA _EXEC_PANE_CTL_ROW=()      # ctl_pane -> next free row block for a new instance's controls
+_EXEC_CTL_ROWS_PER_INSTANCE=7          # status + cancel/save/view/retry/back + stdin input
+
 declare -g  _TUI_TICK_FN=""
+
+# Additive tick listeners, separate from the single-slot _TUI_TICK_FN a
+# page sets for its own per-frame work (e.g. a dashboard's own refresh
+# cadence). tui.exec registers itself here instead of overwriting
+# _TUI_TICK_FN, so a page's own tick function and any number of running
+# tui.exec instances all get ticked every frame without clobbering each
+# other — the exact problem the old single-instance tui.exec had: any
+# page that both drove its own _TUI_TICK_FN and called tui.exec would
+# have one silently stop firing.
+declare -ga _TUI_TICK_LISTENERS=()
+tui.tick.add() {
+    local fn="$1" existing
+    for existing in "${_TUI_TICK_LISTENERS[@]}"; do
+        [[ "$existing" == "$fn" ]] && return
+    done
+    _TUI_TICK_LISTENERS+=("$fn")
+}
+tui.tick.remove() {
+    local fn="$1" existing
+    local -a out=()
+    for existing in "${_TUI_TICK_LISTENERS[@]}"; do
+        [[ "$existing" == "$fn" ]] || out+=("$existing")
+    done
+    _TUI_TICK_LISTENERS=("${out[@]}")
+}
 
 # Optional observability hook, same idiom as _TUI_TICK_FN: if set, called
 # with a one-line description of every DISPATCHED input event (a motion
@@ -213,23 +256,33 @@ _kill_process_tree() {
     kill -KILL "$pid" 2>/dev/null
 }
 
-_exec_cleanup_process() {
-    if (( _EXEC_PID > 0 )) && kill -0 "$_EXEC_PID" 2>/dev/null; then
-        _kill_process_tree "$_EXEC_PID"
-        wait "$_EXEC_PID" 2>/dev/null
+# Kills one instance's process (if still alive) and closes its fifo fd.
+# Leaves its tmpdir/state in place — a still-tracked, no-longer-running
+# instance is exactly what "done"/"error"/"cancelled" status means, and
+# its output/Save/View controls (if any) stay usable until _exec_dismiss.
+_exec_cleanup_instance() {
+    local iid="$1"
+    local pid="${_EXEC_PID[$iid]:-0}"
+    if (( pid > 0 )) && kill -0 "$pid" 2>/dev/null; then
+        _kill_process_tree "$pid"
+        wait "$pid" 2>/dev/null
     fi
-    _EXEC_PID=0
 
-    if [[ -n "${_EXEC_FIFO_FD:-}" ]]; then
-        exec {_EXEC_FIFO_FD}>&- 2>/dev/null
-        _EXEC_FIFO_FD=""
+    local fd="${_EXEC_FIFO_FD[$iid]:-}"
+    if [[ -n "$fd" ]]; then
+        exec {fd}>&- 2>/dev/null
+        _EXEC_FIFO_FD[$iid]=""
     fi
 }
 
 _exec_cleanup_all() {
-    _exec_cleanup_process
-    _TUI_TICK_FN=""
-    [[ -n "$_EXEC_TMPDIR" && -d "$_EXEC_TMPDIR" ]] && rm -rf "$_EXEC_TMPDIR"
+    local iid
+    for iid in "${!_EXEC_STATUS[@]}"; do
+        _exec_cleanup_instance "$iid"
+        local tmpdir="${_EXEC_TMPDIR[$iid]:-}"
+        [[ -n "$tmpdir" && -d "$tmpdir" ]] && rm -rf "$tmpdir"
+    done
+    tui.tick.remove "_exec_master_tick"
 }
 
 tui.cleanup() {
@@ -1941,103 +1994,220 @@ _tui._handle_mouse() {
 # ═══════════════════════════════════════════════════════════════════════
 #  GENERIC BACKGROUND EXECUTION (tui.exec)
 # ═══════════════════════════════════════════════════════════════════════
+#  tui.exec CMD OUT_PANE [CTL_PANE] starts CMD as its own tracked instance
+#  (own PID, own dedicated fifo) and returns its id via $_TUI_EXEC_LAST_ID
+#  (set, not printed — same convention as $_TUI_FACTORY_LAST_ID). CTL_PANE
+#  is optional: give it one to get Cancel/Save/View/Retry/Back buttons and
+#  a stdin input box (auto-stacked below any other instance's controls
+#  already using that pane); omit it for a plain background/streaming
+#  process with no controls at all. Multiple instances can target the
+#  same OUT_PANE at once — their output interleaves into that pane's
+#  shared buffer, tagged "[iid] " once more than one instance is sharing
+#  it — see _EXEC_PANE_INSTANCES at this file's top for the bookkeeping.
+
+declare -gA _EXEC_STAT_WIDGET=()   # iid -> its status-label widget id (only set if it has controls)
 
 tui.exec() {
-    local cmd="$1" out_pane="$2" ctl_pane="$3"
-    tui.log.info "tui.exec() initiating command: '$cmd'"
+    local cmd="$1" out_pane="$2" ctl_pane="${3:-}"
+    tui.log.info "tui.exec() initiating command: '$cmd' -> pane '$out_pane'${ctl_pane:+ (controls: $ctl_pane)}"
 
-    if [[ -z "$cmd" || -z "$out_pane" || -z "$ctl_pane" ]]; then
-        tui.log.error "tui.exec: Fatal config error. Missing arguments."
+    if [[ -z "$cmd" || -z "$out_pane" ]]; then
+        tui.log.error "tui.exec: Fatal config error. Missing cmd or out_pane."
         return 1
     fi
 
-    if [[ -z "${_TUI_P_ROW[$out_pane]:-}" || -z "${_TUI_P_ROW[$ctl_pane]:-}" ]]; then
-        tui.log.warn "tui.exec: Pane configuration broken. '$out_pane' or '$ctl_pane' missing."
-        printf '\e7\e[1;1H\e[41;37m ERROR: Pane configuration broken. Launching in degraded mode. \e[0m\e8'
+    if [[ -z "${_TUI_P_ROW[$out_pane]:-}" ]]; then
+        tui.log.warn "tui.exec: output pane '$out_pane' missing or not yet laid out."
+    fi
+    if [[ -n "$ctl_pane" && -z "${_TUI_P_ROW[$ctl_pane]:-}" ]]; then
+        tui.log.warn "tui.exec: control pane '$ctl_pane' missing or not yet laid out."
     fi
 
-    _exec_cleanup_process
-    _exec_remove_widgets
+    local iid="e$(( _EXEC_NEXT_ID++ ))"
+    _EXEC_CMD[$iid]="$cmd"
+    _EXEC_OUT_PANE[$iid]="$out_pane"
+    _EXEC_CTL_PANE[$iid]="$ctl_pane"
+    _EXEC_NS[$iid]=""
+    declare -g -a "_EXEC_BUF_${iid}"
 
-    _EXEC_CMD="$cmd"
-    _EXEC_OUT_PANE="$out_pane"
-    _EXEC_CTL_PANE="$ctl_pane"
-    _EXEC_BUF=()
-    _EXEC_LAST_READ=0
-    _EXEC_STATUS="running"
-    _EXEC_EXIT=""
+    # First use of this output pane creates its shared render buffer —
+    # every instance that ever targets this pane appends into the SAME
+    # array, which is what lets several concurrent processes share one
+    # pane instead of one clobbering another's transcript.
+    if ! declare -p "_EXEC_PANE_BUF_${out_pane}" &>/dev/null; then
+        declare -g -a "_EXEC_PANE_BUF_${out_pane}"
+    fi
+    local already_active="${_EXEC_PANE_INSTANCES[$out_pane]:-}"
+    _EXEC_PANE_INSTANCES[$out_pane]="${already_active:+${already_active} }${iid}"
+    if [[ -n "$already_active" ]]; then
+        local -n _tx_pbuf="_EXEC_PANE_BUF_${out_pane}"
+        _tx_pbuf+=("── [${iid}] started: ${cmd} ──")
+    fi
 
-    _EXEC_TMPDIR=$(mktemp -d /tmp/tui_exec.XXXXXX)
-    _EXEC_OUTFILE="${_EXEC_TMPDIR}/out"
-    _EXEC_FIFO="${_EXEC_TMPDIR}/in"
+    _exec_launch_process "$iid"
 
-    touch "$_EXEC_OUTFILE"
-    mkfifo "$_EXEC_FIFO"
+    [[ -n "$ctl_pane" ]] && _exec_setup_controls "$iid"
 
-    exec {_EXEC_FIFO_FD}<>"$_EXEC_FIFO"
+    # Additive — does not disturb a page's own _TUI_TICK_FN (see the
+    # _TUI_TICK_LISTENERS comment near this file's top).
+    tui.tick.add "_exec_master_tick"
 
-    script -q -e -c "$cmd" /dev/null < "$_EXEC_FIFO" >> "$_EXEC_OUTFILE" 2>&1 &    
-    _EXEC_PID=$!
+    (( _TUI_RUNNING )) && _exec_render_pane "$out_pane"
 
-    _exec_setup_output_pane
-    _exec_setup_controls
+    _TUI_EXEC_LAST_ID="$iid"
+}
 
-    _TUI_TICK_FN="_exec_tick"
+# tui.exec.cancel_pane PANE — cancel and fully dismiss every instance
+# currently targeting PANE (running or already finished), clearing its
+# shared buffer too. Not called automatically by tui.exec itself — that
+# would silently cap every pane back to "one process at a time", which is
+# exactly the restriction this rewrite removes. It exists for callers
+# that specifically want that restart-cleanly behavior for one pane (a
+# page that re-launches its own interactive shell on every revisit, say):
+# call this right before a fresh tui.exec targeting the same pane.
+tui.exec.cancel_pane() {
+    local pane="$1"
+    local -a ids=()
+    read -ra ids <<< "${_EXEC_PANE_INSTANCES[$pane]:-}"
+    local iid
+    for iid in "${ids[@]}"; do
+        _exec_dismiss_instance "$iid"
+    done
+    if declare -p "_EXEC_PANE_BUF_${pane}" &>/dev/null; then
+        local -n _txc_pbuf="_EXEC_PANE_BUF_${pane}"
+        _txc_pbuf=()
+    fi
+    (( _TUI_RUNNING )) && _exec_render_pane "$pane"
+}
+
+# Launches (or, from retry, relaunches) the OS process for an already-
+# registered instance: fresh tmpdir/fifo/outfile, fresh PID. Split out of
+# tui.exec so _exec_on_retry can reuse it without re-registering the
+# instance (same iid, same widgets, same pane slot).
+_exec_launch_process() {
+    local iid="$1" cmd="${_EXEC_CMD[$iid]}"
+
+    local tmpdir; tmpdir=$(mktemp -d /tmp/tui_exec.XXXXXX)
+    local outfile="${tmpdir}/out"
+    local fifo="${tmpdir}/in"
+    touch "$outfile"
+    mkfifo "$fifo"
+
+    local fd
+    exec {fd}<>"$fifo"
+
+    script -q -e -c "$cmd" /dev/null < "$fifo" >> "$outfile" 2>&1 &
+    local pid=$!
+
+    _EXEC_TMPDIR[$iid]="$tmpdir"
+    _EXEC_OUTFILE[$iid]="$outfile"
+    _EXEC_FIFO[$iid]="$fifo"
+    _EXEC_FIFO_FD[$iid]="$fd"
+    _EXEC_PID[$iid]="$pid"
+    _EXEC_LAST_READ[$iid]=0
+    _EXEC_STATUS[$iid]="running"
+    _EXEC_EXIT[$iid]=""
+}
+
+_exec_relaunch_process() {
+    local iid="$1"
+    _exec_cleanup_instance "$iid"
+    local old_tmpdir="${_EXEC_TMPDIR[$iid]:-}"
+    [[ -n "$old_tmpdir" && -d "$old_tmpdir" ]] && rm -rf "$old_tmpdir"
+    _exec_launch_process "$iid"
+}
+
+# Builds one instance's control cluster (status label + 5 buttons + a
+# stdin input) as a factory-tracked widget group under namespace
+# "exec_<iid>", stacked at the next free row block in ctl_pane — so a
+# second instance told to use the SAME ctl_pane gets its own cluster
+# below the first's rather than overlapping it.
+_exec_setup_controls() {
+    local iid="$1" pane="${_EXEC_CTL_PANE[$iid]}"
+    local ns="exec_${iid}"
+    _EXEC_NS[$iid]="$ns"
+
+    local row0="${_EXEC_PANE_CTL_ROW[$pane]:-0}"
+    _EXEC_PANE_CTL_ROW[$pane]=$(( row0 + _EXEC_CTL_ROWS_PER_INSTANCE ))
+
+    tui.factory.label "$ns" "$pane" "$row0" "$ ${_EXEC_CMD[$iid]}"
+    _EXEC_STAT_WIDGET[$iid]="$_TUI_FACTORY_LAST_ID"
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+
+    tui.factory.button "$ns" "$pane" "$(( row0 + 1 ))" "[ Cancel ]" _exec_on_cancel
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+    tui.factory.button "$ns" "$pane" "$(( row0 + 2 ))" "[ Save Output ]" _exec_on_save
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+    tui.factory.button "$ns" "$pane" "$(( row0 + 3 ))" "[ View Command ]" _exec_on_view
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+    tui.factory.button "$ns" "$pane" "$(( row0 + 4 ))" "[ Retry ]" _exec_on_retry
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+    tui.factory.button "$ns" "$pane" "$(( row0 + 5 ))" "[ Back ]" _exec_on_back
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+
+    tui.factory.input "$ns" "$pane" "$(( row0 + 6 ))" "type and press Enter…" "stdin▸"
+    _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
+    tui.on_action "$_TUI_FACTORY_LAST_ID" _exec_on_send
 
     if (( _TUI_RUNNING )); then
-        tui.clear_pane "$out_pane"
-        tui.clear_pane "$ctl_pane"
-        _tui._draw_pane "$out_pane"
-        _tui._draw_pane "$ctl_pane"
-        for wid in "${_TUI_W_ORDER[@]}"; do
-            [[ "$wid" == _x* ]] && _tui._draw_widget "$wid"
+        local w
+        for w in ${_TUI_FACTORY_IDS[$ns]}; do
+            _tui._draw_widget "$w"
         done
-        _exec_render_status
     fi
+    _exec_render_status "$iid"
 }
 
-_exec_setup_output_pane() {
-    local pane="$_EXEC_OUT_PANE"
-    local ph=${_TUI_P_H[$pane]}
-    local border="${_TUI_P_BORDER[$pane]:-single}"
+# Tears an instance down completely: kills it if still running, drops its
+# tmpdir, removes its control widgets (if any) and redraws whatever else
+# still shares that ctl_pane, and unregisters it from its pane's instance
+# list. Used by the "Back" button and by tui.exec.cancel_pane.
+_exec_dismiss_instance() {
+    local iid="$1"
+    [[ -z "${_EXEC_STATUS[$iid]:-}" ]] && return
 
-    if [[ "$border" == "none" ]]; then
-        _EXEC_VROWS=$ph
-    else
-        _EXEC_VROWS=$(( ph - 2 ))
+    [[ "${_EXEC_STATUS[$iid]}" == "running" ]] && _exec_cleanup_instance "$iid"
+
+    local tmpdir="${_EXEC_TMPDIR[$iid]:-}"
+    [[ -n "$tmpdir" && -d "$tmpdir" ]] && rm -rf "$tmpdir"
+
+    local ns="${_EXEC_NS[$iid]:-}" ctl_pane="${_EXEC_CTL_PANE[$iid]:-}"
+    if [[ -n "$ns" ]]; then
+        local w
+        for w in ${_TUI_FACTORY_IDS[$ns]:-}; do
+            unset '_EXEC_WIDGET_TO_IID[$w]'
+        done
+        tui.factory.clear "$ns"
+
+        if (( _TUI_RUNNING )) && [[ -n "$ctl_pane" ]]; then
+            tui.clear_pane "$ctl_pane"
+            _tui._draw_pane "$ctl_pane"
+            # Blanking the whole pane above also blanked any OTHER
+            # instance's still-active controls sharing it — redraw them.
+            local other ow
+            for other in "${!_EXEC_NS[@]}"; do
+                [[ "$other" == "$iid" ]] && continue
+                [[ "${_EXEC_CTL_PANE[$other]:-}" == "$ctl_pane" ]] || continue
+                for ow in ${_TUI_FACTORY_IDS[${_EXEC_NS[$other]}]:-}; do
+                    _tui._draw_widget "$ow"
+                done
+                _exec_render_status "$other"
+            done
+        fi
     fi
 
-    tui.label "_xhdr" "$pane" 0 ""
-}
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local -a existing=() remaining=()
+    read -ra existing <<< "${_EXEC_PANE_INSTANCES[$pane]:-}"
+    local e
+    for e in "${existing[@]}"; do [[ "$e" == "$iid" ]] || remaining+=("$e"); done
+    _EXEC_PANE_INSTANCES[$pane]="${remaining[*]}"
 
-_exec_setup_controls() {
-    tui.log.debug "_exec_setup_controls() called"
-    local pane="$_EXEC_CTL_PANE"
-
-    tui.label  "_xstat"    "$pane" 0 ""
-    tui.button "_xcancel"  "$pane" 1 "[ Cancel ]"        _exec_on_cancel
-    tui.button "_xsave"    "$pane" 2 "[ Save Output ]"   _exec_on_save
-    tui.button "_xview"    "$pane" 3 "[ View Command ]"  _exec_on_view
-    tui.button "_xretry"   "$pane" 4 "[ Retry ]"         _exec_on_retry
-    tui.button "_xback"    "$pane" 5 "[ Back ]"          _exec_on_back
-    
-    tui.input  "_xinput"   "$pane" 6 "type and press Enter…" "stdin▸"
-    tui.on_action "_xinput" _exec_on_send
-}
-
-_exec_remove_widgets() {
-    tui.log.debug "_exec_remove_widgets() called"
-    local new_order=() new_focus=()
-    for w in "${_TUI_W_ORDER[@]}"; do
-        [[ "$w" == _x* ]] || new_order+=("$w")
-    done
-    for w in "${_TUI_FOCUSABLE[@]}"; do
-        [[ "$w" == _x* ]] || new_focus+=("$w")
-    done
-    _TUI_W_ORDER=("${new_order[@]}")
-    _TUI_FOCUSABLE=("${new_focus[@]}")
-
-    [[ "${_TUI_FOCUS_ID:-}" == _x* ]] && _TUI_FOCUS_ID="" && _TUI_FOCUS_IDX=-1
+    unset '_EXEC_CMD[$iid]' '_EXEC_OUT_PANE[$iid]' '_EXEC_CTL_PANE[$iid]' '_EXEC_NS[$iid]' \
+          '_EXEC_PID[$iid]' '_EXEC_STATUS[$iid]' '_EXEC_EXIT[$iid]' '_EXEC_TMPDIR[$iid]' \
+          '_EXEC_OUTFILE[$iid]' '_EXEC_FIFO[$iid]' '_EXEC_FIFO_FD[$iid]' '_EXEC_LAST_READ[$iid]' \
+          '_EXEC_STAT_WIDGET[$iid]'
+    unset "_EXEC_BUF_${iid}"
 }
 
 _exec_strip_ansi() {
@@ -2095,182 +2265,252 @@ _exec_is_line_clear() {
     [[ "$raw" == *$'\033[K'* ]] || [[ "$raw" == *$'\033[2K'* ]]
 }
 
-_exec_tick() {
-    [[ "$_EXEC_STATUS" == "running" ]] || return
+# Appends one raw line from an instance's outfile into both its own
+# private buffer (_EXEC_BUF_<iid>, used by Save/View) and its pane's
+# shared render buffer (_EXEC_PANE_BUF_<pane>, tagged "[iid] " once that
+# pane has more than one instance sharing it). Screen/line-clear control
+# sequences only wipe the buffers when this instance has its pane to
+# itself — with several processes sharing one pane, a full-screen TUI
+# clearing "its screen" makes little sense and must not be allowed to
+# erase a sibling process's history, so those codes are just stripped
+# instead of acted on (matches _exec_clean_line already stripping
+# everything but SGR color codes from every line's own content).
+_exec_append_raw_line() {
+    local iid="$1" raw_line="$2"
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local -a siblings=()
+    read -ra siblings <<< "${_EXEC_PANE_INSTANCES[$pane]:-}"
+    local solo=1; (( ${#siblings[@]} > 1 )) && solo=0
 
+    local -n ibuf="_EXEC_BUF_${iid}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+
+    if (( solo )) && { _exec_is_screen_clear "$raw_line" || _exec_is_alt_buffer_toggle "$raw_line"; }; then
+        ibuf=(); pbuf=()
+        return
+    fi
+    if (( solo )) && _exec_is_line_clear "$raw_line"; then
+        (( ${#ibuf[@]} > 0 )) && ibuf[$(( ${#ibuf[@]} - 1 ))]=""
+        (( ${#pbuf[@]} > 0 )) && pbuf[$(( ${#pbuf[@]} - 1 ))]=""
+        return
+    fi
+
+    local clean; clean="$(_exec_clean_line "$raw_line")"
+    local prefix=""
+    (( ${#siblings[@]} > 1 )) && prefix="[${iid}] "
+
+    ibuf+=("$clean")
+    (( ${#ibuf[@]} > 2500 )) && ibuf=("${ibuf[@]:500}")
+
+    pbuf+=("${prefix}${clean}")
+    (( ${#pbuf[@]} > 2500 )) && pbuf=("${pbuf[@]:500}")
+
+    _TUI_P_LINES[$pane]=${#pbuf[@]}
+    local last_len; last_len=$(printf '%s' "${pbuf[$(( ${#pbuf[@]} - 1 ))]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
+    (( last_len > ${_TUI_P_MAX_W[$pane]:-0} )) && _TUI_P_MAX_W[$pane]=$last_len
+}
+
+# One instance's share of the per-frame tick: drain whatever it's written
+# to its outfile since last time (non-blocking — just a file read, same
+# mechanism whether the instance is an interactive shell or a headless
+# polling loop with no controls), and detect+finalize on process exit.
+_exec_tick_one() {
+    local iid="$1"
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local outfile="${_EXEC_OUTFILE[$iid]}"
     local changed=0
-    if [[ -s "$_EXEC_OUTFILE" ]]; then
-        local new_lines=()
-        mapfile -t new_lines < <(
-            tail -n +"$(( _EXEC_LAST_READ + 1 ))" "$_EXEC_OUTFILE" 2>/dev/null
-        )
+
+    if [[ -s "$outfile" ]]; then
+        local -a new_lines=()
+        mapfile -t new_lines < <(tail -n +"$(( ${_EXEC_LAST_READ[$iid]} + 1 ))" "$outfile" 2>/dev/null)
         if (( ${#new_lines[@]} > 0 )); then
-            local raw_line clean_line
+            local raw_line
             for raw_line in "${new_lines[@]}"; do
-                if _exec_is_screen_clear "$raw_line" || _exec_is_alt_buffer_toggle "$raw_line"; then
-                    _EXEC_BUF=()
-                    changed=1
-                    continue
-                fi
-
-                if _exec_is_line_clear "$raw_line"; then
-                    if (( ${#_EXEC_BUF[@]} > 0 )); then
-                        _EXEC_BUF[$(( ${#_EXEC_BUF[@]} - 1 ))]=""
-                        changed=1
-                    fi
-                    continue
-                fi
-
-                clean_line="$(_exec_clean_line "$raw_line")"
-                _EXEC_BUF+=("$clean_line")
-                
-                if (( ${#_EXEC_BUF[@]} > 2500 )); then
-                    _EXEC_BUF=("${_EXEC_BUF[@]:500}")
-                fi
-                _TUI_P_LINES[$_EXEC_OUT_PANE]=${#_EXEC_BUF[@]}
-                local last_len=$(printf '%s' "${_EXEC_BUF[-1]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
-                (( last_len > ${_TUI_P_MAX_W[$_EXEC_OUT_PANE]:-0} )) && _TUI_P_MAX_W[$_EXEC_OUT_PANE]=$last_len
-                
-                changed=1
+                _exec_append_raw_line "$iid" "$raw_line"
             done
-            (( _EXEC_LAST_READ += ${#new_lines[@]} ))
+            _EXEC_LAST_READ[$iid]=$(( ${_EXEC_LAST_READ[$iid]} + ${#new_lines[@]} ))
+            changed=1
         fi
     fi
 
-    if ! kill -0 "$_EXEC_PID" 2>/dev/null; then
-        wait "$_EXEC_PID" 2>/dev/null
-        _EXEC_EXIT=$?
+    local pid="${_EXEC_PID[$iid]}"
+    if ! kill -0 "$pid" 2>/dev/null; then
+        wait "$pid" 2>/dev/null
+        _EXEC_EXIT[$iid]=$?
 
-        local leftover=()
-        mapfile -t leftover < <(
-            tail -n +"$(( _EXEC_LAST_READ + 1 ))" "$_EXEC_OUTFILE" 2>/dev/null
-        )
+        local -a leftover=()
+        mapfile -t leftover < <(tail -n +"$(( ${_EXEC_LAST_READ[$iid]} + 1 ))" "$outfile" 2>/dev/null)
         if (( ${#leftover[@]} > 0 )); then
-            local raw_line clean_line
+            local raw_line
             for raw_line in "${leftover[@]}"; do
-                if _exec_is_screen_clear "$raw_line" || _exec_is_alt_buffer_toggle "$raw_line"; then
-                    _EXEC_BUF=()
-                    changed=1
-                    continue
-                fi
-
-                if _exec_is_line_clear "$raw_line"; then
-                    if (( ${#_EXEC_BUF[@]} > 0 )); then
-                        _EXEC_BUF[$(( ${#_EXEC_BUF[@]} - 1 ))]=""
-                        changed=1
-                    fi
-                    continue
-                fi
-
-                clean_line="$(_exec_clean_line "$raw_line")"
-                _EXEC_BUF+=("$clean_line")
-                
-                if (( ${#_EXEC_BUF[@]} > 2500 )); then
-                    _EXEC_BUF=("${_EXEC_BUF[@]:500}")
-                fi
-                _TUI_P_LINES[$_EXEC_OUT_PANE]=${#_EXEC_BUF[@]}
-                local last_len=$(printf '%s' "${_EXEC_BUF[-1]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
-                (( last_len > ${_TUI_P_MAX_W[$_EXEC_OUT_PANE]:-0} )) && _TUI_P_MAX_W[$_EXEC_OUT_PANE]=$last_len
-                
-                changed=1
+                _exec_append_raw_line "$iid" "$raw_line"
             done
+            _EXEC_LAST_READ[$iid]=$(( ${_EXEC_LAST_READ[$iid]} + ${#leftover[@]} ))
         fi
 
-        if (( _EXEC_EXIT == 0 )); then _EXEC_STATUS="done"; else _EXEC_STATUS="error"; fi
+        if (( ${_EXEC_EXIT[$iid]} == 0 )); then _EXEC_STATUS[$iid]="done"; else _EXEC_STATUS[$iid]="error"; fi
 
-        _exec_render_status
+        local -n pbuf_done="_EXEC_PANE_BUF_${pane}"
+        pbuf_done+=("--- [${iid}] finished, exit ${_EXEC_EXIT[$iid]} ---")
+
+        _exec_render_status "$iid"
         changed=1
     fi
 
-    (( changed )) && _exec_render_output
+    (( changed )) && _exec_render_pane "$pane"
 }
 
+# Registered once (idempotently) via tui.tick.add the first time tui.exec
+# runs; ticks every currently-running instance regardless of which pane
+# or which page's own _TUI_TICK_FN is active.
+_exec_master_tick() {
+    local iid
+    for iid in "${!_EXEC_STATUS[@]}"; do
+        [[ "${_EXEC_STATUS[$iid]}" == "running" ]] && _exec_tick_one "$iid"
+    done
+}
+
+# No-op for a headless instance (_EXEC_NS[$iid] empty — no controls to update).
 _exec_render_status() {
-    tui.log.debug "_exec_render_status() called"
+    local iid="$1"
+    local ns="${_EXEC_NS[$iid]:-}"
+    [[ -z "$ns" ]] && return
+
     local icon
-    case "$_EXEC_STATUS" in
-        running)   icon="● RUNNING  PID ${_EXEC_PID}"  ;;
-        done)      icon="✔ DONE     exit ${_EXEC_EXIT}" ;;
-        error)     icon="✖ ERROR    exit ${_EXEC_EXIT}" ;;
+    case "${_EXEC_STATUS[$iid]}" in
+        running)   icon="● RUNNING  PID ${_EXEC_PID[$iid]}"  ;;
+        done)      icon="✔ DONE     exit ${_EXEC_EXIT[$iid]}" ;;
+        error)     icon="✖ ERROR    exit ${_EXEC_EXIT[$iid]}" ;;
         cancelled) icon="■ CANCELLED"                    ;;
         *)         icon="○ IDLE"                         ;;
     esac
 
-    tui.set "_xstat" "$icon"
+    local stat_id="${_EXEC_STAT_WIDGET[$iid]}"
+    local cmd="${_EXEC_CMD[$iid]}"
+    _tui._widget_pos "$stat_id"
+    (( ${#cmd} > _WSW - 2 )) && cmd="${cmd:0:$((_WSW - 5))}..."
+    tui.set "$stat_id" "$ ${cmd}  —  ${icon}"
 
-    local short="$_EXEC_CMD"
-    _tui._widget_pos "_xhdr"
-    (( ${#short} > _WSW - 2 )) && short="${short:0:$((_WSW - 5))}..."
-    tui.set "_xhdr" "$ ${short}"
-
-    _tui._draw_widgets_now "_xstat" "_xhdr"
+    (( _TUI_RUNNING )) && _tui._draw_widgets_now "$stat_id"
 }
 
-_exec_render_output() {
-    declare -g -a "_TUI_PANE_CONTENT_${_EXEC_OUT_PANE}"
-    declare -n pane_arr="_TUI_PANE_CONTENT_${_EXEC_OUT_PANE}"
-    pane_arr=("${_EXEC_BUF[@]}")
-    _tui._render_output "$_EXEC_OUT_PANE"
+_exec_render_pane() {
+    local pane="$1"
+    declare -g -a "_TUI_PANE_CONTENT_${pane}"
+    local -n content="_TUI_PANE_CONTENT_${pane}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+    content=("${pbuf[@]}")
+    _tui._render_output "$pane"
 }
 
 _exec_on_cancel() {
-    [[ "$_EXEC_STATUS" != "running" ]] && return
-    kill -TERM "$_EXEC_PID" 2>/dev/null
-    { sleep 0.15; kill -KILL "$_EXEC_PID" 2>/dev/null; } &
-    wait "$_EXEC_PID" 2>/dev/null
+    local iid="${_EXEC_WIDGET_TO_IID[$1]:-}"
+    [[ -z "$iid" ]] && return
+    [[ "${_EXEC_STATUS[$iid]}" != "running" ]] && return
 
-    _EXEC_STATUS="cancelled"
-    _EXEC_BUF+=("--- process cancelled (PID ${_EXEC_PID}) ---")
-    _exec_render_status
-    _exec_render_output
+    local pid="${_EXEC_PID[$iid]}"
+    kill -TERM "$pid" 2>/dev/null
+    { sleep 0.15; kill -KILL "$pid" 2>/dev/null; } &
+    wait "$pid" 2>/dev/null
+
+    _EXEC_STATUS[$iid]="cancelled"
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+    pbuf+=("--- [${iid}] cancelled (PID ${pid}) ---")
+
+    _exec_render_status "$iid"
+    _exec_render_pane "$pane"
 }
 
 _exec_on_save() {
-    local ts
-    ts=$(date +%Y%m%d_%H%M%S)
-    local savefile="exec_output_${ts}.log"
+    local iid="${_EXEC_WIDGET_TO_IID[$1]:-}"
+    [[ -z "$iid" ]] && return
 
-    if printf '%s\n' "${_EXEC_BUF[@]}" > "$savefile" 2>/dev/null; then
-        _EXEC_BUF+=("── saved → $(pwd)/${savefile} ──")
+    local ts; ts=$(date +%Y%m%d_%H%M%S)
+    local savefile="exec_output_${iid}_${ts}.log"
+    local -n ibuf="_EXEC_BUF_${iid}"
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+
+    if printf '%s\n' "${ibuf[@]}" > "$savefile" 2>/dev/null; then
+        pbuf+=("── [${iid}] saved → $(pwd)/${savefile} ──")
     else
-        savefile="${_EXEC_TMPDIR}/output_${ts}.log"
-        printf '%s\n' "${_EXEC_BUF[@]}" > "$savefile"
-        _EXEC_BUF+=("── saved → ${savefile} ──")
+        savefile="${_EXEC_TMPDIR[$iid]}/output_${ts}.log"
+        printf '%s\n' "${ibuf[@]}" > "$savefile"
+        pbuf+=("── [${iid}] saved → ${savefile} ──")
     fi
-    _exec_render_output
+    _exec_render_pane "$pane"
 }
 
 _exec_on_view() {
-    _EXEC_BUF+=("┈┈┈ command ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
-    _EXEC_BUF+=("${_EXEC_CMD}")
-    local first="${_EXEC_CMD%% *}"
+    local iid="${_EXEC_WIDGET_TO_IID[$1]:-}"
+    [[ -z "$iid" ]] && return
+
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+    local cmd="${_EXEC_CMD[$iid]}"
+
+    pbuf+=("┈┈┈ [${iid}] command ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
+    pbuf+=("${cmd}")
+    local first="${cmd%% *}"
     if [[ -f "$first" && -r "$first" ]]; then
-        _EXEC_BUF+=("┈┈┈ source: ${first} ┈┈┈┈┈┈┈┈┈")
+        pbuf+=("┈┈┈ source: ${first} ┈┈┈┈┈┈┈┈┈")
+        local src_line
         while IFS= read -r src_line; do
-            _EXEC_BUF+=("  ${src_line}")
+            pbuf+=("  ${src_line}")
         done < "$first"
     fi
-    _EXEC_BUF+=("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
-    _exec_render_output
+    pbuf+=("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
+    _exec_render_pane "$pane"
+}
+
+_exec_on_retry() {
+    local iid="${_EXEC_WIDGET_TO_IID[$1]:-}"
+    [[ -z "$iid" ]] && return
+    [[ "${_EXEC_STATUS[$iid]}" == "running" ]] && _exec_on_cancel "$1"
+
+    local cmd="${_EXEC_CMD[$iid]}" pane="${_EXEC_OUT_PANE[$iid]}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+    pbuf+=("── [${iid}] retrying: ${cmd} ──")
+
+    _exec_relaunch_process "$iid"
+    _exec_render_status "$iid"
+    _exec_render_pane "$pane"
+}
+
+_exec_on_back() {
+    local iid="${_EXEC_WIDGET_TO_IID[$1]:-}"
+    [[ -z "$iid" ]] && return
+    _exec_dismiss_instance "$iid"
 }
 
 _exec_on_send() {
-    local text
-    text=$(tui.get "_xinput")
+    local widget_id="$1"
+    local iid="${_EXEC_WIDGET_TO_IID[$widget_id]:-}"
+    [[ -z "$iid" ]] && return
+
+    local text; text=$(tui.get "$widget_id")
     [[ -z "$text" ]] && return
-    
-    if [[ "$_EXEC_STATUS" == "running" ]]; then
-        ( printf "%s\n" "$text" >&"$_EXEC_FIFO_FD" & ) 2>/dev/null
-        local masked
-        masked="$(printf '%*s' "${#text}" | tr ' ' '*')"
-        _EXEC_BUF+=("▸ ${masked}")
+
+    local pane="${_EXEC_OUT_PANE[$iid]}"
+    local -n pbuf="_EXEC_PANE_BUF_${pane}"
+    local -a siblings=()
+    read -ra siblings <<< "${_EXEC_PANE_INSTANCES[$pane]:-}"
+    local prefix=""
+    (( ${#siblings[@]} > 1 )) && prefix="[${iid}] "
+
+    if [[ "${_EXEC_STATUS[$iid]}" == "running" ]]; then
+        local fd="${_EXEC_FIFO_FD[$iid]}"
+        ( printf "%s\n" "$text" >&"$fd" & ) 2>/dev/null
+        local masked; masked="$(printf '%*s' "${#text}" | tr ' ' '*')"
+        pbuf+=("${prefix}▸ ${masked}")
     else
-        _EXEC_BUF+=("(process not running — input discarded)")
+        pbuf+=("${prefix}(process not running — input discarded)")
     fi
 
-    tui.set "_xinput" ""
-    _tui._draw_widget "_xinput"
-    _exec_render_output
+    tui.set "$widget_id" ""
+    _tui._draw_widget "$widget_id"
+    _exec_render_pane "$pane"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2510,7 +2750,9 @@ tui.run() {
         local char=""
         local got_char=0
         local poll_timeout="$TUI_INPUT_IDLE_TIMEOUT"
-        [[ -n "${_TUI_TICK_FN:-}" ]] && poll_timeout="$TUI_INPUT_POLL_TIMEOUT"
+        if [[ -n "${_TUI_TICK_FN:-}" ]] || (( ${#_TUI_TICK_LISTENERS[@]} > 0 )); then
+            poll_timeout="$TUI_INPUT_POLL_TIMEOUT"
+        fi
 
         _tui._next_byte char "$poll_timeout" && got_char=1
 
@@ -2607,9 +2849,20 @@ tui.run() {
         fi
 
         [[ -n "${_TUI_TICK_FN:-}" ]] && "$_TUI_TICK_FN"
+        if (( ${#_TUI_TICK_LISTENERS[@]} > 0 )); then
+            local _tick_listener
+            for _tick_listener in "${_TUI_TICK_LISTENERS[@]}"; do
+                "$_tick_listener"
+            done
+        fi
     done
 
     _master_cleanup
 }
 
 tui.stop() { _TUI_RUNNING=0; }
+
+# Wrapped last, once every builder function tui_cache.sh records is
+# actually defined (most of them live in this file, below where tui_cache.sh
+# itself gets sourced above).
+tui.cache.init

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# terminal_init.sh — auto-starts a live interactive shell when the Terminal page loads.
+# Sourced by tui.load via <script src="…"/>, after the panes it targets already exist.
+#
+# tui.exec instances are independent now (bin/tui.sh's exec rewrite lets
+# several run concurrently, even in the same pane), so re-visiting this
+# page would otherwise pile up an extra orphaned bash session in
+# term_output on every visit instead of replacing the old one. Cancel
+# whatever's already there first to keep this page's original
+# one-shell-at-a-time behavior.
+tui.exec.cancel_pane "term_output"
+tui.exec "bash" "term_output" "term_actions"

@@ -275,8 +275,7 @@ tui.load() {
                 [[ -z "$src" ]] && continue
                 resolved="$src"
                 [[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR}/${src}"
-                # shellcheck disable=SC1090
-                source "$resolved"
+                _tui_cache_source "$resolved"
                 ;;
 
             theme)
@@ -421,7 +420,7 @@ tui.load() {
 
                 if [[ -n "$bpage" && -z "$baction" ]]; then
                     local fn="_tui_goto_${bid//[^A-Za-z0-9_]/_}"
-                    eval "$(printf '%s() { tui.goto %q; }' "$fn" "$bpage")"
+                    _tui_cache_define_goto "$fn" "$bpage"
                     baction="$fn"
                 fi
 
@@ -504,9 +503,7 @@ tui.load() {
     # (see config/docu_callbacks.sh) instead of needing every widget known
     # up front in the markup. Fires on every tui.load, including a
     # tui.goto back to a page already visited before.
-    if [[ -n "$_TUI_MARKUP_ON_VISIT" ]]; then
-        "$_TUI_MARKUP_ON_VISIT"
-    fi
+    _tui_cache_run_on_visit "$_TUI_MARKUP_ON_VISIT"
 }
 
 # tui.reset_ui — wipe all panes/widgets and rebuild a full-screen root pane.
@@ -551,7 +548,7 @@ tui.goto() {
     [[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR:-.}/${file}"
 
     tui.reset_ui
-    tui.load "$resolved"
+    tui.load_cached "$resolved"
     (( _TUI_RUNNING )) && tui.render
 }
 

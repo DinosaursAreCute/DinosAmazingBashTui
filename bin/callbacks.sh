@@ -26,5 +26,6 @@ on_quit() {
 }
 
 on_lsh() {
+    tui.exec.cancel_pane "output"
     tui.exec "lsh" "output" "actions"
 }

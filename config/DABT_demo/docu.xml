@@ -2,17 +2,20 @@
   <script src="docu_callbacks.sh"/>
   <theme src="theme.css"/>
 
-  <pane id="root" split="h">
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="20" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="80">
-        <pane id="header" weight="10" title="Documentation" border="single" class="panel"/>
+        <pane id="header" weight="14" title="Documentation" border="single" class="panel"/>
         <pane id="tabs_header" weight="4" border="none"/>
         <pane id="content" weight="86" border="heavy" class="panel" scroll="both"/>
     </pane>
   </pane>
+  </pane>
 
   <label id="lbl_inst" pane="header" row="0" text="Read Dinos Amazing Bash Tui Documentation." align="center"/>
-  <label id="lbl_inst2" pane="header" row="1" text="Every .md file in docs/, plus the README, gets a tab here automatically." align="center" class="muted_label"/>
+  <label id="lbl_inst2" pane="header" row="1" text="The README, docs index, guides, API reference and design write-ups each get a tab here." align="center" class="muted_label"/>
 
   <include src="_nav.xml"/>
 </tui>

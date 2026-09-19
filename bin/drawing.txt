@@ -1,0 +1,127 @@
+# 1. LIGHT BOX DRAWING
+Straight:    ─ │
+Corners:     ┌ ┐ └ ┘
+T-Junctions: ├ ┤ ┬ ┴
+Cross:       ┼
+Dashed:      ┄ ┆ ┈ ┊ ╌ ╎
+
+# 2. HEAVY BOX DRAWING
+Straight:    ━ ┃
+Corners:     ┏ ┓ ┗ ┛
+T-Junctions: ┣ ┫ ┳ ┻
+Cross:       ╋
+Dashed:      ┅ ┇ ┉ ┋ ╍ ╏
+
+# 3. DOUBLE BOX DRAWING
+Straight:    ═ ║
+Corners:     ╔ ╗ ╚ ╝
+T-Junctions: ╠ ╣ ╦ ╩
+Cross:       ╬
+
+# 4. ROUNDED & DIAGONAL
+Rounded Corners: ╭ ╮ ╯ ╰
+Diagonals:       ╱ ╲ ╳
+
+# 5. MIXED WEIGHTS (Light/Heavy & Single/Double)
+Light H / Heavy V: ┽ ┾ ╀ ╁ ╂
+Heavy H / Light V: ┿ ╃ ╄ ╅ ╆
+Single H / Double V: ╓ ╖ ╙ ╜ ╟ ╢ ╥ ╨ ╫
+Double H / Single V: ╒ ╕ ╘ ╛ ╞ ╡ ╤ ╧ ╪
+
+# 6. BLOCK SHADES & FULL BLOCKS
+Full Block: █
+Shades:     ▓ ▒ ░
+
+# 7. VERTICAL BLOCK FRACTIONS (Left / Right aligned)
+Left:  ▏ ▎ ▍ ▌ ▋ ▊ ▉ █
+Right: ▐
+
+# 8. HORIZONTAL BLOCK FRACTIONS (Bottom / Top aligned)
+Bottom:    ▂ ▃ ▄ ▅ ▆ ▇ █
+Top:    ▔ ▀
+
+# 9. QUADRANT BLOCKS (Sub-cell pixels)
+Corners:  ▖ ▗ ▘ ▝
+Pairs:    ▚ ▞
+Triples:  ▙ ▛ ▜ ▟
+
+# 10. GEOMETRIC SQUARES & RECTANGLES
+Solid Squares:   ■ ▪
+Outline Squares: □ ▫ ▢ ▣
+Hatched Squares: ▤ ▥ ▦ ▧ ▨ ▩
+Rectangles:      ▬ ▭ ▮ ▯
+
+# 11. TRIANGLES (Arrows / Indicators)
+Solid:   ▲ ▼ ◀ ▶ 
+Outline: △ ▽ ◁ ▷ 
+Small:   ▴ ▾ ◂ ▸
+Corners: ◣ ◢ ◥ ◤
+
+# 12. CIRCLES & HALF-CIRCLES
+Solid:   ● ⬤
+Outline: ○ ◌ ◍ ◎ ◯
+Halves:  ◐ ◑ ◒ ◓
+Slices:  ◔ ◕
+Caps:    ◖ ◗
+
+# 13. BRAILLE SPARKLINE BASES (Subset of U+2800 - U+28FF)
+Empty:       ⠀
+Dots 1-4:    ⠁ ⠂ ⠄ ⡀
+Dots 5-8:    ⠈ ⠐ ⠠ ⢀
+Vertical:    ⡇ ⢸
+Bottom Base: ⣀ ⣤ ⣶ ⣿
+
+# ============================================================================
+# ARROWS, CHEVRONS & ANGLE BRACKETS (< >)
+# ============================================================================
+
+# --- 1. ANGLE BRACKETS & CHEVRONS (< > variations) ---
+Standard:      < >
+Single:        ‹ › ⟨ ⟩ 〈 〉 ˂ ˃
+Heavy/Thick:   ❮ ❯ ❰ ❱ ❬ ❭
+Double:        « » 《 》 ≪ ≫ 
+Math/Complex:  ≤ ≥ ≦ ≧ ≲ ≳ ≶ ≷ ⋖ ⋗ ⪡ ⪢
+Vertical:      ⋀ ⋁ ⌃ ⌄ ᐱ ᐯ
+
+# --- 2. STANDARD LINE ARROWS ---
+Cardinals:     ← ↑ → ↓
+Diagonals:     ↖ ↗ ↘ ↙
+Bi-directional: ↔ ↕ ⤢ ⤡
+With Base:     ↤ ↥ ↦ ↧
+Barbed/Long:   ⟵ ⟶ ⟷ ⤌ ⤍
+
+# --- 3. DOUBLE LINE ARROWS ---
+Cardinals:     ⇐ ⇑ ⇒ ⇓
+Diagonals:     ⇖ ⇗ ⇘ ⇙
+Bi-directional: ⇔ ⇕
+
+# --- 4. HEAVY & SOLID ARROWS ---
+Standard:      ⬅ ⬆ ➡ ⬇ 
+Diagonals:     ⬉ ⬈ ⬊ ⬋
+Bi-directional: ⬌ ⬍
+Pointers:      ➔ ➜ ➝ ➞ ➟ ➠ 
+Wedge/Tail:    ➤ ➥ ➦ ➧ ➨ 
+Triangular:    ◄ ▲ ► ▼ 
+
+# --- 5. DASHED & DOTTED ARROWS ---
+Dashed:        ⇠ ⇡ ⇢ ⇣
+Triple Dash:   ⤎ ⤏
+Dotted:        ⤂ ⤃ ⤄
+
+# --- 6. CURVED, CIRCULAR & RETURN ARROWS ---
+Return/Enter:  ↵ ↩ ↪ ⤶ ⤷
+Curved Stems:  ⤵ ⤴ ⤹ ⤸
+Semi-circle:   ↶ ↷ ⤣ ⤤ ⤥ ⤦
+Circular/Sync: ↺ ↻ ⮔ ⮕ ⟲ ⟳
+Arrows with Hooks: hookleftarrow hookrightarrow (actually ↫ ↬)
+
+# --- 7. HARPOONS (Half-Arrows) ---
+Right Pointing: ⇀ ⇁ ⥟ ⥞
+Left Pointing:  ↽ ↼ ⥝ ⥜
+Vertical:       ↾ ↿ ⇂ ⇃
+Bi-directional: ⇌ ⇋
+
+# --- 8. UI & KEYBOARD SYMBOLS ---
+OS/Keyboard:   ⇪ (Caps) ⇫ ⇬ ⇭ ⇮ ⇯ 
+Eject/Shift:   ⏏ ⇧ 
+Play/Media:    ⏴ ⏶ ⏵ ⏷ ⏪ ⏩ ⏫ ⏬

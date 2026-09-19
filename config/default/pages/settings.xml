@@ -1,0 +1,35 @@
+<!-- DABT default Settings page (ships with the framework; palette: "DABT: Settings"). Everything applies live and
+     is saved through tui.config (see bin/tui_config.sh). An app can replace it: re-register the command id
+     dabt.settings to point at its own page. -->
+<tui on_visit="dset_visit">
+  <script src="settings_callbacks.sh"/>
+  <theme src="../theme.css"/>
+  <footer/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="head" weight="10" title="DABT Settings" border="single" class="panel" hpad="1"/>
+    <pane id="body" split="h" weight="80" border="none">
+      <pane id="col_theme" weight="34" title="Theme" border="single" class="panel" hpad="1"/>
+      <pane id="col_keys"  weight="33" title="Default keybind groups" border="single" class="panel" hpad="1"/>
+      <pane id="col_input" weight="33" title="Input" border="single" class="panel" hpad="1"/>
+    </pane>
+    <pane id="foot" weight="10" border="none" class="panel"/>
+  </pane>
+
+  <label id="lbl_h1" pane="head" row="0" text="Changes apply immediately and are saved. Keys and pages come from config/default/." class="muted_label"/>
+  <label id="lbl_h2" pane="head" row="1" text="" class="brand"/>
+
+  <label id="lbl_t_hd" pane="col_theme" row="0" text="Pick an overlay - it restyles every page:" class="muted_label"/>
+  <label id="lbl_k_hd" pane="col_keys"  row="0" text="A tick = the built-in keys of that group are ON:" class="muted_label"/>
+
+  <checkbox id="chk_retain"   pane="col_input" row="0" label="Keep focus in an input after Enter" checked="true" action="dset_retain"/>
+  <checkbox id="chk_coalesce" pane="col_input" row="1" label="Merge fast repeated scroll events"   checked="true" action="dset_coalesce"/>
+  <label    id="lbl_c_hd"     pane="col_input" row="3" text="Chords:" class="brand"/>
+  <label    id="lbl_c1"       pane="col_input" row="4" text=""/>
+  <label    id="lbl_c2"       pane="col_input" row="5" text=""/>
+  <label    id="lbl_c3"       pane="col_input" row="6" text=""/>
+  <label    id="lbl_c4"       pane="col_input" row="7" text=""/>
+
+  <button id="btn_back"  pane="foot" row="0" text="[ Back ]"               action="tui.action.back"    class="info_button"    align="fill"/>
+  <button id="btn_kb"    pane="foot" row="1" text="[ Keybinds ... ]"       action="dset_goto_keybinds" class="success_button" align="fill"/>
+</tui>

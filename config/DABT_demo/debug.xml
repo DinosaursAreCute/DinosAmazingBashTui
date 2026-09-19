@@ -1,22 +1,30 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
   <script src="debug_callbacks.sh"/>
+  <script src="debug_tabs.sh"/>
   <theme src="theme.css"/>
 
-  <!-- Nav on the right: same _nav.xml include as every other page, just
-       placed as root's SECOND child instead of the first — no markup
-       feature needed for that, only this ordering. -->
-  <pane id="root" split="h">
-    <pane id="main" split="v" weight="82">
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="82" border="none">
+      <pane id="tabs_header" weight="5" border="none"/>
       <pane id="interactive_demo" weight="42" title="Interactive Elements (dynamic grid)" border="heavy" class="panel"/>
-      <pane id="controls" weight="10" border="none"/>
+      <pane id="controls" weight="14" border="single"/>
       <pane id="warn_demo" weight="6" title="Size warning demo" border="heavy" class="panel" min_width="999" min_height="999"/>
       <pane id="tape" weight="24" title="Input Tape (mouse + keyboard)" border="heavy" class="panel" scroll="v"/>
       <pane id="status" weight="18" title="Status" border="heavy" class="panel"/>
     </pane>
-    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+  </pane>
   </pane>
 
-  <button id="btn_rebuild" pane="controls" row="0" text="[ Rebuild grid — random item count ]" action="on_rebuild_grid" class="info_button" align="fill"/>
+  <tabs id="dbg_tabs" header_pane="tabs_header" content_pane="interactive_demo" style="compact">
+    <tab id="tab_dbg_events" text="Events &amp; hover" action="dbg_tab_here" default="true"/>
+    <tab id="tab_dbg_input"  text="Keyboard &amp; mouse" action="dbg_goto_input"/>
+    <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
+  </tabs>
+
+  <button id="btn_rebuild" pane="controls" row="0" text="[ Rebuild grid - random item count ]" action="on_rebuild_grid" class="info_button" align="fill"/>
   <button id="btn_clear_tape" pane="controls" row="1" text="[ Clear tape ]" action="on_clear_tape" class="danger_button" align="fill"/>
 
   <include src="_nav.xml"/>

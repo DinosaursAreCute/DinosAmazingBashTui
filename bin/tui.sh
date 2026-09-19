@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔════════════════════════════════════════════════════════════════════════════╗
-# ║  tui.sh — Terminal UI & Background Execution Framework                     ║
+# ║  tui.sh - Terminal UI & Background Execution Framework                     ║
 # ║                                                                          ║
 # ║  Built on terminal_controls.sh + colors.sh                               ║
 # ║  Provides: weighted layout panes, buttons, input fields, labels,         ║
@@ -21,10 +21,16 @@ source "${SCRIPT_DIR}/terminal_controls.sh"
 source "${SCRIPT_DIR}/colors.sh"
 source "${SCRIPT_DIR}/tui_markup.sh"
 source "${SCRIPT_DIR}/tui_style.sh"
+source "${SCRIPT_DIR}/tui_api.sh"
+source "${SCRIPT_DIR}/tui_input.sh"
+source "${SCRIPT_DIR}/tui_modal.sh"
+source "${SCRIPT_DIR}/tui_cmd.sh"
+source "${SCRIPT_DIR}/tui_footer.sh"
+source "${SCRIPT_DIR}/tui_config.sh"
 source "${SCRIPT_DIR}/tui_cache.sh"
 
 # ═══════════════════════════════════════════════════════════════════════
-#  INPUT TUNABLES — override any of these (after sourcing, before tui.run)
+#  INPUT TUNABLES - override any of these (after sourcing, before tui.run)
 #  to trade responsiveness for CPU usage or vice versa. None of this is
 #  "private" framework state, so it's plain TUI_*, not _TUI_*.
 # ═══════════════════════════════════════════════════════════════════════
@@ -39,6 +45,7 @@ declare -g TUI_INPUT_IDLE_TIMEOUT=0.2    # used otherwise
 # How long to wait for each subsequent byte while assembling an escape
 # sequence that's already begun (arrow keys, SGR mouse reports, …).
 declare -g TUI_ESCSEQ_BYTE_TIMEOUT=0.01
+declare -g TUI_ESCSEQ_MOUSE_TIMEOUT=0.05   # per-byte wait once a sequence is known to be an SGR mouse report
 
 # Mouse-motion coalescing (see _tui._coalesce_mouse_motion): once a pure
 # hover/drag motion report is decoded, the loop peeks ahead for more
@@ -49,7 +56,7 @@ declare -g TUI_ESCSEQ_BYTE_TIMEOUT=0.01
 # as a pure availability probe that reports success but never actually
 # consumes the byte, so a 0 timeout here would silently drain nothing every
 # time. A tiny nonzero value (the default) still returns in about a
-# millisecond when a byte is already sitting in the buffer — raise it only
+# millisecond when a byte is already sitting in the buffer - raise it only
 # to make the eventual "buffer's empty, stop draining" timeout more
 # forgiving on a laggy pty. TUI_MOUSE_DRAIN_MAX caps how many motion reports
 # one pass will collapse, purely as a safety net against an unbroken flood
@@ -66,6 +73,7 @@ declare -gA _TUI_P_H=()    _TUI_P_W=()
 declare -gA _TUI_P_DIR=()      
 declare -gA _TUI_P_CHILDREN=() 
 declare -gA _TUI_P_WEIGHTS=()  
+declare -gA _TUI_P_CELLW=() _TUI_P_CELLH=() _TUI_P_SPAN=() _TUI_P_NEWLINE=()   # fixed-size grid (tui.fixed)
 declare -gA _TUI_P_TITLE=()    
 declare -gA _TUI_P_BORDER=()   
 declare -gA _TUI_P_ALIGN=()    
@@ -78,6 +86,8 @@ declare -gA _TUI_P_CONTENT=()
 declare -gA _TUI_P_SCROLL=()
 declare -gA _TUI_P_SOFF_V=()
 declare -gA _TUI_P_SOFF_H=()
+declare -gA _TUI_P_HPAD=() _TUI_P_VPAD=() _TUI_P_BORDER_EXPL=()
+declare -gA _TUI_W_HPAD=() _TUI_W_VPAD=()
 declare -g _TUI_DRAG_PANE=""
 declare -g _TUI_DRAG_AXIS=""
 declare -gA _TUI_P_LINES=()
@@ -95,6 +105,8 @@ declare -gA _TUI_W_ALIGN=()
 declare -gA _TUI_W_VALIGN=()   
 declare -gA _TUI_W_MINW=() _TUI_W_MAXW=()
 declare -gA _TUI_W_LABEL_ALIGN=()
+declare -gA _TUI_W_RETAIN=() _TUI_W_STICKY=()   # input focus policy: explicit retain (1/0) and sticky (see tui.input.retain / .sticky)
+declare -g  TUI_INPUT_RETAIN_ON_SUBMIT=1          # default when an input has no retain_input_on_submit of its own
 declare -gA _TUI_W_LABEL_WIDTH=()
 declare -ga _TUI_W_ORDER=()    
 declare -ga _TUI_FOCUSABLE=()  
@@ -110,7 +122,7 @@ declare -g  _WSR=0 _WSC=0 _WSW=0 _WSW_AVAIL=0
 declare -g  _HIT=""
 
 # Raw-byte pushback FIFO: bytes that were already read from stdin (while
-# peeking ahead to coalesce mouse motion — see _tui._coalesce_mouse_motion)
+# peeking ahead to coalesce mouse motion - see _tui._coalesce_mouse_motion)
 # but turned out to belong to a different, non-coalescible event. They're
 # stashed here and replayed through _tui._next_byte before the next real
 # read, so nothing downstream has to know a peek ever happened.
@@ -130,8 +142,9 @@ declare -g _TUI_HOVERED_WIDGET=""
 # countdown instead of redrawing on every event; tui.run() flushes whatever
 # is pending at most once per settled moment. Hover/focus restyling is a
 # single cheap widget or border redraw and is drawn immediately instead
-# (see _tui._draw_widgets_now) — debouncing it added latency without a
+# (see _tui._draw_widgets_now) - debouncing it added latency without a
 # throughput problem to justify it.
+declare -gA _TUI_PANE_CONTENT=()   # pane id -> 1 when it holds tui.output content (MUST be associative: pane ids are names)
 declare -gA _TUI_PENDING_OUTPUT=()   # pane id -> content awaiting re-render
 declare -g  _TUI_RENDER_TIMEOUT=-1
 
@@ -139,10 +152,10 @@ declare -g  _TUI_RENDER_TIMEOUT=-1
 #  INTERNAL STATE (BACKGROUND EXECUTION)
 # ═══════════════════════════════════════════════════════════════════════
 #  tui.exec is multi-instance: every call starts its own tracked instance
-#  (its own PID, its own dedicated named pipe — never shared/multiplexed
+#  (its own PID, its own dedicated named pipe - never shared/multiplexed
 #  across processes), keyed by an opaque instance id ("e1", "e2", ...).
 #  Instances are also indexed by output pane (_EXEC_PANE_INSTANCES), so
-#  several concurrently-running processes can feed the SAME pane — their
+#  several concurrently-running processes can feed the SAME pane - their
 #  lines interleave into that pane's buffer, tagged with their instance id
 #  once more than one instance is sharing it. A control pane is optional
 #  per instance: pass "" (or omit it) for a headless/background process
@@ -176,7 +189,7 @@ declare -g  _TUI_TICK_FN=""
 # cadence). tui.exec registers itself here instead of overwriting
 # _TUI_TICK_FN, so a page's own tick function and any number of running
 # tui.exec instances all get ticked every frame without clobbering each
-# other — the exact problem the old single-instance tui.exec had: any
+# other - the exact problem the old single-instance tui.exec had: any
 # page that both drove its own _TUI_TICK_FN and called tui.exec would
 # have one silently stop firing.
 declare -ga _TUI_TICK_LISTENERS=()
@@ -198,7 +211,7 @@ tui.tick.remove() {
 
 # Optional observability hook, same idiom as _TUI_TICK_FN: if set, called
 # with a one-line description of every DISPATCHED input event (a motion
-# report the mouse-coalescer discarded never reaches this — only what
+# report the mouse-coalescer discarded never reaches this - only what
 # actually got acted on). The framework doesn't know or care who sets
 # this; it exists so a page (e.g. the debug page) can log/display input
 # without the framework needing any debug-specific code of its own.
@@ -224,8 +237,10 @@ tui.log.error() { tui.log "$1" "error"; }
 # ═══════════════════════════════════════════════════════════════════════
 
 tui.init() {
+    tui.config.apply          # saved framework settings (theme overlay, default-key groups, input behaviour)
     _TUI_OLD_STTY=$(stty -g 2>/dev/null)
-    stty -echo -icanon min 1 time 0 2>/dev/null
+    # -ixon/-iexten: the tty driver otherwise swallows ctrl+s / ctrl+q / ctrl+v / ctrl+o before we see them
+    stty -echo -icanon -ixon -iexten min 1 time 0 2>/dev/null
 
     term.alt_screen
     cur.hide
@@ -233,6 +248,7 @@ tui.init() {
 
     mouse.any_on
     mouse.sgr_on
+    printf '\e[?2004h'       # bracketed paste: pastes arrive as one "paste" event, not fake keystrokes
 
     term.size _TUI_ROWS _TUI_COLS
 
@@ -257,7 +273,7 @@ _kill_process_tree() {
 }
 
 # Kills one instance's process (if still alive) and closes its fifo fd.
-# Leaves its tmpdir/state in place — a still-tracked, no-longer-running
+# Leaves its tmpdir/state in place - a still-tracked, no-longer-running
 # instance is exactly what "done"/"error"/"cancelled" status means, and
 # its output/Save/View controls (if any) stay usable until _exec_dismiss.
 _exec_cleanup_instance() {
@@ -288,6 +304,7 @@ _exec_cleanup_all() {
 tui.cleanup() {
     mouse.any_off
     mouse.sgr_off
+    printf '\e[?2004l'
     style.reset
     cur.show
     term.main_screen
@@ -295,6 +312,8 @@ tui.cleanup() {
 }
 
 _master_cleanup() {
+    tui.cache.cleanup 2>/dev/null
+    _tui_api.shutdown 2>/dev/null
     _exec_cleanup_all 2>/dev/null
     tui.cleanup 2>/dev/null
     # Hard reset terminal state (ANSI resets + stty cooked mode)
@@ -334,9 +353,62 @@ _tui._split() {
     _tui._collect_leaves "root"
 }
 
+# tui.fixed PARENT SIZE_W SIZE_H CHILD[:SPAN[:nl]]...
+#   Fixed-size grid: every child is exactly SIZE_W x SIZE_H cells (times its
+#   SPAN in width - a wide key is SPAN units wide), flowed left-to-right and
+#   wrapped when the row is full or a child is marked "nl" (start a new row).
+#   Children that don't fit get a 0x0 rect and are not drawn.
+#   Unlike hsplit/vsplit/grid, sizes never stretch with the window - that is
+#   the point: rows of identical, aligned elements (keyboards, tile walls).
+tui.fixed() {
+    local parent="$1" sw="$2" sh="$3"; shift 3
+    local names="" spec n rest span nl
+    for spec in "$@"; do
+        n="${spec%%:*}"; rest=""; [[ "$spec" == *:* ]] && rest="${spec#*:}"
+        span="${rest%%:*}"; nl=""; [[ "$rest" == *:* ]] && nl="${rest#*:}"
+        [[ "$span" =~ ^[0-9]+$ ]] || span=1
+        names+="${names:+ }$n"
+        _TUI_P_SPAN[$n]=$span
+        if [[ -n "$nl" ]]; then _TUI_P_NEWLINE[$n]=1; else unset '_TUI_P_NEWLINE[$n]'; fi
+        _TUI_P_BORDER[$n]="none"
+        _TUI_P_TITLE[$n]=""
+    done
+    _TUI_P_DIR[$parent]="f"
+    _TUI_P_CHILDREN[$parent]="$names"
+    _TUI_P_WEIGHTS[$parent]=""
+    _TUI_P_CELLW[$parent]="$sw"; _TUI_P_CELLH[$parent]="$sh"
+
+    _tui._layout "$parent"
+
+    _TUI_P_LEAVES=()
+    _TUI_P_ALL=()
+    _tui._collect_leaves "root"
+}
+
+_tui._layout_fixed() {
+    local p="$1" pr="$2" pc="$3" ph="$4" pw="$5"
+    local cw=${_TUI_P_CELLW[$p]:-1} chh=${_TUI_P_CELLH[$p]:-1}
+    local -a ch; read -ra ch <<< "${_TUI_P_CHILDREN[$p]}"
+    local x=0 y=0 name w
+    for name in "${ch[@]}"; do
+        w=$(( ${_TUI_P_SPAN[$name]:-1} * cw ))
+        if [[ -n "${_TUI_P_NEWLINE[$name]:-}" ]] || (( x > 0 && x + w > pw )); then
+            (( x > 0 )) && { x=0; (( y += chh )); }
+        fi
+        if (( w > pw || y + chh > ph )); then
+            _TUI_P_ROW[$name]=$pr; _TUI_P_COL[$name]=$pc; _TUI_P_H[$name]=0; _TUI_P_W[$name]=0
+        else
+            _TUI_P_ROW[$name]=$(( pr + y )); _TUI_P_COL[$name]=$(( pc + x ))
+            _TUI_P_H[$name]=$chh; _TUI_P_W[$name]=$w
+            (( x += w ))
+        fi
+        [[ -n "${_TUI_P_CHILDREN[$name]:-}" ]] && _tui._layout "$name"
+    done
+}
+
 # Smallest integer i such that i*i >= n (i.e. ceil(sqrt(n))), for picking a
 # roughly-square grid shape when neither rows nor cols was specified. n is
-# always a small cell count here, so a linear search is fine — this runs
+# always a small cell count here, so a linear search is fine - this runs
 # once per grid build, never per-frame.
 _tui._ceil_sqrt() {
     local n="$1" i=1
@@ -360,7 +432,7 @@ _tui._ceil_sqrt() {
 # render as empty placeholder panes) or "stretch" (a row's blank cells are
 # dropped instead, so its populated cells expand to fill the row).
 #
-# This function does not know about "explicit vs. auto-flow placement" —
+# This function does not know about "explicit vs. auto-flow placement" -
 # callers (the markup parser's <pane split="grid"> handler, or
 # tui.factory.grid) are responsible for resolving that into a flat,
 # row-major NAME list before calling this, the same way callers of
@@ -435,8 +507,15 @@ _tui._layout() {
     local dir="${_TUI_P_DIR[$p]:-}"
     [[ -z "$dir" ]] && return
 
-    local pr=${_TUI_P_ROW[$p]}  pc=${_TUI_P_COL[$p]}
-    local ph=${_TUI_P_H[$p]}    pw=${_TUI_P_W[$p]}
+    # A parent's own border and vpad/hpad shrink the area its children
+    # share; _tui._inset drops both when the parent is too small for them.
+    _tui._inset "$p"
+    local pr=$(( ${_TUI_P_ROW[$p]} + _IV ))  pc=$(( ${_TUI_P_COL[$p]} + _IH ))
+    local ph=$(( ${_TUI_P_H[$p]} - 2 * _IV )) pw=$(( ${_TUI_P_W[$p]} - 2 * _IH ))
+    (( ph < 1 )) && ph=1
+    (( pw < 1 )) && pw=1
+
+    if [[ "$dir" == f ]]; then _tui._layout_fixed "$p" "$pr" "$pc" "$ph" "$pw"; return; fi
 
     local -a ch wt
     read -ra ch <<< "${_TUI_P_CHILDREN[$p]}"
@@ -474,7 +553,57 @@ _tui._layout() {
 }
 
 tui.pane_title()   { _TUI_P_TITLE[$1]="$2"; }
-tui.pane_border()  { _TUI_P_BORDER[$1]="$2"; }
+tui.pane_border()  { _TUI_P_BORDER[$1]="$2"; _TUI_P_BORDER_EXPL[$1]=1; }
+# tui.pane_pad ID HPAD VPAD - blank cols/rows on each side. Parent panes:
+# gap between the frame and the children. Leaf panes: shrinks the area
+# widgets and tui.output* may use.
+tui.pane_pad()     { [[ -n "$2" ]] && _TUI_P_HPAD[$1]="$2"; [[ -n "$3" ]] && _TUI_P_VPAD[$1]="$3"; }
+tui.pad()          { [[ -n "$2" ]] && _TUI_W_HPAD[$1]="$2"; [[ -n "$3" ]] && _TUI_W_VPAD[$1]="$3"; }
+
+# _tui._eff_border ID - sets _TB to the border style actually drawn.
+# Parents only get a frame when border= was set explicitly. Any pane too
+# small to keep >=1 content row/col inside its frame (and, for parents,
+# room for bordered children) loses the frame, so nested borders collapse
+# instead of eating the content.
+_tui._eff_border() {
+    local id="$1" b="${_TUI_P_BORDER[$1]:-single}"
+    _TB=$b
+    [[ "$b" == "none" ]] && return
+    local h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0}
+    if [[ -n "${_TUI_P_CHILDREN[$id]:-}" ]]; then
+        if [[ -z "${_TUI_P_BORDER_EXPL[$id]:-}" ]] \
+           || (( h - 2 - 2 * ${_TUI_P_VPAD[$id]:-0} < 3 || w - 4 - 2 * ${_TUI_P_HPAD[$id]:-0} < 5 )); then
+            _TB=none
+        fi
+    elif (( h < 3 || w < 5 )); then
+        _TB=none
+    fi
+}
+
+# _tui._inset ID - sets _IV/_IH: rows/cols taken on EACH side by border
+# plus padding (pad clamped so >=1 row/col remains). Parents with no frame
+# inset 0 border cols; leaves with no frame keep the legacy 1-col margin.
+_tui._inset() {
+    local id="$1" bv bh
+    _tui._eff_border "$id"
+    if [[ "$_TB" != "none" ]]; then bv=1; bh=2
+    elif [[ -n "${_TUI_P_CHILDREN[$id]:-}" ]]; then bv=0; bh=0
+    else bv=0; bh=1; fi
+    local vp=${_TUI_P_VPAD[$id]:-0} hp=${_TUI_P_HPAD[$id]:-0}
+    local h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0} m
+    m=$(( (h - 1) / 2 - bv )); (( m < 0 )) && m=0; (( vp > m )) && vp=$m
+    m=$(( (w - 1) / 2 - bh )); (( m < 0 )) && m=0; (( hp > m )) && hp=$m
+    _IV=$(( bv + vp )); _IH=$(( bh + hp ))
+}
+
+# _tui._content_rect ID - sets _CR_R/_CR_C/_CR_H/_CR_W (leaf output area).
+_tui._content_rect() {
+    _tui._inset "$1"
+    _CR_R=$(( ${_TUI_P_ROW[$1]} + _IV )); _CR_C=$(( ${_TUI_P_COL[$1]} + _IH ))
+    _CR_H=$(( ${_TUI_P_H[$1]} - 2 * _IV )); _CR_W=$(( ${_TUI_P_W[$1]} - 2 * _IH ))
+    (( _CR_H < 1 )) && _CR_H=1
+    (( _CR_W < 1 )) && _CR_W=1
+}
 tui.pane_align()   { [[ -n "$2" ]] && _TUI_P_ALIGN[$1]="$2"; }
 tui.pane_valign()  { [[ -n "$2" ]] && _TUI_P_VALIGN[$1]="$2"; }
 tui.pane_minsize() { [[ -n "$2" ]] && _TUI_P_MINW[$1]="$2"; [[ -n "$3" ]] && _TUI_P_MINH[$1]="$3"; }
@@ -559,7 +688,7 @@ tui.checkbox() {
     _TUI_FOCUSABLE+=("$id")
 }
 
-# tui.checkbox.toggle ID — flips a checkbox's value, redraws it, and calls
+# tui.checkbox.toggle ID - flips a checkbox's value, redraws it, and calls
 # its action (if any) with the new value ("0"/"1"). The one place both
 # activation paths (Enter on a focused checkbox, a mouse click on one)
 # funnel through, so they can't drift out of sync with each other.
@@ -574,7 +703,7 @@ tui.checkbox.toggle() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-#  TABS — a thin convenience layer over buttons + tui.grid, formalizing
+#  TABS - a thin convenience layer over buttons + tui.grid, formalizing
 #  the "row of header buttons that swap a content pane" pattern already
 #  hand-rolled identically in more than one demo page. No new drawing or
 #  hit-testing primitive: a tab header is an ordinary button living in an
@@ -590,17 +719,17 @@ declare -gA _TUI_TAB_ACTION=()         # tab id -> developer's on-activate callb
 declare -gA _TUI_TAB_DEFAULT=()        # tab id -> "true" if it starts active
 declare -gA _TUI_TAB_GROUP=()          # tab id -> owning tabs id
 
-# tui.tabs.compact TABS_ID [true|false] — call before tui.tabs.build to pick
+# tui.tabs.compact TABS_ID [true|false] - call before tui.tabs.build to pick
 # the header style: framed (default) draws each header cell as its own
 # bordered box, needing at least 3 rows (top border, label, bottom border).
-# compact drops the frame entirely — each header is a borderless,
+# compact drops the frame entirely - each header is a borderless,
 # background-color-filled cell needing only 1 row, with the active tab
 # indicated by a bg color change (via the .tab_header_compact:focus class)
 # instead of a border. Pick compact wherever the header's own pane doesn't
 # have 3 rows to spare.
 tui.tabs.compact() { _TUI_TABS_COMPACT[$1]="${2:-true}"; }
 
-# tui.tabs.add TAB_ID TEXT ACTION [DEFAULT] — registers one tab's data
+# tui.tabs.add TAB_ID TEXT ACTION [DEFAULT] - registers one tab's data
 # ahead of tui.tabs.build, which needs the full set of tabs at once (to
 # lay out the header row as a single tui.grid).
 tui.tabs.add() {
@@ -628,7 +757,7 @@ tui.tabs.build() {
     tui.grid "$header_pane" 1 "${#tab_ids[@]}" pack "" "" "${cell_names[@]}"
 
     # A tab header clipping its label when there isn't room is normal,
-    # expected UI behavior (the same as nav sidebar buttons already do) —
+    # expected UI behavior (the same as nav sidebar buttons already do) -
     # not a real "this pane is broken" situation the content-fit checker
     # should flag, especially with more tabs than a header row has spare
     # width for. Opt every cell out of it.
@@ -662,7 +791,7 @@ tui.tabs.build() {
 
 _tui._tab_activate() { tui.tabs.activate "$1"; }
 
-# tui.tabs.activate TAB_ID — makes TAB_ID the active tab in its group:
+# tui.tabs.activate TAB_ID - makes TAB_ID the active tab in its group:
 # focuses its header button (reusing this framework's existing focus
 # styling as the "active" indicator instead of a second style state) and
 # calls the developer's own action, which is exactly the unchanged body
@@ -678,14 +807,14 @@ tui.tabs.activate() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-#  FACTORY — namespace-scoped construction and bulk teardown for layouts
+#  FACTORY - namespace-scoped construction and bulk teardown for layouts
 #  whose shape isn't known until runtime. Generalizes the one dynamic-
 #  widget-group pattern that already existed in this file (tui.exec's own
 #  "_x"-prefixed controls, built by _exec_setup_controls and torn down by
 #  _exec_remove_widgets) into a reusable primitive keyed by a caller-
 #  chosen namespace instead of a hardcoded prefix, so independent dynamic
 #  groups can coexist without id collisions. Deliberately not a
-#  templating engine — just auto-id generation plus bulk teardown wrapped
+#  templating engine - just auto-id generation plus bulk teardown wrapped
 #  around the existing imperative constructors (tui.label/button/input/
 #  checkbox/grid).
 # ═══════════════════════════════════════════════════════════════════════
@@ -698,7 +827,7 @@ declare -ga _TUI_FACTORY_GRID_CELLS=()   # last tui.factory.grid call's cell ids
 # Sets _TUI_FACTORY_LAST_ID rather than printing its result: this
 # increments _TUI_FACTORY_COUNTER as a side effect, and a command
 # substitution (id="$(...)") runs in a subshell, which would silently
-# discard that increment — every id in a loop would come back identical.
+# discard that increment - every id in a loop would come back identical.
 # Same fork-free convention as _HIT/_HIT_PANE elsewhere in this file.
 declare -g _TUI_FACTORY_LAST_ID=""
 _tui._factory_next_id() {
@@ -714,7 +843,7 @@ _tui._factory_track() {
 
 # Each tui.factory.* constructor leaves the id it generated in
 # _TUI_FACTORY_LAST_ID: `tui.factory.button ...; id="$_TUI_FACTORY_LAST_ID"`.
-# Deliberately does NOT also print it. In a TUI, stdout is the screen — a
+# Deliberately does NOT also print it. In a TUI, stdout is the screen - a
 # constructor typically called in a loop the caller doesn't wrap in a
 # command substitution (see tui.factory.grid's own usage pattern) would
 # otherwise leak raw id text straight onto the terminal outside any pane's
@@ -754,7 +883,7 @@ tui.factory.checkbox() {
 
 # tui.factory.grid NAMESPACE PARENT COUNT [COLS] [FIT] [ROW_WEIGHTS] [COL_WEIGHTS]
 # The dynamic-sizing counterpart to <pane split="grid">: takes an item
-# COUNT rather than a fixed shape (COLS optional — auto-square if
+# COUNT rather than a fixed shape (COLS optional - auto-square if
 # omitted), builds it via tui.grid with COUNT freshly auto-generated,
 # namespace-tracked ids, and leaves them in order in
 # _TUI_FACTORY_GRID_CELLS for the caller to populate:
@@ -784,7 +913,7 @@ tui.factory.grid() {
     _TUI_FACTORY_GRID_CELLS=("${cell_ids[@]}")
 }
 
-# tui.factory.clear NAMESPACE — tears down every widget/pane created under
+# tui.factory.clear NAMESPACE - tears down every widget/pane created under
 # NAMESPACE (removing it from _TUI_W_ORDER/_TUI_FOCUSABLE and its widget
 # or pane state entirely) and resets any grid parent it built back to a
 # plain, childless leaf pane, ready for a fresh build. Safe to call on a
@@ -815,12 +944,12 @@ tui.factory.clear() {
             unset '_TUI_W_TYPE[$id]' '_TUI_W_PANE[$id]' '_TUI_W_ROW[$id]' '_TUI_W_LABEL[$id]' \
                   '_TUI_W_VALUE[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
                   '_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
-                  '_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]'
+                  '_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]'
             unset '_TUI_P_ROW[$id]' '_TUI_P_COL[$id]' '_TUI_P_H[$id]' '_TUI_P_W[$id]' \
-                  '_TUI_P_DIR[$id]' '_TUI_P_CHILDREN[$id]' '_TUI_P_WEIGHTS[$id]' \
+                  '_TUI_P_DIR[$id]' '_TUI_P_CHILDREN[$id]' '_TUI_P_WEIGHTS[$id]' '_TUI_P_CELLW[$id]' '_TUI_P_CELLH[$id]' '_TUI_P_SPAN[$id]' '_TUI_P_NEWLINE[$id]' \
                   '_TUI_P_TITLE[$id]' '_TUI_P_BORDER[$id]' '_TUI_P_ALIGN[$id]' '_TUI_P_VALIGN[$id]' \
                   '_TUI_P_MINW[$id]' '_TUI_P_MINH[$id]' '_TUI_P_MAXW[$id]' '_TUI_P_MAXH[$id]' \
-                  '_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]'
+                  '_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]'
         done
     fi
 
@@ -851,6 +980,15 @@ tui.maxsize()      { [[ -n "$2" ]] && _TUI_W_MAXW[$1]="$2"; }
 tui.label_align()  { [[ -n "$2" ]] && _TUI_W_LABEL_ALIGN[$1]="$2"; }
 tui.label_width()  { [[ -n "$2" ]] && _TUI_W_LABEL_WIDTH[$1]="$2"; }
 
+# Focus policy for an input. By default an input KEEPS focus after Enter (a shell prompt
+# or chat box stays live) and drops it only on Esc / Tab / clicking elsewhere.
+#   tui.input.retain ID [true|false]    Retain Input On Submit: after Enter the cursor stays in the input and the
+#                                        user keeps typing (default true; false = form style, Enter also leaves it)
+#   tui.input.sticky ID [true]           clicking empty space does not blur it (Esc/Tab still do)
+tui.input.retain()         { [[ "${2:-true}" == true ]] && _TUI_W_RETAIN[$1]=1 || _TUI_W_RETAIN[$1]=0; }
+tui.input.blur_on_submit() { tui.input.retain "$1" false; }     # old name
+tui.input.sticky()         { if [[ "${2:-true}" == true ]]; then _TUI_W_STICKY[$1]=1; else unset '_TUI_W_STICKY[$1]'; fi; }
+
 # ═══════════════════════════════════════════════════════════════════════
 #  GEOMETRY & RENDERING
 # ═══════════════════════════════════════════════════════════════════════
@@ -864,7 +1002,7 @@ _tui._repeat() {
 
 # Safe pane lookup for a possibly-empty widget id. Subscripting an
 # associative array with "" is a bash error ("bad array subscript"), not
-# just an empty lookup — this matters here because callers routinely pass
+# just an empty lookup - this matters here because callers routinely pass
 # the previously-focused id, which is "" before anything has been focused.
 _tui._widget_pane() {
     [[ -z "$1" ]] && return
@@ -875,6 +1013,32 @@ _tui._widget_align() {
     local id="$1" pane="${_TUI_W_PANE[$1]}" default="left"
     [[ "${_TUI_W_TYPE[$1]}" == "button" ]] && default="center"
     printf '%s' "${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[$pane]:-$default}}"
+}
+
+# ── fork-free helper variants: they set _R instead of printing, so callers don't need $(...) ──
+# (A command substitution is a fork. _tui._widget_pos alone ran one per widget on EVERY mouse-motion event.)
+_tui._widget_valign_v() { _R="${_TUI_W_VALIGN[$1]:-${_TUI_P_VALIGN[${_TUI_W_PANE[$1]}]:-top}}"; }
+_tui._widget_align_v() {
+    local d=left; [[ "${_TUI_W_TYPE[$1]}" == button ]] && d=center
+    _R="${_TUI_W_ALIGN[$1]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$1]}]:-$d}}"
+}
+_tui._align_pad_v() {   # ALIGN CONTENT_LEN WIDTH
+    case "$1" in
+        center) _R=$(( ($3 - $2) / 2 )) ;;
+        right)  _R=$(( $3 - $2 )) ;;
+        *)      _R=0 ;;
+    esac
+    (( _R < 0 )) && _R=0
+}
+_tui._repeat_v() {      # CH N
+    _R=""
+    (( $2 <= 0 )) && return 0
+    printf -v _R '%*s' "$2" ""
+    _R="${_R// /$1}"
+}
+# Text with no ${...} expression is returned as is (the common case); only an expression needs a subshell.
+_tui._resolve_text_v() {
+    if [[ "$1" == *'${'*'}'* ]]; then _R="$(_tui._resolve_text "$1")"; else _R="$1"; fi
 }
 
 _tui._widget_valign() {
@@ -920,7 +1084,7 @@ tui.pane_strict_fit() { _TUI_P_STRICT_FIT[$1]="$2"; }
 declare -g _TUI_CONTENT_NEED_W=0
 declare -g _TUI_CONTENT_NEED_H=0
 
-# _tui._pane_content_need ID — infers how much space a leaf pane's actual
+# _tui._pane_content_need ID - infers how much space a leaf pane's actual
 # content needs, into _TUI_CONTENT_NEED_W/_H (0 when nothing applies).
 # Two sources, each best-effort and consistent with this framework's
 # existing "static declared text" warnings rather than attempting to
@@ -928,7 +1092,7 @@ declare -g _TUI_CONTENT_NEED_H=0
 #   - widgets placed in it: height from the furthest row used, width from
 #     the longest label/value text among them;
 #   - tui.output/tui.output_append content: reuses _TUI_P_LINES/_TUI_P_MAX_W
-#     directly — _tui._calc_bounds already maintains these on every
+#     directly - _tui._calc_bounds already maintains these on every
 #     tui.output call, so there's nothing new to measure here.
 # A container pane (has children) or one with scroll enabled is exempt:
 # a container's own children enforce their own fit, and a scrollable
@@ -959,27 +1123,29 @@ _tui._pane_content_need() {
     # compares against the pane's OUTER w/h (same as min_width/min_height
     # already do), so translate using the same border inset
     # tui.content_area uses in the other direction.
+    local vp=${_TUI_P_VPAD[$id]:-0} hp=${_TUI_P_HPAD[$id]:-0}
     if [[ "${_TUI_P_BORDER[$id]:-single}" != "none" ]]; then
-        (( _TUI_CONTENT_NEED_W > 0 )) && _TUI_CONTENT_NEED_W=$(( _TUI_CONTENT_NEED_W + 4 ))
-        (( _TUI_CONTENT_NEED_H > 0 )) && _TUI_CONTENT_NEED_H=$(( _TUI_CONTENT_NEED_H + 2 ))
+        (( _TUI_CONTENT_NEED_W > 0 )) && _TUI_CONTENT_NEED_W=$(( _TUI_CONTENT_NEED_W + 4 + 2 * hp ))
+        (( _TUI_CONTENT_NEED_H > 0 )) && _TUI_CONTENT_NEED_H=$(( _TUI_CONTENT_NEED_H + 2 + 2 * vp ))
     else
-        (( _TUI_CONTENT_NEED_W > 0 )) && _TUI_CONTENT_NEED_W=$(( _TUI_CONTENT_NEED_W + 2 ))
+        (( _TUI_CONTENT_NEED_W > 0 )) && _TUI_CONTENT_NEED_W=$(( _TUI_CONTENT_NEED_W + 2 + 2 * hp ))
+        (( _TUI_CONTENT_NEED_H > 0 )) && _TUI_CONTENT_NEED_H=$(( _TUI_CONTENT_NEED_H + 2 * vp ))
     fi
 }
 
 declare -gA _TUI_P_EFFECTIVE_MINW=()
 declare -gA _TUI_P_EFFECTIVE_MINH=()
 
-# _tui._refresh_content_fit ID — recomputes and caches the effective
+# _tui._refresh_content_fit ID - recomputes and caches the effective
 # min width/height (explicit min_width/min_height, or the pane's actual
 # inferred content need, whichever is larger) for one pane. This is the
 # only place that does the O(widgets-in-this-pane) work behind
-# _tui._pane_content_need — deliberately called from just one place,
+# _tui._pane_content_need - deliberately called from just one place,
 # _tui._draw_pane, which only ever runs on a full render (tui.render:
 # once at startup, once per resize). _tui._pane_too_small itself stays a
 # cheap cache read below, because it's also called from the per-event hot
 # path (_tui._draw_widget, hit-tested and redrawn on every hover/focus
-# change) and _tui._draw_pane_border (every focus change) — recomputing
+# change) and _tui._draw_pane_border (every focus change) - recomputing
 # there would reintroduce exactly the kind of per-event cost this
 # session spent most of its effort removing.
 _tui._refresh_content_fit() {
@@ -1009,22 +1175,18 @@ _tui._widget_pos() {
     local wrow="${_TUI_W_ROW[$1]}"
     local pr=${_TUI_P_ROW[$pane]}  pc=${_TUI_P_COL[$pane]}
     local pw=${_TUI_P_W[$pane]}    ph=${_TUI_P_H[$pane]}
-    local border="${_TUI_P_BORDER[$pane]:-single}"
     local content_top content_h
+    local whp=${_TUI_W_HPAD[$1]:-0} wvp=${_TUI_W_VPAD[$1]:-0}
 
-    if [[ "$border" == "none" ]]; then
-        content_top=$pr; content_h=$ph
-        _WSC=$(( pc + 1 ))
-        _WSW=$(( pw - 2 ))
-    else
-        content_top=$(( pr + 1 )); content_h=$(( ph - 2 ))
-        _WSC=$(( pc + 2 ))
-        _WSW=$(( pw - 4 ))
-    fi
+    _tui._inset "$pane"
+    content_top=$(( pr + _IV + wvp )); content_h=$(( ph - 2 * _IV - 2 * wvp ))
+    _WSC=$(( pc + _IH + whp ))
+    _WSW=$(( pw - 2 * _IH - 2 * whp ))
     (( _WSW < 1 )) && _WSW=1
     (( content_h < 1 )) && content_h=1
 
-    case "$(_tui._widget_valign "$1")" in
+    _tui._widget_valign_v "$1"
+    case "$_R" in
         middle) _WSR=$(( content_top + content_h / 2 + wrow )) ;;
         bottom) _WSR=$(( content_top + content_h - 1 - wrow )) ;;
         *)      _WSR=$(( content_top + wrow )) ;;
@@ -1038,12 +1200,8 @@ _tui._widget_pos() {
 
 tui.content_area() {
     local id="$1"
-    local b="${_TUI_P_BORDER[$id]:-single}"
-    if [[ "$b" == "none" ]]; then
-        echo "${_TUI_P_ROW[$id]} $(( ${_TUI_P_COL[$id]} + 1 )) ${_TUI_P_H[$id]} $(( ${_TUI_P_W[$id]} - 2 ))"
-    else
-        echo "$(( ${_TUI_P_ROW[$id]} + 1 )) $(( ${_TUI_P_COL[$id]} + 2 )) $(( ${_TUI_P_H[$id]} - 2 )) $(( ${_TUI_P_W[$id]} - 4 ))"
-    fi
+    _tui._content_rect "$id"
+    echo "$_CR_R $_CR_C $_CR_H $_CR_W"
 }
 
 _tui._draw_size_warning() {
@@ -1068,8 +1226,65 @@ _tui._draw_size_warning() {
     style.reset
 }
 
+# _tui._apply_ring KEY FALLBACK ID - style for a pane's border ring. fg/mods come from KEY (falling
+# back to FALLBACK); the background is the border class's own bg if it has one, else the PANE's
+# normal bg - never the focus/state bg, which used to leave a differently-coloured ring (a visible
+# seam) around the pane interior.
+_tui._apply_ring() {
+    local key="$1" fb="$2" id="$3" fg bg mods m
+    fg="${_TUI_STYLE_FG[$key]:-${_TUI_STYLE_FG[$fb]:-}}"
+    mods="${_TUI_STYLE_MOD[$key]:-${_TUI_STYLE_MOD[$fb]:-}}"
+    bg="${_TUI_STYLE_BG[$fb]:-${_TUI_STYLE_BG[${id}_normal]:-}}"
+    if [[ -n "$fg" ]]; then if [[ "$fg" == \#* ]]; then fg.hex "$fg"; else "fg.$fg" 2>/dev/null; fi; fi
+    if [[ -n "$bg" ]]; then if [[ "$bg" == \#* ]]; then bg.hex "$bg"; else "bg.$bg" 2>/dev/null; fi; fi
+    for m in $mods; do "style.$m" 2>/dev/null; done
+}
+
+# ── fork-free style -> SGR (used by hot render paths instead of `$(_tui._apply_style ...)`) ──
+# _tui._style_v KEY [FALLBACK] [BGFALLBACK] -> _SGR  (the same fg/bg/mods resolution as _tui._apply_style, built with
+# arithmetic and string ops only). A colour name it doesn't know falls back to the slow, capturing path.
+declare -gA _TUI_SGR_NAMED=([black]=30 [red]=31 [green]=32 [yellow]=33 [blue]=34 [magenta]=35 [cyan]=36 [white]=37 [default]=39
+    [br_black]=90 [br_red]=91 [br_green]=92 [br_yellow]=93 [br_blue]=94 [br_magenta]=95 [br_cyan]=96 [br_white]=97)
+declare -gA _TUI_SGR_MOD=([bold]=1 [dim]=2 [italic]=3 [underline]=4 [blink]=5 [reverse]=7 [hidden]=8 [strike]=9)
+
+# _tui._sgr_from FG BG MODS -> _SGR (pure; unknown colour names fall back to the slow capturing path)
+_tui._sgr_from() {
+    local fg="$1" bg="$2" mods="$3" m codes="" hx code
+    _SGR=""
+    if [[ -n "$fg" ]]; then
+        if [[ "$fg" == \#* ]]; then hx="${fg#\#}"; codes+="38;2;$((16#${hx:0:2}));$((16#${hx:2:2}));$((16#${hx:4:2}));"
+        elif [[ -n "${_TUI_SGR_NAMED[$fg]:-}" ]]; then codes+="${_TUI_SGR_NAMED[$fg]};"
+        else return 1; fi
+    fi
+    if [[ -n "$bg" ]]; then
+        if [[ "$bg" == \#* ]]; then hx="${bg#\#}"; codes+="48;2;$((16#${hx:0:2}));$((16#${hx:2:2}));$((16#${hx:4:2}));"
+        elif [[ -n "${_TUI_SGR_NAMED[$bg]:-}" ]]; then codes+="$(( ${_TUI_SGR_NAMED[$bg]} + 10 ));"
+        else return 1; fi
+    fi
+    for m in $mods; do
+        code="${_TUI_SGR_MOD[$m]:-}"
+        [[ -n "$code" ]] && codes+="$code;"
+    done
+    [[ -n "$codes" ]] && _SGR=$'\e['"${codes%;}m"
+    return 0
+}
+
+_tui._style_v() {
+    local key="$1" fb="${2:-}" bgfb="${3:-}" fg bg mods
+    fg="${_TUI_STYLE_FG[$key]:-}"; bg="${_TUI_STYLE_BG[$key]:-}"; mods="${_TUI_STYLE_MOD[$key]:-}"
+    if [[ -n "$fb" ]]; then
+        [[ -z "$fg" ]] && fg="${_TUI_STYLE_FG[$fb]:-}"
+        [[ -z "$bg" ]] && bg="${_TUI_STYLE_BG[$fb]:-}"
+        [[ -z "$mods" ]] && mods="${_TUI_STYLE_MOD[$fb]:-}"
+    fi
+    [[ -z "$bg" && -n "$bgfb" ]] && bg="${_TUI_STYLE_BG[$bgfb]:-}"
+    _tui._sgr_from "$fg" "$bg" "$mods" || _SGR="$(_tui._apply_style "$key" "$fb" "$bgfb")"
+    return 0
+}
+
 _tui._apply_style() {
     local key="$1" fallback="${2:-}"
+    local bgfb="${3:-}"      # optional key whose bg is used when neither KEY nor FALLBACK has one
     local fg="${_TUI_STYLE_FG[$key]:-}"
     local bg="${_TUI_STYLE_BG[$key]:-}"
     local mods="${_TUI_STYLE_MOD[$key]:-}"
@@ -1079,6 +1294,7 @@ _tui._apply_style() {
         [[ -z "$bg" ]]   && bg="${_TUI_STYLE_BG[$fallback]:-}"
         [[ -z "$mods" ]] && mods="${_TUI_STYLE_MOD[$fallback]:-}"
     fi
+    [[ -z "$bg" && -n "$bgfb" ]] && bg="${_TUI_STYLE_BG[$bgfb]:-}"
 
     if [[ -n "$fg" ]]; then
         if [[ "$fg" == \#* ]]; then fg.hex "$fg"; else "fg.$fg" 2>/dev/null; fi
@@ -1095,8 +1311,7 @@ _tui._fill_pane_bg() {
     local id="$1" r="$2" c="$3" h="$4" w="$5"
     local key="${id}_normal"
     [[ -z "${_TUI_STYLE_FG[$key]:-}${_TUI_STYLE_BG[$key]:-}${_TUI_STYLE_MOD[$key]:-}" ]] && return
-    (( h < 1 )) && h=1
-    (( w < 1 )) && w=1
+    (( h < 1 || w < 1 )) && return          # hidden (tui.fixed overflow)
     local blank; printf -v blank '%*s' "$w" ""
     _tui._apply_style "$key"
     local row
@@ -1111,7 +1326,8 @@ _tui._draw_pane() {
     local id="$1"
     local r=${_TUI_P_ROW[$id]}  c=${_TUI_P_COL[$id]}
     local h=${_TUI_P_H[$id]}    w=${_TUI_P_W[$id]}
-    local border="${_TUI_P_BORDER[$id]:-single}"
+    (( h < 1 || w < 1 )) && return
+    _tui._eff_border "$id"; local border=$_TB
     local title="${_TUI_P_TITLE[$id]:-}"
 
     _tui._refresh_content_fit "$id"
@@ -1136,7 +1352,7 @@ _tui._draw_pane() {
     (( inner < 1 )) && inner=1
 
     cur.goto "$r" "$c"
-    _tui._apply_style "${id}_border"
+    _tui._apply_ring "${id}_border" "${id}_border" "$id"
     
     if [[ -n "$title" ]]; then
         local max_t=$(( inner - 4 ))
@@ -1149,12 +1365,12 @@ _tui._draw_pane() {
         (( right_len < 0 )) && right_len=0
         
         echo -n "${tl}─"
-        style.reset; _tui._apply_style "${id}_title"
+        style.reset; _tui._apply_style "${id}_title" "" "${id}_normal"
         echo -n "$tag"
-        style.reset; _tui._apply_style "${id}_border"
-        echo -n "$(_tui._repeat "$hz" "$right_len")${tr}"
+        style.reset; _tui._apply_ring "${id}_border" "${id}_border" "$id"
+        _tui._repeat_v "$hz" "$right_len"; echo -n "${_R}${tr}"
     else
-        echo -n "${tl}$(_tui._repeat "$hz" "$inner")${tr}"
+        _tui._repeat_v "$hz" "$inner"; echo -n "${tl}${_R}${tr}"
     fi
     style.reset
 
@@ -1162,14 +1378,14 @@ _tui._draw_pane() {
     printf -v blank '%*s' "$inner" ""
     for (( row = 1; row < h - 1; row++ )); do
         cur.goto $(( r + row )) "$c"
-        _tui._apply_style "${id}_border"; echo -n "$vt"; style.reset
+        _tui._apply_ring "${id}_border" "${id}_border" "$id"; echo -n "$vt"; style.reset
         _tui._apply_style "${id}_normal"; echo -n "$blank"; style.reset
-        _tui._apply_style "${id}_border"; echo -n "$vt"; style.reset
+        _tui._apply_ring "${id}_border" "${id}_border" "$id"; echo -n "$vt"; style.reset
     done
 
     cur.goto $(( r + h - 1 )) "$c"
-    _tui._apply_style "${id}_border"
-    echo -n "${bl}$(_tui._repeat "$hz" "$inner")${br}"
+    _tui._apply_ring "${id}_border" "${id}_border" "$id"
+    _tui._repeat_v "$hz" "$inner"; echo -n "${bl}${_R}${br}"
     style.reset
 }
 
@@ -1177,17 +1393,17 @@ _tui._draw_pane() {
 # style state: a pane containing the currently focused widget draws
 # "${id}_focus" (falling back to "${id}_border" when the class has no
 # :focus rule), otherwise "${id}_border". Hovering a pane has no effect on
-# its border — only focus does; this keeps the same self-contained
+# its border - only focus does; this keeps the same self-contained
 # resolution _tui._draw_widget uses for its own focus/hover, just against
 # _TUI_FOCUS_ID instead of _TUI_HOVERED_PANE. Never touches the pane's
 # interior, so it's safe to call whenever focus moves without disturbing
-# scrollback/tui.output content or child widgets — no awk, no subshell text
+# scrollback/tui.output content or child widgets - no awk, no subshell text
 # processing, just a handful of builtin echo/printf calls.
 _tui._draw_pane_border() {
     local id="$1"
     local r=${_TUI_P_ROW[$id]}  c=${_TUI_P_COL[$id]}
     local h=${_TUI_P_H[$id]}    w=${_TUI_P_W[$id]}
-    local border="${_TUI_P_BORDER[$id]:-single}"
+    _tui._eff_border "$id"; local border=$_TB
     local title="${_TUI_P_TITLE[$id]:-}"
 
     [[ "$border" == "none" ]] && return
@@ -1204,10 +1420,11 @@ _tui._draw_pane_border() {
     (( inner < 1 )) && inner=1
     local state="border"
     [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_PANE[$_TUI_FOCUS_ID]:-}" == "$id" ]] && state="focus"
+    [[ "$_TUI_PANE_FOCUS" == "$id" ]] && state="focus"          # keyboard-focused pane (f6 / alt+arrows) rings like a focused one
     local style_key="${id}_${state}"
 
     cur.goto "$r" "$c"
-    _tui._apply_style "$style_key" "${id}_border"
+    _tui._apply_ring "$style_key" "${id}_border" "$id"
 
     if [[ -n "$title" ]]; then
         local max_t=$(( inner - 4 ))
@@ -1220,26 +1437,26 @@ _tui._draw_pane_border() {
         (( right_len < 0 )) && right_len=0
 
         echo -n "${tl}─"
-        style.reset; _tui._apply_style "${id}_title" "$style_key"
+        style.reset; _tui._apply_style "${id}_title" "$style_key" "${id}_normal"
         echo -n "$tag"
-        style.reset; _tui._apply_style "$style_key" "${id}_border"
-        echo -n "$(_tui._repeat "$hz" "$right_len")${tr}"
+        style.reset; _tui._apply_ring "$style_key" "${id}_border" "$id"
+        _tui._repeat_v "$hz" "$right_len"; echo -n "${_R}${tr}"
     else
-        echo -n "${tl}$(_tui._repeat "$hz" "$inner")${tr}"
+        _tui._repeat_v "$hz" "$inner"; echo -n "${tl}${_R}${tr}"
     fi
     style.reset
 
     local row
     for (( row = 1; row < h - 1; row++ )); do
         cur.goto $(( r + row )) "$c"
-        _tui._apply_style "$style_key" "${id}_border"; echo -n "$vt"; style.reset
+        _tui._apply_ring "$style_key" "${id}_border" "$id"; echo -n "$vt"; style.reset
         cur.goto $(( r + row )) $(( c + w - 1 ))
-        _tui._apply_style "$style_key" "${id}_border"; echo -n "$vt"; style.reset
+        _tui._apply_ring "$style_key" "${id}_border" "$id"; echo -n "$vt"; style.reset
     done
 
     cur.goto $(( r + h - 1 )) "$c"
-    _tui._apply_style "$style_key" "${id}_border"
-    echo -n "${bl}$(_tui._repeat "$hz" "$inner")${br}"
+    _tui._apply_ring "$style_key" "${id}_border" "$id"
+    _tui._repeat_v "$hz" "$inner"; echo -n "${bl}${_R}${br}"
     style.reset
 }
 
@@ -1252,6 +1469,7 @@ _tui._draw_widget() {
     local hovered=0
     [[ "$_TUI_HOVERED_WIDGET" == "$id" ]] && hovered=1
 
+    (( ${_TUI_P_H[${_TUI_W_PANE[$id]}]:-0} < 1 )) && return   # hidden / not on this page
     _tui._pane_too_small "${_TUI_W_PANE[$id]}" && return
 
     _tui._widget_pos "$id"
@@ -1283,8 +1501,8 @@ _tui._draw_widget() {
 
     case "$type" in
         label)
-            local calign; calign="$(_tui._widget_align "$id")"
-            local text; text="$(_tui._resolve_text "${_TUI_W_VALUE[$id]}")"
+            local calign; _tui._widget_align_v "$id"; calign="$_R"
+            local text; _tui._resolve_text_v "${_TUI_W_VALUE[$id]}"; text="$_R"
             text="${text:0:$sw}"
             _tui._apply_style "$style_key" "$pane_key"
             if [[ "$calign" == "fill" ]]; then
@@ -1295,15 +1513,15 @@ _tui._draw_widget() {
             else
                 cur.goto "$sr" "$sc"
                 printf '%*s' "$sw" ""
-                local pad; pad=$(_tui._align_pad "$calign" "${#text}" "$sw")
+                local pad; _tui._align_pad_v "$calign" "${#text}" "$sw"; pad=$_R
                 cur.goto "$sr" $(( sc + pad ))
                 echo -n "$text"
             fi
             style.reset
             ;;
         button)
-            local calign; calign="$(_tui._widget_align "$id")"
-            local lbl; lbl="$(_tui._resolve_text "${_TUI_W_LABEL[$id]}")"
+            local calign; _tui._widget_align_v "$id"; calign="$_R"
+            local lbl; _tui._resolve_text_v "${_TUI_W_LABEL[$id]}"; lbl="$_R"
 
             _tui._apply_style "$style_key" "$pane_key"
             if (( focused )); then
@@ -1320,17 +1538,17 @@ _tui._draw_widget() {
             else
                 cur.goto "$sr" "$sc"
                 printf '%*s' "$sw" ""
-                local pad; pad=$(_tui._align_pad "$calign" "${#lbl}" "$sw")
+                local pad; _tui._align_pad_v "$calign" "${#lbl}" "$sw"; pad=$_R
                 cur.goto "$sr" $(( sc + pad ))
                 echo -n "$lbl"
             fi
             style.reset
             ;;
         checkbox)
-            local calign; calign="$(_tui._widget_align "$id")"
+            local calign; _tui._widget_align_v "$id"; calign="$_R"
             local mark="[ ]"
             [[ "${_TUI_W_VALUE[$id]}" == "1" ]] && mark="[x]"
-            local lbl; lbl="${mark} $(_tui._resolve_text "${_TUI_W_LABEL[$id]}")"
+            local lbl; _tui._resolve_text_v "${_TUI_W_LABEL[$id]}"; lbl="${mark} $_R"
 
             _tui._apply_style "$style_key" "$pane_key"
             if (( focused )); then
@@ -1347,7 +1565,7 @@ _tui._draw_widget() {
             else
                 cur.goto "$sr" "$sc"
                 printf '%*s' "$sw" ""
-                local pad; pad=$(_tui._align_pad "$calign" "${#lbl}" "$sw")
+                local pad; _tui._align_pad_v "$calign" "${#lbl}" "$sw"; pad=$_R
                 cur.goto "$sr" $(( sc + pad ))
                 echo -n "$lbl"
             fi
@@ -1363,7 +1581,7 @@ _tui._draw_widget() {
                 local lbox="${_TUI_W_LABEL_WIDTH[$id]:-$(( ${#prefix} + 1 ))}"
                 (( lbox < 1 )) && lbox=1
                 local lshown="${prefix:0:$lbox}"
-                local lpad; lpad=$(_tui._align_pad "${_TUI_W_LABEL_ALIGN[$id]:-left}" "${#lshown}" "$lbox")
+                local lpad; _tui._align_pad_v "${_TUI_W_LABEL_ALIGN[$id]:-left}" "${#lshown}" "$lbox"; lpad=$_R
 
                 style.bold
                 printf '%*s' "$lpad" ""
@@ -1400,7 +1618,7 @@ _tui._draw_widget() {
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" ]] && style.dim
                 local shown="${value:-$placeholder}"
                 shown="${shown:0:$fw}"
-                local pad; pad=$(_tui._align_pad "$(_tui._widget_align "$id")" "${#shown}" "$fw")
+                local pad; _tui._widget_align_v "$id"; _tui._align_pad_v "$_R" "${#shown}" "$fw"; pad=$_R
                 printf '%*s' "$pad" ""
                 printf '%-*s' "$(( fw - pad ))" "$shown"
             fi
@@ -1410,11 +1628,11 @@ _tui._draw_widget() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-#  PERFORMANCE TRACKING — opt-in, off by default. When on, every frame
+#  PERFORMANCE TRACKING - opt-in, off by default. When on, every frame
 #  written through _tui._flush (the single choke point every synchronized
 #  write in this file goes through) is timestamped, so tui.perf.mean_render_ms
 #  can answer "how expensive has rendering actually been lately" from
-#  inside a running page — see docs/ui_markup.md.
+#  inside a running page - see docs/guide/markup.md.
 # ═══════════════════════════════════════════════════════════════════════
 
 declare -g  _TUI_PERF_TRACKING=0
@@ -1422,7 +1640,7 @@ declare -ga _TUI_RENDER_LOG_T=()   # integer microseconds-since-epoch per tracke
 declare -ga _TUI_RENDER_LOG_MS=()  # that flush's duration, integer ms
 declare -g  _TUI_NOW_US=0
 
-# _tui._now_us — sets _TUI_NOW_US to the current time in integer
+# _tui._now_us - sets _TUI_NOW_US to the current time in integer
 # microseconds. Fork-free via bash 5's $EPOCHREALTIME (plain integer
 # arithmetic on its two halves) when available; falls back to a forking
 # `date` call on older bash. Only ever called while _TUI_PERF_TRACKING is
@@ -1430,7 +1648,7 @@ declare -g  _TUI_NOW_US=0
 #
 # $EPOCHREALTIME's decimal separator follows LC_NUMERIC, not always a
 # literal "." (e.g. de_DE.UTF-8 uses ","), so splitting on "." silently
-# failed under that locale — both halves came back as the whole,
+# failed under that locale - both halves came back as the whole,
 # unsplit string, and `10#` on a comma-containing value crashed with
 # "value too great for base". Splitting on the first/last NON-DIGIT
 # character instead works regardless of what that separator is.
@@ -1443,14 +1661,15 @@ _tui._now_us() {
     fi
 }
 
-# _tui._flush BUF — the one place a fully-composed frame actually reaches
+# _tui._flush BUF - the one place a fully-composed frame actually reaches
 # the terminal: wraps it in DEC synchronized-output mode and prints it in
 # a single write, exactly as every call site here already did before this
-# existed — consolidated so there's one place to add instrumentation
+# existed - consolidated so there's one place to add instrumentation
 # instead of five near-identical copies of the same three lines. Timing
 # only happens while _TUI_PERF_TRACKING is on.
 _tui._flush() {
     local buf="$1"
+    (( _TUI_FLUSH_GEN++ ))
     if (( ! _TUI_PERF_TRACKING )); then
         mode.sync_start
         printf '%s' "$buf"
@@ -1472,7 +1691,7 @@ _tui._flush() {
     fi
 }
 
-# tui.perf.mean_render_ms SECONDS — mean duration (ms) of every tracked
+# tui.perf.mean_render_ms SECONDS - mean duration (ms) of every tracked
 # frame flushed within the trailing SECONDS window. Empty string if
 # tracking is off or nothing fell in the window (a caller can treat that
 # the same as "no data yet").
@@ -1498,12 +1717,12 @@ tui.render() {
     # Refresh the content-fit cache in THIS shell, before the buffer-
     # building command substitution below. _tui._draw_pane (called inside
     # that subshell) also calls _tui._refresh_content_fit, but writes an
-    # associative array makes inside a subshell never reach the parent —
+    # associative array makes inside a subshell never reach the parent -
     # only that subshell's own stdout survives. Without this pre-pass,
     # _TUI_P_EFFECTIVE_MINW/_MINH stayed permanently empty in the running
     # shell, so every later hover/focus/click-triggered redraw (which runs
     # outside this subshell) silently fell back to "no minimum" instead of
-    # the real, just-computed one — the pane's border/content correctly
+    # the real, just-computed one - the pane's border/content correctly
     # showed a size warning on the very first render, then losing and
     # regaining that warning on every redraw after, depending on which
     # code path happened to read the (actually empty) cache.
@@ -1515,7 +1734,8 @@ tui.render() {
     local buf
     buf="$(
         for pane in "${_TUI_P_ALL[@]}"; do
-            if [[ -n "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
+            _tui._eff_border "$pane"
+            if [[ -n "${_TUI_P_CHILDREN[$pane]:-}" && "$_TB" == "none" ]]; then
                 _tui._fill_pane_bg "$pane" "${_TUI_P_ROW[$pane]}" "${_TUI_P_COL[$pane]}" "${_TUI_P_H[$pane]}" "${_TUI_P_W[$pane]}"
             else
                 _tui._draw_pane "$pane"
@@ -1529,6 +1749,8 @@ tui.render() {
         done
     )"
     _tui._flush "$buf"
+    (( _TUI_KEYS_SUSPENDED )) && _tui_input.draw_overlay
+    (( ${#_TUI_OVERLAY_FNS[@]} )) && _tui_overlay.draw_all
 }
 
 tui.redraw() { tui.render; }
@@ -1537,14 +1759,9 @@ tui.clear_pane() {
     local id="$1"
     local r=${_TUI_P_ROW[$id]}  c=${_TUI_P_COL[$id]}
     local h=${_TUI_P_H[$id]}    w=${_TUI_P_W[$id]}
-    local b="${_TUI_P_BORDER[$id]:-single}"
 
-    local sr sc sh sw
-    if [[ "$b" == "none" ]]; then
-        sr=$r; sc=$((c+1)); sh=$h; sw=$((w-2))
-    else
-        sr=$((r+1)); sc=$((c+1)); sh=$((h-2)); sw=$((w-2))
-    fi
+    _tui._content_rect "$id"
+    local sr=$_CR_R sc=$_CR_C sh=$_CR_H sw=$_CR_W
 
     local blank; printf -v blank '%*s' "$sw" ""
     for (( row = 0; row < sh; row++ )); do
@@ -1560,7 +1777,7 @@ tui.clear_pane() {
 declare -g _HIT_PANE=""
 
 # Full linear scan over every leaf pane, resolving into _HIT_PANE (empty if
-# none matched) rather than printing — a caller capturing the old printf
+# none matched) rather than printing - a caller capturing the old printf
 # via `$(...)` was forking a subshell on every single mouse event, the one
 # unconditional per-event cost hover-crossing a pane ever had left after
 # borders stopped reacting to hover. Called directly only on the first
@@ -1579,10 +1796,10 @@ _tui._pane_at() {
     done
 }
 
-# _tui._locate_pane MX MY — resolves the pane under the pointer into
+# _tui._locate_pane MX MY - resolves the pane under the pointer into
 # _HIT_PANE, short-circuiting the full scan above: as long as the pointer
 # is still inside whichever pane was hovered last, this is four integer
-# comparisons and nothing else — no loop, no function call into the scan,
+# comparisons and nothing else - no loop, no function call into the scan,
 # no fork. The O(panes) scan only runs at an actual boundary crossing.
 _tui._locate_pane() {
     local mx="$1" my="$2" cur="$_TUI_HOVERED_PANE"
@@ -1621,7 +1838,7 @@ _tui._scroll_kb() {
     _tui._queue_render "$p"
 }
 
-# _tui._queue_render PANE — marks a pane's content dirty and arms the
+# _tui._queue_render PANE - marks a pane's content dirty and arms the
 # shared debounce countdown if it isn't already running. The actual AWK
 # render is deferred to _tui._flush_pending_render, so a burst of scroll
 # events (wheel spin, drag-jump) collapses into one redraw of wherever the
@@ -1633,7 +1850,7 @@ _tui._queue_render() {
     [[ $_TUI_RENDER_TIMEOUT -lt 0 ]] && _TUI_RENDER_TIMEOUT=3
 }
 
-# _tui._flush_pending_render — the single writer for debounced pane-content
+# _tui._flush_pending_render - the single writer for debounced pane-content
 # redraws. Builds every pending pane's AWK-rendered frame into ONE buffer
 # via one command substitution and emits it as one synchronized write.
 _tui._flush_pending_render() {
@@ -1649,7 +1866,7 @@ _tui._flush_pending_render() {
     _tui._flush "$buf"
 }
 
-# _tui._draw_ids_now DRAW_FN ID… — calls DRAW_FN once per unique, non-empty
+# _tui._draw_ids_now DRAW_FN ID… - calls DRAW_FN once per unique, non-empty
 # id, capturing all of it in ONE command substitution and emitting ONE
 # synchronized write. This is the "batch, don't debounce" half of the
 # picture: for a discrete action (focus moving, a status line updating)
@@ -1683,7 +1900,15 @@ _tui._calc_bounds() {
         return
     fi
     
-    local max_w=$(printf '%s\n' "${arr[@]}" | awk '{
+    # No escape codes anywhere (labels, keycaps, plain status text): the widest line is just ${#line}, no fork.
+    # Only content carrying ANSI needs awk to strip the codes before measuring.
+    local _l _plain=1 max_w=0
+    for _l in "${arr[@]}"; do
+        if [[ "$_l" == *$'\e'* ]]; then _plain=0; break; fi
+        (( ${#_l} > max_w )) && max_w=${#_l}
+    done
+    if (( _plain )); then _TUI_P_MAX_W[$pane]=$max_w; return; fi
+    max_w=$(printf '%s\n' "${arr[@]}" | awk '{
         gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
         gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
         gsub(/\033[@A-Z\\\-_]/, "")
@@ -1698,8 +1923,10 @@ _tui._calc_bounds() {
 # ═══════════════════════════════════════════════════════════════════════
 
 tui.focus() {
-    local id="$1" old="$_TUI_FOCUS_ID"
+    local id="$1" old="$_TUI_FOCUS_ID" oldpf="$_TUI_PANE_FOCUS" newpane="${_TUI_W_PANE[$1]:-}"
     _TUI_FOCUS_ID="$id"
+    _TUI_PANE_FOCUS="$newpane"                       # the keyboard pane follows widget focus
+    [[ -n "$newpane" ]] && _TUI_PANE_LAST_WIDGET[$newpane]="$id"
 
     for (( i = 0; i < ${#_TUI_FOCUSABLE[@]}; i++ )); do
         [[ "${_TUI_FOCUSABLE[$i]}" == "$id" ]] && { _TUI_FOCUS_IDX=$i; break; }
@@ -1708,7 +1935,8 @@ tui.focus() {
     [[ "${_TUI_W_TYPE[$id]:-}" == "input" ]] && _TUI_CURSOR=${#_TUI_W_VALUE[$id]}
 
     _tui._draw_widgets_now "$old" "$id"
-    _tui._draw_pane_borders_now "$(_tui._widget_pane "$old")" "$(_tui._widget_pane "$id")"
+    local oldpane=""; [[ -n "$old" ]] && oldpane="${_TUI_W_PANE[$old]:-}"
+    _tui._draw_pane_borders_now "$oldpane" "$newpane" "$oldpf"
 }
 
 _tui._unfocus() {
@@ -1716,7 +1944,8 @@ _tui._unfocus() {
     _TUI_FOCUS_ID=""
     _TUI_FOCUS_IDX=-1
     _tui._draw_widgets_now "$old"
-    _tui._draw_pane_borders_now "$(_tui._widget_pane "$old")"
+    local oldpane=""; [[ -n "$old" ]] && oldpane="${_TUI_W_PANE[$old]:-}"
+    _tui._draw_pane_borders_now "$oldpane"
 }
 
 _tui._focus_next() {
@@ -1787,7 +2016,7 @@ _tui._input_seq() {
 
 # _tui._set_hovered_pane tracks which pane the pointer is over purely as
 # routing state for scroll-wheel/keyboard-scroll targeting (_tui._scroll_kb,
-# the wheel branch of _tui._handle_mouse) — it does NOT trigger any redraw.
+# the wheel branch of _tui._handle_mouse) - it does NOT trigger any redraw.
 # Pane borders only ever change for focus (see _tui._draw_pane_border), so
 # hovering a pane costs one assignment and nothing else.
 _tui._set_hovered_pane() { _TUI_HOVERED_PANE="$1"; }
@@ -1795,7 +2024,7 @@ _tui._set_hovered_pane() { _TUI_HOVERED_PANE="$1"; }
 # _tui._set_hovered_widget is change-gated (a no-op unless the hovered
 # widget actually differs) but, unlike the deferred scroll queue, draws
 # immediately via _tui._draw_widgets_now. A button redraw is one cheap,
-# single-widget write — there's no fan-out to collapse the way a multi-pane
+# single-widget write - there's no fan-out to collapse the way a multi-pane
 # sweep used to cause when panes also redrew their borders on hover, so
 # debouncing it only added latency between "pointer arrives" and "button
 # lights up" without saving any real work. Trading "many more small draws"
@@ -1809,7 +2038,7 @@ _tui._set_hovered_widget() {
     _tui._draw_widgets_now "$old" "$new"
 }
 
-# _tui._next_byte VARNAME TIMEOUT — reads one byte into VARNAME, like
+# _tui._next_byte VARNAME TIMEOUT - reads one byte into VARNAME, like
 # `read -rsn1 -t TIMEOUT VARNAME`, except it drains _TUI_PENDING_INPUT
 # first if anything was stashed there. Every "give me the next input byte"
 # read in tui.run goes through this, so a rewind from the mouse-motion
@@ -1824,7 +2053,7 @@ _tui._next_byte() {
     IFS= read -rsn1 -t "$__timeout" "$__outvar"
 }
 
-# _tui._read_escape_seq — assembles the rest of an escape sequence (the
+# _tui._read_escape_seq - assembles the rest of an escape sequence (the
 # part after ESC) one byte at a time until a terminator or the per-byte
 # timeout, leaving the result in _TUI_SEQ_BUF. A `case` terminator check
 # instead of a regex match keeps the per-byte cost as low as bash allows;
@@ -1832,23 +2061,36 @@ _tui._next_byte() {
 # coalescer below exists to stop paying for on events nobody will ever see.
 # Goes through _tui._next_byte (not a raw `read`) so that bytes rewound
 # into _TUI_PENDING_INPUT by the coalescer are consumed here first, before
-# falling through to the real fd — otherwise a rewound sequence would never
+# falling through to the real fd - otherwise a rewound sequence would never
 # be seen.
 _tui._read_escape_seq() {
     _TUI_SEQ_BUF=""
     local c
-    while _tui._next_byte c "$TUI_ESCSEQ_BYTE_TIMEOUT"; do
+    local t="$TUI_ESCSEQ_BYTE_TIMEOUT"
+    # An SGR mouse report (ESC [ <) is always sent whole; on a laggy link or SSH its
+    # tail can trail the head by more than the normal per-byte timeout. A split report
+    # would leak its tail into the key stream as typed characters ("35;12;4M" landing
+    # in a focused input), so once we know it is a mouse report, wait longer per byte.
+    while _tui._next_byte c "$t"; do
+        [[ "$_TUI_SEQ_BUF" == "[" && "$c" == "<" ]] && t="$TUI_ESCSEQ_MOUSE_TIMEOUT"
         _TUI_SEQ_BUF+="$c"
+        if [[ "$_TUI_SEQ_BUF" == "O" ]]; then
+            # ESC O X is an SS3 key (F1-F4, application-mode arrows), not alt+O
+            if _tui._next_byte c "$TUI_ESCSEQ_BYTE_TIMEOUT"; then
+                case "$c" in [PQRSABCDHF]) _TUI_SEQ_BUF+="$c"; break ;; *) _TUI_PENDING_INPUT="$c$_TUI_PENDING_INPUT"; break ;; esac
+            fi
+            break
+        fi
         case "$c" in
             [A-Za-z~Mm]) break ;;
         esac
     done
 }
 
-# _tui._mouse_seq_is_motion SEQ — true for a pure movement report (bare
+# _tui._mouse_seq_is_motion SEQ - true for a pure movement report (bare
 # hover, or a drag with a button held): the SGR protocol sets bit 32 on
 # the button field for any motion sample and terminates it with 'M'. These
-# are the only reports safe to discard in favor of a newer one — presses,
+# are the only reports safe to discard in favor of a newer one - presses,
 # releases, and wheel notches are one-shot state transitions and must
 # never be dropped.
 _tui._mouse_seq_is_motion() {
@@ -1859,12 +2101,12 @@ _tui._mouse_seq_is_motion() {
     (( (btn & 32) != 0 ))
 }
 
-# _tui._coalesce_mouse_motion SEQ — given a just-decoded motion sequence,
+# _tui._coalesce_mouse_motion SEQ - given a just-decoded motion sequence,
 # peeks ahead for more input already sitting in the buffer and keeps only
 # the newest motion report, so hover/drag state is resolved (and redrawn)
 # at most once per settled position instead of once per crossed cell.
 # Anything peeked that ISN'T a coalescible motion report (a click, a wheel
-# notch, a keystroke, a non-mouse escape sequence) is not discarded — it's
+# notch, a keystroke, a non-mouse escape sequence) is not discarded - it's
 # rewound into _TUI_PENDING_INPUT byte-for-byte so the normal dispatch
 # logic in tui.run handles it next, in its original order, completely
 # unaware a peek ever happened. Leaves the resolved sequence in
@@ -1896,6 +2138,7 @@ _tui._coalesce_mouse_motion() {
 }
 
 _tui._handle_mouse() {
+    (( _TUI_PASSTHROUGH )) && return 0      # stray reports still in flight when the mode started
     local seq="$1"
     seq="${seq#\[<}"
     local end="${seq: -1}"
@@ -1919,76 +2162,9 @@ _tui._handle_mouse() {
         _tui._notify_input "mouse $kind btn=$btn (${mx},${my}) widget=${hover_widget:--} pane=${_HIT_PANE:--}"
     fi
 
-    [[ "$end" == "m" ]] && return
-
-    if (( btn >= 64 && btn <= 69 )); then
-        local p="$_TUI_HOVERED_PANE"
-        if [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != "none" ]]; then
-            case "$btn" in
-                64) (( _TUI_P_SOFF_V[$p] -= 3 )) ;;
-                65) (( _TUI_P_SOFF_V[$p] += 3 )) ;;
-                68) (( _TUI_P_SOFF_H[$p] -= 5 )) ;;
-                69) (( _TUI_P_SOFF_H[$p] += 5 )) ;;
-            esac
-            _tui._queue_render "$p"
-        fi
-        return
-    fi
-
-    # Jump-to-click only applies while the left button is actually down
-    # (0 = press, 32 = drag with it held) — bare hover motion (btn 35, no
-    # button) must fall through untouched, or hovering a scrollbar track
-    # would snap the viewport as if it had been clicked.
-    local p="$_TUI_HOVERED_PANE"
-    if [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != "none" ]] && (( btn == 0 || btn == 32 )); then
-        if (( mx == _TUI_P_COL[$p] + _TUI_P_W[$p] - 1 )); then
-            local rel_y=$(( my - _TUI_P_ROW[$p] ))
-            local total_lines=${_TUI_P_LINES[$p]:-1}
-            local target=$(( (rel_y * total_lines) / _TUI_P_H[$p] ))
-            _TUI_P_SOFF_V[$p]=$target
-            _tui._queue_render "$p"
-            return
-        fi
-        if (( my == _TUI_P_ROW[$p] + _TUI_P_H[$p] - 1 )); then
-            local rel_x=$(( mx - _TUI_P_COL[$p] ))
-            local max_w=${_TUI_P_MAX_W[$p]:-1}
-            local target=$(( (rel_x * max_w) / _TUI_P_W[$p] ))
-            _TUI_P_SOFF_H[$p]=$target
-            _tui._queue_render "$p"
-            return
-        fi
-    fi
-    
-    (( btn != 0 )) && return
-
-    if [[ -n "$hover_widget" ]]; then
-        local wid="$hover_widget"
-        local wtype="${_TUI_W_TYPE[$wid]}"
-
-        if [[ "$wtype" == "button" ]]; then
-            tui.focus "$wid"
-            local action="${_TUI_W_ACTION[$wid]:-}"
-            [[ -n "$action" ]] && "$action" "$wid"
-
-        elif [[ "$wtype" == "checkbox" ]]; then
-            tui.focus "$wid"
-            tui.checkbox.toggle "$wid"
-
-        elif [[ "$wtype" == "input" ]]; then
-            tui.focus "$wid"
-            local prefix="${_TUI_W_LABEL[$wid]}"
-            local plen=0
-            [[ -n "$prefix" ]] && plen=$(( ${#prefix} + 1 ))
-            local click=$(( mx - _WSC - plen ))
-            (( click < 0 )) && click=0
-            local vlen=${#_TUI_W_VALUE[$wid]}
-            (( click > vlen )) && click=$vlen
-            _TUI_CURSOR=$click
-            _tui._draw_widget "$wid"
-        fi
-    else
-        _tui._unfocus
-    fi
+    # Everything below the hover/notify bookkeeping is a binding now:
+    # see tui_input.sh (mouse:left, wheel:up, drag:left, ... -> tui.action.*).
+    _tui_input.mouse_event "$btn" "$end" "$mx" "$my"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1996,14 +2172,14 @@ _tui._handle_mouse() {
 # ═══════════════════════════════════════════════════════════════════════
 #  tui.exec CMD OUT_PANE [CTL_PANE] starts CMD as its own tracked instance
 #  (own PID, own dedicated fifo) and returns its id via $_TUI_EXEC_LAST_ID
-#  (set, not printed — same convention as $_TUI_FACTORY_LAST_ID). CTL_PANE
+#  (set, not printed - same convention as $_TUI_FACTORY_LAST_ID). CTL_PANE
 #  is optional: give it one to get Cancel/Save/View/Retry/Back buttons and
 #  a stdin input box (auto-stacked below any other instance's controls
 #  already using that pane); omit it for a plain background/streaming
 #  process with no controls at all. Multiple instances can target the
-#  same OUT_PANE at once — their output interleaves into that pane's
+#  same OUT_PANE at once - their output interleaves into that pane's
 #  shared buffer, tagged "[iid] " once more than one instance is sharing
-#  it — see _EXEC_PANE_INSTANCES at this file's top for the bookkeeping.
+#  it - see _EXEC_PANE_INSTANCES at this file's top for the bookkeeping.
 
 declare -gA _EXEC_STAT_WIDGET=()   # iid -> its status-label widget id (only set if it has controls)
 
@@ -2030,7 +2206,7 @@ tui.exec() {
     _EXEC_NS[$iid]=""
     declare -g -a "_EXEC_BUF_${iid}"
 
-    # First use of this output pane creates its shared render buffer —
+    # First use of this output pane creates its shared render buffer -
     # every instance that ever targets this pane appends into the SAME
     # array, which is what lets several concurrent processes share one
     # pane instead of one clobbering another's transcript.
@@ -2048,7 +2224,7 @@ tui.exec() {
 
     [[ -n "$ctl_pane" ]] && _exec_setup_controls "$iid"
 
-    # Additive — does not disturb a page's own _TUI_TICK_FN (see the
+    # Additive - does not disturb a page's own _TUI_TICK_FN (see the
     # _TUI_TICK_LISTENERS comment near this file's top).
     tui.tick.add "_exec_master_tick"
 
@@ -2057,9 +2233,9 @@ tui.exec() {
     _TUI_EXEC_LAST_ID="$iid"
 }
 
-# tui.exec.cancel_pane PANE — cancel and fully dismiss every instance
+# tui.exec.cancel_pane PANE - cancel and fully dismiss every instance
 # currently targeting PANE (running or already finished), clearing its
-# shared buffer too. Not called automatically by tui.exec itself — that
+# shared buffer too. Not called automatically by tui.exec itself - that
 # would silently cap every pane back to "one process at a time", which is
 # exactly the restriction this rewrite removes. It exists for callers
 # that specifically want that restart-cleanly behavior for one pane (a
@@ -2119,7 +2295,7 @@ _exec_relaunch_process() {
 
 # Builds one instance's control cluster (status label + 5 buttons + a
 # stdin input) as a factory-tracked widget group under namespace
-# "exec_<iid>", stacked at the next free row block in ctl_pane — so a
+# "exec_<iid>", stacked at the next free row block in ctl_pane - so a
 # second instance told to use the SAME ctl_pane gets its own cluster
 # below the first's rather than overlapping it.
 _exec_setup_controls() {
@@ -2146,6 +2322,7 @@ _exec_setup_controls() {
     _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
 
     tui.factory.input "$ns" "$pane" "$(( row0 + 6 ))" "type and press Enter…" "stdin▸"
+    _TUI_W_STICKY[$_TUI_FACTORY_LAST_ID]=1     # a shell prompt: stays focused after Enter and after clicking the output
     _EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
     tui.on_action "$_TUI_FACTORY_LAST_ID" _exec_on_send
 
@@ -2183,7 +2360,7 @@ _exec_dismiss_instance() {
             tui.clear_pane "$ctl_pane"
             _tui._draw_pane "$ctl_pane"
             # Blanking the whole pane above also blanked any OTHER
-            # instance's still-active controls sharing it — redraw them.
+            # instance's still-active controls sharing it - redraw them.
             local other ow
             for other in "${!_EXEC_NS[@]}"; do
                 [[ "$other" == "$iid" ]] && continue
@@ -2270,7 +2447,7 @@ _exec_is_line_clear() {
 # shared render buffer (_EXEC_PANE_BUF_<pane>, tagged "[iid] " once that
 # pane has more than one instance sharing it). Screen/line-clear control
 # sequences only wipe the buffers when this instance has its pane to
-# itself — with several processes sharing one pane, a full-screen TUI
+# itself - with several processes sharing one pane, a full-screen TUI
 # clearing "its screen" makes little sense and must not be allowed to
 # erase a sibling process's history, so those codes are just stripped
 # instead of acted on (matches _exec_clean_line already stripping
@@ -2311,7 +2488,7 @@ _exec_append_raw_line() {
 }
 
 # One instance's share of the per-frame tick: drain whatever it's written
-# to its outfile since last time (non-blocking — just a file read, same
+# to its outfile since last time (non-blocking - just a file read, same
 # mechanism whether the instance is an interactive shell or a headless
 # polling loop with no controls), and detect+finalize on process exit.
 _exec_tick_one() {
@@ -2370,7 +2547,7 @@ _exec_master_tick() {
     done
 }
 
-# No-op for a headless instance (_EXEC_NS[$iid] empty — no controls to update).
+# No-op for a headless instance (_EXEC_NS[$iid] empty - no controls to update).
 _exec_render_status() {
     local iid="$1"
     local ns="${_EXEC_NS[$iid]:-}"
@@ -2389,17 +2566,19 @@ _exec_render_status() {
     local cmd="${_EXEC_CMD[$iid]}"
     _tui._widget_pos "$stat_id"
     (( ${#cmd} > _WSW - 2 )) && cmd="${cmd:0:$((_WSW - 5))}..."
-    tui.set "$stat_id" "$ ${cmd}  —  ${icon}"
+    tui.set "$stat_id" "$ ${cmd}  -  ${icon}"
 
     (( _TUI_RUNNING )) && _tui._draw_widgets_now "$stat_id"
 }
 
 _exec_render_pane() {
     local pane="$1"
+    _TUI_PANE_CONTENT[$pane]=1
     declare -g -a "_TUI_PANE_CONTENT_${pane}"
     local -n content="_TUI_PANE_CONTENT_${pane}"
     local -n pbuf="_EXEC_PANE_BUF_${pane}"
     content=("${pbuf[@]}")
+    _tui._calc_bounds "$pane"
     _tui._render_output "$pane"
 }
 
@@ -2505,7 +2684,7 @@ _exec_on_send() {
         local masked; masked="$(printf '%*s' "${#text}" | tr ' ' '*')"
         pbuf+=("${prefix}▸ ${masked}")
     else
-        pbuf+=("${prefix}(process not running — input discarded)")
+        pbuf+=("${prefix}(process not running - input discarded)")
     fi
 
     tui.set "$widget_id" ""
@@ -2514,7 +2693,7 @@ _exec_on_send() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-#  PANE OUTPUT — render arbitrary multi-line content into a pane
+#  PANE OUTPUT - render arbitrary multi-line content into a pane
 # ═══════════════════════════════════════════════════════════════════════
 
 tui.output() {
@@ -2525,7 +2704,9 @@ tui.output() {
 
     pane_arr=()
     if [[ $# -gt 0 ]]; then
-        mapfile -t pane_arr < <(printf '%s' "$*")
+        # here-string, not < <(printf ...): a process substitution is a fork per call (dozens per page load)
+        local _t="$*"
+        [[ -n "$_t" ]] && mapfile -t pane_arr <<< "${_t%$'\n'}"
     else
         mapfile -t pane_arr
     fi
@@ -2540,8 +2721,8 @@ tui.output_append() {
     declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
 
     if [[ $# -gt 0 ]]; then
-        local -a new_lines
-        mapfile -t new_lines < <(printf '%s' "$*")
+        local -a new_lines; local _t="$*"
+        [[ -n "$_t" ]] && mapfile -t new_lines <<< "${_t%$'\n'}"
         pane_arr+=("${new_lines[@]}")
     else
         local -a new_lines
@@ -2567,6 +2748,7 @@ tui.output_clear() {
 
 _tui._render_output() {
     local pane="$1"
+    (( ${_TUI_P_H[$pane]:-0} < 1 || ${_TUI_P_W[$pane]:-0} < 1 )) && return   # hidden, or no geometry (pane not on this page)
     declare -n lines="_TUI_PANE_CONTENT_${pane}"
     local scroll="${_TUI_P_SCROLL[$pane]:-none}"
 
@@ -2574,14 +2756,8 @@ _tui._render_output() {
     local ph=${_TUI_P_H[$pane]}    pw=${_TUI_P_W[$pane]}
     local border="${_TUI_P_BORDER[$pane]:-single}"
 
-    local ct_row ct_col ct_w ct_h
-    if [[ "$border" == "none" ]]; then
-        ct_row=$pr; ct_col=$(( pc + 1 )); ct_w=$(( pw - 2 )); ct_h=$ph
-    else
-        ct_row=$(( pr + 1 )); ct_col=$(( pc + 2 )); ct_w=$(( pw - 4 )); ct_h=$(( ph - 2 ))
-    fi
-    (( ct_w < 1 )) && ct_w=1
-    (( ct_h < 1 )) && ct_h=1
+    _tui._content_rect "$pane"
+    local ct_row=$_CR_R ct_col=$_CR_C ct_w=$_CR_W ct_h=$_CR_H
 
     local total_lines=${_TUI_P_LINES[$pane]:-0}
     local max_w=${_TUI_P_MAX_W[$pane]:-0}
@@ -2610,13 +2786,27 @@ _tui._render_output() {
         view_lines+=("${lines[$i]:-}")
     done
 
-    local pane_style="${pane}_normal"
-    local sty="$(printf '%b' "$(_tui._apply_style "$pane_style")")"
-    local res="$(printf '%b' "\e[0m")"
+    _tui._style_v "${pane}_normal"
+    local sty="$_SGR" res=$'\e[0m'
 
-    # 2. Render Text Area via AWK (SINGLE PASS)
-    local frame_buf=""
-    if (( ct_h > 0 )); then
+    # 2a. FAST PATH: no scrolling, everything fits, no escape codes -> plain padded lines, no awk fork.
+    # (A screen of keycaps / labels / short status text is dozens of these per render.)
+    local frame_buf="" fast=0
+    if [[ "$scroll" == none ]] && (( total_lines <= ct_h && max_w <= ct_w )); then
+        fast=1
+        for (( i = 0; i < total_lines; i++ )); do [[ "${lines[i]:-}" == *$'\e'* ]] && { fast=0; break; }; done
+    fi
+    if (( fast )); then
+        local ln sp seg
+        for (( i = 0; i < ct_h; i++ )); do
+            ln="${lines[i]:-}"; ln="${ln:0:ct_w}"
+            printf -v sp '%*s' "$(( ct_w - ${#ln} ))" ''
+            printf -v seg '\033[%d;%dH%s%s%s%s' $(( ct_row + i )) "$ct_col" "$sty" "$ln" "$sp" "$res"
+            frame_buf+="$seg"
+        done
+    fi
+    # 2b. Render Text Area via AWK (SINGLE PASS)
+    if (( ! fast && ct_h > 0 )); then
         frame_buf=$(
             { (( ${#view_lines[@]} > 0 )) && printf '%s\n' "${view_lines[@]}"; } | awk -v r="$ct_row" -v c="$ct_col" -v w="$ct_w" -v h="$ct_h" -v hoff="$h_off" -v sty="$sty" -v res="$res" '
             function visible_slice(s, off, max) {
@@ -2660,7 +2850,9 @@ _tui._render_output() {
             BEGIN { clear_spaces = sprintf("%*s", w, "") }
             {
                 sliced = visible_slice($0, hoff, w)
-                printf "\033[%d;%dH%s%s%s\033[%d;%dH%s", r + NR - 1, c, sty, clear_spaces, res, r + NR - 1, c, sliced
+                # sty again before the text: the clear above is followed by a reset, so without it the
+                # text (and any centering spaces in it) is drawn in the terminal default, not the pane style
+                printf "\033[%d;%dH%s%s%s\033[%d;%dH%s%s", r + NR - 1, c, sty, clear_spaces, res, r + NR - 1, c, sty, sliced
             }
             END {
                 for (i = NR; i < h; i++) {
@@ -2670,7 +2862,7 @@ _tui._render_output() {
         )
     fi
 
-    # 3. Draw Scrollbars — built with printf -v (a builtin) into the same
+    # 3. Draw Scrollbars - built with printf -v (a builtin) into the same
     # frame_buf instead of `frame_buf+=$(printf ...)`. Command substitution
     # forks a subshell per iteration; printf -v does not. Same rule the AWK
     # shader exists to satisfy for the text body above, just applied here
@@ -2685,9 +2877,9 @@ _tui._render_output() {
 
         for (( i = 0; i < ct_h; i++ )); do
             if (( ct_row + i >= thumb_y && ct_row + i < thumb_y + thumb_h )); then
-                printf -v seg '\033[%d;%dH\033[7m \033[0m' $(( ct_row + i )) "$track_x"
+                printf -v seg '\033[%d;%dH%s\033[7m \033[0m' $(( ct_row + i )) "$track_x" "$sty"
             else
-                printf -v seg '\033[%d;%dH\033[2m│\033[0m' $(( ct_row + i )) "$track_x"
+                printf -v seg '\033[%d;%dH%s\033[2m│\033[0m' $(( ct_row + i )) "$track_x" "$sty"
             fi
             frame_buf+="$seg"
         done
@@ -2701,9 +2893,9 @@ _tui._render_output() {
 
         for (( i = 0; i < ct_w; i++ )); do
             if (( ct_col + i >= thumb_x && ct_col + i < thumb_x + thumb_w )); then
-                printf -v seg '\033[%d;%dH\033[7m \033[0m' "$track_y" $(( ct_col + i ))
+                printf -v seg '\033[%d;%dH%s\033[7m \033[0m' "$track_y" $(( ct_col + i )) "$sty"
             else
-                printf -v seg '\033[%d;%dH\033[2m─\033[0m' "$track_y" $(( ct_col + i ))
+                printf -v seg '\033[%d;%dH%s\033[2m─\033[0m' "$track_y" $(( ct_col + i )) "$sty"
             fi
             frame_buf+="$seg"
         done
@@ -2717,10 +2909,27 @@ _tui._render_output() {
 # ═══════════════════════════════════════════════════════════════════════
 
 declare -g _TUI_RESIZED=0
+# Optional page hook, called after a resize re-layout (cleared on tui.reset_ui).
+declare -g _TUI_ON_RESIZE_FN=""
 
-tui.on_resize() {
-    tui.log.debug "tui.run detected terminal resize: setting _TUI_RESIZED=1"
-    _TUI_RESIZED=1
+tui.on_resize() { _TUI_RESIZED=1; }
+
+# _tui._read_term_size - sets _TUI_ROWS/_TUI_COLS from the tty, but only from a
+# sane reading. Mid-drag, stty can fail or report 0x0; the old code fell back
+# to 24x80 and laid the whole UI out at that size until the next resize.
+# On a bad reading it retries, then keeps the previous size.
+_tui._read_term_size() {
+    local sz r c i
+    for (( i = 0; i < 4; i++ )); do
+        sz="$(stty size 2>/dev/null </dev/tty || stty size 2>/dev/null)"
+        r="${sz%% *}"; c="${sz##* }"
+        if [[ "$r" =~ ^[0-9]+$ && "$c" =~ ^[0-9]+$ ]] && (( r > 0 && c > 0 )); then
+            _TUI_ROWS=$r; _TUI_COLS=$c
+            return 0
+        fi
+        read -rt 0.02 <> <(:)
+    done
+    return 1
 }
 
 tui.run() {
@@ -2736,15 +2945,26 @@ tui.run() {
 
     while (( _TUI_RUNNING )); do
 
-        if (( _TUI_RESIZED )); then
-            tui.log.debug "Received resize event: recalculating layout and redrawing"
+        if (( _TUI_RESIZED && ! _TUI_PASSTHROUGH )); then     # while frozen (terminal-control mode) resize waits
+            # Coalesce a drag-resize storm: wait until no WINCH for ~40ms (bounded),
+            # so we lay out once for the final size instead of once per step.
+            local _rz_n=0
+            while (( _TUI_RESIZED && _rz_n < 25 )); do
+                _TUI_RESIZED=0
+                read -rt 0.04 <> <(:)
+                (( _rz_n++ ))
+            done
             _TUI_RESIZED=0
-            term.size _TUI_ROWS _TUI_COLS
+            _tui._read_term_size
             _TUI_P_ROW[root]=1; _TUI_P_COL[root]=1
-            _TUI_P_H[root]=$_TUI_ROWS; _TUI_P_W[root]=$_TUI_COLS
+            _TUI_P_W[root]=$_TUI_COLS; _tui._root_h
+            mode.sync_start
             _tui._layout "root"
             erase.all
             tui.render
+            mode.sync_end
+            declare -F _tui_api.on_resize >/dev/null && _tui_api.on_resize
+            [[ -n "${_TUI_ON_RESIZE_FN:-}" ]] && "$_TUI_ON_RESIZE_FN"
         fi
 
         local char=""
@@ -2753,91 +2973,44 @@ tui.run() {
         if [[ -n "${_TUI_TICK_FN:-}" ]] || (( ${#_TUI_TICK_LISTENERS[@]} > 0 )); then
             poll_timeout="$TUI_INPUT_POLL_TIMEOUT"
         fi
+        (( _TUI_PASSTHROUGH )) && poll_timeout="$TUI_INPUT_IDLE_TIMEOUT"     # frozen: nothing to tick
 
         _tui._next_byte char "$poll_timeout" && got_char=1
 
         [[ -z "$char" && got_char -eq 1 ]] && char=$'\n'
 
         if [[ -n "$char" ]]; then
-            if [[ -n "$_TUI_ON_INPUT_EVENT" && "$char" != $'\e' ]]; then
-                _tui._notify_input "key $(printf '%q' "$char")"
-            fi
             if [[ "$char" == $'\e' ]]; then
                 _tui._read_escape_seq
                 local seq="$_TUI_SEQ_BUF"
-                if [[ -n "$_TUI_ON_INPUT_EVENT" && "$seq" != "[<"* ]]; then
-                    _tui._notify_input "key esc:${seq:-<bare-esc>}"
-                fi
-
-                if [[ -z "$seq" ]]; then
-                    if [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]]; then
-                        _tui._unfocus
-                    fi
+                if [[ "$seq" == "[200~" ]]; then
+                    _tui_input.read_paste; _tui_input.paste_event      # always consumed, even in pass-through
                 elif [[ "$seq" == "[<"* ]]; then
                     if _tui._mouse_seq_is_motion "$seq"; then
                         _tui._coalesce_mouse_motion "$seq"
                         seq="$_TUI_SEQ_BUF"
+                    else
+                        _tui_input.coalesce_mouse "$seq"     # wheel spins: merge into one
+                        seq="$_TUI_SEQ_BUF"
                     fi
                     _tui._handle_mouse "$seq"
-                elif [[ "$seq" == "[Z" ]]; then
-                    _tui._focus_prev
-                elif [[ "$seq" == "[A" || "$seq" == "[B" ]]; then
-                    [[ "$seq" == "[A" ]] && _tui._focus_prev || _tui._focus_next
-                
-                # --- SHIFT ARROWS (Keyboard Scrolling) ---
-                elif [[ "$seq" == "[1;2A" ]]; then _tui._scroll_kb "up"
-                elif [[ "$seq" == "[1;2B" ]]; then _tui._scroll_kb "down"
-                elif [[ "$seq" == "[1;2C" ]]; then _tui._scroll_kb "right"
-                elif [[ "$seq" == "[1;2D" ]]; then _tui._scroll_kb "left"
-                
-                elif [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]]; then
-                    _tui._input_seq "$_TUI_FOCUS_ID" "$seq"
+                elif _tui_input.coalesce_key "" "$seq"; ! _tui_input.key_event "" "$seq"; then
+                    # unbound: a focused text input gets the raw sequence (cursor keys...)
+                    [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]] && _tui._input_seq "$_TUI_FOCUS_ID" "$seq"
                 fi
-            elif [[ "$char" == $'\t' ]]; then
-                _tui._focus_next
-            elif [[ "$char" == $'\n' || "$char" == $'\r' ]]; then
-                if [[ -n "$_TUI_FOCUS_ID" ]]; then
-                    local ftype="${_TUI_W_TYPE[$_TUI_FOCUS_ID]}"
-                    local faction="${_TUI_W_ACTION[$_TUI_FOCUS_ID]:-}"
-                    if [[ "$ftype" == "button" ]]; then
-                        [[ -n "$faction" ]] && "$faction" "$_TUI_FOCUS_ID"
-                    elif [[ "$ftype" == "checkbox" ]]; then
-                        tui.checkbox.toggle "$_TUI_FOCUS_ID"
-                    elif [[ "$ftype" == "input" ]]; then
-                        local submit_fn="${_TUI_W_SUBMIT[$_TUI_FOCUS_ID]:-}"
-                        if [[ -n "$submit_fn" ]]; then
-                            "$submit_fn" "$(tui.get "$_TUI_FOCUS_ID")"
-                        elif [[ -n "$faction" ]]; then
-                            "$faction" "$_TUI_FOCUS_ID"
-                        fi
-                        _tui._unfocus
-                    fi
-                fi
-            
-            # --- VIM KEYS (Gated by Input Focus) ---
-            elif [[ "$char" == "k" || "$char" == "j" || "$char" == "h" || "$char" == "l" ]]; then
-                if [[ -z "$_TUI_FOCUS_ID" || "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" != "input" ]]; then
-                    case "$char" in
-                        k) _tui._scroll_kb "up" ;;
-                        j) _tui._scroll_kb "down" ;;
-                        h) _tui._scroll_kb "left" ;;
-                        l) _tui._scroll_kb "right" ;;
-                    esac
-                else
-                    _tui._input_key "$_TUI_FOCUS_ID" "$char"
-                fi
-            
-            # --- ALL OTHER TYPING ---
-            elif [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]]; then
-                _tui._input_key "$_TUI_FOCUS_ID" "$char"
+            elif _tui_input.coalesce_key "$char" ""; ! _tui_input.key_event "$char" ""; then
+                [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" == "input" ]] && _tui._input_key "$_TUI_FOCUS_ID" "$char"
             fi
         fi
+
+        # Terminal-control mode: input is drained (chord only) but nothing is drawn or ticked.
+        (( _TUI_PASSTHROUGH )) && continue
 
         # ── SCROLL BATCHING / DEBOUNCING ──
         # Pane content queued by _tui._queue_render (wheel spins, drag-jumps)
         # is flushed together, once, when the burst settles (timeout hits
         # zero) or the input stream goes idle (got_char==0). Hover/focus
-        # redraws never enter this queue — they draw immediately where they
+        # redraws never enter this queue - they draw immediately where they
         # happen, so this block is scroll-only.
         if (( _TUI_RENDER_TIMEOUT > 0 )); then
             (( _TUI_RENDER_TIMEOUT-- ))
@@ -2849,6 +3022,8 @@ tui.run() {
         fi
 
         [[ -n "${_TUI_TICK_FN:-}" ]] && "$_TUI_TICK_FN"
+        (( _TUI_KEYS_SUSPENDED )) && _tui_input.draw_overlay
+        (( ${#_TUI_OVERLAY_FNS[@]} && _TUI_FLUSH_GEN != _TUI_OVL_GEN )) && { _TUI_OVL_GEN=$_TUI_FLUSH_GEN; _tui_overlay.draw_all; }
         if (( ${#_TUI_TICK_LISTENERS[@]} > 0 )); then
             local _tick_listener
             for _tick_listener in "${_TUI_TICK_LISTENERS[@]}"; do

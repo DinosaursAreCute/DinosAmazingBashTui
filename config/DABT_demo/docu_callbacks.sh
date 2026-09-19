@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# docu_callbacks.sh — builds the documentation page's tabs dynamically
-# from whatever .md files actually exist (docs/*.md plus the README),
+# docu_callbacks.sh - builds the documentation page's tabs dynamically
+# from whatever .md files actually exist (README, docs/README.md, docs/guide/, docs/api/reference.md, docs/design/),
 # instead of a hand-maintained list that goes stale every time a doc is
 # added, renamed, or removed. Driven by <tui on_visit="on_docu_visit">
 # in docu.xml, which fires once the page's panes/widgets are built.
-source "${SCRIPT_DIR:-.}/terminal_renderer.sh"
+tui.require terminal_renderer
 
 _DOCU_ROOT="${SCRIPT_DIR:-.}/.."
 declare -gA _DOCU_TAB_FILE=()
@@ -18,7 +18,7 @@ _docu_short_title() {
     local file="$1"
     local base; base="$(basename "$file" .md)"
     if [[ "${base,,}" == "readme" ]]; then
-        printf 'README'
+        [[ "$file" == */docs/README.md ]] && printf 'Docs index' || printf 'README'
         return
     fi
     local heading; heading="$(head -1 "$file")"
@@ -29,13 +29,13 @@ _docu_short_title() {
 
 # Banner text for a doc: the full part of its first H1 heading before a
 # colon, unlike _docu_short_title above this is not capped to tab-label
-# length — the banner has the width of the whole content pane to work
+# length - the banner has the width of the whole content pane to work
 # with, not a narrow tab strip.
 _docu_banner_title() {
     local file="$1"
     local base; base="$(basename "$file" .md)"
     if [[ "${base,,}" == "readme" ]]; then
-        printf 'README'
+        [[ "$file" == */docs/README.md ]] && printf 'Docs index' || printf 'README'
         return
     fi
     local heading; heading="$(head -1 "$file")"
@@ -51,7 +51,7 @@ on_docu_visit() {
     local -a files=()
     [[ -f "$_DOCU_ROOT/README.md" ]] && files+=("$_DOCU_ROOT/README.md")
     local f
-    for f in "$_DOCU_ROOT/docs"/*.md; do
+    for f in "$_DOCU_ROOT/docs/README.md" "$_DOCU_ROOT/docs/guide"/*.md "$_DOCU_ROOT/docs/api/reference.md" "$_DOCU_ROOT/docs/design"/*.md; do
         [[ -f "$f" ]] && files+=("$f")
     done
 
@@ -68,7 +68,7 @@ on_docu_visit() {
         title="$(_docu_short_title "${files[$i]}")"
         if [[ -n "${seen_titles[$title]:-}" ]]; then
             # Two docs' headings collided after truncation (e.g. two
-            # "Developer Guide: ..." titles) — fall back to the filename
+            # "Developer Guide: ..." titles) - fall back to the filename
             # to keep tabs distinguishable, since a repeated label is
             # confusing no matter how well it clips.
             base="$(basename "${files[$i]}" .md)"
@@ -85,7 +85,7 @@ on_docu_visit() {
     done
 
     # Compact: tabs_header is a thin (weight="4") strip, only 1 row tall
-    # at most terminal sizes — nowhere near the 3 rows a framed (bordered)
+    # at most terminal sizes - nowhere near the 3 rows a framed (bordered)
     # header cell needs.
     tui.tabs.compact "docu_tabs" true
     tui.tabs.build "docu_tabs" "tabs_header" "content" "${tab_ids[@]}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# monitor_callbacks.sh — a live, btop-flavored system-monitoring dashboard.
+# monitor_callbacks.sh - a live, btop-flavored system-monitoring dashboard.
 # One quadrant pane per chart shape, each metric independently toggleable
 # from the controls row, refresh interval configurable from the same row:
 #   cpu_pane   → vbar        per-core CPU usage, tallest column = busiest core
@@ -11,10 +11,10 @@
 # area (tui.content_area) rather than guessed constants, and every chart is
 # given a fixed -m/-n scale plus a fixed size flag (-tw/-cw/-w/-lw) so it
 # renders at exactly the same footprint on every refresh and never trips
-# the framework's automatic content-fit warning (docs/ui_markup.md,
+# the framework's automatic content-fit warning (docs/guide/markup.md,
 # "Automatic content-fit checking").
 
-source "${SCRIPT_DIR:-.}/terminal_renderer.sh"
+tui.require terminal_renderer
 
 # ── Config, controlled live from the controls row ───────────────────────
 declare -g _MON_ENABLED_CPU=1 _MON_ENABLED_MEM=1 _MON_ENABLED_LOAD=1 _MON_ENABLED_DISK=1
@@ -23,18 +23,18 @@ declare -g _MON_REFRESH_EVERY_TICKS=20   # ≈1s at the default 0.05s poll timeo
 declare -g _MON_NPROC; _MON_NPROC="$(nproc 2>/dev/null || echo 1)"
 
 # Canonical pane order (matches monitor.xml's original 2x2) and the
-# title/border each carries — tui.grid resets both on every pane it
+# title/border each carries - tui.grid resets both on every pane it
 # (re)creates, "grid"'s own row/cell wrappers included, so a disabled
 # pane's title/border have to be reapplied by hand after each rebuild.
 declare -ga _MON_PANE_ORDER=(cpu_pane mem_pane load_pane disk_pane)
 declare -gA _MON_PANE_TITLE=(
-    [cpu_pane]="CPU Cores — vbar"
-    [mem_pane]="Memory — gauge"
-    [load_pane]="Load Average — linechart"
-    [disk_pane]="Disk Usage & I/O — hbar"
+    [cpu_pane]="CPU Cores - vbar"
+    [mem_pane]="Memory - gauge"
+    [load_pane]="Load Average - linechart"
+    [disk_pane]="Disk Usage & I/O - hbar"
 )
 
-# Rolling history, oldest first — real live samples, not synthetic data.
+# Rolling history, oldest first - real live samples, not synthetic data.
 declare -ga _MON_LOAD_HISTORY=()
 declare -ga _MON_IO_READ_HISTORY=()
 declare -ga _MON_IO_WRITE_HISTORY=()
@@ -51,8 +51,8 @@ declare -g  _MON_PREV_IO_TS=0 _MON_PREV_IO_READ_SECT=0 _MON_PREV_IO_WRITE_SECT=0
 # instead of the chart.
 _mon_output_fit() {
     local pane="$1" content="$2"
-    local car cac cah caw
-    read -r car cac cah caw <<< "$(tui.content_area "$pane")"
+    local cah caw
+    tui.pane_size "$pane"; cah=$TUI_PANE_ROWS; caw=$TUI_PANE_COLS
     local -a lines=()
     mapfile -t lines <<< "$content"
     (( cah < 0 )) && cah=0
@@ -66,7 +66,7 @@ _mon_output_fit() {
 # metrics, dropping disabled ones entirely (their cell disappears and the
 # survivors stretch to fill the freed space) rather than leaving an empty
 # or "disabled" box behind. tui.grid auto-sizes rows/cols from however
-# many names it's given (docs/Grid_Layouts_and_Tabs.md), so 3 active
+# many names it's given (docs/guide/grid-layouts-and-tabs.md), so 3 active
 # panes lay out as a 2+1 row, 2 as a 1x2 row, 1 as the full area.
 _mon_rebuild_grid() {
     local -a active=()
@@ -88,7 +88,7 @@ _mon_rebuild_grid() {
     tui.grid "grid" "" "" "stretch" "" "" "${active[@]}"
 
     # tui.grid's own tui.hsplit/vsplit calls reset every pane they touch
-    # (including survivors) to border="single" title="" — put this
+    # (including survivors) to border="single" title="" - put this
     # dashboard's heavy border and chart title back on each active cell.
     for p in "${active[@]}"; do
         tui.pane_title "$p" "${_MON_PANE_TITLE[$p]}"
@@ -97,13 +97,14 @@ _mon_rebuild_grid() {
 }
 
 # Kilobytes → gigabytes with one decimal place, used by the memory panel.
-_mon_kb_to_gb() {
-    awk -v k="$1" 'BEGIN{printf "%.1f", k/1024/1024}'
-}
+_mon_kb_to_gb_v() { local t=$(( ($1 * 10 + 524288) / 1048576 )); _MG="$(( t / 10 )).$(( t % 10 ))"; }
+_mon_kb_to_gb() { _mon_kb_to_gb_v "$1"; printf '%s' "$_MG"; }
+
 
 # Usage-percentage → color name. High = bad for a usage metric (unlike
 # gauge's own built-in default, which assumes high = good), so every call
 # below passes an explicit color rather than relying on gauge's threshold.
+_mon_color_v() { if (( $1 >= 85 )); then _MC=RED; elif (( $1 >= 60 )); then _MC=YELLOW; else _MC=GREEN; fi; }
 _mon_color_for_pct() {
     local pct="$1"
     if (( pct >= 85 )); then printf 'RED'
@@ -115,12 +116,12 @@ _mon_color_for_pct() {
 # ── CPU: per-core usage → vbar, fixed 0-100 scale, fills pane width ─────
 _mon_refresh_cpu() {
     # The pane itself is removed from the grid by _mon_rebuild_grid when
-    # disabled, so there's nothing to draw — just bail rather than writing
+    # disabled, so there's nothing to draw - just bail rather than writing
     # to a pane id that no longer has a place on screen.
     (( _MON_ENABLED_CPU )) || return
 
-    local car cac cah caw
-    read -r car cac cah caw <<< "$(tui.content_area cpu_pane)"
+    local cah caw
+    tui.pane_size cpu_pane; cah=$TUI_PANE_ROWS; caw=$TUI_PANE_COLS
 
     local -a labels=() colors=()
     local line label u n s idle iw irq sirq steal rest
@@ -147,7 +148,7 @@ _mon_refresh_cpu() {
         _MON_PREV_CPU_IDLE[$label]="$total_idle"
 
         labels+=("C${label#cpu}:${pct}")
-        colors+=("$(_mon_color_for_pct "$pct")")
+        _mon_color_v "$pct"; colors+=("$_MC")
     done < /proc/stat
 
     # Fixed 4-char columns (fits "C10"/"100"); show as many cores as the
@@ -166,25 +167,25 @@ _mon_refresh_cpu() {
 
     local color_arg; color_arg="$(IFS=,; printf '%s' "${colors[*]}")"
     local out; out="$(vbar_string -h "$vh" -m 100 -n 0 -cw "$col_width" -c "$color_arg" "${labels[@]}")"
-    _mon_output_fit "cpu_pane" "$(printf '%b' "$out")"
+    local _out_b; printf -v _out_b '%b' "$out"; _mon_output_fit "cpu_pane" "$_out_b"
 }
 
 # ── Memory: used/cache/free breakdown + swap, btop-style ────────────────
 _mon_refresh_mem() {
     (( _MON_ENABLED_MEM )) || return
 
-    local car cac cah caw
-    read -r car cac cah caw <<< "$(tui.content_area mem_pane)"
+    local cah caw
+    tui.pane_size mem_pane; cah=$TUI_PANE_ROWS; caw=$TUI_PANE_COLS
 
     local total avail buffers cached sreclaim shmem swap_total swap_free
-    total="$(awk '/^MemTotal:/{print $2}' /proc/meminfo)"
-    avail="$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)"
-    buffers="$(awk '/^Buffers:/{print $2}' /proc/meminfo)"
-    cached="$(awk '/^Cached:/{print $2}' /proc/meminfo)"
-    sreclaim="$(awk '/^SReclaimable:/{print $2}' /proc/meminfo)"
-    shmem="$(awk '/^Shmem:/{print $2}' /proc/meminfo)"
-    swap_total="$(awk '/^SwapTotal:/{print $2}' /proc/meminfo)"
-    swap_free="$(awk '/^SwapFree:/{print $2}' /proc/meminfo)"
+    local _k _v _
+    total=0; avail=0; buffers=0; cached=0; sreclaim=0; shmem=0; swap_total=0; swap_free=0
+    while read -r _k _v _; do            # /proc/meminfo, one pass, no awk
+        case "$_k" in
+            MemTotal:) total=$_v ;; MemAvailable:) avail=$_v ;; Buffers:) buffers=$_v ;; Cached:) cached=$_v ;;
+            SReclaimable:) sreclaim=$_v ;; Shmem:) shmem=$_v ;; SwapTotal:) swap_total=$_v ;; SwapFree:) swap_free=$_v ;;
+        esac
+    done < /proc/meminfo
     [[ -z "$total" || "$total" -eq 0 ]] && return
 
     local cache_buff=$(( buffers + cached + sreclaim - shmem ))
@@ -195,10 +196,10 @@ _mon_refresh_mem() {
     (( shown_free < 0 )) && shown_free=0
 
     local used_pct=$(( used * 100 / total ))
-    local used_color; used_color="$(_mon_color_for_pct "$used_pct")"
+    local used_color; _mon_color_v "$used_pct"; used_color="$_MC"
 
     # Gauge line length is label_width + gauge_width + 8 (brackets/spacing/
-    # pct field) — solve for gauge_width first, and only if that leaves no
+    # pct field) - solve for gauge_width first, and only if that leaves no
     # room at all (a very small quadrant) shrink the label column instead,
     # so the line still fits caw rather than overflowing it.
     local label_width=6
@@ -211,8 +212,8 @@ _mon_refresh_mem() {
     fi
 
     local used_gb cache_gb free_gb total_gb
-    used_gb="$(_mon_kb_to_gb "$used")"; cache_gb="$(_mon_kb_to_gb "$cache_buff")"
-    free_gb="$(_mon_kb_to_gb "$shown_free")"; total_gb="$(_mon_kb_to_gb "$total")"
+    _mon_kb_to_gb_v "$used"; used_gb="$_MG"; _mon_kb_to_gb_v "$cache_buff"; cache_gb="$_MG"
+    _mon_kb_to_gb_v "$shown_free"; free_gb="$_MG"; _mon_kb_to_gb_v "$total"; total_gb="$_MG"
 
     local breakdown="  U:${used_gb}G C:${cache_gb}G F:${free_gb}G T:${total_gb}G"
     (( ${#breakdown} > caw )) && breakdown="${breakdown:0:caw}"
@@ -225,24 +226,24 @@ _mon_refresh_mem() {
     if [[ -n "$swap_total" && "$swap_total" -gt 0 ]]; then
         local swap_used=$(( swap_total - swap_free ))
         local swap_pct=$(( swap_used * 100 / swap_total ))
-        local swap_color; swap_color="$(_mon_color_for_pct "$swap_pct")"
+        local swap_color; _mon_color_v "$swap_pct"; swap_color="$_MC"
         out+="$(gauge_string -l "Swap" -lw "$label_width" -w "$gauge_width" -c "$swap_color" "$swap_pct")"
     else
         out+="  Swap: not configured"
     fi
 
-    _mon_output_fit "mem_pane" "$(printf '%b' "$out")"
+    local _out_b; printf -v _out_b '%b' "$out"; _mon_output_fit "mem_pane" "$_out_b"
 }
 
 # ── Load average: live history → linechart, scaled against nproc ────────
 _mon_refresh_load() {
     (( _MON_ENABLED_LOAD )) || return
 
-    local car cac cah caw
-    read -r car cac cah caw <<< "$(tui.content_area load_pane)"
+    local cah caw
+    tui.pane_size load_pane; cah=$TUI_PANE_ROWS; caw=$TUI_PANE_COLS
 
-    local load1; load1="$(awk '{print $1}' /proc/loadavg)"
-    # /proc/loadavg is a float ("0.42") — chart arithmetic is integer-only,
+    local load1 _; read -r load1 _ < /proc/loadavg
+    # /proc/loadavg is a float ("0.42") - chart arithmetic is integer-only,
     # so track it in hundredths and label the axis in those units.
     local load_centi="${load1/./}"
     [[ "$load1" != *.* ]] && load_centi="${load1}00"
@@ -268,15 +269,15 @@ _mon_refresh_load() {
     local current_line="  current: ${load1} (${_MON_NPROC} cores)"
     (( ${#current_line} > caw )) && current_line="${current_line:0:caw}"
     out+="\n${current_line}"
-    _mon_output_fit "load_pane" "$(printf '%b' "$out")"
+    local _out_b; printf -v _out_b '%b' "$out"; _mon_output_fit "load_pane" "$_out_b"
 }
 
 # ── Disk: usage % per real mount → hbar, plus aggregate I/O → sparklines ─
 _mon_refresh_disk() {
     (( _MON_ENABLED_DISK )) || return
 
-    local car cac cah caw
-    read -r car cac cah caw <<< "$(tui.content_area disk_pane)"
+    local cah caw
+    tui.pane_size disk_pane; cah=$TUI_PANE_ROWS; caw=$TUI_PANE_COLS
 
     # -- I/O throughput: aggregate sectors across whole-disk devices only,
     #    skipping partitions and virtual devices so nothing is double-counted.
@@ -335,7 +336,7 @@ _mon_refresh_disk() {
         [[ -z "$label" ]] && label="root"
 
         entries+=("${label}:${pct}")
-        colors+=("$(_mon_color_for_pct "$pct")")
+        _mon_color_v "$pct"; colors+=("$_MC")
     done < <(df -P -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null \
                 | tail -n +2 \
                 | awk '{print $1"\x01"$5"\x01"$6}')
@@ -375,7 +376,7 @@ _mon_refresh_disk() {
     out+="$(printf 'R %-6s %s' "${read_kbps}K/s" "$(sparkline_string -w "$spark_w" -c GREEN "$read_series")")\n"
     out+="$(printf 'W %-6s %s' "${write_kbps}K/s" "$(sparkline_string -w "$spark_w" -c YELLOW "$write_series")")"
 
-    _mon_output_fit "disk_pane" "$(printf '%b' "$out")"
+    local _out_b; printf -v _out_b '%b' "$out"; _mon_output_fit "disk_pane" "$_out_b"
 }
 
 _mon_refresh_all() {
@@ -431,7 +432,7 @@ on_monitor_set_interval() {
     _MON_REFRESH_EVERY_TICKS=$ticks
     _MON_TICK_COUNT=0
     tui.set "inp_mon_interval" "$value"
-    _TUI_W_LABEL[lbl_mon_stamp]="Interval set to ${value}s — refreshed $(date +%H:%M:%S)"
+    _TUI_W_LABEL[lbl_mon_stamp]="Interval set to ${value}s - refreshed $(date +%H:%M:%S)"
     (( _TUI_RUNNING )) && _tui._queue_render "header"
 }
 
@@ -445,6 +446,6 @@ _mon_tick() {
 }
 _TUI_TICK_FN="_mon_tick"
 
-# Prime all four panes immediately so the page isn't blank before the first tick.
-_mon_refresh_all
-(( _TUI_RUNNING )) && tui.render
+# Prime all four panes once the page is laid out (on_visit runs after final layout).
+on_monitor_visit() { _mon_refresh_all; }
+

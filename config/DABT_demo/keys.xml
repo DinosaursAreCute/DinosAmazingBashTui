@@ -1,0 +1,31 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="keys_visit">
+  <script src="keys_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="82" border="none">
+      <pane id="top" split="h" weight="54" border="none">
+        <pane id="bindings" weight="62" title="tui.bind.list - every binding, defaults included" border="heavy" class="panel" scroll="both"/>
+        <pane id="events"   weight="38" title="Input tape (decoded names)" border="heavy" class="panel" scroll="v"/>
+      </pane>
+      <pane id="form" weight="46" title="Your keybinds - changes are a draft until you Save" border="single" class="panel" hpad="1"/>
+    </pane>
+  </pane>
+  </pane>
+
+  <label  id="lbl_k_help" pane="form" row="0" text="Keys: a Q ctrl+e alt+x f5 pgdn shift+up mouse:right ...   Action: a function or tui.action.*" class="muted_label"/>
+  <input  id="inp_key"    pane="form" row="2" label="Key:"    label_width="9" placeholder="e.g. ctrl+e   or   mouse:right" submit="on_key_bind"/>
+  <input  id="inp_action" pane="form" row="3" label="Action:" label_width="9" placeholder="keys_flash   or   tui.action.scroll down 10" submit="on_key_bind"/>
+  <button id="btn_k_bind"   pane="form" row="5" text="[ Bind ]"                  action="on_key_bind"   class="success_button" align="fill"/>
+  <button id="btn_k_unbind" pane="form" row="6" text="[ Unbind the Key above ]"  action="on_key_unbind" class="warning_button" align="fill"/>
+  <button id="btn_k_reset"  pane="form" row="7" text="[ Drop all my bindings ]"  action="on_key_reset"  class="danger_button"  align="fill"/>
+  <button id="btn_k_save"    pane="form" row="9"  text="[ Save ]"    action="on_key_save"    class="success_button" align="fill"/>
+  <button id="btn_k_discard" pane="form" row="10" text="[ Discard unsaved changes ]" action="on_key_discard" class="info_button" align="fill"/>
+  <label  id="lbl_k_dirty"  pane="form" row="12" text="" class="warning_button"/>
+  <label  id="lbl_k_status" pane="form" row="13" text="Bind f5 to keys_flash, press F5. Saved binds load at start. ctrl+alt+k: keys off  ctrl+alt+p: terminal mode" class="brand"/>
+
+  <include src="_nav.xml"/>
+</tui>

@@ -1,0 +1,30 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="dbg_input_visit">
+  <script src="debug_tabs.sh"/>
+  <script src="debug_input_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="82" border="none">
+      <pane id="tabs_header" weight="5" border="none"/>
+      <!-- kb_frame and mouse_frame become tui.fixed grids at visit time: every key is
+           the same size, wide keys are 2/3/6 units, rows wrap on newline. -->
+      <pane id="kb_frame"    weight="60" title="Keyboard - press any key (lit while pressed)" border="single" class="panel" hpad="1"/>
+      <pane id="bottom" split="h" weight="35" border="none">
+        <pane id="mouse_frame" weight="55" title="Mouse - click, drag, scroll" border="single" class="panel" hpad="1"/>
+        <pane id="readout"     weight="45" title="Last input" border="single" class="panel" hpad="1"/>
+      </pane>
+    </pane>
+  </pane>
+  </pane>
+
+  <tabs id="dbg_tabs2" header_pane="tabs_header" content_pane="kb_frame" style="compact">
+    <tab id="tab_dbg_events" text="Events &amp; hover"   action="dbg_goto_events"/>
+    <tab id="tab_dbg_input"  text="Keyboard &amp; mouse" action="dbg_tab_here" default="true"/>
+    <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
+  </tabs>
+
+  <include src="_nav.xml"/>
+</tui>

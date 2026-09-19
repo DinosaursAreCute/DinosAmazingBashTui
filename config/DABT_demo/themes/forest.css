@@ -1,0 +1,209 @@
+/* themes/forest.css - overlay: same classes as ../theme.css with a different palette.
+ * Selected on the Settings page (tui.theme.set) and applied app-wide. */
+
+.danger_button {
+  fg: white;
+  bg: #b00020;
+  mods: bold;
+}
+.danger_button:hover {
+  fg: white;
+  bg: #d4002a;
+  mods: bold;
+}
+.danger_button:focus {
+  fg: white;
+  bg: #ff3333;
+  mods: bold;
+}
+
+.success_button {
+  fg: black;
+  bg: #33cc66;
+  mods: bold;
+}
+.success_button:hover {
+  fg: black;
+  bg: #4ade80;
+  mods: bold;
+}
+.success_button:focus {
+  fg: black;
+  bg: #66ff99;
+  mods: bold;
+}
+
+.muted_label {
+  fg: #888888;
+}
+
+.nav_divider {
+  fg: #8a94b8;
+  bg: #1a1c2c;
+  mods: bold;
+}
+
+.panel {
+  fg: #c9d6e3;
+  bg: #142418;
+}
+.panel:border {
+  fg: #84cc16;
+}
+.panel:title {
+  fg: #4ade80;
+  mods: bold;
+}
+
+.panel:focus {
+  fg: #ffffff;
+  bg: #2f5a3f;
+}
+
+.sidebar {
+  fg: #dbe4ff;
+  bg: #10190f;
+}
+.sidebar:border {
+  fg: #a3e635;
+}
+.sidebar:title {
+  fg: #86efac;
+  mods: bold;
+}
+
+.sidebar:focus {
+  fg: #ffffff;
+  mods: bold;
+}
+
+.hdr {
+  fg: #dbe4ff;
+  bg: #3a5a3a;
+}
+
+.hdr_title {
+  fg: #a3e635;
+  bg: #10190f;
+  mods: bold;
+}
+
+.hdr_name {
+  fg: #86efac;
+  bg: #10190f;
+  mods: bold;
+}
+
+.hdr_tag {
+  fg: #8a94b8;
+  bg: #10190f;
+}
+
+.clock {
+  fg: #bef264;
+  bg: #10190f;
+  mods: bold;
+}
+
+
+.info_button {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+.info_button:hover {
+  fg: white;
+  bg: #3a80ca;
+  mods: bold;
+}
+.info_button:focus {
+  fg: white;
+  bg: #4299e1;
+  mods: bold;
+}
+
+.warning_button {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+.warning_button:hover {
+  fg: black;
+  bg: #e0ad45;
+  mods: bold;
+}
+.warning_button:focus {
+  fg: black;
+  bg: #f6e05e;
+  mods: bold;
+}
+
+.swatch_red     { fg: white; bg: #e53e3e; }
+.swatch_green   { fg: black; bg: #38a169; }
+.swatch_blue    { fg: white; bg: #3182ce; }
+.swatch_yellow  { fg: black; bg: #ecc94b; }
+.swatch_magenta { fg: white; bg: #d53f8c; }
+.swatch_cyan    { fg: black; bg: #319795; }
+
+.nav_link {
+  fg: #bbf7d0;
+  bg: #10190f;
+}
+.nav_link:hover {
+  fg: #f0fdf4;
+  bg: #244228;
+}
+.nav_link:focus {
+  fg: #14532d;
+  bg: #fde047;
+  mods: bold;
+}
+
+/* <tabs> header buttons - see docs/guide/markup.md. .tab_header is the
+ * default framed style (each header a bordered pane.hover shows an
+ * about-to-click state). .tab_header_compact is for <tabs style="compact">
+ * - no border, so the active tab is shown purely by its background color
+ * instead of a frame; use it wherever the header pane can't spare the
+ * ~3 rows a bordered header cell needs. */
+.tab_header {
+  fg: #c9d6e3;
+  bg: #1b3020;
+}
+.tab_header:hover {
+  fg: #ffffff;
+  bg: #2f5535;
+}
+.tab_header:focus {
+  fg: #ffffff;
+  bg: #16a34a;
+  mods: bold;
+}
+
+.tab_header_compact {
+  fg: #9fb0c9;
+  bg: #122016;
+}
+.tab_header_compact:hover {
+  fg: #ffffff;
+  bg: #2f5535;
+}
+.tab_header_compact:focus {
+  fg: #ffffff;
+  bg: #16a34a;
+  mods: bold;
+}
+
+.brand {
+  fg: #facc15;
+  mods: bold;
+}
+
+.panes {
+  fg: #c9d6e3;
+  bg: #10190f;
+}
+
+.test {
+  fg: #c9d6e3;
+  bg: #10190f;
+}

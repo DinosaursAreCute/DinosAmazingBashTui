@@ -1,0 +1,14 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="on_start">
+  <script src="callbacks.sh"/>
+  <theme src="theme.css"/>
+  <pane id="main" border="single" split="v">
+    <pane id="nav" border="single"/>
+    <pane id="root" border="none" split="grid" cols="1" rows="3">
+        <pane id="hdr" border="single" row_weights="20" weight="20"  grid_col="1" grid_row="1"/>
+        <pane id="ftr" border="single"  grid_col="1" grid_row="3" />
+    </pane>   
+  </pane>
+  <include src="_nav.xml"/>
+  <script src="callbacks.sh" />
+
+</tui>

@@ -1,17 +1,20 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd" on_visit="on_load_scroll_data">
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="on_load_scroll_data">
   <script src="scroll_callbacks.sh"/>
   <theme src="theme.css"/>
 
-  <pane id="root" split="h">
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="78">
         <pane id="header" weight="15" title="Scroll Demo" border="single" class="panel"/>
         <pane id="scroll_demos" split="h" weight="85">
-            <pane id="scroll_v" weight="33" title="Vertical (scroll='v')" border="heavy" class="panel" scroll="v"/>
+            <pane id="scroll_v"  weight="33" title="Vertical (scroll='v')" border="heavy" class="panel" scroll="v"/>
             <pane id="scroll_h" weight="33" title="Horizontal (scroll='h')" border="heavy" class="panel" scroll="h"/>
-            <pane id="scroll_b" weight="34" title="Both (scroll='both')" border="heavy" class="panel" scroll="both"/>
+            <pane id="scroll_b"  weight="34" title="Both (scroll='both')" border="heavy" class="panel" scroll="both"/>
         </pane>
     </pane>
+  </pane>
   </pane>
 
   <label id="lbl_inst" pane="header" row="0" text="Scroll using Mouse Wheel, Dragging Borders, or Vim/Arrow Keys (Shift+Up/Down/Left/Right)" align="center"/>

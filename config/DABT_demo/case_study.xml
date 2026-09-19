@@ -2,13 +2,16 @@
   <script src="case_study_callbacks.sh"/>
   <theme src="theme.css"/>
 
-  <pane id="root" split="h">
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="20" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="80">
         <pane id="header" weight="12" title="Real World: High-Performance Viewports" border="single" class="panel"/>
         <pane id="tabs_header" weight="4" border="none"/>
         <pane id="content" weight="84" border="heavy" class="panel" scroll="both"/>
     </pane>
+  </pane>
   </pane>
 
   <label id="lbl_inst" pane="header" row="0" text="Stress test the new AWK shader architecture." align="center"/>

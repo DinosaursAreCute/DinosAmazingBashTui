@@ -22,7 +22,7 @@ Just bash, doing things bash was never meant to do.<br/>
 
 | | |
 |---|---|
-| **Declarative XML markup** | Define panes, buttons, inputs, and labels in config files — not imperative code |
+| **Declarative XML markup** | Define panes, buttons, inputs, and labels in config files - not imperative code |
 |**Multi-page navigation** | Link between pages like HTML anchors with `page="other.xml"` on any button |
 |**High-Performance Scrolling** | Batched AWK-shader viewports supporting Jump-to-Click scrollbars, Mouse Wheel, and Vim navigation |
 |**CSS-like theming** | Reusable `.class` styles with `fg`, `bg`, `mods`, and `:focus`/`:border`/`:title` pseudo-states |
@@ -30,66 +30,98 @@ Just bash, doing things bash was never meant to do.<br/>
 |**Min/max sizing** | Constraint-based layout with automatic warnings when space runs out |
 |**Runtime templates** | `${command args…}` expressions in text attributes, re-evaluated on every redraw |
 |**Live terminal execution** | Stream a real PTY process into a pane with stdin piping, cancel, save, and retry |
-|**Mouse + keyboard** | Click routing, Tab/Shift-Tab focus cycling, arrow key navigation — it all works |
+|**Mouse + keyboard** | Click routing, Tab/Shift-Tab focus cycling, arrow key navigation - it all works |
 |**Includes & fragments** | `<include src="_nav.xml"/>` for shared components across pages |
 
 ## Screenshots
 
-<details>
-<summary><b>Case Study — real world layout stress test</b></summary>
+Default theme, generated with `bin/debug/screenshot_all.sh`.
 
-![Case Study](screenshots/case_study.png)
+<details open>
+<summary><b>Home - shared header, nav, live clock and footer key bar</b></summary>
 
-</details>
-
-<details>
-<summary><b>Components — all terminal renderers</b></summary>
-
-![Components](screenshots/components_all.png)
+![Home](screenshots/default/home.png)
 
 </details>
 
-<details>
-<summary><b>Scrolling — high performance AWK shader viewports</b></summary>
+<details open>
+<summary><b>Components - every terminal renderer, with fit-to-pane and live tabs</b></summary>
 
-![Scrolling](screenshots/srolling.png)
-
-</details>
-
-<details>
-<summary><b>Styles — themed buttons and color swatches</b></summary>
-
-![Styles](screenshots/styles.png)
+![Components](screenshots/default/components.png)
 
 </details>
 
-<details>
-<summary><b>Features — alignment, label layout, runtime templates, min/max constraints</b></summary>
+<details open>
+<summary><b>Case Study - real world layout stress test</b></summary>
 
-![Features](screenshots/features.png)
-
-</details>
-
-<details>
-<summary><b>Terminal — live bash session with output streaming and controls</b></summary>
-
-![Terminal](screenshots/terminal.png)
+![Case Study](screenshots/default/case_study.png)
 
 </details>
 
-<details>
-<summary><b>Forms — input fields with label alignment and action buttons</b></summary>
+<details open>
+<summary><b>Documentation - one tab per markdown file</b></summary>
 
-![Forms](screenshots/forms.png)
+![Docs](screenshots/default/docu__doc_tab_3.png)
+
+</details>
+
+<details open>
+<summary><b>Scrolling - high performance AWK shader viewports</b></summary>
+
+![Scrolling](screenshots/default/scrolling.png)
 
 </details>
 
-<details>
-<summary><b>Debug - A live monitoring tool to see each mouse movement, keyboard press and focus event. Stress test the new rendering engine to its limit with the randomly generated layouts! </b></summary>
+<details open>
+<summary><b>Monitor - live CPU, memory, load and disk straight from /proc</b></summary>
 
-![Debug](screenshots/debug.png)
+![Monitor](screenshots/default/monitor.png)
 
 </details>
+
+<details open>
+<summary><b>Debug - keyboard and mouse tape: every key lights up as you press it</b></summary>
+
+![Keyboard and mouse](screenshots/default/debug_input.png)
+
+</details>
+
+## Themes
+
+The Styles page under each built-in theme (Settings switches the whole app; themes live in `config/DABT_demo/themes/*.css`).
+
+**Default**
+
+![default theme](screenshots/default/styles.png)
+
+**Ocean**
+
+![ocean theme](screenshots/ocean/styles.png)
+
+**Forest**
+
+![forest theme](screenshots/forest/styles.png)
+
+**Sunset**
+
+![sunset theme](screenshots/sunset/styles.png)
+
+**Light**
+
+![light theme](screenshots/light/styles.png)
+
+## Documentation
+
+Start at **[docs/README.md](docs/README.md)** - architecture overview and a map of everything below.
+
+| | |
+|---|---|
+| [docs/api/reference.md](docs/api/reference.md) | **API reference**: every function and parameter in one table |
+| [docs/api/README.md](docs/api/README.md) | API tour by task, with examples |
+| [docs/guide/markup.md](docs/guide/markup.md) | XML page format: panes, grids, tabs, includes, themes |
+| [docs/guide/input-bindings.md](docs/guide/input-bindings.md) | Keyboard/mouse bindings, command bar, footer |
+| [docs/guide/callbacks-and-viewports.md](docs/guide/callbacks-and-viewports.md) | Callbacks, hover/focus feedback, scrolling viewports |
+| [docs/design/](docs/design/) | Deep dives: scrolling shader, pointer tracking, page cache, grid geometry |
 
 ## Quick Start
 
@@ -159,7 +191,7 @@ bin/
 ├── terminal_renderer.sh # Runtime text rendering utilities
 ├── test.sh              # Ad-hoc terminal color/cursor test script
 ├── tui_markup.sh        # XML config loader
-├── tui.sh               # Core framework — layout, widgets, event loop
+├── tui.sh               # Core framework - layout, widgets, event loop
 └── tui_style.sh         # CSS-like theme engine
 
 config/
@@ -187,14 +219,14 @@ config/
 ```
 
 Regenerate this tree any time the file layout changes with
-`scripts/gen_tree.sh` — it walks `bin/` and `config/` live and renders
+`scripts/gen_tree.sh` - it walks `bin/` and `config/` live and renders
 them through `terminal_renderer.sh`'s own `tree` command, so it can't
 silently drift out of sync with the actual files the way a hand-edited
 one can.
 
 ## Requirements
 
-* **Bash 4.3+** (associative arrays, `declare -g`, nameref)
+* **Bash 5.0+** (associative arrays, namerefs, `EPOCHREALTIME`, fractional `read -t`)
 
 
 * A terminal emulator with mouse support (virtually all modern ones)
@@ -206,7 +238,7 @@ one can.
 
 ## Going beyond the demo
 
-Write your own pages, drop them in `config/`, and link to them with `page="yourpage.xml"` on a button. Callbacks are plain bash functions — source them with `<script>` and reference them by name in `action="…"` or `submit="…"` attributes.
+Write your own pages, drop them in `config/`, and link to them with `page="yourpage.xml"` on a button. Callbacks are plain bash functions - source them with `<script>` and reference them by name in `action="…"` or `submit="…"` attributes.
 
 For a real embedded terminal, point `tui.exec` at any command:
 
@@ -216,7 +248,7 @@ For a real embedded terminal, point `tui.exec` at any command:
 
 ```
 
-The process runs in a real PTY. You can pipe stdin to it, cancel it, save its output, or retry it — all from the TUI.
+The process runs in a real PTY. You can pipe stdin to it, cancel it, save its output, or retry it - all from the TUI.
 
 ---
 

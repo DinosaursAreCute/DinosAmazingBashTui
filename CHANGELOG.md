@@ -4,6 +4,94 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-09-19
+
+### Added
+* Docs reorganised: `docs/README.md` (architecture + map), `docs/guide/`, `docs/api/`, `docs/design/`.
+* API reference: `docs/api/reference.md` (every public function and parameter), task tour in `docs/api/README.md`, `docs/api/renderers.md`, generated `docs/api/terminal-controls.md` (`scripts/gen_terminal_controls_doc.sh`).
+* Design paper: `docs/design/rebindable-input-and-developer-ergonomics.md` (why the UX and DevX changes were made).
+* Docs page tabs follow the new layout (README, docs index, guides, API reference, design write-ups).
+* Input bindings (`bin/tui_input.sh`): `tui.bind` / `tui.unbind` / `tui.bind.list`, markup `<bind>`, pane-scoped and chained bindings. See `docs/guide/input-bindings.md`.
+* Keys and mouse are decoded into readable names (`ctrl+c`, `shift+up`, `mouse:right`, `wheel:down`, ...), including F-keys and CSI-u terminals.
+* Built-in actions (`tui.action.*`) that every default key and click now goes through, so all of them are rebindable.
+* Default keybinds live in `config/default/keybinds.xml`, grouped and opt-out (`tui.defaults.off GROUP`, `<tui defaults="-quit">`).
+* `<bind scope="global">` for binds that survive page changes.
+* User keybinds (`tui.bind --user`): kept as a draft, saved with `tui.bind.save`, restored with `tui.bind.discard`, loaded on the next start.
+* Keys page: Save / Discard buttons and an "unsaved changes" marker for your keybinds.
+* `q` / `ctrl+q` quit is now a default instead of a per-page bind.
+* Keyboard pane focus: `f6` / `shift+f6` / `alt+arrows` with a highlighted border; scroll keys follow it.
+* `tui.action.focus_pane`, `tui.action.goto` and a page registry (`tui.get.pages`) for jump binds.
+* Spatial arrow-key navigation between widgets (`tui.action.focus_dir`): same row for Left/Right, same column beam for Up/Down.
+* `ctrl+wheel` scrolls exactly 1 line, `ctrl+shift+wheel` exactly 1 char.
+* Bracketed paste: pastes arrive as one `paste` event (bindable), inserted into the focused input by default.
+* `tui.clipboard.copy` (OSC 52) and `tui.clipboard.paste`.
+* Command palette (`ctrl+p` / `:`): fuzzy search, Enter to run, mouse support.
+* Command registry API: `tui.cmd.add`, `tui.cmd.load`, `tui.cmd.provider`, `tui.cmd.run`; DABT's own commands use it (`config/default/commands.xml`).
+* Palette providers for pages, themes, panes and default-key groups; keybind hints come from the live bindings.
+* Overlay and modal layer (`tui.overlay.*`, `tui.modal.*`): overlays are redrawn over every repaint, a modal owns keyboard and mouse.
+* Default Settings and Keybinds pages ship with DABT (`config/default/pages/`), opened from the palette; an app can replace them by re-registering `dabt.settings` / `dabt.keybinds`.
+* `tui.config.get/set/unset`: persistent framework settings (theme overlay, default-key groups, input behaviour), applied at startup.
+* Page history: `tui.action.back` and `alt+backspace`.
+* `tui.overlay.box`: a helper for drawing framed boxes from overlays and modals.
+* Demo: Debug > Feature lab page with a button for every palette, modal, overlay, mode, focus and clipboard feature, a live state readout and an event log.
+* `bin/debug/` profiling scripts (`profile_page_switch`, `profile_replay`, `profile_calls`, `profile_callbacks_source`), `count_forks` with a README.
+* `<footer/>` component: a key-hint bar (quit, command bar, back ...) on the last terminal row wherever it is declared; keys are looked up live from the bindings. API: `tui.footer.show/add/hide`.
+* Every demo page now has the shared header (title banner and live clock, built on `tui.clock`) inside a framed root pane, with the footer bar below it.
+* `tui.bind.table`, `tui.require`, and fork-free style getters (`tui.class.style`, `tui.class.sgr`, `tui.style.sgr`, `tui.class.names`).
+* Event context in handlers: `TUI_EVENT_KEY`, `_X/_Y`, `_PANE`, `_WIDGET`, `_BUTTON`.
+* Repeat coalescing: fast wheel spins and held scroll keys merge into one redraw (`TUI_EVENT_COUNT`).
+* Keybind kill-switch (`ctrl+alt+k`) with an always-on-top warning box.
+* Pass-through mode (`ctrl+alt+p`): hands mouse and keyboard back to the terminal for native selection and copy.
+* `retain_input_on_submit` and `sticky` on `<input>`; Enter keeps focus by default, and a same-page reload restores it.
+* `hpad` / `vpad` on panes and widgets; padding shrinks the usable output area.
+* Parent panes can draw their own border (layered borders); borders drop automatically when space runs out.
+* `split="fixed"` / `tui.fixed`: fixed-size grid with `size_w`, `size_h`, `span` and `newline`.
+* `bin/tui_api.sh` live helpers: `tui.every`, `tui.after`, `tui.clock`, `tui.watch`, `tui.monitor`, `tui.set_text`.
+* Fork-free `/proc` samplers (`tui.sys.cpu/mem/load/uptime`) and rolling history (`tui.hist.*`).
+* `tui.get.*` getters for dimensions, position, border, pad, style, widgets, focus and more.
+* `tui.pane_size`, `tui.relayout [PANE]`, `tui.set_label`, `tui.pad`, `tui.pane_pad`.
+* App-wide theme overlays: `tui.theme.set/clear/current` with Ocean, Forest, Sunset and Light palettes.
+* `TR_WIDTH` lets the box-style renderers fit a pane instead of the terminal.
+* `_TUI_ON_RESIZE_FN` and `_TUI_ON_KEY_EVENT` hooks.
+* Stylesheet memoization in `tui_cache.sh`: each stylesheet is parsed once, then re-applied from memory.
+* Demo: functional Settings page (themes, borders, padding, fonts, saved to disk).
+* Demo: Components split into Renderers, Theme colors, Fit to size and Live pages, plus gauge, sparkline, vbar, linechart and CSV views.
+* Demo: Keys page (live binding table, runtime rebinding) and a Debug Keyboard & mouse view that lights each key and button.
+
+### Changed
+
+* Border ring, title tag and scrollbar now use the pane background, which removes the seam around panes.
+* Pane text now uses the pane's colours, so themes apply to content as well as chrome.
+* Terminal resize is coalesced and drawn as one synchronized frame; `tui.goto` and `tui.relayout` are too.
+* Theme loading no longer forks; a first parse dropped from about 250 ms to about 27 ms, and a page visit to about 1 ms.
+* Page switches are faster: `tui.output` and its bounds calculation no longer fork, small plain panes render without awk, and paths and nav-button handlers no longer fork.
+* The Keys page, the theme view and the keyboard view load 2-4x faster after those changes (for example about 1050 ms to 280 ms for the keyboard view).
+* Hover, focus, click and render no longer fork per widget: a mouse move went from 38 processes to 0, a full render from 136 to 4.
+* The renderer builders (box, alert, table, hbar, linechart ...) are fork-free (alert 30 to 0, linechart 54 to 1) with byte-identical output.
+* The Monitor page refresh went from about 650 processes to about 40.
+* `tui.init` also sets `-ixon -iexten` so `ctrl+s`, `ctrl+q` and `ctrl+v` reach the app.
+* A bound command that isn't defined right now is skipped instead of raising an error.
+* The demo's `clock.sh` (single-slot tick hook) is gone; the header uses `tui.clock` and `tui.every` instead.
+* Nav reorganised: Forms is now Settings, Features is now Layout, and the Clock page was removed (the Live page replaces it).
+
+### Fixed
+- Overlays/footer redraw only after a frame flush (was every tick); footer no longer wraps/scrolls the last row
+
+* Pane content vanished on resize because `_TUI_PANE_CONTENT` was never declared associative.
+* `tui.exec` panes weren't repainted on resize.
+* A failed `stty size` during resize made the whole UI lay out at 24x80.
+* `tui.goto` broke on absolute paths.
+* `tui.start` aborted on any page without `on_visit`.
+* Monitor page pointed at a missing `on_visit` function.
+* Cached pages lost `hpad`/`vpad` and the post-border relayout.
+* Split mouse reports could leak into a focused input as typed text.
+* Undecodable keys crashed the binding lookup with `bad array subscript`.
+* Pasting with nothing focused could throw `bad array subscript`.
+* Single-line CSS rules (`.a { fg: x; }`) were silently ignored.
+* XML entities such as `&amp;` in attributes weren't decoded.
+* `tui.reset_ui` now clears leftover pane content and the input hooks.
+* Debug Keyboard tab loaded the Events page's script and drew stray text at the top-left.
+
 ## [0.0.5] - 2026-09-16
 
 ### Added

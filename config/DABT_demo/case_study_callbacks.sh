@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # Source the renderer to gain access to all _string functions
-source "${SCRIPT_DIR:-.}/terminal_renderer.sh"
+tui.require terminal_renderer
 
 on_tab_doc() {
-    local doc_path="${SCRIPT_DIR:-.}/../docs/Bending-The-World-To-Your-Will_architectural-Strategies-for-High-Performance-Viewport Scrolling-in-Pure-Bash-Terminal-Interfaces.md"
+    local doc_path="${SCRIPT_DIR:-.}/../docs/design/viewport-scrolling.md"
     local raw_doc=""
     
     # Prepend a generated banner

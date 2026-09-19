@@ -1,25 +1,45 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
-  <script src="demo_callbacks.sh"/>
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="settings_visit">
+  <script src="settings_callbacks.sh"/>
   <theme src="theme.css"/>
 
-  <pane id="root" split="h">
-    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
-    <pane id="output" weight="78" title="Forms Demo" class="panel"/>
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="82" border="none">
+      <pane id="body" split="h" weight="76" border="none">
+        <pane id="form" weight="40" title="Appearance &amp; behavior" border="single" class="panel" hpad="1"/>
+        <pane id="right" split="v" weight="60" border="none">
+          <pane id="preview"       weight="68" title="Live preview" border="single" class="panel" hpad="1" vpad="1"/>
+          <pane id="preview_clock" weight="32" title="tui.clock in the chosen font" border="single" class="panel" hpad="1"/>
+        </pane>
+      </pane>
+      <pane id="toast"  weight="5"  border="none" class="panel"/>
+      <pane id="status" weight="19" title="settings.conf (saved on every change)" border="single" class="panel" hpad="1"/>
+    </pane>
+  </pane>
   </pane>
 
-  <label id="lbl_appearance" pane="output" row="0" text="Appearance settings" class="brand"/>
-  <input id="inp_theme" pane="output" row="2" label="Theme:" label_width="10" label_align="left" placeholder="Theme name" submit="on_theme_apply"/>
-  <input id="inp_font"  pane="output" row="3" label="Font:"  label_width="10" label_align="left" placeholder="Font name"  submit="on_theme_apply"/>
-  <checkbox id="chk_notifications" pane="output" row="5" label="Enable notifications" checked="true"/>
-  <checkbox id="chk_darkmode"      pane="output" row="6" label="Dark mode"            checked="false"/>
-  <button id="btn_apply"  pane="output" row="8" text="[ Apply ]" action="on_theme_apply" class="success_button" align="fill"/>
-  <button id="btn_reset"  pane="output" row="9" text="[ Reset ]" action="on_reset"       class="danger_button"  align="fill"/>
+  <label id="lbl_theme_hd" pane="form" row="0" text="Theme  (applies to every page)" class="brand"/>
+  <button id="btn_th_default" pane="form" row="1" text="Default" action="on_theme_pick" class="nav_link" align="fill"/>
+  <button id="btn_th_ocean"   pane="form" row="2" text="Ocean"   action="on_theme_pick" class="nav_link" align="fill"/>
+  <button id="btn_th_forest"  pane="form" row="3" text="Forest"  action="on_theme_pick" class="nav_link" align="fill"/>
+  <button id="btn_th_sunset"  pane="form" row="4" text="Sunset"  action="on_theme_pick" class="nav_link" align="fill"/>
+  <button id="btn_th_light"   pane="form" row="5" text="Light"   action="on_theme_pick" class="nav_link" align="fill"/>
 
-  <label id="out1" pane="output" row="11" text=""/>
-  <label id="out2" pane="output" row="12" text=""/>
-  <label id="out3" pane="output" row="13" text=""/>
-  <label id="out4" pane="output" row="14" text=""/>
+  <label id="lbl_prev_hd" pane="form" row="7" text="Preview pane" class="brand"/>
+  <button id="btn_border" pane="form" row="8" text="Border" action="on_border_cycle" class="info_button" align="fill"/>
+  <button id="btn_font"   pane="form" row="9" text="Font"   action="on_font_cycle"   class="info_button" align="fill"/>
+  <input  id="inp_hpad" pane="form" row="10" label="hpad:" label_width="7" placeholder="0-9" submit="on_pad_apply"/>
+  <input  id="inp_vpad" pane="form" row="11" label="vpad:" label_width="7" placeholder="0-9" submit="on_pad_apply"/>
+  <input  id="inp_text" pane="form" row="12" label="text:" label_width="7" placeholder="banner text" submit="on_text_apply"/>
+
+  <label    id="lbl_beh_hd"  pane="form" row="14" text="Behavior" class="brand"/>
+  <checkbox id="chk_clock"   pane="form" row="15" label="Show live clock"   checked="true" action="on_clock_toggle"/>
+  <checkbox id="chk_notify"  pane="form" row="16" label="Notifications"     checked="true" action="on_notify_toggle"/>
+  <button   id="btn_reset"   pane="form" row="18" text="[ Reset to defaults ]" action="on_reset" class="danger_button" align="fill"/>
+
+  <label id="lbl_toast" pane="toast" row="0" text="" class="brand" align="center"/>
 
   <include src="_nav.xml"/>
 </tui>
-

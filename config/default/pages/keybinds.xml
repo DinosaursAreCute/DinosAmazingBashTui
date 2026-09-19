@@ -1,0 +1,28 @@
+<!-- DABT default Keybinds page (palette: "DABT: Keybinds"). Shows every binding - defaults, code and yours - and lets the
+     user add / remove their own (the user flag of tui.bind) and Save or Discard them. An app can replace it by re-registering the
+     command id dabt.keybinds. -->
+<tui on_visit="dkb_visit">
+  <script src="keybinds_callbacks.sh"/>
+  <theme src="../theme.css"/>
+  <footer/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="table" weight="56" title="All keybinds (yours first, then code, then defaults)" border="heavy" class="panel" scroll="both"/>
+    <pane id="form" weight="34" title="Your keybinds - a draft until you Save" border="single" class="panel" hpad="1"/>
+    <pane id="foot" weight="10" border="none" class="panel"/>
+  </pane>
+
+  <label  id="lbl_help" pane="form" row="0" text="Key: a Q ctrl+e alt+x f5 pgdn shift+up mouse:right wheel:up ...   Action: a function, or tui.action.*, ';' chains" class="muted_label"/>
+  <input  id="inp_key"    pane="form" row="2" label="Key:"    label_width="9" placeholder="e.g. ctrl+e   or   mouse:right" submit="dkb_bind"/>
+  <input  id="inp_action" pane="form" row="3" label="Action:" label_width="9" placeholder="e.g. tui.action.goto home.xml   or   tui.palette.open" submit="dkb_bind"/>
+  <button id="btn_bind"    pane="form" row="5" text="[ Bind ]"                 action="dkb_bind"    class="success_button" align="fill"/>
+  <button id="btn_unbind"  pane="form" row="6" text="[ Unbind the key above ]" action="dkb_unbind"  class="warning_button" align="fill"/>
+  <button id="btn_drop"    pane="form" row="7" text="[ Drop all my binds ]"    action="dkb_drop"    class="danger_button"  align="fill"/>
+  <button id="btn_save"    pane="form" row="9"  text="[ Save ]"                action="dkb_save"    class="success_button" align="fill"/>
+  <button id="btn_discard" pane="form" row="10" text="[ Discard unsaved changes ]" action="dkb_discard" class="info_button" align="fill"/>
+  <label  id="lbl_dirty"  pane="form" row="12" text="" class="warning_button"/>
+  <label  id="lbl_status" pane="form" row="13" text="" class="brand"/>
+
+  <button id="btn_back" pane="foot" row="0" text="[ Back ]"          action="tui.action.back"     class="info_button"    align="fill"/>
+  <button id="btn_set"  pane="foot" row="1" text="[ Settings ... ]"  action="dkb_goto_settings"   class="success_button" align="fill"/>
+</tui>

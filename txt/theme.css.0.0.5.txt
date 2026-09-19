@@ -1,0 +1,188 @@
+/* theme.css - CSS-like stylesheet for tui.sh, loaded via <theme src="theme.css"/>.
+ * fg/bg: a colors.sh name (e.g. red) or a #RRGGBB hex value.
+ * mods: space-separated style.* modifiers (e.g. bold underline).
+ * :focus/:border/:title/:hover are optional pseudo-state variants of a class.
+ * :hover applies while the mouse sits over a *widget* (button/input) - a
+ * button with no :hover rule just looks normal until it's clicked/focused.
+ * Pane borders never react to hover; they react to :focus instead - a
+ * pane's border switches to its :focus style while any widget inside it
+ * has keyboard focus (falling back to :border when the class sets no
+ * :focus rule of its own). Omit either pseudo-state on a class to leave
+ * that transition with no visual effect.
+ */
+
+.danger_button {
+  fg: white;
+  bg: #b00020;
+  mods: bold;
+}
+.danger_button:hover {
+  fg: white;
+  bg: #d4002a;
+  mods: bold;
+}
+.danger_button:focus {
+  fg: white;
+  bg: #ff3333;
+  mods: bold;
+}
+
+.success_button {
+  fg: black;
+  bg: #33cc66;
+  mods: bold;
+}
+.success_button:hover {
+  fg: black;
+  bg: #4ade80;
+  mods: bold;
+}
+.success_button:focus {
+  fg: black;
+  bg: #66ff99;
+  mods: bold;
+}
+
+.muted_label {
+  fg: #888888;
+}
+
+/* Pane background colors: "normal" fills the content area, "border"/"title"
+ * color the frame - labels/inputs/buttons inside inherit fg+bg from the
+ * pane's "normal" state whenever they don't set their own. */
+.panel {
+  fg: #c9d6e3;
+  bg: #1c2336;
+}
+.panel:border {
+  fg: #de61ef;
+}
+.panel:title {
+  fg: #61afef;
+  mods: bold;
+}
+
+.panel:focus {
+  fg: #ffffff;
+  bg: #2c3e50;
+}
+
+.sidebar {
+  fg: #dbe4ff;
+  bg: #1a1c2c;
+}
+.sidebar:border {
+  fg: #ff5bef;
+}
+.sidebar:title {
+  fg: #00f7ff;
+  mods: bold;
+}
+
+.sidebar:focus {
+  fg: #ffffff;
+  mods: bold;
+}
+
+
+.info_button {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+.info_button:hover {
+  fg: white;
+  bg: #3a80ca;
+  mods: bold;
+}
+.info_button:focus {
+  fg: white;
+  bg: #4299e1;
+  mods: bold;
+}
+
+.warning_button {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+.warning_button:hover {
+  fg: black;
+  bg: #e0ad45;
+  mods: bold;
+}
+.warning_button:focus {
+  fg: black;
+  bg: #f6e05e;
+  mods: bold;
+}
+
+.swatch_red     { fg: white; bg: #e53e3e; }
+.swatch_green   { fg: black; bg: #38a169; }
+.swatch_blue    { fg: white; bg: #3182ce; }
+.swatch_yellow  { fg: black; bg: #ecc94b; }
+.swatch_magenta { fg: white; bg: #d53f8c; }
+.swatch_cyan    { fg: black; bg: #319795; }
+
+.nav_link {
+  fg: #83f5f0;
+  bg: #1a1c2c;
+}
+.nav_link:hover {
+  fg: #d7fffd;
+  bg: #262a44;
+}
+.nav_link:focus {
+  fg: #01484e;
+  bg: #ff93f4;
+  mods: bold;
+}
+
+/* <tabs> header buttons - see docs/ui_markup.md. .tab_header is the
+ * default framed style (each header a bordered pane.hover shows an
+ * about-to-click state). .tab_header_compact is for <tabs style="compact">
+ * - no border, so the active tab is shown purely by its background color
+ * instead of a frame; use it wherever the header pane can't spare the
+ * ~3 rows a bordered header cell needs. */
+.tab_header {
+  fg: #c9d6e3;
+  bg: #232840;
+}
+.tab_header:hover {
+  fg: #ffffff;
+  bg: #2f3557;
+}
+.tab_header:focus {
+  fg: #ffffff;
+  bg: #4c6ef5;
+  mods: bold;
+}
+
+.tab_header_compact {
+  fg: #9fb0c9;
+  bg: #1c2136;
+}
+.tab_header_compact:hover {
+  fg: #ffffff;
+  bg: #2f3557;
+}
+.tab_header_compact:focus {
+  fg: #ffffff;
+  bg: #4c6ef5;
+  mods: bold;
+}
+
+.brand {
+  fg: #ed61c8;
+  mods: bold;
+}
+
+.panes {
+  fg: #c9d6e3;
+  bg: #1a1c2c;
+}
+
+.test {
+  fg: #c9d6e3;
+  bg: #1a1c2c;
+}

@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# tui_cache.sh — page-load caching.
+# tui_cache.sh - page-load caching.
 #
 # tui_markup.sh's tui.load spends most of its time re-parsing a page's XML
 # text (regex attribute extraction, per-tag dispatch) on every single visit,
 # even though the resulting sequence of tui.* builder calls (tui.hsplit,
 # tui.label, tui.button, ...) is identical every time for a page's *static*
 # structure. This records that call sequence once and replays it later by
-# eval-ing the (already-quoted) saved lines — no markup re-parsing at all.
+# eval-ing the (already-quoted) saved lines - no markup re-parsing at all.
 #
 # Dynamic content stays dynamic: a page's <script src> sourcing and its
 # on_visit handler are themselves recorded as single calls (see
 # _tui_cache_source / _tui_cache_run_on_visit below), so replaying a cached
-# page still re-sources what it needs and always reruns on_visit fresh —
+# page still re-sources what it needs and always reruns on_visit fresh -
 # only the static pane/widget build is skipped on a cache hit.
 #
 # Fallback contract: tui.load_cached is a drop-in replacement for tui.load.
 # A cache miss (first visit, or a page never warmed) does a completely
-# normal tui.load and records it for next time — never a behavior
+# normal tui.load and records it for next time - never a behavior
 # difference, purely a speed difference.
 #
 # <script src> is deliberately re-sourced on every replay too, cache hit or
-# not — several pages (monitor_callbacks.sh, debug_callbacks.sh,
+# not - several pages (monitor_callbacks.sh, debug_callbacks.sh,
 # terminal_init.sh) do real per-visit work as plain top-level code at the
 # bottom of the callback file, not inside on_visit. Skipping that on a
 # cache hit silently drops it. Re-declaring already-identical functions is
@@ -32,13 +32,67 @@ declare -ga _TUI_CACHE_BUF=()
 declare -gA _TUI_CACHE_PAGE=()      # resolved page path -> newline-joined recorded commands
 declare -gA _TUI_CACHE_SIG=()       # resolved page path -> "dep=mtime dep=mtime ..." signature
 
+# ── stylesheet memoization ──────────────────────────────────────────────
+# The page cache above replays a page's recorded `tui.load_theme FILE` call on every visit, and
+# tui_style.sh's parse of that file used to run again each time (~250 ms for theme.css, doubled
+# with a theme overlay). This REDEFINES tui_style.sh's _tui.theme_load_file so each stylesheet is
+# parsed ONCE per process, then re-applied from memory (a handful of array assignments, no file
+# read, no forks).
+#
+# Freshness is fork-free too: after a parse we `: > STAMP` (a builtin redirect = touch), and a file
+# is stale when it is newer than its stamp (`[[ FILE -nt STAMP ]]` - no stat, no subshell). So
+# editing theme.css still takes effect on the next page visit, like the page cache itself.
+declare -gA _TUI_THEME_MEMO=() _TUI_THEME_STAMP=()      # file -> "class<US>fg<US>bg<US>mods\n..." / stamp path
+declare -g  _TUI_THEME_STAMP_DIR="" _TUI_THEME_STAMP_N=0
+
+_tui_cache_theme_stamp() {          # FILE -> sets _TS to a fresh stamp path (creates the dir lazily, once)
+    if [[ -z "$_TUI_THEME_STAMP_DIR" || ! -d "$_TUI_THEME_STAMP_DIR" ]]; then
+        _TUI_THEME_STAMP_DIR="${TMPDIR:-/tmp}/tui_theme_stamps.$$"
+        mkdir -p "$_TUI_THEME_STAMP_DIR"
+    fi
+    _TS="${_TUI_THEME_STAMP[$1]:-$_TUI_THEME_STAMP_DIR/$(( ++_TUI_THEME_STAMP_N ))}"
+    : > "$_TS"
+    _TUI_THEME_STAMP[$1]="$_TS"
+}
+
+_tui.theme_load_file() {
+    local file="$1" cls fg bg mods out=""
+    if [[ -n "${_TUI_THEME_MEMO[$file]+x}" && ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; then
+        while IFS=$'\x1f' read -r cls fg bg mods; do          # hit: re-apply, nothing is parsed
+            [[ -z "$cls" ]] && continue
+            [[ -n "$fg" ]]   && _TUI_CLASS_FG[$cls]="$fg"
+            [[ -n "$bg" ]]   && _TUI_CLASS_BG[$cls]="$bg"
+            [[ -n "$mods" ]] && _TUI_CLASS_MOD[$cls]="$mods"
+        done <<< "${_TUI_THEME_MEMO[$file]}"
+        return 0
+    fi
+
+    _tui.theme_parse "$file" || return 1
+    _tui.theme_commit
+    for cls in "${_TP_ORDER[@]}"; do
+        out+="$cls"$'\x1f'"${_TP_FG[$cls]:-}"$'\x1f'"${_TP_BG[$cls]:-}"$'\x1f'"${_TP_MOD[$cls]:-}"$'\n'
+    done
+    _TUI_THEME_MEMO[$file]="$out"
+    _tui_cache_theme_stamp "$file"
+    _tui.theme_check "$file"
+}
+
+# Forget every memoized stylesheet (tests, or after changing files in a way mtimes can't show).
+tui.cache.theme_clear() { _TUI_THEME_MEMO=(); _TUI_THEME_STAMP=(); }
+
+# Removes the stamp directory; called from _master_cleanup.
+tui.cache.cleanup() {
+    [[ -n "$_TUI_THEME_STAMP_DIR" && -d "$_TUI_THEME_STAMP_DIR" ]] && rm -rf "$_TUI_THEME_STAMP_DIR"
+    _TUI_THEME_STAMP_DIR=""
+}
+
 # Stands in for a raw `source` on <script src> so the call is recordable
 # (see the wrap list below) and thus replayed on a cache hit exactly like
 # any other builder call. Deliberately NOT idempotent/skip-if-already-
 # sourced: several pages' callback files do real, meaningful, per-visit
 # work as plain top-level code (not inside a function), e.g.
 # monitor_callbacks.sh's trailing `_mon_refresh_all`, debug_callbacks.sh's
-# trailing `_debug_build_grid 6`, terminal_init.sh's `tui.exec` launch —
+# trailing `_debug_build_grid 6`, terminal_init.sh's `tui.exec` launch -
 # skipping re-source on a cache hit silently drops that per-visit setup.
 # Re-sourcing (re-declaring already-identical functions) is cheap; it was
 # never the expensive part tui.load_cached is caching around.
@@ -49,21 +103,25 @@ _tui_cache_source() {
 
 # Runs a page's on_visit, if it has one. Recorded/replayed like any other
 # builder call (one line: "call this function") so a cached page still gets
-# fresh dynamic content on every visit — the function body itself runs live,
+# fresh dynamic content on every visit - the function body itself runs live,
 # never from a cache.
 _tui_cache_run_on_visit() {
     [[ -n "$1" ]] && "$1"
+    return 0        # no on_visit is not a load failure (tui.start treats rc != 0 as one)
 }
 
 # Defines a <button page="…"> click handler, standing in for the raw
 # `eval` that used to do this directly in tui_markup.sh's button handler.
-# That eval was a side effect of parsing, outside any wrapped call — on a
+# That eval was a side effect of parsing, outside any wrapped call - on a
 # cache-hit replay (which skips parsing entirely) it would never run, so
 # the button's handler function would simply not exist to call. Recording
 # this call, like _tui_cache_source, fixes that: replay redefines it fresh.
 _tui_cache_define_goto() {
-    local fn="$1" page="$2"
-    eval "$(printf '%s() { tui.goto %q; }' "$fn" "$page")"
+    local fn="$1" page="$2" title="${3:-}"
+    title="${title#"${title%%[![:space:]]*}"}"; title="${title%"${title##*[![:space:]]}"}"
+    [[ -n "$page" ]] && _TUI_PAGES[$page]="$title"       # page registry (tui.get.pages): palette / help / goto binds
+    local def; printf -v def '%s() { tui.goto %q; }' "$fn" "$page"      # printf -v: no command-substitution fork per nav button
+    eval "$def"
 }
 
 _tui_cache_record() {
@@ -75,8 +133,8 @@ _tui_cache_record() {
 }
 
 # Renames the real implementation of $1 to _tui_cache_orig.$1, then
-# redefines $1 to record itself — only at nesting depth 0, see
-# _TUI_CACHE_DEPTH below — and call through. Every call site anywhere
+# redefines $1 to record itself - only at nesting depth 0, see
+# _TUI_CACHE_DEPTH below - and call through. Every call site anywhere
 # (tui_markup.sh's dispatch, tui.grid's own internal tui.vsplit/hsplit
 # calls, on_visit's own widget calls) is covered automatically without
 # touching their code.
@@ -87,7 +145,7 @@ _tui_cache_record() {
 # tui.grid call and its inner vsplit/hsplit calls, and replaying both would
 # split the same panes twice. Recording only the outermost call in any
 # nested chain mirrors exactly what tui_markup.sh's dispatch loop itself
-# called — replay reproduces that, and nothing more.
+# called - replay reproduces that, and nothing more.
 _tui_cache_wrap() {
     local fn="$1" orig="_tui_cache_orig.${1}"
     if ! declare -F "$fn" >/dev/null; then
@@ -114,17 +172,17 @@ _tui_cache_wrap() {
 _TUI_CACHE_WRAPPED_FNS=(
     tui.load_theme
     tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize
-    tui.pane_scroll tui.pane_strict_fit tui.pane_title tui.pane_border
+    tui.pane_scroll tui.pane_strict_fit tui.pane_title tui.pane_border tui.pane_pad tui.pad _tui_cache_relayout tui.bind
     tui.class
-    tui.hsplit tui.vsplit tui.grid
+    tui.hsplit tui.vsplit tui.grid tui.fixed
     tui.label tui.align tui.valign tui.minsize tui.maxsize
     tui.input tui.label_align tui.label_width
-    tui.button tui.checkbox
+    tui.button tui.checkbox tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.defaults.off tui.footer.set
     tui.tabs.compact tui.tabs.add tui.tabs.build
     _tui_cache_source _tui_cache_run_on_visit _tui_cache_define_goto
 )
 
-# tui.cache.init — wraps every builder function this module records.
+# tui.cache.init - wraps every builder function this module records.
 # Call once, after tui_markup.sh (which defines them) is sourced and
 # before the first tui.load/tui.load_cached.
 tui.cache.init() {
@@ -134,13 +192,13 @@ tui.cache.init() {
     done
 }
 
-# File mtime, GNU or BSD stat, 0 if the file's gone — used purely as a
+# File mtime, GNU or BSD stat, 0 if the file's gone - used purely as a
 # cheap "has this changed" signal, not for display.
 _tui_cache_mtime() {
     stat -c '%Y' "$1" 2>/dev/null || stat -f '%m' "$1" 2>/dev/null || printf '0'
 }
 
-# tui.cache.signature FILE... — a deterministic "path=mtime;path=mtime;..."
+# tui.cache.signature FILE... - a deterministic "path=mtime;path=mtime;..."
 # string covering every given file, sorted so the same file set always
 # produces the same string regardless of iteration order.
 tui.cache.signature() {
@@ -151,12 +209,12 @@ tui.cache.signature() {
     printf '%s' "$sig"
 }
 
-# tui.cache.deps_of FILE ARRAYNAME — appends FILE, and every file its
+# tui.cache.deps_of FILE ARRAYNAME - appends FILE, and every file its
 # <include src> tags (recursively) pull in, into the array named by
 # ARRAYNAME (a nameref), skipping anything already present (cycle guard).
 #
 # This is a deliberately separate, lightweight re-walk rather than reusing
-# tui.load's own _TUI_MARKUP_SEEN (which tracks exactly this same set) —
+# tui.load's own _TUI_MARKUP_SEEN (which tracks exactly this same set) -
 # _markup_expand populates that array from inside `<(_markup_expand ...)`,
 # a process-substitution *subshell*, so it's always empty again by the time
 # tui.load returns to this (parent) shell. Running entirely in the caller's
@@ -184,7 +242,7 @@ tui.cache.deps_of() {
     done < "$key"
 }
 
-# tui.cache.record FILE — runs a real tui.load for the already-resolved
+# tui.cache.record FILE - runs a real tui.load for the already-resolved
 # absolute FILE path with recording on, and stores the resulting call log
 # plus a signature covering FILE and every <include> it pulled in.
 tui.cache.record() {
@@ -200,7 +258,7 @@ tui.cache.record() {
     _TUI_CACHE_SIG["$file"]="$(tui.cache.signature "${deps[@]}")"
 }
 
-# tui.cache.valid FILE — true if FILE has a cached page AND every
+# tui.cache.valid FILE - true if FILE has a cached page AND every
 # dependency file its signature covers (the page itself plus every
 # <include> it pulled in at record time) still has the exact mtime it had
 # then, i.e. neither the page nor anything it includes has changed since.
@@ -220,7 +278,7 @@ tui.cache.valid() {
     return 0
 }
 
-# tui.cache.replay FILE — true and rebuilds the page from its cached call
+# tui.cache.replay FILE - true and rebuilds the page from its cached call
 # log if one exists for the already-resolved absolute FILE path, false
 # otherwise. Never touches markup on a hit.
 tui.cache.replay() {
@@ -233,30 +291,31 @@ tui.cache.replay() {
     return 0
 }
 
-# tui.load_cached FILE — drop-in replacement for tui.load: replays a cached
-# page if one's available and still valid (see tui.cache.valid — a page or
+# tui.load_cached FILE - drop-in replacement for tui.load: replays a cached
+# page if one's available and still valid (see tui.cache.valid - a page or
 # include edited since it was recorded self-heals here, not just via the
 # disk-cache path), otherwise does a normal tui.load and records it fresh.
 tui.load_cached() {
     local file="$1" resolved dir
     resolved="$file"
     [[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR:-.}/${file}"
-    dir="$(cd "$(dirname "$resolved")" 2>/dev/null && pwd)" || { tui.load "$file"; return; }
-    resolved="${dir}/$(basename "$resolved")"
+    _tui_path_canon "$resolved"; resolved="$_CANON"; dir="${resolved%/*}"
+    [[ -d "$dir" ]] || { tui.load "$file"; return; }
     _TUI_MARKUP_DIR="$dir"
+    _TUI_MARKUP_FILE="$resolved"
 
     tui.cache.valid "$resolved" && tui.cache.replay "$resolved" && return 0
     tui.cache.record "$resolved"
 }
 
-# ── cache (de)serialization — crosses the precompute worker's process
+# ── cache (de)serialization - crosses the precompute worker's process
 # boundary, since a background process can't share bash memory with the
 # foreground one it's warming a cache for. ──────────────────────────────
 
-# tui.cache.dump_dir DIR — writes every currently-recorded page out as one
+# tui.cache.dump_dir DIR - writes every currently-recorded page out as one
 # file set each (.key/.cache/.sig), named by a filesystem-safe encoding of
 # its cache key. Also usable as a persistent on-disk cache, not just to
-# cross the precompute worker's process boundary — see tui.cache.disk_dir.
+# cross the precompute worker's process boundary - see tui.cache.disk_dir.
 tui.cache.dump_dir() {
     local dir="$1" key fname
     mkdir -p "$dir"
@@ -268,10 +327,10 @@ tui.cache.dump_dir() {
     done
 }
 
-# tui.cache.load_dir DIR — reads cache files written by tui.cache.dump_dir
+# tui.cache.load_dir DIR - reads cache files written by tui.cache.dump_dir
 # into this process's own _TUI_CACHE_PAGE, dropping (not just leaving
 # stale) any entry that fails tui.cache.valid against the current
-# filesystem — callers can assume everything left in _TUI_CACHE_PAGE after
+# filesystem - callers can assume everything left in _TUI_CACHE_PAGE after
 # this call is actually usable, no separate check needed.
 tui.cache.load_dir() {
     local dir="$1" f key
@@ -285,7 +344,7 @@ tui.cache.load_dir() {
     done
 }
 
-# tui.cache.disk_dir — the persistent, cross-run on-disk cache location:
+# tui.cache.disk_dir - the persistent, cross-run on-disk cache location:
 # .cache/tui_pages/ under the repo (bin/'s parent), gitignored.
 tui.cache.disk_dir() {
     printf '%s' "$(cd "${SCRIPT_DIR}/.." && pwd)/.cache/tui_pages"
@@ -293,12 +352,12 @@ tui.cache.disk_dir() {
 
 _tui_cache_now_us() { printf '%s' "${EPOCHREALTIME//[^0-9]/}"; }
 
-# tui.cache.warm_with_spinner PAGE... — pre-warms the cache for every given
+# tui.cache.warm_with_spinner PAGE... - pre-warms the cache for every given
 # page, showing a D.A.B.T banner + progress bar while it works. Same shape
 # as bin/bench_page_switch.sh's worker (proven there): an isolated
-# background subshell does the real work — stdin -> /dev/null so its own
+# background subshell does the real work - stdin -> /dev/null so its own
 # tui.init can't put the *real* terminal in raw mode, stdout -> /dev/null
-# so its screen paints never hit it either — and reports one line per page
+# so its screen paints never hit it either - and reports one line per page
 # down a fifo the foreground reads with a timeout, so it never blocks and
 # Ctrl-C always reaches it. A background bash subshell can't share memory
 # with this process, so the worker dumps its cache to disk and this
@@ -341,7 +400,7 @@ tui.cache.warm_with_spinner() {
     local _tcw_worker_pid=$!
 
     # Not part of tui.sh's normal load chain (it's meant to be usable
-    # standalone) — sourced here just for banner_string.
+    # standalone) - sourced here just for banner_string.
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/terminal_renderer.sh"
 
@@ -417,10 +476,10 @@ tui.cache.warm_with_spinner() {
     cur.show
 }
 
-# tui.start_cached FIRST_PAGE — like tui.start, but first pre-warms the
+# tui.start_cached FIRST_PAGE - like tui.start, but first pre-warms the
 # cache for every config/*.xml sibling of FIRST_PAGE (every page a nav bar
 # in the same directory would ever link to) behind a D.A.B.T spinner, then
-# serves FIRST_PAGE — and every later tui.goto to one of those siblings —
+# serves FIRST_PAGE - and every later tui.goto to one of those siblings -
 # from that warm cache.
 tui.start_cached() {
     local file="$1"
@@ -428,13 +487,15 @@ tui.start_cached() {
 
     local dir
     dir="$(cd "$(dirname "$file")" && pwd)"
+    _TUI_APP_DIR="$dir"
+    [[ -z "${TUI_THEMES_DIR:-}" && -d "$dir/themes" ]] && TUI_THEMES_DIR="$dir/themes"
     local -a pages=()
     while IFS= read -r f; do
         [[ "$(basename "$f")" == _* ]] && continue
         pages+=("$f")
     done < <(find "$dir" -maxdepth 1 -name '*.xml' | sort)
 
-    # Load whatever's already on disk from a previous run — load_dir
+    # Load whatever's already on disk from a previous run - load_dir
     # itself drops anything whose page (or an include it pulled in) has
     # since changed, so only genuinely-still-valid entries survive.
     local disk_dir
@@ -442,7 +503,7 @@ tui.start_cached() {
     tui.cache.load_dir "$disk_dir"
 
     # Warm only what's actually missing or stale, not every page every
-    # launch — the whole point of persisting the cache.
+    # launch - the whole point of persisting the cache.
     local -a stale=() p
     for p in "${pages[@]}"; do
         tui.cache.valid "$p" || stale+=("$p")

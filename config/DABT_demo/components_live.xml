@@ -1,0 +1,36 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="live_start">
+  <script src="showcase_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" border="single" weight="82" class="panel" hpad="1">
+      <pane id="tabs_header" weight="5" border="none"/>
+      <pane id="live_grid" split="v" weight="95" border="none">
+        <pane id="live_top" split="h" weight="50" border="none">
+          <pane id="live_left" split="v" weight="30" border="none">
+            <pane id="live_time" weight="1" title="tui.clock (box3)" border="single" class="panel" hpad="1"/>
+            <pane id="live_date" weight="1" title="tui.clock (seg3)" border="single" class="panel" hpad="1"/>
+          </pane>
+          <pane id="live_mon" weight="70" title="tui.monitor — /proc, no forks" border="single" class="panel" hpad="1"/>
+        </pane>
+        <pane id="live_bot" split="h" weight="50" border="none">
+          <pane id="live_watch" weight="40" title="tui.watch — off-thread, fifo" border="single" class="panel" hpad="1"/>
+          <pane id="live_chart" weight="60" title="tui.every — rolling history" border="single" class="panel" hpad="1"/>
+        </pane>
+      </pane>
+    </pane>
+  </pane>
+  </pane>
+
+  <tabs id="lv_tabs" header_pane="tabs_header" content_pane="live_grid" style="compact">
+    <tab id="tab_renderers" text="Renderers"    action="sc_goto_renderers"/>
+    <tab id="tab_theme"     text="Theme colors" action="sc_goto_theme"/>
+    <tab id="tab_fit"       text="Fit to size"  action="sc_goto_fit"/>
+    <tab id="tab_live"      text="Live"         action="sc_tab_here" default="true"/>
+  </tabs>
+
+  <include src="_nav.xml"/>
+</tui>

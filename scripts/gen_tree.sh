@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/gen_tree.sh — regenerates a directory tree of bin/ and config/
+# scripts/gen_tree.sh - regenerates a directory tree of bin/ and config/
 # using bin/terminal_renderer.sh's own `tree` renderer, so the README's
 # "Project Structure" section can be kept accurate by running this and
 # pasting its output, instead of hand-editing a tree that silently drifts
@@ -12,7 +12,7 @@
 #
 # The structure (file names, nesting, ordering) is always read live from
 # the filesystem. Per-file descriptions come from the DESCRIPTIONS table
-# below — a file not listed there just shows its bare name, so adding a
+# below - a file not listed there just shows its bare name, so adding a
 # new file never breaks this script; it just means the description table
 # is worth extending next time this is run.
 
@@ -21,7 +21,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # terminal_renderer.sh sources colors.sh with a bare relative path, so it
-# only works with bin/ as the cwd — matches how every page callback that
+# only works with bin/ as the cwd - matches how every page callback that
 # sources it is itself run from bin/. cd there just to source it, then
 # back, since the rest of this script uses absolute ($REPO_ROOT) paths.
 pushd "$REPO_ROOT/bin" > /dev/null
@@ -30,7 +30,7 @@ popd > /dev/null
 
 declare -A DESCRIPTIONS=(
     # bin/
-    ["tui.sh"]="Core framework — layout, widgets, event loop"
+    ["tui.sh"]="Core framework - layout, widgets, event loop"
     ["tui_markup.sh"]="XML config loader"
     ["tui_style.sh"]="CSS-like theme engine"
     ["terminal_controls.sh"]="Low-level terminal escape sequences"
@@ -74,7 +74,7 @@ _describe() {
 }
 
 # Renders one directory as a tree, one file per line, name/description
-# columns aligned — matches the README's existing hand-written style.
+# columns aligned - matches the README's existing hand-written style.
 gen_dir_tree() {
     local dir="$1"
     [[ -d "$REPO_ROOT/$dir" ]] || { echo "gen_tree: no such directory: $dir" >&2; return 1; }
@@ -88,7 +88,7 @@ gen_dir_tree() {
     done
 
     # Column-align "name|description" pairs before handing them to tree,
-    # since tree() only prefixes whatever text it's given — it doesn't
+    # since tree() only prefixes whatever text it's given - it doesn't
     # know these lines are two columns.
     local maxlen=0 name desc
     for r in "${raw[@]}"; do

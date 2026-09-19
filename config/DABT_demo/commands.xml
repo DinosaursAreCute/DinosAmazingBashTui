@@ -1,0 +1,6 @@
+<!-- DABT demo: app-specific palette commands, added with the same API DABT's own defaults use (tui.cmd.load). -->
+<cmds>
+  <cmd id="demo.kbd"    title="Debug: keyboard and mouse view" action="tui.action.goto debug_input.xml" group="Debug" desc="Lights every key and mouse button as you press it"/>
+  <cmd id="demo.events" title="Debug: input events and hover"  action="tui.action.goto debug.xml"       group="Debug" desc="Input tape, hover and focus readout"/>
+  <cmd id="demo.keys"   title="Keys: view and edit my keybinds" action="tui.action.goto keys.xml"       group="Keybinds" desc="Live binding table with Save / Discard"/>
+</cmds>

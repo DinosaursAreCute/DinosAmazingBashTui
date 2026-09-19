@@ -1,0 +1,26 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+  <script src="demo_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="h">
+    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="78">
+      <pane id="align_demo"    weight="30" title="Alignment" class="panel"/>
+      <pane id="input_demo"    weight="25" title="Input label alignment" class="panel"/>
+      <pane id="template_demo" weight="15" title="Runtime templates" class="panel"/>
+      <pane id="tiny_demo"     weight="30" title="Min/max sizing" min_width="999" min_height="999" class="panel"/>
+    </pane>
+  </pane>
+
+  <label  id="lbl_align_left"   pane="align_demo" row="0" text="left-aligned text"   align="left"/>
+  <label  id="lbl_align_center" pane="align_demo" row="1" text="center-aligned text" align="center"/>
+  <label  id="lbl_align_right"  pane="align_demo" row="2" text="right-aligned text"  align="right"/>
+  <button id="btn_align_fill"   pane="align_demo" row="4" text="[ align=fill button ]" action="on_noop" class="success_button" align="fill"/>
+
+  <input id="inp_feat_a" pane="input_demo" row="0" label="Name:" label_width="12" label_align="right" placeholder="right-aligned label"/>
+  <input id="inp_feat_b" pane="input_demo" row="1" label="Bio:"  label_width="12" label_align="left"  placeholder="left-aligned label"/>
+
+  <label id="lbl_template" pane="template_demo" row="0" text="${terminal_renderer.sh divider -s 'Live template demo'}"/>
+
+  <include src="_nav.xml"/>
+</tui>

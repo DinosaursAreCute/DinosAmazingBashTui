@@ -1,3 +1,4 @@
 bin/.tui_exec.log
 logs/
 .cache/
+bin/debug/screenshots/

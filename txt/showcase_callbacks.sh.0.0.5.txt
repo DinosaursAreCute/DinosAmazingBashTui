@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+# showcase_callbacks.sh - callbacks for the renderer showcase page.
+# Each function renders terminal_renderer.sh output into the display
+# pane via tui.output - no PTY, no exec controls, just content.
+
+source "${SCRIPT_DIR}/terminal_renderer.sh"
+
+_showcase_set_status() {
+    tui.update "lbl_status" "$1"
+}
+
+show_box() {
+    _showcase_set_status "Box"
+    tui.output "output" "$(box 'DinosAmazingBashTui - pure bash rendering toolkit. No Python. No Node. No ncurses. Just bash, doing things bash was never meant to do.')"
+}
+
+show_divider() {
+    _showcase_set_status "Divider"
+    local out=""
+    out+="$(divider)"$'\n'
+    out+=$'\n'
+    out+="$(divider 'SECTION HEADER')"$'\n'
+    out+=$'\n'
+    out+="$(divider 'ANOTHER SECTION')"$'\n'
+    out+=$'\n'
+    out+="$(divider)"
+    tui.output "output" "$out"
+}
+
+show_alert() {
+    _showcase_set_status "Alerts"
+    local out=""
+    out+="$(alert info 'Server started on port 3000')"$'\n'
+    out+=$'\n'
+    out+="$(alert success 'Deployment complete - 42 containers healthy')"$'\n'
+    out+=$'\n'
+    out+="$(alert warn 'Disk usage above 90%')"$'\n'
+    out+=$'\n'
+    out+="$(alert error '\e[31mConnection refused on 10.0.0.5:5432\e[0m ')"
+    tui.output "output" "$out"
+}
+
+show_table() {
+    _showcase_set_status "Table"
+    tui.output "output" "$(table 'Name|Role|Status|Uptime' 'Alice|Dev|Active|42d' 'Bob|Ops|Idle|7d' 'Carol|SRE|On-call|120d' 'Dave|QA|Active|30d')"
+}
+
+show_kv() {
+    _showcase_set_status "Key-Value"
+    local out=""
+    out+="=== Dot style (default) ==="$'\n'
+    out+="$(kv 'Host: server-01' 'CPU: AMD Ryzen 9' 'RAM: 64 GB' 'Uptime: 42 days' 'Kernel: 6.8.0-arch1')"$'\n'
+    out+=$'\n'
+    out+="=== Dash style ==="$'\n'
+    out+="$(kv -t dashes 'Build: passing' 'Coverage: 94%' 'Last deploy: 2 hours ago')"$'\n'
+    out+=$'\n'
+    out+="=== Plain style ==="$'\n'
+    out+="$(kv -t plain 'User: dino' 'Shell: bash' 'Editor: vim')"
+    tui.output "output" "$out"
+}
+
+show_hbar() {
+    _showcase_set_status "Bar Chart"
+    local out=""
+    out+="Revenue by Quarter:"$'\n\n'
+    out+="$(hbar -m 100 'Q1:60' 'Q2:72' 'Q3:98' 'Q4:85')"$'\n'
+    out+=$'\n'
+    out+="Language Popularity:"$'\n\n'
+    out+="$(hbar 'Bash:100' 'Python:88' 'Rust:65' 'Go:58' 'Lua:30')"
+    tui.output "output" "$out"
+}
+
+show_banner() {
+    _showcase_set_status "Banner"
+    local out=""
+    out+="$(banner 'DABT')"$'\n\n'
+    out+="$(banner 'HELLO')"$'\n\n'
+    out+="$(banner 'BASH')"
+    tui.output "output" "$out"
+}
+
+get_dir_tree() {
+    local target="${1:-.}"
+    # Normalize target by removing any trailing slash for accurate path trimming
+    target="${target%/}"
+    
+    # 'sort' ensures parent folders always appear before their children
+    find "$target" -mindepth 1 | sort | while IFS= read -r path; do
+        
+        # Extract path strictly relative to the target to calculate depth correctly
+        local rel="${path#$target/}"
+        
+        # Count slashes to determine indentation level
+        local slashes="${rel//[^\/]}"
+        local depth="${#slashes}"
+        
+        local indent=""
+        for ((i=0; i<depth; i++)); do
+            indent+="  "
+        done
+        
+        local name="$(basename "$path")"
+        if [[ -d "$path" ]]; then
+            name="${name}/"
+        fi
+        
+        printf '%s%s\n' "$indent" "$name"
+    done
+}
+
+show_tree() {
+    _showcase_set_status "Tree"
+    
+    local -a items=()
+    mapfile -t items < <(get_dir_tree)
+    
+    tui.output "output" "$(tree "${items[@]}")"
+    
+}
+
+show_columns() {
+    _showcase_set_status "Columns"
+    tui.output "output" "$(columns \
+        -h 'Framework' -h 'Language' -h 'Lines' \
+        'tui.sh'                'bash' '800+' \
+        'tui_markup.sh'         'bash' '300+' \
+        'terminal_renderer.sh'  'bash' '1000+' \
+        'tui_style.sh'          'bash' '200+' \
+        'colors.sh'             'bash' '150+')"
+}
+
+show_badges() {
+    _showcase_set_status "Badges"
+    local out=""
+    out+="CI Pipeline:"$'\n'
+    out+="$(badges 'pass:Build' 'pass:Lint' 'fail:Tests' 'skip:Deploy')"$'\n'
+    out+=$'\n'
+    out+="Service Status:"$'\n'
+    out+="$(badges 'pass:API' 'pass:DB' 'warn:Cache' 'run:Worker')"$'\n'
+    out+=$'\n'
+    out+="Release:"$'\n'
+    out+="$(badges 'info:v0.1.0' 'pass:Stable' 'warn:Experimental')"
+    tui.output "output" "$out"
+}
+
+show_list() {
+    _showcase_set_status "List"
+    local out=""
+    out+="Bullet list:"$'\n'
+    out+="$(list \
+        'Declarative XML markup' \
+        'CSS-like theming engine' \
+        '  Hex colors and named colors' \
+        '  Focus pseudo-states' \
+        '  Border and title variants' \
+        'Mouse and keyboard navigation' \
+        'Live PTY execution')"$'\n'
+    out+=$'\n'
+    out+="Numbered list:"$'\n'
+    out+="$(list -n \
+        'Source tui.sh' \
+        'Write your XML page' \
+        'Add callbacks' \
+        'Run with tui.start' \
+        'Ship it')"$'\n'
+    out+=$'\n'
+    out+="Custom bullet:"$'\n'
+    out+="$(list -s '▸' \
+        'This uses a custom marker' \
+        'Set with the -s flag' \
+        'Any character works')"
+    tui.output "output" "$out"
+}
+
+show_quote() {
+    _showcase_set_status "Quote"
+    local out=""
+    out+="$(quote -a 'DABT README' 'Just bash, doing things bash was never meant to do.')"$'\n'
+    out+=$'\n'
+    out+="$(quote -a 'The Developer' 'No Python. No Node. No ncurses. No abstraction of any kind.')"$'\n'
+    out+=$'\n'
+    out+="$(quote 'I use arch btw :D')"
+    tui.output "output" "$out"
+}
+
+show_all() {
+    _showcase_set_status "All Renderers"
+    local out=""
+    out+="$(banner 'DABT')"$'\n\n'
+    out+="$(divider 'BOX')"$'\n'
+    out+="$(box 'Pure bash terminal rendering')"$'\n\n'
+    out+="$(divider 'ALERTS')"$'\n'
+    out+="$(alert success 'All systems go')"$'\n\n'
+    out+="$(divider 'TABLE')"$'\n'
+    out+="$(table 'Cmd|Description' 'box|Bordered box' 'alert|Callout' 'table|Data grid')"$'\n\n'
+    out+="$(divider 'KEY-VALUE')"$'\n'
+    out+="$(kv 'Framework: DABT' 'Language: bash' 'Deps: zero')"$'\n\n'
+    out+="$(divider 'BAR CHART')"$'\n'
+    out+="$(hbar 'Bash:100' 'Fun:99' 'Sanity:12')"$'\n\n'
+    out+="$(divider 'BADGES')"$'\n'
+    out+="$(badges 'pass:Build' 'pass:Tests' 'info:v0.1.0')"$'\n\n'
+    out+="$(divider 'LIST')"$'\n'
+    out+="$(list 'Markup' 'Theming' 'Rendering' 'Execution')"$'\n\n'
+    out+="$(divider 'TREE')"$'\n'
+    out+="$(tree 'DABT/' '  bin/' '    tui.sh' '  config/' '    home.xml')"$'\n\n'
+    out+="$(divider 'QUOTE')"$'\n'
+    out+="$(quote -a 'DABT' 'I use arch btw :D')"
+    tui.output "output" "$out"
+}
+
+on_clear() {
+    _showcase_set_status "-"
+    tui.output_clear "output"
+}

@@ -31,30 +31,25 @@ Real-world example app: [DABT File Explorer](https://github.com/DinosaursAreCute
 ## High-level architecture
 
 ```mermaid
-flowchart LR
-  subgraph app["your app"]
-    page["page.xml"]
-    cb["page_callbacks.sh"]
-    css["theme.css"]
-  end
-  subgraph fw["framework"]
-    markup["tui_markup.sh<br/>parser, page cache"]
-    style["tui_style.sh<br/>class to colours"]
-    core["tui.sh<br/>state, layout, input, render loop"]
-    helpers["tui_input.sh / tui_cmd.sh / tui_modal.sh / tui_footer.sh<br/>tui_api.sh: getters, timers, clocks, monitors"]
-    rend["terminal_renderer.sh<br/>box, table, charts (standalone)"]
-    ctl["terminal_controls.sh + colors.sh<br/>raw ANSI, no state"]
-  end
-  page -->|tui.load / goto| markup
-  css --> style
-  markup -->|tui.* builder calls| core
-  style --> core
-  core -->|actions| cb
-  cb -->|tui.* API| core
-  helpers --- core
+flowchart TB
+  app["<b>Your app</b><br/>page.xml, theme.css, page_callbacks.sh"]
+  markup["<b>tui_markup.sh</b><br/>XML parser + page cache"]
+  styl["<b>tui_style.sh</b><br/>theme.css to colours"]
+  core["<b>tui.sh</b><br/>layout, input, render loop"]
+  helpers["<b>Helpers</b><br/>tui_input, tui_cmd, tui_modal<br/>tui_footer, tui_api"]
+  rend["<b>terminal_renderer.sh</b><br/>box, table, charts<br/>(usable standalone)"]
+  ctl["<b>terminal_controls.sh + colors.sh</b><br/>raw ANSI, no state"]
+  tty(["Terminal"])
+
+  app -->|"tui.load / tui.goto"| markup
+  app -->|"theme"| styl
+  markup -->|"tui.* builder calls"| core
+  styl --> core
+  helpers --> core
+  core -->|"action callbacks"| app
   core --> ctl
   rend --> ctl
-  core -->|ANSI| tty(["terminal"])
+  ctl -->|"ANSI"| tty
 ```
 
 ### Layers (load order in `lib/tui.sh`)

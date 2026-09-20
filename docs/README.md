@@ -1,5 +1,5 @@
 ---
-permalink: /
+permalink: 
 description: Documentation for D.A.B.T, a pure bash TUI framework - tutorials, markup guide, widgets, plugins and full API reference.
 ---
 

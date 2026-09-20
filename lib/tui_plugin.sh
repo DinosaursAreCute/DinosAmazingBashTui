@@ -313,7 +313,7 @@ tui.plugin.config() {
 # ── startup: discover, then enable what the user (or the plugin's default) wants ─────────────────────
 tui.plugin.startup() {
     local n en
-    [[ -n "${TUI_NO_PLUGINS:-}" ]] && return 0                  # e.g. the installer wizard
+    [[ -n "${TUI_NO_PLUGINS:-}" ]] && return 0                 
     (( _TPL_SCANNED )) || tui.plugin.scan
     for n in "${_TPL_ORDER[@]}"; do
         en="${_TUI_CFG[plugin.$n.enabled]:-}"

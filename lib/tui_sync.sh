@@ -124,20 +124,20 @@ tui.sync.apply() {
     local -A newbase=()
     for rel in "${!_TUI_SYNC_BASE[@]}"; do newbase[$rel]="${_TUI_SYNC_BASE[$rel]}"; done
     _tui_sync.write() { from="$(_tui_sync.config_src "$src" "$1")"; _tui_sync.dirof "$1"; mkdir -p "$conf/$_D" && cp -p "$from" "$conf/$1"; }
-    for rel in "${TUI_SYNC_ADD[@]}"; do _tui_sync.write "$rel"; _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; (( TUI_SYNC_COUNT[add]++ )); done
-    for rel in "${TUI_SYNC_UPDATE[@]}"; do _tui_sync.backup "$conf" "$rel"; _tui_sync.write "$rel"; _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; (( TUI_SYNC_COUNT[update]++ )); done
-    for rel in "${TUI_SYNC_SAME[@]}"; do _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; (( TUI_SYNC_COUNT[same]++ )); done
-    (( TUI_SYNC_COUNT[keep] = ${#TUI_SYNC_KEEP[@]} ))
+    for rel in "${TUI_SYNC_ADD[@]}"; do _tui_sync.write "$rel"; _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; TUI_SYNC_COUNT[add]=$(( TUI_SYNC_COUNT[add] + 1 )); done
+    for rel in "${TUI_SYNC_UPDATE[@]}"; do _tui_sync.backup "$conf" "$rel"; _tui_sync.write "$rel"; _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; TUI_SYNC_COUNT[update]=$(( TUI_SYNC_COUNT[update] + 1 )); done
+    for rel in "${TUI_SYNC_SAME[@]}"; do _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; TUI_SYNC_COUNT[same]=$(( TUI_SYNC_COUNT[same] + 1 )); done
+    TUI_SYNC_COUNT[keep]=${#TUI_SYNC_KEEP[@]}
     for rel in "${TUI_SYNC_CONFLICT[@]}"; do
         if [[ -n "$resolver" ]]; then choice="$("$resolver" "$rel")"; else choice="$(_tui_sync.policy_choice "$rel")"; fi
         case "$choice" in
-            override) _tui_sync.backup "$conf" "$rel"; _tui_sync.write "$rel"; _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; (( TUI_SYNC_COUNT[override]++ )) ;;
-            skip)     (( TUI_SYNC_COUNT[skip]++ )) ;;
-            *)        from="$(_tui_sync.config_src "$src" "$rel")"; cp -p "$from" "$conf/$rel.new"; (( TUI_SYNC_COUNT[new]++ )) ;;
+            override) _tui_sync.backup "$conf" "$rel"; _tui_sync.write "$rel"; _tui_sync.sha "$conf/$rel"; newbase[$rel]="$_SHA"; TUI_SYNC_COUNT[override]=$(( TUI_SYNC_COUNT[override] + 1 )) ;;
+            skip)     TUI_SYNC_COUNT[skip]=$(( TUI_SYNC_COUNT[skip] + 1 )) ;;
+            *)        from="$(_tui_sync.config_src "$src" "$rel")"; cp -p "$from" "$conf/$rel.new"; TUI_SYNC_COUNT[new]=$(( TUI_SYNC_COUNT[new] + 1 )) ;;
         esac
     done
-    for rel in "${TUI_SYNC_REMOVE[@]}"; do _tui_sync.backup "$conf" "$rel"; rm -f "$conf/$rel"; unset 'newbase[$rel]'; (( TUI_SYNC_COUNT[remove]++ )); done
-    (( TUI_SYNC_COUNT[orphan] = ${#TUI_SYNC_ORPHAN[@]} ))
+    for rel in "${TUI_SYNC_REMOVE[@]}"; do _tui_sync.backup "$conf" "$rel"; rm -f "$conf/$rel"; unset 'newbase[$rel]'; TUI_SYNC_COUNT[remove]=$(( TUI_SYNC_COUNT[remove] + 1 )); done
+    TUI_SYNC_COUNT[orphan]=${#TUI_SYNC_ORPHAN[@]}
     { printf '# DABT manifest: checksums of the config files DABT last wrote (the updater compares against these)\n'
       for rel in $(printf '%s\n' "${!newbase[@]}" | LC_ALL=C sort); do printf '%s  %s\n' "${newbase[$rel]}" "$rel"; done; } > "$conf/manifest.tmp" && mv -f "$conf/manifest.tmp" "$conf/manifest"
     unset -f _tui_sync.write

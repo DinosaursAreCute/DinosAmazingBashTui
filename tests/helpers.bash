@@ -9,7 +9,7 @@ setup_env() {
     export HOME="$T/home" XDG_CONFIG_HOME="$T/home/.config" XDG_DATA_HOME="$T/home/.local/share"
     mkdir -p "$HOME"
     unset TUI_HOME DABT_HOME TUI_ROOT TUI_DEFAULTS_DIR TUI_APP_CONF TUI_PLUGINS_DIR TUI_SYNC_POLICY TUI_SYNC_STAMP TUI_SYNC_BACKUP \
-          TUI_UPDATE_REPO TUI_UPDATE_BRANCH TUI_UPDATE_VERSION_URL TUI_UPDATE_ARCHIVE_URL MOCK_CURL_FAIL
+          TUI_UPDATE_REPO TUI_UPDATE_BRANCH TUI_UPDATE_CHANNEL TUI_UPDATE_TAG TUI_UPDATE_VERSION_URL TUI_UPDATE_ARCHIVE_URL MOCK_CURL_FAIL
     export TUI_APP_NAME=dabt
     MOCKBIN="$T/mockbin"; REMOTE="$T/remote"; mkdir -p "$MOCKBIN" "$REMOTE"
     export PATH="$MOCKBIN:$PATH" REMOTE MOCKBIN
@@ -26,7 +26,7 @@ out=""; url=""
 while (( $# )); do case "$1" in -o) out="$2"; shift ;; --max-time) shift ;; -*) ;; *) url="$1" ;; esac; shift; done
 echo "$url" >> "$CURL_LOG"
 [[ -n "${MOCK_CURL_FAIL:-}" ]] && exit 22
-case "$url" in */VERSION) src="$REMOTE/VERSION" ;; *.tar.gz) src="$REMOTE/release.tar.gz" ;; *) exit 22 ;; esac
+case "$url" in */releases/latest) src="$REMOTE/latest.json" ;; */VERSION) src="$REMOTE/VERSION" ;; *.tar.gz) src="$REMOTE/release.tar.gz" ;; *) exit 22 ;; esac
 [[ -f "$src" ]] || exit 22
 if [[ -n "$out" ]]; then cp "$src" "$out"; else cat "$src"; fi
 MOCK
@@ -55,6 +55,7 @@ pack_release() {
     rm -rf "$T/pack"; mkdir -p "$T/pack"; cp -R "$d" "$top"
     tar -czf "$REMOTE/release.tar.gz" -C "$T/pack" DinosAmazingBashTui-main
     cp "$d/VERSION" "$REMOTE/VERSION"
+    printf '{"tag_name": "v%s"}\n' "$(<"$d/VERSION")" > "$REMOTE/latest.json"
 }
 
 # the source tree must never be modified by a test

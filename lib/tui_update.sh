@@ -7,7 +7,8 @@
 #   tui.update.plan SRC              compare SRC with what is installed -> the plan arrays of tui_sync.sh, TUI_UPDATE_GIT (1 = TUI_ROOT is a git checkout)
 #   tui.update.apply SRC [RESOLVER]  apply: program files (not for a git checkout), config files with conflict handling,
 #                                    install.meta -> TUI_UPDATE_RESULT (lines)
-#   tui.update.cli [--check] [--yes] [--policy override|skip|new]     the same from a terminal, no TUI (`dabt update`)
+#   (channel: latest release by default; --dev / TUI_UPDATE_CHANNEL=dev = current main)
+#   tui.update.cli [--check] [--yes] [--dev] [--policy override|skip|new]     the same from a terminal, no TUI (`dabt update`)
 #   tui.version.newer A B            rc 0 when version A is newer than B (dotted numbers, 0.10.0 > 0.9.2)
 # In the app (needs the dialogs): tui.action.update_check, tui.action.update ("DABT: Check for updates" / "DABT: Update DABT" in the
 # command bar), tui.sync.resolve_ui DONE_FN (one dialog per conflict: override / skip / .new / show differences / "same for the rest").
@@ -21,8 +22,21 @@ declare -g TUI_UPDATE_REPO="${TUI_UPDATE_REPO:-DinosaursAreCute/DinosAmazingBash
 declare -g TUI_UPDATE_LATEST="" TUI_UPDATE_ERROR="" TUI_UPDATE_GIT=0 TUI_UPDATE_TIMEOUT="${TUI_UPDATE_TIMEOUT:-15}"
 declare -ga TUI_UPDATE_RESULT=()
 
-_tui_update.version_url() { printf '%s' "${TUI_UPDATE_VERSION_URL:-https://raw.githubusercontent.com/$TUI_UPDATE_REPO/$TUI_UPDATE_BRANCH/VERSION}"; }
-_tui_update.archive_url() { printf '%s' "${TUI_UPDATE_ARCHIVE_URL:-https://github.com/$TUI_UPDATE_REPO/archive/refs/heads/$TUI_UPDATE_BRANCH.tar.gz}"; }
+# CHANNEL: release (default) = the latest GitHub release (tag from the releases API); dev = the current state of TUI_UPDATE_BRANCH.
+# The *_URL overrides win over both.
+declare -g TUI_UPDATE_CHANNEL="${TUI_UPDATE_CHANNEL:-release}" TUI_UPDATE_TAG=""
+
+_tui_update.dev() { [[ "$TUI_UPDATE_CHANNEL" == dev && -z "${TUI_UPDATE_VERSION_URL:-}" ]]; }
+_tui_update.release() { [[ "$TUI_UPDATE_CHANNEL" == release && -z "${TUI_UPDATE_VERSION_URL:-}" ]]; }
+_tui_update.version_url() {
+    if _tui_update.release; then printf '%s' "https://api.github.com/repos/$TUI_UPDATE_REPO/releases/latest"
+    else printf '%s' "${TUI_UPDATE_VERSION_URL:-https://raw.githubusercontent.com/$TUI_UPDATE_REPO/$TUI_UPDATE_BRANCH/VERSION}"; fi
+}
+_tui_update.archive_url() {
+    if [[ -n "${TUI_UPDATE_ARCHIVE_URL:-}" ]]; then printf '%s' "$TUI_UPDATE_ARCHIVE_URL"
+    elif [[ -n "$TUI_UPDATE_TAG" && "$TUI_UPDATE_CHANNEL" == release ]]; then printf '%s' "https://github.com/$TUI_UPDATE_REPO/archive/refs/tags/$TUI_UPDATE_TAG.tar.gz"
+    else printf '%s' "https://github.com/$TUI_UPDATE_REPO/archive/refs/heads/$TUI_UPDATE_BRANCH.tar.gz"; fi
+}
 
 # URL DEST : rc 0 ok
 _tui_update.fetch() {
@@ -49,10 +63,16 @@ tui.update.check() {
         [[ -n "$TUI_UPDATE_ERROR" ]] || TUI_UPDATE_ERROR="could not reach $(_tui_update.version_url)"
         rm -f "$tmp"; return 2
     fi
-    read -r v < "$tmp"; rm -f "$tmp"
+    TUI_UPDATE_TAG=""
+    if _tui_update.release; then
+        v="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$tmp" | head -n1)"; rm -f "$tmp"
+        [[ -n "$v" ]] || { TUI_UPDATE_ERROR="no release found (use --dev for the main branch)"; return 2; }
+        TUI_UPDATE_TAG="$v"
+    else read -r v < "$tmp"; rm -f "$tmp"; fi
     v="${v//[[:space:]]/}"
     [[ "$v" =~ ^v?[0-9]+(\.[0-9]+)*([-+][0-9A-Za-z.]+)?$ ]] || { TUI_UPDATE_ERROR="the answer was not a version number"; return 2; }
     TUI_UPDATE_LATEST="${v#v}"
+    _tui_update.dev && return 0     # dev: always offer the current main, even at the same version
     tui.version.newer "$TUI_UPDATE_LATEST" "$TUI_VERSION"
 }
 
@@ -108,7 +128,7 @@ _tui_update.cli_resolver() {   # REL -> asks on the terminal (or uses the policy
     if [[ -n "${_TUI_UPDATE_CLI_POLICY:-}" ]]; then printf '%s' "$_TUI_UPDATE_CLI_POLICY"; return; fi
     while true; do
         printf '\nConflict: %s  (you and the release both changed it)\n  [o]verride with the new version   [s]kip (keep mine)   [n]ew: write it as %s.new   [d]iff\n> ' "$rel" "$rel" >&2
-        read -r a < "${TUI_UPDATE_TTY:-/dev/tty}" || a=n
+        read -r a <&3 || a=n
         case "$a" in
             o) printf 'override'; return ;; s) printf 'skip'; return ;; n|"") printf 'new'; return ;;
             d) diff -u "$TUI_HOME/$rel" "$(_tui_sync.config_src "$_TUI_UPDATE_CLI_SRC" "$rel")" >&2 || true ;;
@@ -118,8 +138,9 @@ _tui_update.cli_resolver() {   # REL -> asks on the terminal (or uses the policy
 
 tui.update.cli() {
     local check=0 yes=0 policy="" tmp rc
+    exec 3< "${TUI_UPDATE_TTY:-/dev/tty}" 2>/dev/null || exec 3< /dev/null
     while (( $# )); do
-        case "$1" in --check) check=1 ;; --yes|-y) yes=1 ;; --policy) policy="$2"; shift ;; esac
+        case "$1" in --check) check=1 ;; --dev) TUI_UPDATE_CHANNEL=dev ;; --release) TUI_UPDATE_CHANNEL=release ;; --yes|-y) yes=1 ;; --policy) policy="$2"; shift ;; esac
         shift
     done
     printf 'DABT %s installed. Checking %s ...\n' "$TUI_VERSION" "$(_tui_update.version_url)"
@@ -137,7 +158,7 @@ tui.update.cli() {
     printf '\nWhat would change:\n'; tui.sync.report
     (( TUI_UPDATE_GIT )) && printf '\n(%s is a git checkout: program files are not touched, use git pull.)\n' "$TUI_ROOT"
     if (( ! yes )); then
-        printf '\nApply the update? [y/N] '; local a; read -r a < "${TUI_UPDATE_TTY:-/dev/tty}"; [[ "$a" == [yY]* ]] || { echo "Nothing was changed."; return 0; }
+        printf '\nApply the update? [y/N] '; local a; read -r a <&3; [[ "$a" == [yY]* ]] || { echo "Nothing was changed."; return 0; }
     fi
     _TUI_UPDATE_CLI_SRC="$tmp/src"; _TUI_UPDATE_CLI_POLICY=""
     if (( yes )); then _TUI_UPDATE_CLI_POLICY="${policy:-new}"; elif [[ -n "$policy" ]]; then _TUI_UPDATE_CLI_POLICY="$policy"; fi

@@ -13,6 +13,7 @@ This page is the map: how the framework is put together, and where to look for w
 | Bind keys and mouse, use the command bar, footer, default pages | [guide/input-bindings.md](guide/input-bindings.md) |
 | Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
 | Write, install and manage plugins; where DABT keeps its files | [guide/plugins.md](guide/plugins.md) |
+| Install DABT, update it from GitHub, resolve conflicts | [guide/install-and-update.md](guide/install-and-update.md) |
 | Look up **any function and its parameters** | [api/reference.md](api/reference.md) (one big table) |
 | Read the API grouped by topic, with examples | [api/README.md](api/README.md) |
 | Use the renderers (box, table, charts, banner...) without the TUI | [api/renderers.md](api/renderers.md), [examples/csv-charts](../examples/csv-charts/README.md) |

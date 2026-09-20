@@ -16,6 +16,10 @@ Terse mode. Apply to all reasoning and replies in this repo:
 - Skip preamble in commit messages / PR descriptions too - lead with the change.
 - Don't re-explain framework concepts already covered below; assume this file was read.
 
+## Repository layout (what ships vs what stays in the repo)
+
+`bin/` commands (`dabt`, `DABT_demo.sh`) · `lib/` the framework · `share/` shipped data: `defaults/` (copied to `~/.config/DABT/defaults`), `plugins/` (copied to `~/.config/DABT/plugins`), `demo/`, `tui.xsd` · `docs/` `examples/` · `install.sh` `VERSION`. Repo-only: `tools/` (profiling, screenshots, generators, `tools/legacy/`) and `tests/` (bats). `TUI_ROOT` = the program folder, `TUI_HOME` = the config home (`~/.config/DABT`, see `lib/tui_home.sh`). Installer/updater: `lib/tui_sync.sh` (three-way file sync), `lib/tui_install.sh`, `lib/tui_update.sh`. Run `bats tests/` after touching them; tests mock the network and write only to tmp dirs.
+
 ## Architecture
 
 Load order (`lib/tui.sh` sources these): `terminal_controls.sh` → `colors.sh` → `tui_markup.sh` → `tui_style.sh` → `tui.sh` itself.

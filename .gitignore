@@ -9,3 +9,6 @@ tools/debug/screenshots/
 ./*.code-workspace
 
 DinosAmazingBashTui.code-workspace
+# an install in place (the checkout used as the program folder) writes etc/dabt.env
+etc/
+tools/debug/screenshots/

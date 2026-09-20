@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.0.6] - 2026-09-19
 
 ### Added
+* `dabt`: no args = help; `-d/--details` kv-rendered install info; `--demo` runs the demo. Installer TUI wizard removed.
+* Installer: `install.sh` shows the locations and asks (plain prompt, no TUI) (`--yes`, `--prefix`, `--config`, `--bindir`, `--policy`, `--dry-run`). Detects an existing install (`~/.config/DABT`, else `$DABT_HOME`).
+* Updater: "DABT: Check for updates" / "DABT: Update DABT ..." in the command bar and `dabt update`. Downloads the release from GitHub, lists every changed file, asks per conflict (override / skip / write `.new` / show differences), backs up what it replaces.
+* `bin/dabt` command: `dabt`, `dabt update`, `dabt doctor`, `dabt version`, `dabt install`.
+* `lib/tui_sync.sh`: three-way file sync (checksum manifest) used by the installer and updater.
+* bats tests (`tests/`): 73 tests for config-home detection, installer and updater; network mocked, everything in tmp dirs.
+* Defaults and shipped plugins are installed into `~/.config/DABT/defaults` and `~/.config/DABT/plugins`; the config home is found via `$TUI_HOME`, `~/.config/DABT`, `$DABT_HOME`, or `<program>/etc/dabt.env`.
+* Paths shown in the plugin UI are resolved (no `..`).
 * Plugin system (`bin/tui_plugin.sh`): drop-in `*.plugin.sh` files or folders; enable, disable, reload, install and remove at runtime; automatic cleanup of everything a plugin registered; `requires`; saved state; hooks (`init ready page resize key quit exit`). `tui.plugin.*`, `tui.hook.*`, `docs/guide/plugins.md`, example in `examples/plugins/`.
 * Built-in `terminal_shortcuts` plugin: detects the terminal, lists the keys it keeps (kitty: its real effective keymap; GNOME Terminal via gsettings; tmux root table), a guided key test for any terminal, frees them while DABT runs (kitty include + reload, gsettings, tmux) and restores them on exit or after a crash; config snippets for alacritty, wezterm, ghostty, Windows Terminal and others. Setting on the default Settings page.
 * Settings > Plugins tab: all detected plugins, details (state, source, location, file count, size, lines, functions, what it registered), a file tree and a viewer for its files.
@@ -85,6 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Demo: Keys page (live binding table, runtime rebinding) and a Debug Keyboard & mouse view that lights each key and button.
 
 ### Changed
+* Repository layout: framework moved from `bin/` to `lib/`, `config/default` -> `share/defaults`, shipped plugins -> `share/plugins`, `config/DABT_demo` -> `share/demo`, `bin/debug` and `scripts/` -> `tools/`, tests in `tests/`. The page cache and other runtime files live in the config home, not the program folder.
 * Demo Components toolbar is one `tui.fixed` grid of equal 15x1 button cells (was three weighted rows); adds the missing `.sc_purple` class to every theme.
 
 * Border ring, title tag and scrollbar now use the pane background, which removes the seam around panes.

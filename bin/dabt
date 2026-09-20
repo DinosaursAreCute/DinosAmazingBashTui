@@ -1,25 +1,96 @@
 #!/usr/bin/env bash
-# dabt - the DABT command:   dabt [demo] | update [--check] [--yes] [--policy P] | version | doctor | install | help
+# dabt - the DABT command. Without arguments it shows this help.
 # Works from an installed copy (~/.local/bin/dabt is a link to it) and from a git checkout.
 SELF="${BASH_SOURCE[0]}"
 while [[ -L "$SELF" ]]; do l="$(readlink "$SELF")"; [[ "$l" == /* ]] && SELF="$l" || SELF="$(dirname "$SELF")/$l"; done
 export TUI_ROOT="$(cd -P "$(dirname "$SELF")/.." && pwd -P)"
-cmd="${1:-demo}"; shift 2>/dev/null
-case "$cmd" in
-    demo)            exec bash "$TUI_ROOT/bin/DABT_demo.sh" "$@" ;;
-    install)         exec bash "$TUI_ROOT/install.sh" "$@" ;;
-    version|-v|--version) read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
-    update)          source "$TUI_ROOT/lib/tui.sh"; tui.update.cli "$@" ;;
-    doctor|paths)
-        source "$TUI_ROOT/lib/tui.sh"
-        cat <<INFO
-DABT $TUI_VERSION
-program        $TUI_ROOT$([[ -e "$TUI_ROOT/.git" ]] && echo '   (git checkout)')
-config home    $TUI_HOME   (found via: $TUI_HOME_SOURCE)
-installed      $([[ $TUI_INSTALLED == 1 ]] && echo yes || echo 'no - run: dabt install')
-defaults       $TUI_DEFAULTS_DIR
-plugins        $TUI_PLUGINS_DIR
-INFO
-        ;;
-    help|-h|--help|*) sed -n '2,3p' "$SELF" | sed 's/^# \?//'; [[ "$cmd" == help || "$cmd" == -h || "$cmd" == --help ]] || exit 1 ;;
+
+_help() {
+    cat <<HELP
+dabt - DinosAmazingBashTui
+
+Usage: dabt [option | command]
+
+Options:
+  -h, --help       show this help (also the default without arguments)
+  -d, --details    installed version, locations and status
+  -v, --version    print the version
+      --demo       run the demo application
+
+Commands:
+  update [--check] [--yes] [--dev] [--policy override|skip|new]   update to the latest release (--dev: current main)
+  install [install.sh options]                            install this copy (see install.sh --help)
+  doctor                                                  same as --details
+  app <command>                                           install and manage DABT applications (dabt app help)
+  clear-cache                                             delete the page cache (rebuilt on next run)
+  reinstall [--yes]                                       reinstall from the install source, overriding local file changes
+  uninstall [--yes] [--keep-config]                       remove the program, config home and the dabt command
+HELP
+}
+
+_meta() { local k v; [[ -r "$1/install.meta" ]] && while IFS='=' read -r k v; do [[ "$k" == "$2" ]] && printf '%s' "$v"; done < "$1/install.meta"; }
+
+_confirm() { (( ${yes:-0} )) && return 0; local a; read -r -p "$1 [y/N] " a; [[ "$a" == [yY]* ]]; }
+
+_clear_cache() {
+    source "$TUI_ROOT/lib/tui_home.sh"
+    if [[ -d "$TUI_HOME/cache" ]]; then rm -rf "$TUI_HOME/cache" && echo "cleared $TUI_HOME/cache"; else echo "no cache at $TUI_HOME/cache"; fi
+}
+
+_reinstall() {
+    source "$TUI_ROOT/lib/tui_home.sh"
+    local src; src="$(_meta "$TUI_HOME" source)"
+    [[ -f "$src/install.sh" ]] || src="$TUI_ROOT"
+    [[ -f "$src/install.sh" ]] || { echo "dabt: install.sh not found (looked in '$src'); reinstall from a checkout: ./install.sh" >&2; exit 1; }
+    _confirm "Reinstall DABT from $src (local changes to defaults/plugins are overridden)?" || { echo aborted; exit 1; }
+    exec bash "$src/install.sh" --yes --policy override "$@"
+}
+
+_uninstall() {
+    source "$TUI_ROOT/lib/tui_home.sh"
+    local keep_conf=0 a prefix conf targets=() l
+    for a in "$@"; do [[ "$a" == --keep-config ]] && keep_conf=1; done
+    conf="$TUI_HOME"; prefix="$(_meta "$conf" prefix)"; [[ -n "$prefix" ]] || prefix="$TUI_ROOT"
+    [[ -e "$prefix/.git" ]] && { echo "dabt: $prefix is a git checkout - not removing the program folder" >&2; prefix=""; }
+    [[ -n "$prefix" ]] && targets+=("$prefix")
+    (( keep_conf )) || targets+=("$conf")
+    for l in "$HOME/.local/bin/dabt" "$(command -v dabt 2>/dev/null)"; do
+        [[ -L "$l" ]] && { [[ "$(readlink -f "$l")" == "$(readlink -f "$TUI_ROOT/bin/dabt")" ]] && targets+=("$l"); }
+    done
+    printf 'Will remove:\n'; printf '  %s\n' "${targets[@]}"
+    _confirm "Uninstall DABT?" || { echo aborted; exit 1; }
+    for l in "${targets[@]}"; do rm -rf -- "$l" && echo "removed $l"; done
+    [[ -n "${DABT_HOME:-}${TUI_HOME_ENV:-}" ]] && echo "note: DABT_HOME is set in your environment - remove it from your shell profile"
+    echo "done. Variables live only in the running shell; open a new terminal to clear any leftovers."
+}
+
+_details() {
+    source "$TUI_ROOT/lib/tui.sh"; source "$TUI_ROOT/lib/terminal_renderer.sh"
+    local rows=(
+        "Version: $TUI_VERSION"
+        "Program: $TUI_ROOT$([[ -e "$TUI_ROOT/.git" ]] && echo ' (git checkout)')"
+        "Config home: $TUI_HOME"
+        "Found via: $TUI_HOME_SOURCE"
+        "Installed: $([[ $TUI_INSTALLED == 1 ]] && echo yes || echo 'no - run: dabt install')"
+        "Defaults: $TUI_DEFAULTS_DIR"
+        "Plugins: $TUI_PLUGINS_DIR"
+    )
+    local n; n=$(compgen -G "$TUI_PLUGINS_DIR/*.plugin.sh" 2>/dev/null | wc -l); rows+=("Plugin files: $n")
+    [[ -r "$TUI_HOME/install.meta" ]] && while IFS='=' read -r k v; do [[ -n "$k" && "$k" != \#* ]] && rows+=("meta $k: $v"); done < "$TUI_HOME/install.meta"
+    kv "${rows[@]}"
+}
+
+case "${1:-}" in
+    "")                     _help ;;
+    -h|--help|help)         _help ;;
+    --demo|demo)            shift; exec bash "$TUI_ROOT/bin/DABT_demo.sh" "$@" ;;
+    -d|--details|doctor|paths) _details ;;
+    -v|--version|version)   read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
+    install)                shift; exec bash "$TUI_ROOT/install.sh" "$@" ;;
+    app)                    shift; source "$TUI_ROOT/lib/tui_apps.sh"; tui.apps.cli "$@"; exit $? ;;
+    clear-cache|--clear-cache) _clear_cache ;;
+    reinstall|--reinstall)  shift; yes=0; [[ "${1:-}" == --yes || "${1:-}" == -y ]] && { yes=1; shift; }; _reinstall "$@" ;;
+    uninstall|--uninstall)  shift; yes=0; for a in "$@"; do [[ "$a" == --yes || "$a" == -y ]] && yes=1; done; _uninstall "$@" ;;
+    update)              shift; source "$TUI_ROOT/lib/tui.sh"; tui.update.cli "$@" ;;
+    *)                      echo "dabt: unknown option '$1'" >&2; _help >&2; exit 1 ;;
 esac

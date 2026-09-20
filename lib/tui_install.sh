@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tui_install.sh - installing DABT: copy the program to a PREFIX and the defaults/plugins into the DABT config home.
-# No TUI in here (the wizard in share/installer and `install.sh --yes` both call tui.install.run), no network.
+# No TUI in here (`install.sh` calls tui.install.run), no network.
 #
 #   ~/.local/share/dabt/           PREFIX  the program: lib/ bin/ share/ docs/ examples/ VERSION ...   (replaced by updates)
 #   ~/.config/DABT/                CONFIG  what you edit: defaults/ plugins/ apps/ manifest install.meta backups/

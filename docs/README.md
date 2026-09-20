@@ -7,6 +7,9 @@ This page is the map: how the framework is put together, and where to look for w
 
 | I want to... | Read |
 |---|---|
+| **New here?** Build a working app step by step | [tutorials/writing-your-first-app.md](tutorials/writing-your-first-app.md) |
+| **New here?** Write a plugin step by step | [tutorials/writing-your-first-plugin.md](tutorials/writing-your-first-plugin.md) |
+| Structure, package and ship an application (technical guide) | [guide/writing-an-app.md](guide/writing-an-app.md) |
 | Build a page from XML (panes, grids, tabs, includes, themes) | [guide/markup.md](guide/markup.md) |
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
@@ -101,7 +104,7 @@ my_app/
 | `TUI_APP_NAME` | `dabt` | The application's id (set BEFORE sourcing `tui.sh`): its files live in `~/.config/DABT/apps/$TUI_APP_NAME/` (`dabt.conf`, `keybinds.xml`, `settings.conf`, `app.meta`). |
 | `TUI_HOME` | `~/.config/DABT` | DABT's home. Plugins you install go in `$TUI_HOME/plugins` (`TUI_PLUGINS_DIR`). |
 | `TUI_DEFAULTS_DIR` | `share/defaults` | Where default keybinds, commands, theme and shipped pages are read from. |
-| `TUI_THEMES_DIR` | `<app dir>/themes` | Themes offered by Settings and the palette. |
+| `TUI_THEMES_DIR` | `<app dir>/themes` | Themes offered by Settings and the palette (falls back to the shipped `share/defaults/themes`; the palette always lists those too). |
 | `TUI_USER_KEYBINDS` | `$TUI_APP_CONF/keybinds.xml` | Saved user keybinds file. |
 | `TUI_CONFIG_FILE` | `$TUI_APP_CONF/dabt.conf` | Persisted framework settings. |
 | `TUI_FOOTER_DEFAULT` | quit, command bar, back | Default `<footer/>` items. |

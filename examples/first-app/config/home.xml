@@ -1,0 +1,23 @@
+<tui on_visit="tasks_visit">
+  <script src="home_callbacks.sh"/>
+  <theme src="theme.css"/>
+  <footer items="@tui.action.quit"/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="head" weight="20" title="Tasks" border="single" class="panel" hpad="1"/>
+    <pane id="body" split="h" weight="80" border="none">
+      <pane id="add"   weight="38" title="New task" border="single" class="panel" hpad="1"/>
+      <pane id="tasks" weight="62" title="Your tasks" border="single" class="panel" hpad="1" scroll="v"/>
+    </pane>
+  </pane>
+
+  <label id="lbl_title" pane="head" row="0" text="My tasks" class="brand"/>
+  <label id="lbl_count" pane="head" row="1" text="" class="muted_label"/>
+
+  <input  id="inp_task"   pane="add" row="0" label="Task:" label_width="7" placeholder="what needs doing?" submit="on_add"/>
+  <button id="btn_add"    pane="add" row="2" text="[ Add ]"            action="on_add"    class="success_button" align="fill"/>
+  <button id="btn_done"   pane="add" row="4" text="[ Remove done ]"    action="on_remove" class="info_button"    align="fill"/>
+  <button id="btn_clear"  pane="add" row="5" text="[ Clear all ]"      action="on_clear"  class="danger_button"  align="fill"/>
+
+  <!-- one checkbox per task is built by _tasks_show (tui.factory.checkbox) -->
+</tui>

@@ -1,0 +1,8 @@
+# DABT application metadata - read by `dabt app install`
+name        = tasks
+title       = Tasks
+description = A tiny to-do list: the app built in "Writing Your First App"
+author      = you
+version     = 0.1.0
+entry       = tasks.sh
+own_dir     = yes

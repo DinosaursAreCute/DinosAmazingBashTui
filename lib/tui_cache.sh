@@ -106,7 +106,10 @@ _tui_cache_source() {
 # fresh dynamic content on every visit - the function body itself runs live,
 # never from a cache.
 _tui_cache_run_on_visit() {
+    # not recorded: widgets an on_visit builds are rebuilt by it on every visit, so recording them would replay stale copies
+    local rec=$_TUI_CACHE_RECORDING; _TUI_CACHE_RECORDING=0
     [[ -n "$1" ]] && "$1"
+    _TUI_CACHE_RECORDING=$rec
     return 0        # no on_visit is not a load failure (tui.start treats rc != 0 as one)
 }
 
@@ -516,6 +519,7 @@ tui.start_cached() {
     dir="$(cd "$(dirname "$file")" && pwd)"
     _TUI_APP_DIR="$dir"
     [[ -z "${TUI_THEMES_DIR:-}" && -d "$dir/themes" ]] && TUI_THEMES_DIR="$dir/themes"
+    [[ -z "${TUI_THEMES_DIR:-}" && -d "$TUI_DEFAULTS_DIR/themes" ]] && TUI_THEMES_DIR="$TUI_DEFAULTS_DIR/themes"
     local -a pages=()
     while IFS= read -r f; do
         [[ "$(basename "$f")" == _* ]] && continue

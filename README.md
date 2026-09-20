@@ -225,6 +225,9 @@ Start at **[docs/README.md](docs/README.md)** for the architecture overview and 
 |---|---|
 | [API reference](docs/api/reference.md) | every function and parameter in one table |
 | [API tour](docs/api/README.md) | by task, with examples |
+| [**Writing Your First App**](docs/tutorials/writing-your-first-app.md) | step-by-step tutorial for complete beginners |
+| [**Writing Your First Plugin**](docs/tutorials/writing-your-first-plugin.md) | step-by-step tutorial: commands, keys, timers, settings |
+| [Writing an app](docs/guide/writing-an-app.md) | technical guide: lifecycle, state, packaging, pitfalls |
 | [Markup](docs/guide/markup.md) | XML page format: panes, grids, tabs, includes, themes |
 | [Widgets](docs/guide/widgets.md) | text editing, lists, tables, select, progress |
 | [Plugins](docs/guide/plugins.md) | writing and managing plugins, hooks |

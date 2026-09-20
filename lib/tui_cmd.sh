@@ -322,14 +322,20 @@ _tui_cmd.provide_pages() {
     done
 }
 
-# every *.css in TUI_THEMES_DIR (default: <current page dir>/themes) is a selectable theme overlay
+
+# selectable theme overlays: every *.css in the shipped $TUI_DEFAULTS_DIR/themes, plus the app's TUI_THEMES_DIR
+# (default: <app dir>/themes); an app theme with the same name wins
 _tui_cmd.provide_themes() {
-    local dir="${TUI_THEMES_DIR:-${_TUI_APP_DIR:-${_TUI_MARKUP_FILE%/*}}/themes}" f name cur mark
-    [[ -d "$dir" ]] || return 0
+    local appdir="${TUI_THEMES_DIR:-${_TUI_APP_DIR:-${_TUI_MARKUP_FILE%/*}}/themes}" dir f name cur mark
+    local -A files=()
+    for dir in "$TUI_DEFAULTS_DIR/themes" "$appdir"; do
+        [[ -d "$dir" ]] || continue
+        for f in "$dir"/*.css; do [[ -e "$f" ]] && files[${f##*/}]="$f"; done
+    done
+    (( ${#files[@]} )) || return 0
     cur="${_TUI_THEME_OVERLAY:-}"
     tui.cmd.add theme:default "Theme: page default" "tui.theme.clear" --group Themes --desc "Remove the theme overlay"
-    for f in "$dir"/*.css; do
-        [[ -e "$f" ]] || continue
+    for f in "${files[@]}"; do
         name="${f##*/}"; name="${name%.css}"
         mark=""; [[ "$cur" == "$f" ]] && mark="  (active)"
         tui.cmd.add "theme:$name" "Theme: ${name^}$mark" "tui.theme.set $f" --group Themes --desc "Apply $name to every page"

@@ -1,0 +1,20 @@
+/* theme.css - a class is a name a widget opts into with class="..."; :hover / :focus are its states. */
+.panel        { fg: white; }
+.panel:focus  { fg: #ffffff; bg: #2c3e50; }
+.brand        { fg: #ff8cbf; mods: bold; }
+.muted_label  { fg: #888888; }
+
+.success_button        { fg: black; bg: #33cc66; mods: bold; }
+.success_button:hover  { fg: black; bg: #4ade80; mods: bold; }
+.success_button:focus  { fg: black; bg: #66ff99; mods: bold; }
+.info_button           { fg: black; bg: #a8d8ff; mods: bold; }
+.info_button:hover     { fg: black; bg: #c4e4ff; mods: bold; }
+.info_button:focus     { fg: black; bg: #ffffff; mods: bold; }
+.danger_button         { fg: white; bg: #b00020; mods: bold; }
+.danger_button:hover   { fg: white; bg: #d4002a; mods: bold; }
+.danger_button:focus   { fg: white; bg: #ff3333; mods: bold; }
+
+/* task checkboxes: open = bright white, done = grey + strike-through */
+.task            { fg: #ffffff; mods: bold; }
+.task:unchecked  { fg: #ffffff; mods: bold; }
+.task:checked    { fg: #808080; mods: strike; }

@@ -262,6 +262,9 @@ tui.load() {
     _TUI_MARKUP_ON_VISIT=""
     _tui_path_canon "$file"; _TUI_MARKUP_FILE="$_CANON"; _TUI_MARKUP_DIR="${_CANON%/*}"
 
+    # framework default theme first: every app gets the shared classes; its own <theme> tags override
+    [[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css"
+
     local -a stack_id=() stack_dir=()
     local raw_line line tag closing selfclose
 
@@ -689,6 +692,7 @@ tui.start() {
     local file="$1"
     _TUI_APP_DIR="$(cd "$(dirname "$file")" 2>/dev/null && pwd)"
     [[ -z "${TUI_THEMES_DIR:-}" && -d "$_TUI_APP_DIR/themes" ]] && TUI_THEMES_DIR="$_TUI_APP_DIR/themes"
+    [[ -z "${TUI_THEMES_DIR:-}" && -d "$TUI_DEFAULTS_DIR/themes" ]] && TUI_THEMES_DIR="$TUI_DEFAULTS_DIR/themes"
     [[ -r "$file" ]] || { echo "tui.start: cannot read '$file'" >&2; return 1; }
 
     tui.init

@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 DABT is now also an application manager: install, update and uninstall apps, with a security scan in front of every install.
 
 ### Added
+* Docs: tutorials `docs/tutorials/writing-your-first-app.md` and `writing-your-first-plugin.md` (colored block-font headers, runnable examples `examples/first-app/` and `examples/plugins/stretch.plugin.sh`), technical guide `docs/guide/writing-an-app.md`. Header generators: `tools/gen_header.sh "TEXT"`, `tools/gen_headers.sh`, `tools/gen_tutorial_headers.sh`.
+* Settings > Plugins: **[ Scan ]** button and menu entry scan the selected plugin and show the result in a modal. `dabt update` and the installer scan the incoming files (spinner, `--force`, `--no-scan`).
+* Logo and README section-header SVGs in the block5 font (`assets/`).
 * `dabt scan PATH... [--deep] [--strict]` (`lib/tui_scan.sh`): security scan for shell scripts. Built-in grep rules (HIGH / WARN: pipe-to-shell, reverse shells, `rm -rf /`, setuid, secrets, persistence ...) need no dependencies; ShellCheck is used when on PATH, Semgrep with `--deep`. `dabt scan --tools`, `dabt scan --install shellcheck|semgrep` (shows the command, asks first).
 * `dabt app install|list|info|run|update|remove` (`lib/tui_apps.sh`): apps are folders with a `.dabt.metadata` file, installed from a folder or git URL, tracked in `apps.list`, settings kept on remove unless `--purge`. Installs are scanned first (`--strict` refuses on HIGH findings, `--no-scan` skips).
 * App hooks: `install_hook` / `uninstall_hook` in `.dabt.metadata`, run after install / update and before remove (`DABT_HOOK`, `DABT_APP_NAME`, `DABT_APP_DIR`, `DABT_APP_CONF`, `DABT_APP_VERSION`).

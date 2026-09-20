@@ -16,7 +16,7 @@ The same widgets exist as calls: `tui.textarea ID PANE ROW [PLACEHOLDER] [ROWS] 
 
 ## Editing text (input, password, textarea)
 
-All three share one engine ([../../lib/tui_text.sh](../../lib/tui_text.sh)). The text is `tui.get ID`; a textarea separates lines with `\n`.
+All three share one engine ([../../lib/tui_text.sh](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/lib/tui_text.sh)). The text is `tui.get ID`; a textarea separates lines with `\n`.
 
 | Do | Keys / mouse |
 |---|---|

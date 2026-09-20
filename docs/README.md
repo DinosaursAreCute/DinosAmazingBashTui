@@ -1,3 +1,8 @@
+---
+permalink: /
+description: Documentation for D.A.B.T, a pure bash TUI framework - tutorials, markup guide, widgets, plugins and full API reference.
+---
+
 # D.A.B.T documentation
 
 DinosAmazingBashTui is a terminal UI framework in **pure bash** (5.0+) plus POSIX utilities and `awk`. No Python, Node or ncurses.
@@ -19,12 +24,14 @@ This page is the map: how the framework is put together, and where to look for w
 | Install DABT, update it from GitHub, resolve conflicts | [guide/install-and-update.md](guide/install-and-update.md) |
 | Look up **any function and its parameters** | [api/reference.md](api/reference.md) (one big table) |
 | Read the API grouped by topic, with examples | [api/README.md](api/README.md) |
-| Use the renderers (box, table, charts, banner...) without the TUI | [api/renderers.md](api/renderers.md), [examples/csv-charts](../examples/csv-charts/README.md) |
+| Use the renderers (box, table, charts, banner...) without the TUI | [api/renderers.md](api/renderers.md), [examples/csv-charts](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/csv-charts/README.md) |
 | Know why scrolling / hover / caching are built the way they are | [design/](#design-write-ups) |
-| See what changed | [../CHANGELOG.md](../CHANGELOG.md) |
-| Profile or screenshot the demo | [../tools/debug/README.md](../tools/debug/README.md) |
+| See what changed | [../CHANGELOG.md](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/CHANGELOG.md) |
+| Profile or screenshot the demo | [../tools/debug/README.md](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/tools/debug/README.md) |
 
 Fastest start: copy `share/demo/home.xml` + `bin/DABT_demo.sh`, then read [guide/markup.md](guide/markup.md).
+
+Real-world example app: [DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer).
 
 ## High-level architecture
 
@@ -126,4 +133,4 @@ Long-form explanations of the non-obvious performance decisions. Read them befor
 
 ## Debugging and tooling
 
-`tools/debug/` holds the profiling and screenshot tools (page-switch timings, per-call fork counts, full profile, PNG screenshots of every page and theme); see [../tools/debug/README.md](../tools/debug/README.md). `.tui_exec.log` is the runtime debug log written by `tui.log*`.
+`tools/debug/` holds the profiling and screenshot tools (page-switch timings, per-call fork counts, full profile, PNG screenshots of every page and theme); see [../tools/debug/README.md](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/tools/debug/README.md). `.tui_exec.log` is the runtime debug log written by `tui.log*`.

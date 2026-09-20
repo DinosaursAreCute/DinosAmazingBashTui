@@ -27,7 +27,7 @@ Three kinds of files, three responsibilities - keep them apart:
 | `*_callbacks.sh` | logic: read widgets, change data, update widgets | build layout, call `_tui.*` internals |
 | `theme.css` | appearance | be required (an unstyled class renders plain) |
 
-A complete tiny app: [`examples/first-app/`](../../examples/first-app/). A large one: [`share/demo/`](../../share/demo/).
+A complete tiny app: [`examples/first-app/`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/first-app/). A large one: [`share/demo/`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/demo/).
 
 ## The entry script
 
@@ -200,7 +200,7 @@ Install flags: `--strict` refuses on HIGH scan findings, `--no-scan` skips the s
 
 ## Testing
 
-TUI behaviour has to be seen in a real terminal ([`run` skill](../../CLAUDE.md), `bash bin/DABT_demo.sh`). For automation, run under a pseudo-terminal with a fixed size and a sandboxed home, so tests never touch real settings:
+TUI behaviour has to be seen in a real terminal ([`run` skill](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/CLAUDE.md), `bash bin/DABT_demo.sh`). For automation, run under a pseudo-terminal with a fixed size and a sandboxed home, so tests never touch real settings:
 
 ```bash
 H=$(mktemp -d)

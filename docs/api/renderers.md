@@ -35,4 +35,4 @@ Each renderer has a `_build` (fills `TR_RESULT`, private), a printing form and a
 
 **Fixed-size charts:** every chart takes `-m/-n` (pin the scale instead of scaling to the current data) and a sizing flag so a live chart never resizes between refreshes; `linechart`/`sparkline` resample history to fit `-w` exactly. For a chart that fills a pane compute the size once from `tui.get.dimensions --content PANE`. `share/demo/monitor_callbacks.sh` drives all four live.
 
-More: [CSV chart examples](../../examples/csv-charts/README.md) · everything in one table: [reference.md](reference.md#renderers) · the raw escape helpers underneath: [terminal-controls.md](terminal-controls.md).
+More: [CSV chart examples](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/csv-charts/README.md) · everything in one table: [reference.md](reference.md#renderers) · the raw escape helpers underneath: [terminal-controls.md](terminal-controls.md).

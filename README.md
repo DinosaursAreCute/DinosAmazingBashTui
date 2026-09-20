@@ -2,14 +2,15 @@
 
 <img src="assets/logo-transparent.png" alt="D.A.B.T - DinosAmazingBashTui" width="720">
 
-**A declarative terminal UI framework and application manager.**
-Build TUIs in XML + bash, then install, update, uninstall and security-scan them with one `dabt` command.
-Pure bash + POSIX utilities. No Python, no Node, no ncurses.
+**A TUI framework for bash: build terminal UIs in pure bash, no ncurses required.**
+Declarative XML pages + CSS-like themes + bash callbacks, with mouse support, live process panes and a built-in app manager (`dabt`) to install, update and security-scan apps.
+Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency ncurses alternative for shell scripts.
 
 [![Release](https://img.shields.io/github/v/release/DinosaursAreCute/DinosAmazingBashTui?include_prereleases&style=for-the-badge&color=2ea043&label=release)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases)
 [![Bash 5+](https://img.shields.io/badge/bash-5.0%2B-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)](#requirements)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-blue?style=for-the-badge)](#requirements)
 [![Tests](https://img.shields.io/badge/tests-bats-orange?style=for-the-badge)](tests/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE)
 
 [![Last commit](https://img.shields.io/github/last-commit/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/commits/main)
 [![Stars](https://img.shields.io/github/stars/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/stargazers)
@@ -27,7 +28,7 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses.
 
 <h2 id="what-is-this"><img src="assets/headers/what-is-this.svg" alt="What is this?" height="35"></h2>
 
-D.A.B.T is two things in one.
+D.A.B.T (DinosAmazingBashTui) is a bash TUI framework and application manager in one.
 
 **An application manager.** `dabt` installs apps built on it from a folder or git URL, updates them, uninstalls them (settings kept unless you `--purge`), runs install / uninstall hooks, and security-scans every app and plugin before it is installed. It also updates and uninstalls itself. See [The `dabt` command](#the-dabt-command) and [Security scan](#security-scan).
 
@@ -229,7 +230,7 @@ Switch the whole app from Settings; themes live in `share/demo/themes/*.css`.
 
 <h2 id="documentation"><img src="assets/headers/documentation.svg" alt="Documentation" height="35"></h2>
 
-Start at **[docs/README.md](docs/README.md)** for the architecture overview and a map of everything below.
+Browse the [documentation site](https://dinosaursarecute.github.io/DinosAmazingBashTui/) or start at **[docs/README.md](docs/README.md)** for the architecture overview and a map of everything below.
 
 | | |
 |---|---|
@@ -281,6 +282,10 @@ tests/                                 repo only: bats tests (bats tests/)
 
 That's the whole list.
 
+<h2 id="apps-built-with-dabt"><img src="assets/headers/features.svg" alt="Apps built with D.A.B.T" height="35"></h2>
+
+- **[DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer)**: browse folders and preview files in the terminal. Install with `dabt app install https://github.com/DinosaursAreCute/DabtFileExplorer`.
+
 <h2 id="going-beyond-the-demo"><img src="assets/headers/going-beyond-the-demo.svg" alt="Going beyond the demo" height="35"></h2>
 
 Write your own pages (see `share/demo/` for a complete app) and link to them with `page="yourpage.xml"` on a button. Callbacks are plain bash functions: source them with `<script>` and reference them by name in `action="…"` or `submit="…"`.
@@ -297,6 +302,10 @@ The process runs in a real PTY. Pipe stdin to it, cancel it, save its output, or
 <h2 id="contributing"><img src="assets/headers/contributing.svg" alt="Contributing" height="35"></h2>
 
 Issues and pull requests are welcome. Run `bats tests/` before submitting; tests mock the network and only write to tmp dirs. Release notes are in the [changelog](CHANGELOG.md).
+
+<h2 id="license"><img src="assets/headers/contributing.svg" alt="License" height="35"></h2>
+
+[MIT](LICENSE): free to use, modify and redistribute for any purpose, no warranty, no liability.
 
 ---
 

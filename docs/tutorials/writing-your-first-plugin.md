@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="../../assets/logo-transparent.png" alt="D.A.B.T" width="420">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" alt="D.A.B.T" width="420">
 
 <h1><img src="img/plugin-title.svg" alt="Writing Your First Plugin" height="30"></h1>
 
@@ -14,7 +14,7 @@ A **Stretch reminder**: every 30 minutes a message pops up telling you to stand 
 
 The best part: **it works in every DABT app** - the demo, the File Explorer, the app you wrote in [Writing Your First App](writing-your-first-app.md) - without touching any of them. That is what a plugin is.
 
-The finished file is [`examples/plugins/stretch.plugin.sh`](../../examples/plugins/stretch.plugin.sh).
+The finished file is [`examples/plugins/stretch.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/plugins/stretch.plugin.sh).
 
 <h2 id="the-big-ideas"><img src="img/plugin-ideas.svg" alt="The big ideas" height="30"></h2>
 
@@ -231,6 +231,6 @@ plugin.stretch.on_disable() { ... }     # optional; registrations are undone aut
 
 - **Hooks:** `tui.hook.on page my_fn` runs `my_fn FILE` after every page switch; also `init`, `ready`, `resize`, `key`, `quit`, `exit`. A `key` hook that returns 0 *consumes* the key. Full list: [../guide/plugins.md](../guide/plugins.md#hooks).
 - **A plugin with files:** make a folder `NAME/plugin.sh` and keep assets next to it (find them with `tui.plugin.dir NAME`).
-- **Read real ones:** [`examples/plugins/hello.plugin.sh`](../../examples/plugins/hello.plugin.sh) (the smallest possible) and [`share/plugins/terminal_shortcuts.plugin.sh`](../../share/plugins/terminal_shortcuts.plugin.sh).
+- **Read real ones:** [`examples/plugins/hello.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/plugins/hello.plugin.sh) (the smallest possible) and [`share/plugins/terminal_shortcuts.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/plugins/terminal_shortcuts.plugin.sh).
 - **Write your own app:** [Writing Your First App](writing-your-first-app.md), and the technical guide [../guide/writing-an-app.md](../guide/writing-an-app.md).
 - **Every function:** [../api/reference.md](../api/reference.md#plugins-and-hooks).

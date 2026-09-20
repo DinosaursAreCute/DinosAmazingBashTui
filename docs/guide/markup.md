@@ -9,7 +9,7 @@ available anywhere `tui.sh` is sourced.
 
 ## Editor autocompletion
 
-[share/tui.xsd](../../share/tui.xsd) describes the tag/attribute set for
+[share/tui.xsd](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/tui.xsd) describes the tag/attribute set for
 editors that support XSD-based XML autocompletion and validation (e.g. the
 Red Hat XML extension in VS Code). It's purely an editing aid - the loader
 doesn't read or enforce it. Reference it from a page's root tag:

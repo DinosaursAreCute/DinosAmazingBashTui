@@ -1,6 +1,6 @@
 # Plugins
 
-A plugin is a bash file that adds commands, keys, hooks, timers or overlays to any DABT application, and can be listed, enabled, disabled, reloaded, installed and removed while the app runs (Settings > Plugins, the command bar, or `tui.plugin.*`). API table: [../api/reference.md](../api/reference.md#plugins-and-hooks). Source: [../../lib/tui_plugin.sh](../../lib/tui_plugin.sh).
+A plugin is a bash file that adds commands, keys, hooks, timers or overlays to any DABT application, and can be listed, enabled, disabled, reloaded, installed and removed while the app runs (Settings > Plugins, the command bar, or `tui.plugin.*`). API table: [../api/reference.md](../api/reference.md#plugins-and-hooks). Source: [../../lib/tui_plugin.sh](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/lib/tui_plugin.sh).
 
 ## Where things live
 
@@ -44,7 +44,7 @@ hello_say() { tui.notify "Hello!" success; }
 
 The file is only **sourced** when the plugin is enabled, so a disabled plugin costs nothing. Whatever `on_enable` registers with `tui.cmd.add`, `tui.cmd.provider`, `tui.bind`, `tui.hook.on`, `tui.every` / `tui.after`, `tui.tick.add` and `tui.overlay.add` is remembered and **undone automatically** when the plugin is disabled; for anything else use `tui.plugin.own run 'command to undo it'`. A plugin's commands show `plugin: NAME` in the command bar. Save a plugin's own settings with `tui.plugin.config NAME KEY VALUE` (stored as `plugin.NAME.KEY` in `dabt.conf`). Plugins are trusted code: they run in the app's shell.
 
-An example is in [../../examples/plugins/hello.plugin.sh](../../examples/plugins/hello.plugin.sh); a real one is [../../share/plugins/terminal_shortcuts.plugin.sh](../../share/plugins/terminal_shortcuts.plugin.sh).
+An example is in [../../examples/plugins/hello.plugin.sh](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/plugins/hello.plugin.sh); a real one is [../../share/plugins/terminal_shortcuts.plugin.sh](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/plugins/terminal_shortcuts.plugin.sh).
 
 ## Hooks
 

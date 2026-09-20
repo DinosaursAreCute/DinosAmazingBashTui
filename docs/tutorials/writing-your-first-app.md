@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="../../assets/logo-transparent.png" alt="D.A.B.T" width="420">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" alt="D.A.B.T" width="420">
 
 <h1><img src="img/app-title.svg" alt="Writing Your First App" height="30"></h1>
 
@@ -27,7 +27,7 @@ A small **to-do list that runs inside your terminal**: type a task, press Enter,
 └──────────────────────────┘└───────────────────────────────┘
 ```
 
-The finished app is in [`examples/first-app/`](../../examples/first-app/) - open it next to this page if you want to compare.
+The finished app is in [`examples/first-app/`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/first-app/) - open it next to this page if you want to compare.
 
 You need: **bash 5+**, and DABT either installed (`dabt --version` works) or as a checkout of this repository. That is all - no Python, no Node, no libraries.
 
@@ -338,4 +338,4 @@ The whole loop of a DABT app: **the user does something → DABT calls your func
 - **Keys and the command bar:** `tui.bind ctrl+e on_export`, `tui.cmd.add` (the `ctrl+p` palette).
 - **Extend any app with a plugin:** [Writing Your First Plugin](writing-your-first-plugin.md).
 - **The technical guide** (lifecycle, rules, pitfalls, packaging): [../guide/writing-an-app.md](../guide/writing-an-app.md).
-- **Every function:** [../api/reference.md](../api/reference.md). **Every tag:** [../guide/markup.md](../guide/markup.md). **The demo app to read:** [`share/demo/`](../../share/demo/).
+- **Every function:** [../api/reference.md](../api/reference.md). **Every tag:** [../guide/markup.md](../guide/markup.md). **The demo app to read:** [`share/demo/`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/demo/).

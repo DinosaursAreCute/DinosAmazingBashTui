@@ -63,6 +63,16 @@ tui.start "share/demo/home.xml"
 
 <h2 id="quick-start"><img src="assets/headers/quick-start.svg" alt="Quick start" height="35"></h2>
 
+**Install** (downloads the repo and installs it, no clone needed):
+
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/install.sh | bash
+# pass options after -s --:  ... | bash -s -- --yes --prefix ~/apps/dabt
+```
+
+**Or from a checkout** (to hack on it or try the demo first):
+
 ```bash
 git clone https://github.com/DinosaursAreCute/DinosAmazingBashTui.git
 cd DinosAmazingBashTui

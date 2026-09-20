@@ -14,6 +14,23 @@
 # An existing DABT is detected: ~/.config/DABT if it exists, otherwise the folder $DABT_HOME points to. Then this is an UPDATE:
 # files you changed are never overwritten silently (see docs/guide/install-and-update.md).
 SRC="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# Bootstrap: run standalone (curl ... | bash) there is no checkout next to this script, so fetch the repo archive and run its install.sh.
+#   DABT_REF=<branch|tag> picks what to download (default main); DABT_REPO overrides owner/name.
+if [[ ! -f "$SRC/lib/tui_sync.sh" ]]; then
+    case "${1:-}" in -h|--help) sed -n '2,16p' "${BASH_SOURCE[0]:-$0}" 2>/dev/null | sed 's/^# \?//'; exit 0 ;; esac
+    repo="${DABT_REPO:-DinosaursAreCute/DinosAmazingBashTui}"; ref="${DABT_REF:-main}"
+    url="https://github.com/$repo/archive/refs/heads/$ref.tar.gz"; [[ "$ref" == v[0-9]* ]] && url="https://github.com/$repo/archive/refs/tags/$ref.tar.gz"
+    command -v tar >/dev/null 2>&1 || { echo "install.sh: tar is required" >&2; exit 2; }
+    tmp="$(mktemp -d)" || exit 2; trap 'rm -rf "$tmp"' EXIT
+    echo "Downloading DABT ($repo@$ref)..."
+    if command -v curl >/dev/null 2>&1; then curl -fsSL -o "$tmp/dabt.tar.gz" "$url"
+    elif command -v wget >/dev/null 2>&1; then wget -q -O "$tmp/dabt.tar.gz" "$url"
+    else echo "install.sh: curl or wget is required" >&2; exit 2; fi || { echo "install.sh: download failed ($url)" >&2; exit 2; }
+    mkdir "$tmp/src" && tar -xzf "$tmp/dabt.tar.gz" -C "$tmp/src" --strip-components=1 || { echo "install.sh: bad archive" >&2; exit 2; }
+    # stdin is the pipe here: hand the terminal back so the prompts work
+    if [[ ! -t 0 && -r /dev/tty ]]; then bash "$tmp/src/install.sh" "$@" </dev/tty; else bash "$tmp/src/install.sh" "$@"; fi
+    exit $?
+fi
 yes=0; dry=0; link=1; noscan=0; force=0; policy=""; prefix=""; conf=""; bindir=""
 while (( $# )); do
     case "$1" in

@@ -588,7 +588,10 @@ _tui_cache_relayout() { _tui._root_h; _tui._layout root; }      # _root_h: leave
 
 # tui.reset_ui - wipe all panes/widgets and rebuild a full-screen root pane.
 tui.reset_ui() {
-    local _pc
+    local _pc _ei
+    # exec instances die with their page: their panes/widgets are wiped below
+    for _ei in "${!_EXEC_STATUS[@]}"; do _exec_dismiss_instance "$_ei"; done
+    _EXEC_PANE_CTL_ROW=()
     for _pc in "${!_TUI_PANE_CONTENT[@]}"; do unset "_TUI_PANE_CONTENT_${_pc}"; done
     _TUI_PANE_CONTENT=()
     _TUI_P_ROW=(); _TUI_P_COL=(); _TUI_P_H=(); _TUI_P_W=()

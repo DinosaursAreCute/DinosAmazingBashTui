@@ -1513,6 +1513,10 @@ _tui._draw_widget() {
     _tui._widget_pos "$id"
     local sr=$_WSR sc=$_WSC sw=$_WSW
 
+    # clip: a row outside the pane's content area would spill over the border / neighbouring panes
+    _tui._content_rect "${_TUI_W_PANE[$id]}"
+    (( sr < _CR_R || sr >= _CR_R + _CR_H )) && return
+
     local minw="${_TUI_W_MINW[$id]:-0}"
     if (( minw > 0 && _WSW_AVAIL < minw )); then
         cur.goto "$sr" "$sc"
@@ -2561,8 +2565,14 @@ _exec_render_status() {
     local stat_id="${_EXEC_STAT_WIDGET[$iid]}"
     local cmd="${_EXEC_CMD[$iid]}"
     _tui._widget_pos "$stat_id"
-    (( ${#cmd} > _WSW - 2 )) && cmd="${cmd:0:$((_WSW - 5))}..."
-    tui.set "$stat_id" "$ ${cmd}  -  ${icon}"
+    local suffix="  -  ${icon}" room
+    room=$(( _WSW - 2 - ${#suffix} ))
+    if (( room < 4 )); then          # too narrow for both: status wins
+        cmd=""; suffix="${icon}"
+    elif (( ${#cmd} > room )); then
+        cmd="${cmd:0:$((room - 3))}..."
+    fi
+    tui.set "$stat_id" "$ ${cmd}${suffix}"
 
     (( _TUI_RUNNING )) && _tui._draw_widgets_now "$stat_id"
 }

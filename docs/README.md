@@ -1,8 +1,3 @@
----
-permalink: 
-description: Documentation for D.A.B.T, a pure bash TUI framework - tutorials, markup guide, widgets, plugins and full API reference.
----
-
 # D.A.B.T documentation
 
 DinosAmazingBashTui is a terminal UI framework in **pure bash** (5.0+) plus POSIX utilities and `awk`. No Python, Node or ncurses.
@@ -35,16 +30,31 @@ Real-world example app: [DABT File Explorer](https://github.com/DinosaursAreCute
 
 ## High-level architecture
 
-```
- your app                       framework                                   terminal
- ────────                       ─────────                                   ────────
- page.xml  ──tui.load/goto──▶  tui_markup.sh  ──tui.* builder calls──▶  tui.sh  ──ANSI──▶  tty
- page_callbacks.sh ◀─actions──  (parser, page cache)                     (state, layout,
- theme.css ──────────────────▶  tui_style.sh (class → colours)            input, render loop)
-                                tui_input.sh / tui_cmd.sh / tui_modal.sh / tui_footer.sh
-                                tui_api.sh (public helpers: getters, timers, clocks, monitors)
-                                terminal_renderer.sh (box, table, charts... standalone)
-                                terminal_controls.sh + colors.sh (raw ANSI, no state)
+```mermaid
+flowchart LR
+  subgraph app["your app"]
+    page["page.xml"]
+    cb["page_callbacks.sh"]
+    css["theme.css"]
+  end
+  subgraph fw["framework"]
+    markup["tui_markup.sh<br/>parser, page cache"]
+    style["tui_style.sh<br/>class to colours"]
+    core["tui.sh<br/>state, layout, input, render loop"]
+    helpers["tui_input.sh / tui_cmd.sh / tui_modal.sh / tui_footer.sh<br/>tui_api.sh: getters, timers, clocks, monitors"]
+    rend["terminal_renderer.sh<br/>box, table, charts (standalone)"]
+    ctl["terminal_controls.sh + colors.sh<br/>raw ANSI, no state"]
+  end
+  page -->|tui.load / goto| markup
+  css --> style
+  markup -->|tui.* builder calls| core
+  style --> core
+  core -->|actions| cb
+  cb -->|tui.* API| core
+  helpers --- core
+  core --> ctl
+  rend --> ctl
+  core -->|ANSI| tty(["terminal"])
 ```
 
 ### Layers (load order in `lib/tui.sh`)

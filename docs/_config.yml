@@ -25,3 +25,8 @@ titles_from_headings:
   collections: true
 github:
   repository_url: https://github.com/DinosaursAreCute/DinosAmazingBashTui
+defaults:
+  - scope:
+      path: ""
+    values:
+      description: Pure bash TUI framework documentation - tutorials, markup guide, widgets, plugins and API reference.

@@ -16,12 +16,13 @@
     <pane id="head" weight="9" title="DABT Plugins" border="single" class="panel" hpad="1"/>
     <pane id="body" split="h" weight="74" border="none">
       <pane id="plg_left" split="v" weight="46" title="Detected plugins" border="single" class="panel" hpad="1">
-        <pane id="plg_table_box" weight="84" border="none"/>
+        <pane id="plg_table_box" weight="78" border="none"/>
         <!-- actions for the SELECTED plugin, right next to the list -->
-        <pane id="plg_act" split="fixed" size_w="15" size_h="1" weight="16" border="none">
+        <pane id="plg_act" split="fixed" size_w="15" size_h="1" weight="22" border="none">
           <pane id="plg_a1" border="none"/>
           <pane id="plg_a2" border="none"/>
           <pane id="plg_a3" border="none"/>
+          <pane id="plg_a4" border="none"/>
         </pane>
       </pane>
       <pane id="plg_right" split="v" weight="54" border="none">
@@ -52,4 +53,5 @@
   <button id="plg_b_toggle" pane="plg_a1" row="0" text="[ On / Off ]" action="plg_toggle" class="success_button" align="fill"/>
   <button id="plg_b_reload" pane="plg_a2" row="0" text="[ Reload ]"   action="plg_reload" class="info_button"    align="fill"/>
   <button id="plg_b_remove" pane="plg_a3" row="0" text="[ Remove ]"   action="plg_remove" class="danger_button"  align="fill"/>
+  <button id="plg_b_scan"   pane="plg_a4" row="0" text="[ Scan ]"     action="plg_scan"   class="info_button"    align="fill"/>
 </tui>

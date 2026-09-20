@@ -2,6 +2,7 @@
 # plugins_callbacks.sh - DABT default Settings > Plugins tab. Only public tui.* calls.
 
 tui.require terminal_renderer
+tui.require tui_scan
 
 declare -ga _PLG_PATH=() _PLG_DIR=() _PLG_LABELS=()      # file tree row -> path, and whether it is a directory
 declare -gA _PLG_CLOSED=()                # directories the user collapsed
@@ -130,12 +131,13 @@ plg_enter() {
     info="$desc"$'\n\n'"$st, v$(tui.plugin.get "$n" version), from $(tui.plugin.get "$n" source)"$'\n'"${stt[files]} files, ${stt[lines]} lines, ${stt[functions]} functions"
     [[ "$st" == enabled ]] && info+=$'\n'"registered: ${stt[commands]} commands, ${stt[binds]} keybinds, ${stt[hooks]} hooks, ${stt[timers]} timers"
     [[ "$st" == enabled ]] && toggle="Disable" || toggle="Enable"
-    tui.choose "$(tui.plugin.get "$n" title)" plg_menu_pick "$toggle" "Reload" "Browse its files" "Show its main file" "Remove" --message "$info" --width 60
+    tui.choose "$(tui.plugin.get "$n" title)" plg_menu_pick "$toggle" "Reload" "Scan for vulnerabilities" "Browse its files" "Show its main file" "Remove" --message "$info" --width 60
 }
 plg_menu_pick() {
     case "$2" in
         Enable|Disable) plg_toggle ;;
         Reload) plg_reload ;;
+        "Scan for vulnerabilities") plg_scan ;;
         "Browse its files") tui.focus plg_files ;;
         "Show its main file") _plg_show "$(tui.plugin.get "$_PLG_MENU" file)" ;;
         Remove) plg_remove ;;
@@ -202,4 +204,21 @@ plg_do_install() {
     local p="${1/#\~/$HOME}"
     if tui.plugin.install "$p"; then tui.notify "Installed $TUI_PLUGIN_NAME (not enabled yet)" success 4; _PLG_NAME=""; _plg_fill 0; plg_selected
     else tui.notify "Install failed: $TUI_PLUGIN_ERROR" error 6; fi
+}
+
+# ── security scan: the selected plugin's files, result in a scrollable modal (tui.scan.*, lib/tui_scan.sh) ──
+plg_scan() {
+    local n root verdict title report line
+    n="$(_plg_name)"; [[ -n "$n" ]] || return 0
+    root="$(tui.plugin.root "$n")"; [[ -e "$root" ]] || { tui.notify "$n: nothing to scan (no files)" error 4; return 0; }
+    tui.notify "Scanning $n ..." info 1
+    tui.scan.run "$root"
+    if (( TUI_SCAN_HIGH )); then verdict="HIGH RISK: $TUI_SCAN_HIGH high-risk finding(s), $TUI_SCAN_WARN warning(s)"
+    elif (( TUI_SCAN_WARN )); then verdict="No high-risk findings, $TUI_SCAN_WARN warning(s)"
+    else verdict="No findings"; fi
+    report="$verdict"$'\n'"${root/#$HOME/~}"$'\n'
+    if [[ -n "$TUI_SCAN_REPORT" ]]; then report+=$'\n'"${TUI_SCAN_REPORT//"$root"/${root##*/}}"; else report+=$'\n'"Nothing suspicious was matched by the static checks."$'\n'; fi
+    [[ -n "$TUI_SCAN_NOTES" ]] && report+=$'\n'"note: ${TUI_SCAN_NOTES%$'\n'}"$'\n'
+    report+=$'\n'"Static checks only; a clean scan is not a guarantee. Terminal: dabt scan $root"
+    tui.view "Scan: $n" "$report" --width 100
 }

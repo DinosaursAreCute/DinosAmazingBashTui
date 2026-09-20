@@ -58,7 +58,7 @@ tui.scan.run() {
                 line="${hit#*:}"; line="${line#"${line%%[![:space:]]*}"}"
                 out+="  $sev ${f#"$path"/}:${hit%%:*}  $label"$'\n'"      ${line:0:100}"$'\n'
                 if [[ "$sev" == HIGH ]]; then ((++TUI_SCAN_HIGH)); else ((++TUI_SCAN_WARN)); fi
-            done < <(grep -nE -e "$re" -- "$f" 2>/dev/null | grep -vE '^[0-9]+:[[:space:]]*#')
+            done < <(grep -nE -e "$re" -- "$f" 2>/dev/null | grep -vE '^[0-9]+:[[:space:]]*(#|_scan\.rule )')
         done
     done
     if command -v shellcheck >/dev/null 2>&1; then
@@ -173,5 +173,24 @@ HELP
         printf '== %s\n' "$p"; tui.scan.run "$p" "$deep" || { echo "$TUI_SCAN_NOTES" >&2; rc=1; continue; }
         tui.scan.print; (( strict && TUI_SCAN_HIGH )) && rc=1
     done
+    return $rc
+}
+
+# tui.scan.run_spin PATH [MSG] [DEEP] : tui.scan.run behind a spinner (plain one-line message when stdout is not a terminal).
+# Sets the same TUI_SCAN_* vars as tui.scan.run. The scan runs in a background subshell, its result is carried back through a temp file.
+tui.scan.run_spin() {
+    local path="$1" msg="${2:-Scanning incoming files for vulnerabilities}" deep="${3:-0}" tmp pid i=0 rc
+    local -a frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+    if [[ ! -t 1 ]]; then printf '%s ...\n' "$msg"; tui.scan.run "$path" "$deep"; return; fi
+    tmp="$(mktemp)" || { tui.scan.run "$path" "$deep"; return; }
+    ( tui.scan.run "$path" "$deep"; rc=$?
+      declare -p TUI_SCAN_HIGH TUI_SCAN_WARN TUI_SCAN_REPORT TUI_SCAN_NOTES | sed -E 's/^declare -[-a-zA-Z]+ /declare -g /' > "$tmp"; exit $rc ) &
+    pid=$!
+    printf '\e[?25l'
+    trap 'kill $pid 2>/dev/null; printf "\r\e[K\e[?25h"; rm -f "$tmp"; trap - INT; return 130' INT
+    while kill -0 "$pid" 2>/dev/null; do printf '\r\e[1;36m%s\e[0m %s' "${frames[i++ % 10]}" "$msg"; sleep 0.08; done
+    wait "$pid"; rc=$?; trap - INT
+    printf '\r\e[K\e[?25h'
+    source "$tmp"; rm -f "$tmp"
     return $rc
 }

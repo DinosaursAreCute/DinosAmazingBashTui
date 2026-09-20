@@ -401,7 +401,7 @@ tui.cache.warm_with_spinner() {
     local _tcw_worker_pid=$!
 
     # Not part of tui.sh's normal load chain (it's meant to be usable
-    # standalone) - sourced here just for banner_string.
+    # standalone) - sourced here just for the block5 font.
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/terminal_renderer.sh"
 
@@ -413,13 +413,31 @@ tui.cache.warm_with_spinner() {
     local _tcw_term_rows _tcw_term_cols
     term.size _tcw_term_rows _tcw_term_cols
 
-    local -a _tcw_banner_lines=()
-    mapfile -t _tcw_banner_lines <<< "$(printf '%b' "$(banner_string "D.A.B.T")")"
-    local _tcw_banner_h=${#_tcw_banner_lines[@]}
-    local _tcw_banner_w=0 _tcw_bl
-    for _tcw_bl in "${_tcw_banner_lines[@]}"; do
-        (( ${#_tcw_bl} > _tcw_banner_w )) && _tcw_banner_w=${#_tcw_bl}
+    # The logo: D A B T in block5 glyphs, colored per letter with the pastels of assets/logo.svg. The colors rotate
+    # through the letters every _tcw_cycle_us while caching runs. Each frame is one absolute-positioned write
+    # (cursor addressing, wrapped in a synchronized-update block) - the screen is never cleared, so nothing flickers.
+    _banner_font_init
+    local -a _tcw_glyphs=() _tcw_rgb=("255;140;191" "168;216;255" "255;243;168" "255;158;158") _tcw_256=(212 153 229 217) _tcw_pal=()
+    local _tcw_ch _tcw_gr _tcw_r _tcw_i _tcw_banner_w=$(( 4 + 4 + 4 + 5 + 3 )) _tcw_banner_h=5 _tcw_offset=0 _tcw_cycle_us=400000
+    for _tcw_ch in D A B T; do
+        IFS='|' read -ra _tcw_gr <<< "${_BANNER_FONT[$_tcw_ch]}"
+        _tcw_glyphs+=("${_tcw_gr[@]:0:5}")
     done
+    for _tcw_i in 0 1 2 3; do
+        if [[ "${COLORTERM:-}" == *truecolor* || "${COLORTERM:-}" == *24bit* ]]; then _tcw_pal+=($'\e[38;2;'"${_tcw_rgb[_tcw_i]}m")
+        else _tcw_pal+=($'\e[38;5;'"${_tcw_256[_tcw_i]}m"); fi
+    done
+    _tcw_paint() {   # ROW0 COL0 : draws the logo with the current _tcw_offset
+        local out=$'\e[?2026h' r i rst=$'\e[0m'
+        for (( r = 0; r < 5; r++ )); do
+            out+=$'\e['"$(( $1 + r ));$2H"
+            for (( i = 0; i < 4; i++ )); do
+                (( i > 0 )) && out+=" "
+                out+="${_tcw_pal[(i + 4 - _tcw_offset) % 4]}${_tcw_glyphs[i * 5 + r]}${rst}"
+            done
+        done
+        printf '%s\e[?2026l' "$out"
+    }
 
     local _tcw_block_h=$(( _tcw_banner_h + 2 + 1 + 1 ))   # banner + gap + bar row + note row
     local _tcw_row0=$(( (_tcw_term_rows - _tcw_block_h) / 2 ))
@@ -427,11 +445,7 @@ tui.cache.warm_with_spinner() {
     local _tcw_col0=$(( (_tcw_term_cols - _tcw_banner_w) / 2 ))
     (( _tcw_col0 < 1 )) && _tcw_col0=1
 
-    local _tcw_row=$_tcw_row0
-    for _tcw_bl in "${_tcw_banner_lines[@]}"; do
-        printat "$_tcw_row" "$_tcw_col0" "${BRIGHT_CYAN}${_tcw_bl}${RESET}"
-        (( _tcw_row++ ))
-    done
+    _tcw_paint "$_tcw_row0" "$_tcw_col0"
 
     local _tcw_bar_row=$(( _tcw_row0 + _tcw_banner_h + 2 ))
     local _tcw_note_row=$(( _tcw_bar_row + 1 ))
@@ -441,8 +455,10 @@ tui.cache.warm_with_spinner() {
     local _tcw_current=0 _tcw_done=0 _tcw_line2
     _tcw_start_us=$(_tui_cache_now_us)
     _tcw_last_progress_us=$_tcw_start_us
+    local _tcw_last_cycle_us=$_tcw_start_us
 
     local _tcw_bar_width=30
+    local _tcw_last_pct=-1
     while (( ! _tcw_done )); do
         if IFS= read -r -t 0.2 -u 5 _tcw_line2; then
             case "$_tcw_line2" in
@@ -457,15 +473,25 @@ tui.cache.warm_with_spinner() {
             _tcw_done=1
         fi
         (( _tcw_done )) && break
+        _tcw_now=$(_tui_cache_now_us)
+        if (( _tcw_now - _tcw_last_cycle_us >= _tcw_cycle_us )); then
+            _tcw_last_cycle_us=$_tcw_now; _tcw_offset=$(( (_tcw_offset + 1) % 4 )); _tcw_paint "$_tcw_row0" "$_tcw_col0"
+        fi
 
         local _tcw_pct=0
         (( ${#_tcw_pages[@]} > 0 )) && _tcw_pct=$(( 100 * _tcw_current / ${#_tcw_pages[@]} ))
         (( _tcw_pct > 100 )) && _tcw_pct=100
         local _tcw_filled=$(( _tcw_pct * _tcw_bar_width / 100 ))
-        local _tcw_bar_filled _tcw_bar_empty
-        _tcw_bar_filled="$(printf '%*s' "$_tcw_filled" '' | tr ' ' '#')"
-        _tcw_bar_empty="$(printf '%*s' $(( _tcw_bar_width - _tcw_filled )) '' | tr ' ' '.')"
-        printat "$_tcw_bar_row" "$(( _tcw_col0 - _tcw_bar_width / 2 + 2 ))" "${BRIGHT_CYAN}caching sites |${_tcw_bar_filled}${_tcw_bar_empty}| ${_tcw_pct}%${RESET}   "
+        if (( _tcw_pct != _tcw_last_pct )); then   # the bar only changes with progress: repaint in place, one write
+            _tcw_last_pct=$_tcw_pct
+            local _tcw_bar="" _tcw_c
+            for (( _tcw_c = 0; _tcw_c < _tcw_bar_width; _tcw_c++ )); do
+                if (( _tcw_c < _tcw_filled )); then _tcw_bar+="${_tcw_pal[_tcw_c * 4 / _tcw_bar_width]}█"   # pink -> blue -> yellow -> red along the bar
+                else _tcw_bar+=$'\e[38;5;238m░'; fi
+            done
+            printf '\e[%d;%dH\e[38;5;250mcaching sites \e[38;5;245m▕%s\e[38;5;245m▏ \e[38;5;250m%3d%%\e[0m' \
+                "$_tcw_bar_row" "$(( _tcw_col0 - _tcw_bar_width / 2 + 2 ))" "$_tcw_bar" "$_tcw_pct"
+        fi
     done
 
     wait "$_tcw_worker_pid" 2>/dev/null

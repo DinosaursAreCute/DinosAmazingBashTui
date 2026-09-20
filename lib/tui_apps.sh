@@ -200,7 +200,7 @@ tui.apps.install() {
     _tui_apps.fetch "$src" "$tmp" || return 1
     dir="$_APP_SRC_DIR"
     if (( ! noscan )); then
-        printf 'Scanning %s ...\n' "$src"; tui.scan.run "$dir"; tui.scan.print
+        tui.scan.run_spin "$dir" "Scanning incoming files for vulnerabilities"; tui.scan.print
         if (( strict && TUI_SCAN_HIGH && ! force )); then _tui_apps.err "scan found $TUI_SCAN_HIGH high-risk issue(s): not installed (--force installs anyway)"; return 1; fi
         (( TUI_SCAN_HIGH )) && printf 'dabt app: warning: review the HIGH findings above before you run this app\n' >&2
     fi

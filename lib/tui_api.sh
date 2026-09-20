@@ -581,7 +581,7 @@ declare -gA _TUI_REQUIRED=()
 tui.require() {
     [[ -n "${_TUI_REQUIRED[$1]:-}" ]] && return 0
     case "$1" in
-        terminal_renderer|terminal_controls) source "${SCRIPT_DIR}/$1.sh" ;;
+        terminal_renderer|terminal_controls|tui_scan) source "${SCRIPT_DIR}/$1.sh" ;;
         *) echo "tui.require: unknown library '$1'" >&2; return 1 ;;
     esac
     _TUI_REQUIRED[$1]=1

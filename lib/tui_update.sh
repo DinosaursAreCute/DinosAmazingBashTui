@@ -85,6 +85,12 @@ tui.update.download() {
     _tui_update.fetch "$(_tui_update.archive_url)" "$archive" || { [[ -n "$TUI_UPDATE_ERROR" ]] || TUI_UPDATE_ERROR="download failed"; return 1; }
     tar -xzf "$archive" -C "$dir/src" --strip-components=1 2>/dev/null || { TUI_UPDATE_ERROR="the download is not a valid archive"; return 1; }
     tui.sync.valid_source "$dir/src" || { TUI_UPDATE_ERROR="the download is not a DABT release"; return 1; }
+    TUI_UPDATE_SCAN_HIGH=0 TUI_UPDATE_SCAN_WARN=0 TUI_UPDATE_SCAN_REPORT=""
+    if [[ "${TUI_UPDATE_NOSCAN:-0}" != 1 ]]; then   # the release is security-scanned before anything is applied
+        declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/tui_scan.sh"
+        if [[ "${TUI_UPDATE_SPIN:-0}" == 1 ]]; then tui.scan.run_spin "$dir/src"; else tui.scan.run "$dir/src"; fi   # spinner only for the CLI, never inside the TUI
+        TUI_UPDATE_SCAN_HIGH=$TUI_SCAN_HIGH TUI_UPDATE_SCAN_WARN=$TUI_SCAN_WARN TUI_UPDATE_SCAN_REPORT="$TUI_SCAN_REPORT"
+    fi
     return 0
 }
 
@@ -137,10 +143,11 @@ _tui_update.cli_resolver() {   # REL -> asks on the terminal (or uses the policy
 }
 
 tui.update.cli() {
-    local check=0 yes=0 policy="" tmp rc
+    local check=0 yes=0 force=0 policy="" tmp rc
+    TUI_UPDATE_SPIN=1
     exec 3< "${TUI_UPDATE_TTY:-/dev/tty}" 2>/dev/null || exec 3< /dev/null
     while (( $# )); do
-        case "$1" in --check) check=1 ;; --dev) TUI_UPDATE_CHANNEL=dev ;; --release) TUI_UPDATE_CHANNEL=release ;; --yes|-y) yes=1 ;; --policy) policy="$2"; shift ;; esac
+        case "$1" in --check) check=1 ;; --dev) TUI_UPDATE_CHANNEL=dev ;; --release) TUI_UPDATE_CHANNEL=release ;; --yes|-y) yes=1 ;; --force|-f) force=1 ;; --no-scan) TUI_UPDATE_NOSCAN=1 ;; --policy) policy="$2"; shift ;; esac
         shift
     done
     printf 'DABT %s installed. Checking %s ...\n' "$TUI_VERSION" "$(_tui_update.version_url)"
@@ -154,6 +161,11 @@ tui.update.cli() {
     tmp="$(mktemp -d)" || return 1
     trap 'rm -rf "$tmp"' RETURN
     tui.update.download "$tmp" || { printf 'Download failed: %s\n' "$TUI_UPDATE_ERROR" >&2; return 1; }
+    if [[ "${TUI_UPDATE_NOSCAN:-0}" != 1 ]]; then
+        printf "Security scan of the download:\n"; [[ -n "$TUI_UPDATE_SCAN_REPORT" ]] && printf "%s" "$TUI_UPDATE_SCAN_REPORT"
+        printf "scan: %d high, %d warnings\n" "$TUI_UPDATE_SCAN_HIGH" "$TUI_UPDATE_SCAN_WARN"
+        if (( TUI_UPDATE_SCAN_HIGH && ! force )); then printf "Update refused: %d high-risk finding(s). Review them, then rerun with --force to apply anyway.\n" "$TUI_UPDATE_SCAN_HIGH" >&2; return 3; fi
+    fi
     tui.update.plan "$tmp/src"
     printf '\nWhat would change:\n'; tui.sync.report
     (( TUI_UPDATE_GIT )) && printf '\n(%s is a git checkout: program files are not touched, use git pull.)\n' "$TUI_ROOT"

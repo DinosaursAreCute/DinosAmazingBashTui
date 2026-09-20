@@ -90,6 +90,15 @@ _finish() {
         for l in "${TUI_INSTALL_LOG[@]}"; do
             case "$l" in installed*) printf '\n%s✓ %s%s\n' "$GRN" "$l" "$R" ;; conflicts*|*"could not"*|"config is not"*) _warn "$l" ;; *) _ok "$l" ;; esac
         done
+        if (( link )) && [[ ":$PATH:" != *":$TUI_INSTALL_BINDIR:"* ]]; then
+            _warn "$TUI_INSTALL_BINDIR is not on your PATH, so 'dabt' will not be found yet. Add it:"
+            case "${SHELL##*/}" in
+                fish) printf '      fish_add_path %s\n' "$TUI_INSTALL_BINDIR" ;;
+                zsh)  printf '      echo '\''export PATH="%s:$PATH"'\'' >> ~/.zshrc\n' "$TUI_INSTALL_BINDIR" ;;
+                *)    printf '      echo '\''export PATH="%s:$PATH"'\'' >> ~/.bashrc\n' "$TUI_INSTALL_BINDIR" ;;
+            esac
+            printf '    then open a new terminal (or run %s/dabt directly).\n' "$TUI_INSTALL_BINDIR"
+        fi
     fi
     exit 0
 }

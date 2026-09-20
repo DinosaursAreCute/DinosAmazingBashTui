@@ -28,7 +28,7 @@ if [[ ! -f "$SRC/lib/tui_sync.sh" ]]; then
     else echo "install.sh: curl or wget is required" >&2; exit 2; fi || { echo "install.sh: download failed ($url)" >&2; exit 2; }
     mkdir "$tmp/src" && tar -xzf "$tmp/dabt.tar.gz" -C "$tmp/src" --strip-components=1 || { echo "install.sh: bad archive" >&2; exit 2; }
     # stdin is the pipe here: hand the terminal back so the prompts work
-    if [[ ! -t 0 && -r /dev/tty ]]; then bash "$tmp/src/install.sh" "$@" </dev/tty; else bash "$tmp/src/install.sh" "$@"; fi
+    if [[ ! -t 0 ]] && { : </dev/tty; } 2>/dev/null; then bash "$tmp/src/install.sh" "$@" </dev/tty; else bash "$tmp/src/install.sh" "$@"; fi
     exit $?
 fi
 yes=0; dry=0; link=1; noscan=0; force=0; policy=""; prefix=""; conf=""; bindir=""

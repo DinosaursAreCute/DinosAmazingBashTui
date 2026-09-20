@@ -122,7 +122,7 @@ markup tag by tag in order to call `tui.hsplit`, `tui.label`, and
 
 ## Implementing the Log
 
-`bin/tui_cache.sh` renames every builder function `tui.load` invokes,
+`lib/tui_cache.sh` renames every builder function `tui.load` invokes,
 `tui.hsplit`, `tui.label`, `tui.button`, and roughly twenty others, to
 `_tui_cache_orig.$fn`, and redefines the original name as a thin wrapper
 that appends a `printf %q`-quoted record of its own invocation to a

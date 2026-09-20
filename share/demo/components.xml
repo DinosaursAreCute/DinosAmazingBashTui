@@ -1,0 +1,84 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="sc_tab_renderers">
+  <script src="showcase_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="sidebar" weight="22" split="v" border="none">
+      <pane id="nav"      weight="58" title="Menu"     border="single" class="sidebar"/>
+      <pane id="controls" weight="42" title="Controls" border="single" class="sidebar" hpad="1"/>
+    </pane>
+    <!-- main is a PARENT with its own frame + hpad: the layered-border demo
+         (main single -> output heavy). Borders drop automatically on tiny terminals. -->
+    <pane id="main" split="v" border="single" weight="78" class="panel" hpad="1">
+      <pane id="tabs_header" weight="5" border="none"/>
+      <!-- One fixed-size grid (tui.fixed): every button is a 15x3 tile (the cell pane carries the colour, the button sits in its middle row), so all components line up in
+           columns whatever their label length, and the rows re-flow when the terminal is resized.
+           Structure renderers first; newline="true" starts the chart group on a fresh row, then ALL. -->
+      <pane id="toolbarContainer" split="v" weight="34" max_height="8" border="none">
+        <pane id="toolbar" split="fixed" size_w="15" size_h="3" weight="1" border="heavy">
+          <pane id="tb_all"     border="single" class="danger_button"/>
+          <pane id="tb_alert"   border="single" class="warning_button"/>
+          <pane id="tb_badges"  border="single" class="warning_button"/>
+          <pane id="tb_banner"  border="single" class="info_button"/>
+          <pane id="tb_box"     border="single" class="info_button"/>
+          <pane id="tb_columns" border="single" class="success_button"/>
+          <pane id="tb_csv"     border="single" class="success_button"/>
+          <pane id="tb_divider" border="single" class="success_button"/>
+          <pane id="tb_gauge"   border="single" class="warning_button"/>
+          <pane id="tb_hbar"    border="single" class="swatch_magenta" newline="true"/>
+          <pane id="tb_kv"      border="single" class="sc_purple"/>
+          <pane id="tb_line"    border="single" class="info_button"/>
+          <pane id="tb_list"    border="single" class="danger_button"/>
+          <pane id="tb_quote"   border="single" class="sc_purple"/>
+          <pane id="tb_spark"   border="single" class="danger_button"/>
+          <pane id="tb_table"   border="single" class="danger_button"/>
+          <pane id="tb_tree"    border="single" class="info_button"/>
+          <pane id="tb_vbar"    border="single" class="sc_purple"/>
+        </pane>
+      </pane>
+      <pane id="output" weight="61" border="heavy" class="panel" scroll="both"/>
+    </pane>
+  </pane>
+  </pane>
+
+  <!-- One page per tab, so each tab only shows the controls that apply to it. -->
+  <tabs id="sc_tabs" header_pane="tabs_header" content_pane="output" style="compact">
+    <tab id="tab_renderers" text="Renderers"    action="sc_tab_here" default="true"/>
+    <tab id="tab_theme"     text="Theme colors" action="sc_goto_theme"/>
+    <tab id="tab_fit"       text="Fit to size"  action="sc_goto_fit"/>
+    <tab id="tab_live"      text="Live"         action="sc_goto_live"/>
+  </tabs>
+
+  <!-- Structure renderers: colours cycle so neighbours never blend -->
+  <button id="btn_box"     pane="tb_box"     row="0" text="[ Box ]"     action="show_box"     class="info_button"    align="fill" valign="middle"/>
+  <button id="btn_divider" pane="tb_divider" row="0" text="[ Divider ]" action="show_divider" class="success_button" align="fill" valign="middle"/>
+  <button id="btn_alert"   pane="tb_alert"   row="0" text="[ Alert ]"   action="show_alert"   class="warning_button" align="fill" valign="middle"/>
+  <button id="btn_table"   pane="tb_table"   row="0" text="[ Table ]"   action="show_table"   class="danger_button"  align="fill" valign="middle"/>
+  <button id="btn_kv"      pane="tb_kv"      row="0" text="[ KV ]"      action="show_kv"      class="sc_purple"      align="fill" valign="middle"/>
+  <button id="btn_tree"    pane="tb_tree"    row="0" text="[ Tree ]"    action="show_tree"    class="info_button"    align="fill" valign="middle"/>
+  <button id="btn_columns" pane="tb_columns" row="0" text="[ Columns ]" action="show_columns" class="success_button" align="fill" valign="middle"/>
+  <button id="btn_badges"  pane="tb_badges"  row="0" text="[ Badges ]"  action="show_badges"  class="warning_button" align="fill" valign="middle"/>
+  <button id="btn_list"    pane="tb_list"    row="0" text="[ List ]"    action="show_list"    class="danger_button"  align="fill" valign="middle"/>
+  <button id="btn_quote"   pane="tb_quote"   row="0" text="[ Quote ]"   action="show_quote"   class="sc_purple"      align="fill" valign="middle"/>
+  <button id="btn_banner"  pane="tb_banner"  row="0" text="[ Banner ]"  action="show_banner"  class="info_button"    align="fill" valign="middle"/>
+
+  <!-- Charts, then ALL -->
+  <button id="btn_hbar"    pane="tb_hbar"    row="0" text="[ HBar ]"       action="show_hbar"     class="swatch_magenta" align="fill" valign="middle"/>
+  <button id="btn_gauge"   pane="tb_gauge"   row="0" text="[ Gauge ]"     action="show_gauge"     class="warning_button" align="fill" valign="middle"/>
+  <button id="btn_spark"   pane="tb_spark"   row="0" text="[Sparkline]"   action="show_sparkline" class="danger_button"  align="fill" valign="middle"/>
+  <button id="btn_vbar"    pane="tb_vbar"    row="0" text="[ VBar ]"      action="show_vbar"      class="sc_purple"      align="fill" valign="middle"/>
+  <button id="btn_line"    pane="tb_line"    row="0" text="[ Line ]"      action="show_linechart" class="info_button"    align="fill" valign="middle"/>
+  <button id="btn_csv"     pane="tb_csv"     row="0" text="[ CSV ]"       action="show_csv"       class="success_button" align="fill" valign="middle"/>
+  <button id="btn_all"     pane="tb_all"     row="0" text="[ ALL ]"       action="show_all"       class="danger_button"  align="fill" valign="middle"/>
+
+  <!-- Controls sidebar: widgets that drive the renderers -->
+  <label    id="lbl_current" pane="controls" row="0" text="Current:" class="muted_label"/>
+  <label    id="lbl_status"  pane="controls" row="1" text="—" class="brand"/>
+  <checkbox id="chk_fit"     pane="controls" row="2" label="Fit to pane" checked="true" action="on_toggle_fit" class="check"/>
+  <!-- rows 4-8: options for the current view, built at runtime (_sc_controls) -->
+  <button   id="btn_clear"   pane="controls" row="10" text="[ Clear ]" action="on_clear" class="danger_button" align="fill"/>
+
+  <include src="_nav.xml"/>
+</tui>

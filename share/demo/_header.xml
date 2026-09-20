@@ -1,0 +1,7 @@
+<!-- Shared demo header: title banner + live clock (see _header.sh). Included INSIDE the framed root pane of every page. -->
+<script src="_header.sh"/>
+<footer/>
+<pane id="dabt_hdr" split="h" max_height="5" valign="middle" weight="10" border="single" class="hdr">
+  <pane id="dabt_hdr_title" weight="70" border="none" class="hdr_title" scroll="none"/>
+  <pane id="dabt_hdr_clock" weight="30" border="none" class="clock" align="right" scroll="none"/>
+</pane>

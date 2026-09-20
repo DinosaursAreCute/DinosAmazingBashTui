@@ -1,0 +1,37 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="wx_visit">
+  <script src="widgets_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="h" weight="82" border="none">
+      <pane id="wx_left" split="v" weight="46" border="none">
+        <pane id="wx_notes"  weight="88" title="Notes (textarea) - select, cut, paste, ctrl+arrows, click" border="single" class="panel" hpad="1"/>
+        <pane id="wx_status" weight="12" border="single" class="panel" hpad="1"/>
+      </pane>
+      <pane id="wx_right" split="v" weight="54" border="none">
+        <pane id="wx_form" weight="42" title="Form (input, password, select, progress)" border="single" class="panel" hpad="1"/>
+        <pane id="wx_data" weight="58" title="Data (list, table)" border="single" class="panel" hpad="1"/>
+      </pane>
+    </pane>
+  </pane>
+  </pane>
+
+  <!-- text editing: the textarea fills its pane; on_change keeps the status line current -->
+  <textarea id="wx_text" pane="wx_notes" row="0" placeholder="type here..." on_change="wx_text_changed"/>
+  <label id="wx_stat1" pane="wx_status" row="0" text="" class="brand"/>
+
+  <input    id="wx_user" pane="wx_form" row="0" label="User:" label_width="6" placeholder="name" submit="wx_login"/>
+  <password id="wx_pass" pane="wx_form" row="1" label="Pass:" label_width="6" placeholder="password" submit="wx_login"/>
+  <select   id="wx_mode" pane="wx_form" row="3" label="Mode:" items="fast|balanced|careful" value="balanced" action="wx_mode_picked"/>
+  <button   id="wx_go"   pane="wx_form" row="5" text="[ Sign in ]" action="wx_login" class="success_button" align="fill"/>
+  <button   id="wx_job"  pane="wx_form" row="6" text="[ Run a job ]" action="wx_run_job" class="info_button" align="fill"/>
+  <progress id="wx_prog" pane="wx_form" row="8" label="Job:" value="0"/>
+
+  <list  id="wx_list"  pane="wx_data" row="0" rows="6" action="wx_list_open" on_change="wx_list_moved" items="Home|Components|Settings|Monitor|Terminal|Scrolling|Docs|Layout|Styles|Widgets"/>
+  <table id="wx_table" pane="wx_data" row="7" action="wx_table_open" columns="File|Size|Kind" data="README.md|8k|text;CHANGELOG.md|21k|text;lib/tui.sh|121k|script;lib/tui_text.sh|24k|script;docs/README.md|9k|text;screenshots/|4.1M|images;config/|60k|dir"/>
+
+  <include src="_nav.xml"/>
+</tui>

@@ -1,0 +1,34 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="sc_tab_fit">
+  <script src="showcase_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <include src="_header.xml"/>
+  <pane id="root1" weight="90" split="h">
+    <pane id="sidebar" weight="22" split="v" border="none">
+      <pane id="nav"      weight="52" title="Menu"    border="single" class="sidebar"/>
+      <pane id="controls" weight="48" title="Fit controls" border="single" class="sidebar" hpad="1"/>
+    </pane>
+    <pane id="main" split="v" border="single" weight="78" class="panel" hpad="1">
+      <pane id="tabs_header" weight="5" border="none"/>
+      <pane id="output" weight="95" border="heavy" class="panel" scroll="both"/>
+    </pane>
+  </pane>
+  </pane>
+
+  <tabs id="fit_tabs" header_pane="tabs_header" content_pane="output" style="compact">
+    <tab id="tab_renderers" text="Renderers"    action="sc_goto_renderers"/>
+    <tab id="tab_theme"     text="Theme colors" action="sc_goto_theme"/>
+    <tab id="tab_fit"       text="Fit to size"  action="sc_tab_here" default="true"/>
+    <tab id="tab_live"      text="Live"         action="sc_goto_live"/>
+  </tabs>
+
+  <checkbox id="chk_fit" pane="controls" row="0" label="Fit to pane" checked="true" action="on_toggle_fit" class="check"/>
+  <label    id="lbl_fit_hd" pane="controls" row="2" text="Output pane:" class="muted_label"/>
+  <button   id="btn_fit_border" pane="controls" row="3" text="Border: heavy (click)" action="on_fit_border" class="info_button" align="fill"/>
+  <input    id="inp_fh" pane="controls" row="4" label="hpad:" label_width="7" placeholder="0-9" submit="on_fit_pad"/>
+  <input    id="inp_fv" pane="controls" row="5" label="vpad:" label_width="7" placeholder="0-9" submit="on_fit_pad"/>
+  <label    id="lbl_fit_tip" pane="controls" row="7" text="Resize the terminal too." class="muted_label"/>
+
+  <include src="_nav.xml"/>
+</tui>

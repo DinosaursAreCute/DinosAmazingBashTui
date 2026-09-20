@@ -1,12 +1,12 @@
 # Renderers
 
-`bin/terminal_renderer.sh` - widget-string renderers that work standalone (no `tui.sh` state) or inside panes.
+`lib/terminal_renderer.sh` - widget-string renderers that work standalone (no `tui.sh` state) or inside panes.
 
 ```bash
-source bin/terminal_renderer.sh
+source lib/terminal_renderer.sh
 box "Pure bash"                                   # print
 tui.output pane "$(box_string 'Pure bash')"       # string form: lines joined by literal \n
-bash bin/terminal_renderer.sh hbar "Bash:100" "Fun:99" -w 40 -c GREEN -s   # CLI; -s = string mode
+bash lib/terminal_renderer.sh hbar "Bash:100" "Fun:99" -w 40 -c GREEN -s   # CLI; -s = string mode
 ```
 
 Each renderer has a `_build` (fills `TR_RESULT`, private), a printing form and a `_string` form. `TR_WIDTH=N` sets the width to lay out to (defaults to the terminal width, probed at most every 2 s); inside panes set it from `tui.pane_size`/`tui.get.dimensions --content`.
@@ -31,8 +31,8 @@ Each renderer has a `_build` (fills `TR_RESULT`, private), a printing form and a
 | `list` | `[-n] [-s "▸"] "item"...` | Bullet or numbered. |
 | `quote` | `[-a "Author"] "text"` | Block quote. |
 
-**Colors:** `-c` takes names from `bin/colors.sh` (`RED`, `BRIGHT_CYAN`, `DIM_YELLOW`, ...), comma separated for several bars/series. `vbar`, `linechart` and `gauge` have sensible defaults.
+**Colors:** `-c` takes names from `lib/colors.sh` (`RED`, `BRIGHT_CYAN`, `DIM_YELLOW`, ...), comma separated for several bars/series. `vbar`, `linechart` and `gauge` have sensible defaults.
 
-**Fixed-size charts:** every chart takes `-m/-n` (pin the scale instead of scaling to the current data) and a sizing flag so a live chart never resizes between refreshes; `linechart`/`sparkline` resample history to fit `-w` exactly. For a chart that fills a pane compute the size once from `tui.get.dimensions --content PANE`. `config/DABT_demo/monitor_callbacks.sh` drives all four live.
+**Fixed-size charts:** every chart takes `-m/-n` (pin the scale instead of scaling to the current data) and a sizing flag so a live chart never resizes between refreshes; `linechart`/`sparkline` resample history to fit `-w` exactly. For a chart that fills a pane compute the size once from `tui.get.dimensions --content PANE`. `share/demo/monitor_callbacks.sh` drives all four live.
 
 More: [CSV chart examples](../../examples/csv-charts/README.md) · everything in one table: [reference.md](reference.md#renderers) · the raw escape helpers underneath: [terminal-controls.md](terminal-controls.md).

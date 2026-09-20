@@ -1,0 +1,31 @@
+<!-- DABT default commands (the command palette: ctrl+p or ':'). Loaded by lib/tui_cmd.sh through tui.cmd.load -
+     the same API an app uses to add its own. One <cmd .../> per line:
+       id (unique)  title  action (function + args, ';' chains)  [group]  [desc]  [when=FN: listed only while FN succeeds]
+     State-dependent commands (go to page, themes, focus pane, default-key groups) come from providers in tui_cmd.sh.
+     Keys shown next to a command are looked up from the active bindings, so they are never out of date. -->
+<cmds>
+  <cmd id="app.quit"      title="Quit"                 action="tui.action.quit"        group="App" desc="Leave the application"/>
+  <cmd id="app.reload"    title="Reload this page"     action="tui.action.reload_page" group="App" desc="Load the current page again"/>
+  <cmd id="app.redraw"    title="Redraw the screen"    action="tui.action.redraw"      group="App" desc="Clear and repaint everything"/>
+  <cmd id="app.back"      title="Go back"              action="tui.action.back"        group="App" when="_tui_cmd.has_history" desc="Return to the previous page"/>
+  <cmd id="dabt.settings" title="DABT: Settings"       action="tui.action.goto_default settings"  group="DABT" desc="Theme, default keybind groups and input behaviour (ships with DABT)"/>
+  <cmd id="dabt.keybinds" title="DABT: Keybinds"       action="tui.action.goto_default keybinds"  group="DABT" desc="See every keybind; add, remove, save your own (ships with DABT)"/>
+
+  <cmd id="help.textkeys" title="Help: text editing keybinds" action="tui.action.text_keys" group="Help" desc="Every key for selecting, moving, cutting, pasting and undoing text (also f1)"/>
+
+  <cmd id="dabt.update.check" title="DABT: Check for updates"  action="tui.action.update_check" group="DABT" desc="Ask GitHub whether a newer DABT is available"/>
+  <cmd id="dabt.update"       title="DABT: Update DABT ..."   action="tui.action.update"       group="DABT" desc="Download the latest version, review what changes, resolve conflicts, apply"/>
+
+  <cmd id="focus.next"    title="Focus: next pane"     action="tui.action.pane_next"   group="Focus" desc="Move keyboard focus to the next pane"/>
+  <cmd id="focus.prev"    title="Focus: previous pane" action="tui.action.pane_prev"   group="Focus" desc="Move keyboard focus to the previous pane"/>
+  <cmd id="focus.clear"   title="Focus: leave widget"  action="tui.action.unfocus"     group="Focus" desc="Drop focus from the current widget"/>
+
+  <cmd id="scroll.top"    title="Scroll: to top"       action="tui.action.scroll_top"    group="Scroll" desc="Scroll the keyboard pane to the top"/>
+  <cmd id="scroll.bottom" title="Scroll: to bottom"    action="tui.action.scroll_bottom" group="Scroll" desc="Scroll the keyboard pane to the bottom"/>
+
+  <cmd id="keys.save"     title="Keybinds: save my keybinds"        action="tui.bind.save"    group="Keybinds" when="tui.bind.dirty" desc="Write your unsaved keybinds to disk"/>
+  <cmd id="keys.discard"  title="Keybinds: discard unsaved changes" action="tui.bind.discard" group="Keybinds" when="tui.bind.dirty" desc="Reload your keybinds from the saved file"/>
+  <cmd id="keys.suspend"  title="Keybinds: turn all keyboard bindings off" action="tui.keys.suspend on" group="Keybinds" desc="Kill-switch: only the chord to turn them back on works"/>
+
+  <cmd id="term.mode"     title="Terminal mode: hand mouse and keyboard to the terminal" action="tui.passthrough on" group="Terminal" desc="Freeze the UI so the terminal can select and copy; the chord returns"/>
+</cmds>

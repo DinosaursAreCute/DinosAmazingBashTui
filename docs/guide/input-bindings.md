@@ -1,7 +1,7 @@
 # Keyboard & mouse bindings
 
 Raw bytes, escape sequences and SGR mouse reports are decoded **once**
-(`bin/tui_input.sh`) into readable names. Everything the framework does in
+(`lib/tui_input.sh`) into readable names. Everything the framework does in
 response is an ordinary binding to a named action you can rebind.
 
 ```bash
@@ -72,7 +72,7 @@ window `TUI_MOUSE_DRAIN_PEEK_TIMEOUT` (must stay > 0).
 - a small box (drawn once) shows the chord to return. Leaving does one full repaint.
 Independent of the keybind kill-switch (`ctrl+alt+k`); both can be on at once.
 
-## Default keybinds live in `config/default/keybinds.xml`
+## Default keybinds live in `share/defaults/keybinds.xml`
 Every built-in binding is one `<bind key= action= group=/>` line in that file - edit it to change the
 defaults, or point `TUI_DEFAULTS_DIR` at another directory. Each belongs to a **group**, and groups are
 opt-out: `tui.defaults.off quit scroll` (app-wide), `tui.defaults.off --page quit`, or
@@ -83,7 +83,7 @@ Groups: `focus`, `pane`, `scroll`, `click`, `wheel`, `paste`, `quit`.
 Markup binds are per page; add `scope="global"` to make one survive page changes.
 
 ## Keyboard pane focus and jumping
-- `f6` / `shift+f6` and `alt+arrows` move the **keyboard pane** (highlighted border, target of `j/k/pgup/...`).
+- `f6` / `shift+f6` move the **keyboard pane** (highlighted border, target of `j/k/pgup/...`). `alt+arrows` scroll the pane when it can scroll that way and otherwise move the keyboard pane (`tui.action.scroll_or_pane`).
   Panes with 2+ widgets or a scrollbar take part; single-widget cells are reached with Tab / arrows.
 - `tui.action.focus_pane NAME` focuses a pane (its last widget, or scroll focus): `<bind key="alt+n" action="tui.action.focus_pane nav"/>`.
 - `tui.action.goto page.xml`: `<bind key="alt+2" action="tui.action.goto components.xml"/>`. `tui.get.pages` lists pages seen by nav buttons.
@@ -108,7 +108,7 @@ tui.bind.discard    throw away unsaved changes (reload the saved file)
 tui.bind.load [F]   replace the user binds with a file's       tui.bind.dirty   rc 0 while unsaved
 tui.unbind KEY --user     tui.bind.reset --user     tui.bind.saved_file
 ```
-The file is loaded automatically on the next start, in the same `<bind .../>` format as `config/default/keybinds.xml`
+The file is loaded automatically on the next start, in the same `<bind .../>` format as `share/defaults/keybinds.xml`
 (hand-editable). Set `TUI_APP_NAME` before sourcing `tui.sh` to give your app its own directory. A saved bind whose
 command isn't defined right now (its page isn't loaded) is skipped silently (`TUI_LAST_BIND_ERROR`). The **Keys**
 page has the Save and Discard buttons and an "unsaved changes" marker.
@@ -125,18 +125,18 @@ tui.cmd.provider my_provider                # function that calls tui.cmd.add fo
 tui.cmd.add save "Save file" "save_it" --when file_is_dirty     # listed only while file_is_dirty succeeds
 tui.cmd.run deploy   tui.cmd.list   tui.cmd.remove deploy
 ```
-Defaults live in `config/default/commands.xml` (quit, reload, redraw, focus, scroll, save/discard keybinds, kill-switch,
+Defaults live in `share/defaults/commands.xml` (quit, reload, redraw, focus, scroll, save/discard keybinds, kill-switch,
 terminal mode) plus providers for **Go to: page**, **Theme: name** (every `themes/*.css`), **Focus pane: name** and
 **Default keys: turn 'group' on/off**. The key shown beside a command is looked up from the live bindings.
 Turn the palette's own keys off with `tui.defaults.off palette`.
 
 While it is open it owns the keyboard and mouse. The mechanism is public, for your own dialogs: `tui.modal.open NAME
 KEYFN DRAWFN [MOUSEFN]`, `tui.modal.close`, and `tui.overlay.add/remove FN` (overlays are redrawn after every render
-and once per loop, so a repaint underneath never leaves one half covered). See `bin/tui_modal.sh`.
+and once per loop, so a repaint underneath never leaves one half covered). See `lib/tui_modal.sh`.
 
 ## Pages that ship with DABT (Settings and Keybinds)
 Every app gets two ready-made pages through the palette: **DABT: Settings** and **DABT: Keybinds** (files in
-`config/default/pages/`). Settings switches the theme overlay (every `*.css` in `TUI_THEMES_DIR`, which `tui.start` sets
+`share/defaults/pages/`). Settings switches the theme overlay (every `*.css` in `TUI_THEMES_DIR`, which `tui.start` sets
 to `<app dir>/themes` when it exists), turns default keybind groups on/off, and sets input behaviour; all of it applies
 at once and is saved with `tui.config` (`~/.config/<TUI_APP_NAME>/dabt.conf`, applied by `tui.init`). Keybinds lists every
 binding and edits/saves your own. Both have a Back button (`tui.action.back`, key `alt+backspace`).
@@ -160,3 +160,7 @@ follows rebinding; an unbound command is skipped. `WHEN_FN` is an optional predi
 `tui.footer.show [ITEMS]`, `tui.footer.add KEY LABEL [WHEN]`, `tui.footer.hide`. Style it with the theme classes `.footer`,
 `.footer_key` and `.footer_label`. It is an overlay (`tui_modal.sh`), so it is redrawn over every repaint and rebuilt when
 bindings, terminal width or page history change.
+
+## Dialogs, prompts and toasts
+
+Confirmations, one-line prompts, list pickers and toast notifications are built on the modal layer (`tui.confirm`, `tui.message`, `tui.prompt`, `tui.choose`, `tui.notify`). While a dialog is open it owns the keyboard and mouse like the palette does. "Ask before quitting" is a setting (`tui.config.set confirm.quit 1`, also a checkbox on the default Settings page). API and flags: [../api/reference.md](../api/reference.md#dialogs-and-notifications).

@@ -1,0 +1,237 @@
+/* themes/light.css - overlay: same classes as ../theme.css with a different palette.
+ * Selected on the Settings page (tui.theme.set) and applied app-wide. */
+
+.danger_button {
+  fg: white;
+  bg: #b00020;
+  mods: bold;
+}
+.danger_button:hover {
+  fg: white;
+  bg: #d4002a;
+  mods: bold;
+}
+.danger_button:focus {
+  fg: white;
+  bg: #ff3333;
+  mods: bold;
+}
+
+.success_button {
+  fg: black;
+  bg: #33cc66;
+  mods: bold;
+}
+.success_button:hover {
+  fg: black;
+  bg: #4ade80;
+  mods: bold;
+}
+.success_button:focus {
+  fg: black;
+  bg: #66ff99;
+  mods: bold;
+}
+
+.muted_label {
+  fg: #777777;
+}
+
+.nav_divider {
+  fg: #8a94b8;
+  bg: #1a1c2c;
+  mods: bold;
+}
+
+.panel {
+  fg: #2b2b3a;
+  bg: #fbf9f4;
+}
+.panel:border {
+  fg: #8b5cf6;
+}
+.panel:title {
+  fg: #1d4ed8;
+  mods: bold;
+}
+
+.panel:focus {
+  fg: #111111;
+  bg: #e0dacb;
+}
+
+.sidebar {
+  fg: #2b2b3a;
+  bg: #f4f1ea;
+}
+.sidebar:border {
+  fg: #7c3aed;
+}
+.sidebar:title {
+  fg: #0369a1;
+  mods: bold;
+}
+
+.sidebar:focus {
+  fg: #111111;
+  mods: bold;
+}
+
+.hdr {
+  fg: #2b2b3a;
+  bg: #cfc8b8;
+}
+
+.hdr_title {
+  fg: #7c3aed;
+  bg: #f4f1ea;
+  mods: bold;
+}
+
+.hdr_name {
+  fg: #0369a1;
+  bg: #f4f1ea;
+  mods: bold;
+}
+
+.hdr_tag {
+  fg: #666677;
+  bg: #f4f1ea;
+}
+
+.clock {
+  fg: #15803d;
+  bg: #f4f1ea;
+  mods: bold;
+}
+
+
+.info_button {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+.info_button:hover {
+  fg: white;
+  bg: #3a80ca;
+  mods: bold;
+}
+.info_button:focus {
+  fg: white;
+  bg: #4299e1;
+  mods: bold;
+}
+
+.warning_button {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+.warning_button:hover {
+  fg: black;
+  bg: #e0ad45;
+  mods: bold;
+}
+.warning_button:focus {
+  fg: black;
+  bg: #f6e05e;
+  mods: bold;
+}
+
+.swatch_red     { fg: white; bg: #e53e3e; }
+.swatch_green   { fg: black; bg: #38a169; }
+.swatch_blue    { fg: white; bg: #3182ce; }
+.swatch_yellow  { fg: black; bg: #ecc94b; }
+.swatch_magenta { fg: white; bg: #d53f8c; }
+.swatch_cyan    { fg: black; bg: #319795; }
+
+.nav_link {
+  fg: #0e7490;
+  bg: #f4f1ea;
+}
+.nav_link:hover {
+  fg: #0c4a6e;
+  bg: #d2ccbc;
+}
+.nav_link:focus {
+  fg: #111111;
+  bg: #f9a8d4;
+  mods: bold;
+}
+
+/* <tabs> header buttons - see docs/guide/markup.md. .tab_header is the
+ * default framed style (each header a bordered pane.hover shows an
+ * about-to-click state). .tab_header_compact is for <tabs style="compact">
+ * - no border, so the active tab is shown purely by its background color
+ * instead of a frame; use it wherever the header pane can't spare the
+ * ~3 rows a bordered header cell needs. */
+.tab_header {
+  fg: #2b2b3a;
+  bg: #ddd8cb;
+}
+.tab_header:hover {
+  fg: #111111;
+  bg: #c4bda9;
+}
+.tab_header:focus {
+  fg: #111111;
+  bg: #93c5fd;
+  mods: bold;
+}
+
+.tab_header_compact {
+  fg: #555566;
+  bg: #e8e4da;
+}
+.tab_header_compact:hover {
+  fg: #111111;
+  bg: #c4bda9;
+}
+.tab_header_compact:focus {
+  fg: #111111;
+  bg: #93c5fd;
+  mods: bold;
+}
+
+.brand {
+  fg: #be185d;
+  mods: bold;
+}
+
+.panes {
+  fg: #2b2b3a;
+  bg: #f4f1ea;
+}
+
+.test {
+  fg: #2b2b3a;
+  bg: #f4f1ea;
+}
+/* Checkboxes: class="check". :checked / :unchecked follow the box's value; :focus and :hover still win. */
+.check {
+  fg: #7c8590;
+}
+.check:checked {
+  fg: #15803d;
+  mods: bold;
+}
+.check:unchecked {
+  fg: #7c8590;
+}
+
+/* Fifth button colour used by the Components toolbar (class="sc_purple") */
+.sc_purple {
+  fg: white;
+  bg: #7c3aed;
+  mods: bold;
+}
+.sc_purple:hover {
+  fg: white;
+  bg: #8b5cf6;
+  mods: bold;
+}
+.sc_purple:focus {
+  fg: black;
+  bg: #c4b5fd;
+  mods: bold;
+}

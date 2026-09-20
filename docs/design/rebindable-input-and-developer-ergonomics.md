@@ -123,7 +123,7 @@ tables, and what the tables contain is a command: `tui.action.scroll up`,
 
 The consequential step was to route the framework's own behaviour through
 exactly the same mechanism a developer uses. Tab is not special. It is a
-row in `config/default/keybinds.xml` that reads `tab → tui.action.focus_next`.
+row in `share/defaults/keybinds.xml` that reads `tab → tui.action.focus_next`.
 A developer's `tui.bind ctrl+e on_export` and the framework's own
 `tab` binding go through the same lookup, are listed by the same
 `tui.bind.list`, and are overridden by the same mechanism. There is no
@@ -408,7 +408,7 @@ Every decision above adds a lookup, a redraw or a page. None of them was
 acceptable at the price of a fork. The release therefore included a
 systematic audit: count the processes each operation creates (the last-PID
 field of `/proc/loadavg` is enough, and needs no tools), fix the worst, and
-write the counting tool into `bin/debug/` so the audit is repeatable.
+write the counting tool into `tools/debug/` so the audit is repeatable.
 
 | Operation | Forks before | After |
 |---|---|---|
@@ -443,13 +443,13 @@ public function and its parameters in one table; a generated page covers
 the ~310 escape-sequence helpers, so that it cannot go stale.
 
 Two tools were added because they change how development feels. A
-headless screenshot generator (`bin/debug/screenshots.py`) renders every
+headless screenshot generator (`tools/debug/screenshots.py`) renders every
 demo page in every theme at more than one terminal size, using nothing but
 a small terminal emulator and an image library; it turns "does this still
 look right everywhere" into a command. A full profiler
-(`bin/debug/profile_all.sh`) covers startup, cold and warm page loads,
+(`tools/debug/profile_all.sh`) covers startup, cold and warm page loads,
 render, cache operations, hot calls, overlays and resize. The rule adopted
-alongside them, that profiling scripts live in `bin/debug/`, matters more
+alongside them, that profiling scripts live in `tools/debug/`, matters more
 than either script: it keeps the measurements available to the next person.
 
 ## What This Enables

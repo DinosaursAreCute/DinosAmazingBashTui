@@ -1,8 +1,8 @@
 # Terminal controls reference
 
-Generated from `bin/terminal_controls.sh` by `scripts/gen_terminal_controls_doc.sh` - do not edit by hand.
+Generated from `lib/terminal_controls.sh` by `tools/gen_terminal_controls_doc.sh` - do not edit by hand.
 
-Stateless helpers that print escape sequences (`echo -ne`). They are usable on their own (`source bin/terminal_controls.sh`) and are what the TUI core is built on. Arguments are positional; `[N]` = optional (defaults to 1 where relevant). Functions whose Description is empty are queries or wrappers: read the source next to the function.
+Stateless helpers that print escape sequences (`echo -ne`). They are usable on their own (`source lib/terminal_controls.sh`) and are what the TUI core is built on. Arguments are positional; `[N]` = optional (defaults to 1 where relevant). Functions whose Description is empty are queries or wrappers: read the source next to the function.
 
 
 ## cur.*

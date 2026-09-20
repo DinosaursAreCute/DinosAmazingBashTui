@@ -1,6 +1,11 @@
 .tui_exec.log
 logs/
+*.log
 .cache/
-bin/debug/screenshots/
-CLAUDE.md
-.tui_exec.log
+.claude/
+.obsidian/
+tools/debug/screenshots/
+./CLAUDE.md
+./*.code-workspace
+
+DinosAmazingBashTui.code-workspace

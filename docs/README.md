@@ -11,14 +11,16 @@ This page is the map: how the framework is put together, and where to look for w
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
 | Bind keys and mouse, use the command bar, footer, default pages | [guide/input-bindings.md](guide/input-bindings.md) |
+| Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
+| Write, install and manage plugins; where DABT keeps its files | [guide/plugins.md](guide/plugins.md) |
 | Look up **any function and its parameters** | [api/reference.md](api/reference.md) (one big table) |
 | Read the API grouped by topic, with examples | [api/README.md](api/README.md) |
 | Use the renderers (box, table, charts, banner...) without the TUI | [api/renderers.md](api/renderers.md), [examples/csv-charts](../examples/csv-charts/README.md) |
 | Know why scrolling / hover / caching are built the way they are | [design/](#design-write-ups) |
 | See what changed | [../CHANGELOG.md](../CHANGELOG.md) |
-| Profile or screenshot the demo | [../bin/debug/README.md](../bin/debug/README.md) |
+| Profile or screenshot the demo | [../tools/debug/README.md](../tools/debug/README.md) |
 
-Fastest start: copy `config/DABT_demo/home.xml` + `bin/DABT_demo.sh`, then read [guide/markup.md](guide/markup.md).
+Fastest start: copy `share/demo/home.xml` + `bin/DABT_demo.sh`, then read [guide/markup.md](guide/markup.md).
 
 ## High-level architecture
 
@@ -34,7 +36,7 @@ Fastest start: copy `config/DABT_demo/home.xml` + `bin/DABT_demo.sh`, then read 
                                 terminal_controls.sh + colors.sh (raw ANSI, no state)
 ```
 
-### Layers (load order in `bin/tui.sh`)
+### Layers (load order in `lib/tui.sh`)
 
 | Layer | File | Job |
 |---|---|---|
@@ -42,9 +44,10 @@ Fastest start: copy `config/DABT_demo/home.xml` + `bin/DABT_demo.sh`, then read 
 | Markup | `tui_markup.sh` | Parses XML pages into `tui.*` calls. `tui.start FILE` = init + load + run + cleanup. `tui.goto` switches page. |
 | Style | `tui_style.sh` | `theme.css` (`.class`, `:focus`, `:hover`, `:border`, `:title`) resolved to fg/bg/mods per pane/widget. |
 | Core | `tui.sh` | Pane tree + layout engine (`hsplit`/`vsplit`/`grid`/`fixed`), widgets, focus, mouse routing, render (AWK "shader" viewports), main loop, `tui.exec`. |
-| Input | `tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`config/default/keybinds.xml`), paste, focus movement, user keybind persistence. |
+| Input | `tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`share/defaults/keybinds.xml`), paste, focus movement, user keybind persistence. |
 | Commands | `tui_cmd.sh`, `tui_modal.sh`, `tui_footer.sh` | Command registry + palette, overlay/modal layer, `<footer/>` key-hint bar. |
-| Config | `tui_config.sh` | Persisted framework settings (`~/.config/<app>/dabt.conf`). |
+| Home + plugins | `tui_home.sh`, `tui_plugin.sh` | Where files live (`~/.config/DABT/`), app metadata, and the plugin system with hooks. |
+| Config | `tui_config.sh` | Persisted framework settings (`~/.config/DABT/apps/<app>/dabt.conf`). |
 | Cache | `tui_cache.sh` | Page record/replay cache, stylesheet memo, on-disk cache, warm-up. |
 | Public helpers | `tui_api.sh` | Getters, live helpers (`tui.every`, `tui.clock`, `tui.watch`, `tui.monitor`), theme overlay, style helpers. |
 | Renderers | `terminal_renderer.sh` | `box`, `table`, `hbar`, `linechart`, `banner`... each with a printing and a `_string` form. Usable with no TUI at all. |
@@ -63,7 +66,7 @@ One loop iteration reads input (`read -t`, keyboard + SGR mouse), decodes it int
 
 ### Input dispatch
 
-`user binds → code binds (tui.bind, <bind>) → framework defaults (config/default/keybinds.xml)`, first match wins. Defaults are grouped (`focus`, `pane`, `scroll`, `click`, `wheel`, ...) and opt-out per app or page (`tui.defaults.off GROUP`). Details: [guide/input-bindings.md](guide/input-bindings.md).
+`user binds → code binds (tui.bind, <bind>) → framework defaults (share/defaults/keybinds.xml)`, first match wins. Defaults are grouped (`focus`, `pane`, `scroll`, `click`, `wheel`, ...) and opt-out per app or page (`tui.defaults.off GROUP`). Details: [guide/input-bindings.md](guide/input-bindings.md).
 
 ### Design rules that shape the code
 
@@ -88,17 +91,18 @@ my_app/
     themes/*.css             optional app-wide theme overlays (Settings / palette pick from here)
 ```
 
-`config/DABT_demo/` is a complete working app. The framework's own defaults live in `config/default/` (`keybinds.xml`, `commands.xml`, `theme.css`, `pages/` for the built-in Settings and Keybinds pages); override the directory with `TUI_DEFAULTS_DIR`.
+`share/demo/` is a complete working app. The framework's own defaults live in `share/defaults/` (`keybinds.xml`, `commands.xml`, `theme.css`, `pages/` for the built-in Settings and Keybinds pages); override the directory with `TUI_DEFAULTS_DIR`.
 
 ## Environment variables
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `TUI_APP_NAME` | `dabt` | Config namespace: user keybinds in `~/.config/$TUI_APP_NAME/keybinds.xml`, settings in `dabt.conf` next to it. |
-| `TUI_DEFAULTS_DIR` | `config/default` | Where default keybinds, commands, theme and shipped pages are read from. |
+| `TUI_APP_NAME` | `dabt` | The application's id (set BEFORE sourcing `tui.sh`): its files live in `~/.config/DABT/apps/$TUI_APP_NAME/` (`dabt.conf`, `keybinds.xml`, `settings.conf`, `app.meta`). |
+| `TUI_HOME` | `~/.config/DABT` | DABT's home. Plugins you install go in `$TUI_HOME/plugins` (`TUI_PLUGINS_DIR`). |
+| `TUI_DEFAULTS_DIR` | `share/defaults` | Where default keybinds, commands, theme and shipped pages are read from. |
 | `TUI_THEMES_DIR` | `<app dir>/themes` | Themes offered by Settings and the palette. |
-| `TUI_USER_KEYBINDS` | `~/.config/$TUI_APP_NAME/keybinds.xml` | Saved user keybinds file. |
-| `TUI_CONFIG_FILE` | `~/.config/$TUI_APP_NAME/dabt.conf` | Persisted framework settings. |
+| `TUI_USER_KEYBINDS` | `$TUI_APP_CONF/keybinds.xml` | Saved user keybinds file. |
+| `TUI_CONFIG_FILE` | `$TUI_APP_CONF/dabt.conf` | Persisted framework settings. |
 | `TUI_FOOTER_DEFAULT` | quit, command bar, back | Default `<footer/>` items. |
 | `TUI_INPUT_RETAIN_ON_SUBMIT` | `true` | Whether inputs keep focus after Enter (per input: `tui.input.retain`). |
 | `TR_WIDTH` | terminal width | Renderers: force the width they lay out to (e.g. a pane's width). |
@@ -118,4 +122,4 @@ Long-form explanations of the non-obvious performance decisions. Read them befor
 
 ## Debugging and tooling
 
-`bin/debug/` holds the profiling and screenshot tools (page-switch timings, per-call fork counts, full profile, PNG screenshots of every page and theme); see [../bin/debug/README.md](../bin/debug/README.md). `.tui_exec.log` is the runtime debug log written by `tui.log*`.
+`tools/debug/` holds the profiling and screenshot tools (page-switch timings, per-call fork counts, full profile, PNG screenshots of every page and theme); see [../tools/debug/README.md](../tools/debug/README.md). `.tui_exec.log` is the runtime debug log written by `tui.log*`.

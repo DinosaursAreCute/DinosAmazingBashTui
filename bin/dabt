@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# dabt - the DABT command:   dabt [demo] | update [--check] [--yes] [--policy P] | version | doctor | install | help
+# Works from an installed copy (~/.local/bin/dabt is a link to it) and from a git checkout.
+SELF="${BASH_SOURCE[0]}"
+while [[ -L "$SELF" ]]; do l="$(readlink "$SELF")"; [[ "$l" == /* ]] && SELF="$l" || SELF="$(dirname "$SELF")/$l"; done
+export TUI_ROOT="$(cd -P "$(dirname "$SELF")/.." && pwd -P)"
+cmd="${1:-demo}"; shift 2>/dev/null
+case "$cmd" in
+    demo)            exec bash "$TUI_ROOT/bin/DABT_demo.sh" "$@" ;;
+    install)         exec bash "$TUI_ROOT/install.sh" "$@" ;;
+    version|-v|--version) read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
+    update)          source "$TUI_ROOT/lib/tui.sh"; tui.update.cli "$@" ;;
+    doctor|paths)
+        source "$TUI_ROOT/lib/tui.sh"
+        cat <<INFO
+DABT $TUI_VERSION
+program        $TUI_ROOT$([[ -e "$TUI_ROOT/.git" ]] && echo '   (git checkout)')
+config home    $TUI_HOME   (found via: $TUI_HOME_SOURCE)
+installed      $([[ $TUI_INSTALLED == 1 ]] && echo yes || echo 'no - run: dabt install')
+defaults       $TUI_DEFAULTS_DIR
+plugins        $TUI_PLUGINS_DIR
+INFO
+        ;;
+    help|-h|--help|*) sed -n '2,3p' "$SELF" | sed 's/^# \?//'; [[ "$cmd" == help || "$cmd" == -h || "$cmd" == --help ]] || exit 1 ;;
+esac

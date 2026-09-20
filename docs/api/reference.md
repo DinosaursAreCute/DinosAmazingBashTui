@@ -7,7 +7,7 @@ Conventions:
 - "→ `VAR`" means the result is left in a global variable instead of printed (fork-free).
 - Topic pages with examples: [README.md](README.md).
 
-Sections: [Lifecycle](#lifecycle) · [Layout](#layout-panes) · [Widgets](#widgets) · [Tabs](#tabs) · [Factory](#factory-runtime-widgets) · [Content](#content-and-output) · [Process streaming](#process-streaming-tuiexec) · [Live updates](#live-updates) · [Getters](#getters) · [Styling and themes](#styling-and-themes) · [Input and bindings](#input-and-bindings) · [Actions](#built-in-actions) · [Commands and palette](#commands-and-palette) · [Modal and overlay](#modal-and-overlay) · [Footer](#footer) · [Config](#persisted-config) · [Pages and cache](#pages-and-cache) · [Logging and perf](#logging-and-perf) · [Renderers](#renderers) · [Terminal controls](#terminal-controls) · [Variables](#event-and-result-variables)
+Sections: [Lifecycle](#lifecycle) · [Layout](#layout-panes) · [Widgets](#widgets) · [Richer widgets](#richer-widgets-and-text-editing) · [Tabs](#tabs) · [Factory](#factory-runtime-widgets) · [Content](#content-and-output) · [Process streaming](#process-streaming-tuiexec) · [Live updates](#live-updates) · [Getters](#getters) · [Styling and themes](#styling-and-themes) · [Input and bindings](#input-and-bindings) · [Actions](#built-in-actions) · [Commands and palette](#commands-and-palette) · [Modal and overlay](#modal-and-overlay) · [Dialogs and toasts](#dialogs-and-notifications) · [Footer](#footer) · [Config](#persisted-config) · [Pages and cache](#pages-and-cache) · [Plugins](#plugins-and-hooks) · [Logging and perf](#logging-and-perf) · [Renderers](#renderers) · [Terminal controls](#terminal-controls) · [Variables](#event-and-result-variables)
 
 ## Lifecycle
 
@@ -78,6 +78,40 @@ Constructors take `ID PANE ROW ...`. Missing ID/PANE prints an error and skips t
 | `tui.input.blur_on_submit` | `ID` | Old name for `tui.input.retain ID false`. |
 | `tui.input.sticky` | `ID [true\|false]` | Keep focus through repaints and page reloads. |
 | `tui.focus` | `ID` | Focus a widget (its pane becomes the keyboard pane). |
+
+## Richer widgets and text editing
+
+Details and key tables: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`).
+
+| Function | Parameters | Description |
+|---|---|---|
+| `tui.password` | `ID PANE ROW [PLACEHOLDER] [LABEL] [SUBMIT_FN]` | Masked single-line input; value via `tui.get`. Never copies or cuts. |
+| `tui.textarea` | `ID PANE ROW [PLACEHOLDER] [ROWS] [SUBMIT_FN]` | Multi-line editor. `ROWS` omitted or `0` = fill the pane. `alt+enter` / `ctrl+enter` submit. |
+| `tui.list` | `ID PANE ROW [ACTION_FN] [ROWS]` | Scrollable single-choice list. `ACTION_FN ID` on Enter / double-click. |
+| `tui.table` | `ID PANE ROW [ACTION_FN] [ROWS]` | Header row + rows of `\|`-separated cells. |
+| `tui.select` | `ID PANE ROW LABEL [ACTION_FN]` | One row; opens a picker. Value via `tui.get`. |
+| `tui.progress` | `ID PANE ROW [LABEL]` | Bar, 0-100. |
+| `tui.list.set` / `tui.list.add` / `tui.list.clear` | `ID ITEM...` / `ID ITEM...` / `ID` | Replace / append / empty the items. |
+| `tui.list.select` | `ID INDEX` | Move the selection. |
+| `tui.list.selected` | `ID` | Print the selected index (`-1` none). |
+| `tui.list.item` | `ID [INDEX]` | Print an item (default: the selected one). |
+| `tui.list.count` | `ID` | Print the number of items. |
+| `tui.table.set` | `ID "H1\|H2" "a\|b"...` | Set header and rows. |
+| `tui.table.add` / `.clear` / `.count` / `.select` / `.selected` / `.row` | as the list functions | `row` prints the row as `a\|b\|c`. |
+| `tui.select.set` | `ID ITEM...` | Set the options. |
+| `tui.select.index` / `tui.select.pick` | `ID` / `ID INDEX` | Index of the value / choose an option (runs `on_change` and `action`). |
+| `tui.progress.set` | `ID VALUE [MAX]` | Set the bar (percent of MAX, default 100). |
+| `tui.on_change` | `ID FN` | `FN ID` after an edit (text), selection move (list, table) or new value (select). |
+| `tui.text.selection` | `ID` | Print the selected text. |
+| `tui.text.select` | `ID START END` | Select an offset range. |
+| `tui.text.select_all` | `ID` | Select everything. |
+| `tui.text.cursor` | `ID` | Print `ROW COL` (1-based). |
+| `tui.text.set_cursor` | `ID OFFSET` | Move the cursor, clearing the selection. |
+| `tui.text.insert` | `ID TEXT` | Insert at the cursor, replacing the selection. |
+| `tui.text.delete_selection` | `ID` | Delete the selection. |
+| `tui.text.undo` / `tui.text.redo` | `ID` | Undo / redo (`alt+z` / `alt+y`). |
+| `tui.text.line_count` | `ID` | Print the number of lines. |
+| `TUI_CLIPBOARD` | variable | Text of the last copy / cut inside a text widget. |
 
 ## Tabs
 
@@ -208,7 +242,7 @@ STATE = `normal` (default) `focus border title hover checked unchecked` (the las
 | `tui.bind.reset` | `[--user]` | Drop all code binds, or (`--user`) all user binds. |
 | `tui.bind.list` | | Print bind rows. |
 | `tui.bind.table` | | → `_TBL` aligned text table of all bindings. |
-| `tui.bind.defaults` | `[FILE]` | (Re)load default binds (default `config/default/keybinds.xml`). |
+| `tui.bind.defaults` | `[FILE]` | (Re)load default binds (default `share/defaults/keybinds.xml`). |
 | `tui.defaults.off` | `GROUP... [--page]` | Turn default groups off (`--page`: this page only). |
 | `tui.defaults.on` | `GROUP...` | Turn groups back on. |
 | `tui.defaults.list` | | Print each group with on/off and its keys. |
@@ -232,7 +266,7 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 
 | Action | Parameters | Description |
 |---|---|---|
-| `tui.action.quit` | | Stop the app. |
+| `tui.action.quit` | | Stop the app (asks first when the `confirm.quit` setting is on). `tui.action.quit_now` never asks. |
 | `tui.action.focus_next` / `tui.action.focus_prev` | | Next / previous widget. |
 | `tui.action.focus_dir` | `up\|down\|left\|right` | Spatial widget navigation (nearest in that direction). |
 | `tui.action.unfocus` | | Leave the focused widget. |
@@ -244,9 +278,11 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 | `tui.action.pane_next` / `tui.action.pane_prev` | | Cycle keyboard pane focus. |
 | `tui.action.pane_dir` | `up\|down\|left\|right` | Nearest pane in that direction. |
 | `tui.action.focus_pane` | `PANE` | Focus a pane (its last/first widget, else make it the scroll target). |
+| `tui.action.scroll_or_pane` | `up\|down\|left\|right` | Scroll the pane when it can scroll that way, else move to the neighbouring pane (default `alt+arrows`). |
+| `tui.action.text_keys` | | Scrollable list of every text-editing key (default `f1`). |
 | `tui.action.paste` | | Insert `TUI_EVENT_PASTE` into the focused input. |
 | `tui.action.goto` | `PAGE_FILE` | Go to a page. |
-| `tui.action.goto_default` | `settings\|keybinds` | Open a page shipped with DABT (`config/default/pages/`). |
+| `tui.action.goto_default` | `settings\|keybinds` | Open a page shipped with DABT (`share/defaults/pages/`). |
 | `tui.action.back` | | Return to the previous page. |
 | `tui.action.reload_page` | | Reload the current page. |
 | `tui.action.redraw` | | Full relayout and repaint. |
@@ -261,7 +297,7 @@ The command bar (default `ctrl+p`) lists registered commands and runs one.
 | `tui.cmd.remove` | `ID` | Unregister. |
 | `tui.cmd.run` | `ID` | Run a command by id. |
 | `tui.cmd.list` | | Print `ID GROUP TITLE ACTION` per command. |
-| `tui.cmd.load` | `FILE` | Load `<cmd .../>` lines (same style as `config/default/commands.xml`). |
+| `tui.cmd.load` | `FILE` | Load `<cmd .../>` lines (same style as `share/defaults/commands.xml`). |
 | `tui.cmd.provider` | `FN` | Register a dynamic provider: `FN` calls `tui.cmd.add` each time the palette opens (e.g. one command per theme or page). |
 | `tui.palette.open` | `[QUERY]` | Open the palette (optionally prefilled). |
 | `tui.palette.close` | | Close it. |
@@ -280,6 +316,27 @@ An overlay is a draw function called after every flushed frame (so it stays on t
 | `tui.modal.active` | `[NAME]` | Status 0 if a modal (optionally NAME) is open. |
 | `tui.modal.redraw` | | Redraw overlays now. |
 
+## Dialogs and notifications
+
+Callback style: a dialog returns at once and calls your function after the user answers (when the dialog is gone and the screen repainted, so the callback may open the next dialog or change page). A CMD is a function name plus optional fixed args (`"do_delete file1"`). One dialog at a time; opening a second replaces the first. `TUI_DIALOG_RESULT` holds `yes|no|ok|submit|cancel|choose` when the callback runs.
+
+| Function | Parameters | Description |
+|---|---|---|
+| `tui.confirm` | `MESSAGE [ON_YES [ON_NO]] [flags]` | Yes / No. `y` yes, `n`/Esc no, arrows/Tab move, Enter picks, click works. `--danger` makes Yes red and defaults to No. |
+| `tui.message` | `MESSAGE [ON_CLOSE] [flags]` | Text with an OK button. |
+| `tui.prompt` | `MESSAGE ON_SUBMIT [flags]` | One-line editor (cursor, Home/End, Delete, ctrl+u/k/w, paste). `ON_SUBMIT` gets the text as its last arg. `--value TEXT`, `--placeholder TEXT`, `--validate FN` (`FN VALUE` returns non-zero to reject; set `TUI_DIALOG_ERROR` to say why, the dialog stays), `--cancel CMD`. |
+| `tui.choose` | `TITLE ON_CHOOSE ITEM... [flags]` | List picker: arrows/j/k/PgUp/PgDn, Enter, digits 1-9, click, wheel. `ON_CHOOSE` gets `INDEX` (0-based) and `ITEM`. `--message TEXT`, `--selected N`, `--cancel CMD`. |
+| `tui.view` | `TITLE TEXT [--width N] [--close CMD]` | Scrollable read-only text (help screens). Up/Down/PgUp/PgDn/Home/End, wheel; Esc / q / Enter close. |
+| `tui.dialog.close` | | Dismiss the open dialog without calling anything. |
+| `tui.dialog.active` | | Status 0 while a dialog is open. |
+| `tui.notify` | `MESSAGE [LEVEL] [SECONDS]` | Toast at the bottom-right above the footer. LEVEL `info` (default), `success`, `warn`, `error`; SECONDS default 5, `0` = sticky. Up to 5 stack (oldest dropped); toasts survive page changes. → `TUI_NOTIFY_ID`. |
+| `tui.notify.clear` | `[ID]` | Dismiss one toast, or all. |
+| `tui.notify.count` | | Print the number of toasts showing. |
+| `tui.notify.position` | `[POS]` | Where toasts appear: `bottom-right` (default), `bottom-left`, `bottom-center`, `top-right`, `top-left`, `top-center`. No argument prints it. Persisted as config `notify.position` (default Settings page has a button). |
+| `tui.notify.seconds` | `[N]` | Default toast lifetime in seconds (default 5, `0` = until dismissed). Persisted as `notify.seconds`. |
+
+Common flags: `--title T`, `--width N`, `--ok L`, `--yes L`, `--no L`, `--danger`, `--default yes|no`. Theme classes (all optional): `.dialog .dialog_title .dialog_btn .dialog_btn_sel .dialog_danger .dialog_dim .dialog_error` and `.toast .toast_success .toast_warn .toast_error`. Config: `tui.config.set confirm.quit 1` makes `tui.action.quit` ask first (`tui.action.quit_now` never asks).
+
 ## Footer
 
 | Function | Parameters | Description |
@@ -293,7 +350,7 @@ ITEMS = `KEY|Label[|WHEN_FN];…`. KEY may be literal (`ctrl+s`) or `@ACTION` (s
 
 ## Persisted config
 
-Small key/value store for framework settings (`~/.config/$TUI_APP_NAME/dabt.conf`), applied at `tui.init`. Known keys: `theme`, `defaults.off`, `input.retain`.
+Small key/value store for framework settings (`~/.config/DABT/apps/<app>/dabt.conf`), applied at `tui.init`. Known keys: `theme`, `defaults.off`, `input.retain`, `input.coalesce`, `confirm.quit`, `notify.position`, `notify.seconds`.
 
 | Function | Parameters | Description |
 |---|---|---|
@@ -322,6 +379,35 @@ Small key/value store for framework settings (`~/.config/$TUI_APP_NAME/dabt.conf
 | `tui.cache.init` | | Wrap the builder functions for recording (done once at load). |
 | `tui.cache.cleanup` | | Remove the stamp directory. |
 
+## Plugins and hooks
+
+Guide: [../guide/plugins.md](../guide/plugins.md). Files live under `~/.config/DABT/` (`TUI_HOME`): `plugins/` (`TUI_PLUGINS_DIR`) and `apps/<TUI_APP_NAME>/` (`TUI_APP_CONF`: `dabt.conf`, `keybinds.xml`, `settings.conf`, `app.meta`).
+
+| Function | Parameters | Description |
+|---|---|---|
+| `tui.plugin.scan` | | Discover plugins in the built-in, app, user (`TUI_PLUGINS_DIR`) and `TUI_PLUGIN_DIRS` folders. |
+| `tui.plugin.dir_add` | `DIR` | Add a folder to scan. |
+| `tui.plugin.add` | `PATH [SOURCE]` | Register one plugin file or folder. → `TUI_PLUGIN_NAME` (or `TUI_PLUGIN_ERROR`). |
+| `tui.plugin.install` | `PATH [--force]` | Copy a plugin into `TUI_PLUGINS_DIR` and register it (not enabled). |
+| `tui.plugin.remove` | `NAME` | Disable and unregister; deletes it only if it is in the user folder. |
+| `tui.plugin.enable` / `disable` / `toggle` / `reload` | `NAME` | Enable (requirements first) / disable (dependents first, everything it registered is undone) / flip / re-read the file. The choice is saved. |
+| `tui.plugin.list` | | `NAME<TAB>STATE<TAB>VERSION<TAB>SOURCE<TAB>TITLE` per plugin. |
+| `tui.plugin.info` | `NAME` | Text description. |
+| `tui.plugin.get` | `NAME FIELD` | `title version description author requires state source file error`. |
+| `tui.plugin.enabled` | `NAME` | Status 0 when enabled. |
+| `tui.plugin.root` / `tui.plugin.dir` | `NAME` | The plugin's folder (or single file) / the folder its file is in. |
+| `tui.plugin.files` | `NAME` | Every file of the plugin, one per line. |
+| `tui.plugin.stats` | `NAME` | `key=value` lines: `files dirs bytes lines functions commands binds hooks timers ticks overlays providers`. |
+| `tui.plugin.config` | `NAME KEY [VALUE]` | Get / set a plugin's saved setting (`plugin.NAME.KEY` in `dabt.conf`). |
+| `tui.plugin.own` | `TYPE VALUE` | Add to what disabling undoes (`cmd bind hook every tick overlay provider run`). |
+| `tui.hook.on` / `tui.hook.off` | `EVENT FN` | Register / remove a hook. |
+| `tui.hook.fire` | `EVENT [ARG...]` | Call every handler; status 0 if one returned 0 (only the `key` event uses that: it consumes the key). |
+| `tui.app.meta_get` | `KEY [DEFAULT]` | Read `app.meta`. |
+| `tui.app.meta_set` | `KEY VALUE` | Write a key to `app.meta`. |
+| `tui.app.dir` | | Print `TUI_APP_CONF`. |
+
+Events: `init`, `ready`, `page FILE`, `resize ROWS COLS`, `key NAME`, `quit`, `exit`, `plugin_enabled NAME`, `plugin_disabled NAME`.
+
 ## Logging and perf
 
 | Function | Parameters | Description |
@@ -332,7 +418,7 @@ Small key/value store for framework settings (`~/.config/$TUI_APP_NAME/dabt.conf
 
 ## Renderers
 
-Standalone (`source bin/terminal_renderer.sh`, or `tui.require terminal_renderer`). Every command has a printing form `cmd ARGS` and a string form `cmd_string ARGS` (lines joined with literal `\n`, ready for `tui.output`). `TR_WIDTH=N` forces the layout width. Colors are names from `bin/colors.sh` (`RED`, `BRIGHT_CYAN`, `DIM_YELLOW`, ...). Details and examples: [renderers.md](renderers.md).
+Standalone (`source lib/terminal_renderer.sh`, or `tui.require terminal_renderer`). Every command has a printing form `cmd ARGS` and a string form `cmd_string ARGS` (lines joined with literal `\n`, ready for `tui.output`). `TR_WIDTH=N` forces the layout width. Colors are names from `lib/colors.sh` (`RED`, `BRIGHT_CYAN`, `DIM_YELLOW`, ...). Details and examples: [renderers.md](renderers.md).
 
 | Function | Arguments | Description |
 |---|---|---|
@@ -359,7 +445,7 @@ Flag `-s` on the CLI (`bash terminal_renderer.sh box -s "hi"`) returns the strin
 
 ## Terminal controls
 
-`bin/terminal_controls.sh` is a flat library of escape-sequence one-liners (about 280 functions): [terminal-controls.md](terminal-controls.md) lists every one. Namespaces:
+`lib/terminal_controls.sh` is a flat library of escape-sequence one-liners (about 280 functions): [terminal-controls.md](terminal-controls.md) lists every one. Namespaces:
 
 | Prefix | Covers |
 |---|---|

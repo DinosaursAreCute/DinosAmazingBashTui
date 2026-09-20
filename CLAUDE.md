@@ -18,7 +18,7 @@ Terse mode. Apply to all reasoning and replies in this repo:
 
 ## Architecture
 
-Load order (`bin/tui.sh` sources these): `terminal_controls.sh` → `colors.sh` → `tui_markup.sh` → `tui_style.sh` → `tui.sh` itself.
+Load order (`lib/tui.sh` sources these): `terminal_controls.sh` → `colors.sh` → `tui_markup.sh` → `tui_style.sh` → `tui.sh` itself.
 
 - `terminal_controls.sh` - raw ANSI/cursor primitives (`printat`, `sprint`, `sgr`, `putblock`, `link`, sync blocks). Low-level, no state.
 - `colors.sh` - plain color const exports (`RED`, `BRIGHT_CYAN`, `BG_DIM_RED`, ...). No logic.
@@ -33,7 +33,7 @@ Apps are XML files in `config/*.xml` (think HTML pages) + a paired `*_callbacks.
 
 Entry point pattern: a thin `bin/*_demo.sh` does `source tui.sh; tui.start "config/home.xml"`.
 
-### Callback files (`config/*_callbacks.sh`, `bin/callbacks.sh`)
+### Callback files (`config/*_callbacks.sh`, `tools/legacy/callbacks.sh`)
 
 Plain bash functions, one per `action=`. No special return protocol beyond normal bash exit codes; they call `tui.*` API fns to mutate panes/output. Keep them free of framework internals - call public `tui.*`, not `_tui.*`/`_exec_*`.
 

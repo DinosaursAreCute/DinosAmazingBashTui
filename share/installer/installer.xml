@@ -1,0 +1,16 @@
+<!-- The DABT installer wizard (started by install.sh). A tiny DABT application: the steps are dialogs, the page shows progress. -->
+<tui on_visit="inst_visit">
+  <script src="installer_callbacks.sh"/>
+  <theme src="../defaults/theme.css"/>
+
+  <pane id="root" split="v" title="DABT installer" border="single" class="sidebar">
+    <pane id="inst_head"  weight="24" border="none"/>
+    <pane id="inst_log"   weight="56" title="What is happening" border="single" class="panel" hpad="1" scroll="v"/>
+    <pane id="inst_foot"  weight="20" border="none" hpad="1"/>
+  </pane>
+
+  <label    id="inst_title"  pane="inst_head" row="0" text="" align="center" class="brand"/>
+  <label    id="inst_sub"    pane="inst_head" row="2" text="Press Enter to go on, Esc to go back or cancel." align="center" class="muted_label"/>
+  <progress id="inst_prog"   pane="inst_foot" row="0" label="Install:" value="0"/>
+  <label    id="inst_status" pane="inst_foot" row="2" text="" class="brand"/>
+</tui>

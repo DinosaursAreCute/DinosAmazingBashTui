@@ -8,7 +8,7 @@ Think HTML pages, but for your terminal.<br/>
 
 ---
 
-![Home](screenshots/home.png)
+![Home](screenshots/default/home.png)
 
 ## What is this?
 
@@ -35,7 +35,7 @@ Just bash, doing things bash was never meant to do.<br/>
 
 ## Screenshots
 
-Default theme, generated with `bin/debug/screenshot_all.sh`.
+Default theme, generated with `tools/debug/screenshot_all.sh`.
 
 <details open>
 <summary><b>Home - shared header, nav, live clock and footer key bar</b></summary>
@@ -88,7 +88,7 @@ Default theme, generated with `bin/debug/screenshot_all.sh`.
 
 ## Themes
 
-The Styles page under each built-in theme (Settings switches the whole app; themes live in `config/DABT_demo/themes/*.css`).
+The Styles page under each built-in theme (Settings switches the whole app; themes live in `share/demo/themes/*.css`).
 
 **Default**
 
@@ -174,7 +174,7 @@ Launch it from bash:
 
 ```bash
 #!/usr/bin/env bash
-source bin/tui.sh
+source lib/tui.sh
 tui.start "config/home.xml"
 
 ```
@@ -219,7 +219,7 @@ config/
 ```
 
 Regenerate this tree any time the file layout changes with
-`scripts/gen_tree.sh` - it walks `bin/` and `config/` live and renders
+`tools/gen_tree.sh` - it walks `bin/` and `config/` live and renders
 them through `terminal_renderer.sh`'s own `tree` command, so it can't
 silently drift out of sync with the actual files the way a hand-edited
 one can.

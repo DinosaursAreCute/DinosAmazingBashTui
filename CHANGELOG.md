@@ -7,6 +7,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.0.6] - 2026-09-19
 
 ### Added
+* Plugin system (`bin/tui_plugin.sh`): drop-in `*.plugin.sh` files or folders; enable, disable, reload, install and remove at runtime; automatic cleanup of everything a plugin registered; `requires`; saved state; hooks (`init ready page resize key quit exit`). `tui.plugin.*`, `tui.hook.*`, `docs/guide/plugins.md`, example in `examples/plugins/`.
+* Built-in `terminal_shortcuts` plugin: detects the terminal, lists the keys it keeps (kitty: its real effective keymap; GNOME Terminal via gsettings; tmux root table), a guided key test for any terminal, frees them while DABT runs (kitty include + reload, gsettings, tmux) and restores them on exit or after a crash; config snippets for alacritty, wezterm, ghostty, Windows Terminal and others. Setting on the default Settings page.
+* Settings > Plugins tab: all detected plugins, details (state, source, location, file count, size, lines, functions, what it registered), a file tree and a viewer for its files.
+* Files live in `~/.config/DABT/`: `plugins/` and `apps/<app>/` (`dabt.conf`, `keybinds.xml`, `settings.conf`, `app.meta` with name, title, description, versions, first/last run, run count). Old `~/.config/<app>/` files are moved automatically. `tui.app.meta_get/set`.
+* The command bar shows `plugin: NAME` next to commands a plugin registered.
+* `alt+shift+arrows` as an alias of `ctrl+shift+arrows` (word / empty-line selection); rxvt-style arrow sequences; `bin/debug/keys.sh` shows the raw bytes and key name of any key.
+* Textarea: `ctrl+up` / `ctrl+down` jump to the previous / next empty line, `ctrl+shift+up/down` select up to it; `ctrl+shift+left/right` select by word.
+* `alt+arrows` scroll a scrollable pane (else move pane focus); the wheel falls through to the pane when a text box, list or table cannot scroll; wheel scroll no longer snaps back to the cursor.
+* `tui.view TITLE TEXT` scrollable text viewer; `tui.action.text_keys` (`f1`, and "Help: text editing keybinds" in the command bar) lists every text-editing key.
+* The prompt dialog now uses the text engine (selection, word jumps, undo, clipboard).
+* The app owns every key: the tty runs with `-isig -ixon -iexten -echo -icanon`, so ctrl+c / ctrl+z / ctrl+y reach DABT as keys; ctrl+c copies, ctrl+z / ctrl+y undo / redo. Unread input is drained on exit so nothing leaks to the shell. ctrl+c no longer interrupts the app (quit: q / ctrl+q).
+* Text editing engine (`bin/tui_text.sh`) for input, password and textarea: selection (shift+keys, drag, double/triple-click, ctrl+a), word jumps (ctrl+arrows), cut / copy / paste, undo / redo, click to place the cursor, kill-line keys.
+* `<textarea>` / `tui.textarea`: multi-line editor that fills or spans rows, scrolls, shows a scroll indicator.
+* `<password>` / `tui.password`: masked input that never copies.
+* `<list>`, `<table>`, `<select>`, `<progress>` widgets (`bin/tui_widgets.sh`) with selection, wheel, click and double-click.
+* `tui.text.*` API (selection, cursor, insert, undo) and `tui.on_change`.
+* Widgets page in the demo; `docs/guide/widgets.md` with a Markdown roadmap; `bin/debug/widget_tests.sh` (39 headless checks).
+* Toast position (`tui.notify.position`, six spots) and default lifetime (`tui.notify.seconds`), both persisted and set from buttons on the default Settings page.
+* Dialogs (`bin/tui_dialog.sh`): `tui.confirm`, `tui.message`, `tui.prompt` (validation, editing, paste), `tui.choose`; callback style, keyboard and mouse.
+* Toasts: `tui.notify MESSAGE [info|success|warn|error] [SECONDS]`, stacked above the footer, survive page changes; `tui.notify.clear`.
+* Dialog and toast theme classes (`.dialog*`, `.toast*`) in the default and demo stylesheets.
+* `confirm.quit` setting: `tui.action.quit` asks first (`tui.action.quit_now` never does); checkbox on the default Settings page.
+* Demo: Feature lab "Dialogs & toasts" column; Settings reset and Keybinds discard/drop ask first; saves and setting changes toast.
+* `bin/debug/dialog_shots.sh` / `.py`: headless frames and PNGs of every dialog state (doubles as a smoke test).
+* `config/tui.xsd` brought up to date (`split="fixed"`, `size_w`/`size_h`/`span`/`newline`, `<footer>`, `<bind>` scope, `defaults`).
 * Docs reorganised: `docs/README.md` (architecture + map), `docs/guide/`, `docs/api/`, `docs/design/`.
 * API reference: `docs/api/reference.md` (every public function and parameter), task tour in `docs/api/README.md`, `docs/api/renderers.md`, generated `docs/api/terminal-controls.md` (`scripts/gen_terminal_controls_doc.sh`).
 * Design paper: `docs/design/rebindable-input-and-developer-ergonomics.md` (why the UX and DevX changes were made).
@@ -51,7 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * `tui.get.*` getters for dimensions, position, border, pad, style, widgets, focus and more.
 * `tui.pane_size`, `tui.relayout [PANE]`, `tui.set_label`, `tui.pad`, `tui.pane_pad`.
 * App-wide theme overlays: `tui.theme.set/clear/current` with Ocean, Forest, Sunset and Light palettes.
-* `:checked` / `:unchecked` theme states for checkboxes.
+* `:checked` / `:unchecked` theme states for checkboxes, with a `.check` class in every shipped theme and used by the demo and default pages.
 * `TR_WIDTH` lets the box-style renderers fit a pane instead of the terminal.
 * `_TUI_ON_RESIZE_FN` and `_TUI_ON_KEY_EVENT` hooks.
 * Stylesheet memoization in `tui_cache.sh`: each stylesheet is parsed once, then re-applied from memory.
@@ -60,6 +85,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Demo: Keys page (live binding table, runtime rebinding) and a Debug Keyboard & mouse view that lights each key and button.
 
 ### Changed
+* Demo Components toolbar is one `tui.fixed` grid of equal 15x1 button cells (was three weighted rows); adds the missing `.sc_purple` class to every theme.
 
 * Border ring, title tag and scrollbar now use the pane background, which removes the seam around panes.
 * Pane text now uses the pane's colours, so themes apply to content as well as chrome.
@@ -76,6 +102,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Nav reorganised: Forms is now Settings, Features is now Layout, and the Clock page was removed (the Live page replaces it).
 
 ### Fixed
+- The plugin registry shared `_TP_ORDER` with the theme parser: every theme class showed up as a plugin (and "Plugin: enable" appeared once per class with no name).
+- `tui.after` fired on the next tick instead of after SEC (toasts vanished at once); toasts now last 5 s by default.
 - Overlays/footer redraw only after a frame flush (was every tick); footer no longer wraps/scrolls the last row
 
 * Pane content vanished on resize because `_TUI_PANE_CONTENT` was never declared associative.

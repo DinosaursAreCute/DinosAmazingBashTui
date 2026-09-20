@@ -1,0 +1,55 @@
+<!-- DABT default Settings > Plugins tab (palette: "DABT: Plugins"): every detected plugin, its details and a browsable, readable
+     tree of its files. Everything goes through the public tui.plugin.* API (lib/tui_plugin.sh). -->
+<tui on_visit="plg_visit">
+  <script src="plugins_callbacks.sh"/>
+  <theme src="../theme.css"/>
+  <footer items="@tui.action.reload"/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="tabs_header" weight="5" border="none"/>
+    <!-- general actions, on top -->
+    <pane id="plg_gen" split="fixed" size_w="34" size_h="1" weight="6" border="none" class="panel">
+      <pane id="plg_g1" border="none"/>
+      <pane id="plg_g2" border="none"/>
+      <pane id="plg_g3" border="none"/>
+    </pane>
+    <pane id="head" weight="9" title="DABT Plugins" border="single" class="panel" hpad="1"/>
+    <pane id="body" split="h" weight="74" border="none">
+      <pane id="plg_left" split="v" weight="46" title="Detected plugins" border="single" class="panel" hpad="1">
+        <pane id="plg_table_box" weight="84" border="none"/>
+        <!-- actions for the SELECTED plugin, right next to the list -->
+        <pane id="plg_act" split="fixed" size_w="15" size_h="1" weight="16" border="none">
+          <pane id="plg_a1" border="none"/>
+          <pane id="plg_a2" border="none"/>
+          <pane id="plg_a3" border="none"/>
+        </pane>
+      </pane>
+      <pane id="plg_right" split="v" weight="54" border="none">
+        <pane id="plg_details" weight="60" title="Details" border="single" class="panel" hpad="1" scroll="v"/>
+        <pane id="plg_bottom" split="h" weight="40" border="none">
+          <pane id="plg_tree"    weight="38" title="Files" border="single" class="panel" hpad="1"/>
+          <pane id="plg_content" weight="62" title="Content" border="single" class="panel" hpad="1" scroll="both"/>
+        </pane>
+      </pane>
+    </pane>
+  </pane>
+
+  <tabs id="dset_tabs" header_pane="tabs_header" content_pane="body" style="compact">
+    <tab id="tab_settings" text="Settings" action="plg_goto_settings"/>
+    <tab id="tab_plugins"  text="Plugins"  action="plg_tab_here" default="true"/>
+  </tabs>
+
+  <label id="plg_h1" pane="head" row="0" text="Enter on a plugin opens its menu. Details, files and content are on the right." class="muted_label"/>
+  <label id="plg_h2" pane="head" row="1" text="" class="brand"/>
+
+  <button id="plg_b_install" pane="plg_g1" row="0" text="[ Install file / folder ]" action="plg_install" class="success_button" align="fill"/>
+  <button id="plg_b_rescan"  pane="plg_g2" row="0" text="[ Rescan plugins ]"                action="plg_rescan"  class="info_button"    align="fill"/>
+  <button id="plg_b_back"    pane="plg_g3" row="0" text="[ Back ]"                          action="tui.action.back" class="info_button" align="fill"/>
+
+  <table id="plg_table" pane="plg_table_box" row="0" action="plg_enter" on_change="plg_selected" columns="Plugin|State|Ver|Author|From"/>
+  <list  id="plg_files" pane="plg_tree" row="0" action="plg_toggle_dir" on_change="plg_file_selected"/>
+
+  <button id="plg_b_toggle" pane="plg_a1" row="0" text="[ On / Off ]" action="plg_toggle" class="success_button" align="fill"/>
+  <button id="plg_b_reload" pane="plg_a2" row="0" text="[ Reload ]"   action="plg_reload" class="info_button"    align="fill"/>
+  <button id="plg_b_remove" pane="plg_a3" row="0" text="[ Remove ]"   action="plg_remove" class="danger_button"  align="fill"/>
+</tui>

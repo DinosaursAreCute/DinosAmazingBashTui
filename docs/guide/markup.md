@@ -2,14 +2,14 @@
 
 The project includes a lightweight HTML/XML-like config format for building TUIs
 declaratively instead of hand-calling `tui.*` functions. The loader
-(`bin/tui_markup.sh`) is pure **bash + POSIX utilities only**.
+(`lib/tui_markup.sh`) is pure **bash + POSIX utilities only**.
 
 It is sourced automatically by `tui.sh`, so `tui.load` and `tui.goto` are
 available anywhere `tui.sh` is sourced.
 
 ## Editor autocompletion
 
-[config/tui.xsd](../../config/tui.xsd) describes the tag/attribute set for
+[share/tui.xsd](../../share/tui.xsd) describes the tag/attribute set for
 editors that support XSD-based XML autocompletion and validation (e.g. the
 Red Hat XML extension in VS Code). It's purely an editing aid - the loader
 doesn't read or enforce it. Reference it from a page's root tag:
@@ -22,7 +22,7 @@ doesn't read or enforce it. Reference it from a page's root tag:
 ## Example
 
 ```bash
-source bin/tui.sh
+source lib/tui.sh
 tui.start "config/home.xml"
 
 ```
@@ -102,7 +102,7 @@ the last row's weight) rather than dropping content.
 
 The imperative equivalent is `tui.grid PARENT ROWS COLS FIT ROW_WEIGHTS
 COL_WEIGHTS NAME…`, which the markup parser itself is built on - see
-`bin/tui.sh`.
+`lib/tui.sh`.
 
 ## Tabs
 
@@ -184,7 +184,7 @@ whatever it finds at that moment.
 
 For layouts whose shape isn't known until runtime - "however many items
 are in this list" - markup alone isn't enough, since XML has to name
-every id up front. `tui.factory.*` (in `bin/tui.sh`) is the imperative
+every id up front. `tui.factory.*` (in `lib/tui.sh`) is the imperative
 counterpart: it auto-generates unique ids under a namespace you choose,
 and `tui.factory.clear NAMESPACE` tears every one of them back down
 (widgets, and any panes from `tui.factory.grid`) in one call, so a
@@ -286,7 +286,7 @@ remaining row width:
 
 ## Styling
 
-`bin/tui_style.sh` adds a CSS-like theme system, loaded with `<theme src="theme.css"/>`:
+`lib/tui_style.sh` adds a CSS-like theme system, loaded with `<theme src="theme.css"/>`:
 
 ```css
 .danger_button        { fg: white; bg: #b00020; mods: bold; }

@@ -1,6 +1,6 @@
 # CSV Chart Examples
 
-A tour of the CSV-driven charting commands in [`terminal_renderer.sh`](../../bin/terminal_renderer.sh).
+A tour of the CSV-driven charting commands in [`terminal_renderer.sh`](../../lib/terminal_renderer.sh).
 
 Run it:
 
@@ -24,5 +24,5 @@ you pass `--header`). `csv_linechart` expects a header row where the first
 column is the x-axis label and every other column is a series name.
 
 Every chart accepts `-c "COLOR,COLOR,..."` (names from
-[`bin/colors.sh`](../../bin/colors.sh)) to override the default color cycle,
+[`lib/colors.sh`](../../lib/colors.sh)) to override the default color cycle,
 as shown throughout `run_examples.sh`.

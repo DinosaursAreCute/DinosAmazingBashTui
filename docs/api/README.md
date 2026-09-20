@@ -16,7 +16,7 @@ Rules of the road: call only public functions (`tui.*`, renderers, `cur.*`/`mode
 ```bash
 #!/usr/bin/env bash
 TUI_APP_NAME=my_app                       # config namespace (~/.config/my_app/)
-source /path/to/bin/tui.sh
+source /path/to/lib/tui.sh
 tui.cmd.load "$APP/commands.xml"          # optional: your commands in the command bar
 tui.start "$APP/config/home.xml"          # init + load + run + cleanup
 ```
@@ -50,6 +50,20 @@ on_save() {
 ```
 
 Inputs keep focus after Enter by default (`tui.input.retain ID false` to drop it). Use `tui.update ID VALUE` to change a value and redraw. Runtime-built forms: `tui.factory.*` (`tui.factory.grid demo grid_pane 6 3; tui.factory.button demo "$_TUI_FACTORY_LAST_ID"...`, then `tui.factory.clear demo`). → [Widgets](reference.md#widgets), [Factory](reference.md#factory-runtime-widgets), [Tabs](reference.md#tabs).
+
+### Text editing and data widgets
+
+```bash
+tui.textarea notes editor 0 "notes..." 0            # multi-line, fills its pane; click, drag-select, ctrl+arrows, cut/paste, undo
+tui.on_change notes mark_dirty                      # after every edit
+tui.password pw form 1 "password" "Pass:" do_login
+tui.list files side 0 open_file 8; tui.list.set files a.txt b.txt c.txt
+tui.table t data 0 "" 0; tui.table.set t "Name|Size" "a.txt|1k" "b.txt|2k"
+tui.select mode form 3 "Mode:" mode_changed; tui.select.set mode fast balanced careful
+tui.progress job form 5 "Job:"; tui.progress.set job 40
+```
+
+Key tables, mouse behaviour and the Markdown roadmap: [../guide/widgets.md](../guide/widgets.md). -> [Richer widgets](reference.md#richer-widgets-and-text-editing).
 
 ## 4. Put content in panes
 
@@ -117,9 +131,9 @@ tui.keys.suspend_key ctrl+g                        # change the kill-switch key
 tui.bind.save                                      # persist user (--user) binds
 ```
 
-Default bindings live in `config/default/keybinds.xml`, grouped and opt-out. Full model (lookup order, `--pass`, repeat coalescing, pass-through mode, paste): [../guide/input-bindings.md](../guide/input-bindings.md). → [Input](reference.md#input-and-bindings), [Actions](reference.md#built-in-actions).
+Default bindings live in `share/defaults/keybinds.xml`, grouped and opt-out. Full model (lookup order, `--pass`, repeat coalescing, pass-through mode, paste): [../guide/input-bindings.md](../guide/input-bindings.md). → [Input](reference.md#input-and-bindings), [Actions](reference.md#built-in-actions).
 
-## 9. Command bar, modals, footer
+## 9. Command bar, modals, dialogs, footer
 
 ```bash
 tui.cmd.add export "Export report" on_export --group App --desc "Write report.csv" --key ctrl+e
@@ -137,6 +151,20 @@ tui.modal.open confirm my_keys my_draw
 
 `@ACTION` items show whichever key is currently bound to the action. Defaults and the shipped Settings/Keybinds pages: [../guide/input-bindings.md](../guide/input-bindings.md). → [Commands](reference.md#commands-and-palette), [Modal](reference.md#modal-and-overlay), [Footer](reference.md#footer).
 
+### Dialogs and toasts
+
+```bash
+tui.confirm "Delete report.csv?" do_delete --danger --yes Delete --no Keep      # do_delete runs only on Yes
+tui.prompt "New name:" do_rename --value "$old" --validate name_ok              # do_rename NEWNAME
+tui.choose "Export as" do_export csv json yaml                                  # do_export INDEX ITEM
+tui.notify "Report saved" success                                               # toast, gone after 5 s
+
+name_ok() { [[ -n "$1" && "$1" != */* ]] || { TUI_DIALOG_ERROR="no slashes, not empty"; return 1; }; }
+do_rename() { mv "$old" "$1" && tui.notify "Renamed to $1" success || tui.notify "Rename failed" error 6; }
+```
+
+Dialogs never block: they return at once and call your function afterwards, so a callback can open the next dialog (prompt then confirm). `tui.config.set confirm.quit 1` makes every quit ask first. → [Dialogs and notifications](reference.md#dialogs-and-notifications).
+
 ## 10. Pages, history, persisted settings
 
 ```bash
@@ -149,6 +177,17 @@ tui.action.goto_default settings        # DABT's shipped Settings page (also in 
 
 Pages are recorded and replayed from a cache keyed on file mtimes (page + includes); why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). → [Pages and cache](reference.md#pages-and-cache), [Config](reference.md#persisted-config).
 
-## 11. Renderers without the TUI
+## 11. Plugins
 
-`source bin/terminal_renderer.sh` gives you `box`, `table`, `linechart`, `banner`... in any script. See [renderers.md](renderers.md) and `examples/csv-charts/`.
+```bash
+tui.plugin.list                     # what was detected
+tui.plugin.enable hello             # sources ~/.config/DABT/plugins/hello.plugin.sh and runs plugin.hello.on_enable
+tui.plugin.disable hello            # its commands, keys, hooks and timers are removed again
+tui.hook.on page my_page_hook       # react to every page switch
+```
+
+A plugin file, where DABT keeps its files, hooks and the built-in terminal_shortcuts plugin: [../guide/plugins.md](../guide/plugins.md). -> [Plugins](reference.md#plugins-and-hooks).
+
+## 12. Renderers without the TUI
+
+`source lib/terminal_renderer.sh` gives you `box`, `table`, `linechart`, `banner`... in any script. See [renderers.md](renderers.md) and `examples/csv-charts/`.

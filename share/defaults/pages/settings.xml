@@ -1,0 +1,47 @@
+<!-- DABT default Settings page (ships with the framework; palette: "DABT: Settings"). Everything applies live and
+     is saved through tui.config (see lib/tui_config.sh). An app can replace it: re-register the command id
+     dabt.settings to point at its own page. -->
+<tui on_visit="dset_visit">
+  <script src="settings_callbacks.sh"/>
+  <theme src="../theme.css"/>
+  <footer items="@tui.action.reload"/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="tabs_header" weight="5" border="none"/>
+    <pane id="head" weight="10" title="DABT Settings" border="single" class="panel" hpad="1"/>
+    <pane id="body" split="h" weight="70" border="none">
+      <pane id="col_theme" weight="34" title="Theme" border="single" class="panel" hpad="1"/>
+      <pane id="col_keys"  weight="33" title="Default keybind groups" border="single" class="panel" hpad="1"/>
+      <pane id="col_input" weight="33" title="Input" border="single" class="panel" hpad="1"/>
+    </pane>
+    <pane id="foot" weight="15" border="none" class="panel"/>
+  </pane>
+
+  <!-- the two tabs are separate pages (Settings / Plugins), like the demo's tabs -->
+  <tabs id="dset_tabs" header_pane="tabs_header" content_pane="body" style="compact">
+    <tab id="tab_settings" text="Settings" action="dset_tab_here" default="true"/>
+    <tab id="tab_plugins"  text="Plugins"  action="dset_goto_plugins"/>
+  </tabs>
+
+  <label id="lbl_h1" pane="head" row="0" text="Changes apply immediately and are saved. Keys and pages come from share/defaults/." class="muted_label"/>
+  <label id="lbl_h2" pane="head" row="1" text="" class="brand"/>
+
+  <label id="lbl_t_hd" pane="col_theme" row="0" text="Pick an overlay - it restyles every page:" class="muted_label"/>
+  <label id="lbl_k_hd" pane="col_keys"  row="0" text="Ticked = built-in keys of the group on:" class="muted_label"/>
+
+  <checkbox id="chk_retain"   pane="col_input" row="0" label="Keep focus in an input after Enter" checked="true" action="dset_retain" class="check"/>
+  <checkbox id="chk_coalesce" pane="col_input" row="1" label="Merge fast repeated scroll events"   checked="true" action="dset_coalesce" class="check"/>
+  <checkbox id="chk_confirmq" pane="col_input" row="2" label="Ask before quitting"               checked="false" action="dset_confirm_quit" class="check"/>
+  <checkbox id="chk_tsfree"   pane="col_input" row="3" label="Free terminal shortcuts while DABT runs" checked="false" action="dset_ts_auto" class="check"/>
+  <label    id="lbl_n_hd"     pane="col_input" row="4" text="Notifications (toasts):" class="brand"/>
+  <button   id="btn_npos"     pane="col_input" row="5" text="[ Position: bottom-right ]" action="dset_notify_pos" class="info_button"    align="fill"/>
+  <button   id="btn_nsec"     pane="col_input" row="6" text="[ Stay for: 5 s ]"         action="dset_notify_sec" class="success_button" align="fill"/>
+  <label    id="lbl_c_hd"     pane="col_input" row="8" text="Chords:" class="brand"/>
+  <label    id="lbl_c1"       pane="col_input" row="9" text=""/>
+  <label    id="lbl_c2"       pane="col_input" row="10" text=""/>
+  <label    id="lbl_c3"       pane="col_input" row="11" text=""/>
+  <label    id="lbl_c4"       pane="col_input" row="12" text=""/>
+
+  <button id="btn_back"  pane="foot" row="0" text="[ Back ]"               action="tui.action.back"    class="info_button"    align="fill"/>
+  <button id="btn_kb"    pane="foot" row="1" text="[ Keybinds ... ]"       action="dset_goto_keybinds" class="success_button" align="fill"/>
+</tui>

@@ -1550,7 +1550,15 @@ _tui._draw_widget() {
             [[ "${_TUI_W_VALUE[$id]}" == "1" ]] && mark="[x]"
             local lbl; _tui._resolve_text_v "${_TUI_W_LABEL[$id]}"; lbl="${mark} $_R"
 
-            _tui._apply_style "$style_key" "$pane_key"
+            # :checked / :unchecked replace the normal look (focus and hover still win); fields they leave out fall back to normal
+            local ck_fb="$pane_key" ck_bgfb="" ck_st=unchecked
+            if (( ! focused && ! hovered )); then
+                [[ "${_TUI_W_VALUE[$id]}" == "1" ]] && ck_st=checked
+                if [[ -n "${_TUI_STYLE_FG[${id}_$ck_st]:-}${_TUI_STYLE_BG[${id}_$ck_st]:-}${_TUI_STYLE_MOD[${id}_$ck_st]:-}" ]]; then
+                    style_key="${id}_$ck_st"; ck_fb="${id}_normal"; ck_bgfb="$pane_key"
+                fi
+            fi
+            _tui._apply_style "$style_key" "$ck_fb" "$ck_bgfb"
             if (( focused )); then
                 [[ -z "${_TUI_STYLE_FG[$style_key]:-}" && -z "${_TUI_STYLE_BG[$style_key]:-}" ]] && style.reverse
             else

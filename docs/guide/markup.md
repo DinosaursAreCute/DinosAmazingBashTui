@@ -302,6 +302,8 @@ remaining row width:
 over it; a class with no `:hover` rule leaves hovering that widget with no
 visual effect. It has no effect on panes.
 
+`:checked` / `:unchecked` style a *checkbox* by its value (on / off). They replace the normal look; `:focus` and `:hover` still win while the checkbox is focused or hovered, and any field the state leaves out falls back to the normal look. A checkbox with no such rules is drawn as before.
+
 A pane's border instead reacts to `:focus`: it switches to the class's
 `:focus` style (falling back to `:border`) while any widget inside that
 pane currently has keyboard focus, and reverts the moment focus moves

@@ -1,4 +1,6 @@
-bin/.tui_exec.log
+.tui_exec.log
 logs/
 .cache/
 bin/debug/screenshots/
+CLAUDE.md
+.tui_exec.log

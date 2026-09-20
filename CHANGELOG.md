@@ -51,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * `tui.get.*` getters for dimensions, position, border, pad, style, widgets, focus and more.
 * `tui.pane_size`, `tui.relayout [PANE]`, `tui.set_label`, `tui.pad`, `tui.pane_pad`.
 * App-wide theme overlays: `tui.theme.set/clear/current` with Ocean, Forest, Sunset and Light palettes.
+* `:checked` / `:unchecked` theme states for checkboxes.
 * `TR_WIDTH` lets the box-style renderers fit a pane instead of the terminal.
 * `_TUI_ON_RESIZE_FN` and `_TUI_ON_KEY_EVENT` hooks.
 * Stylesheet memoization in `tui_cache.sh`: each stylesheet is parsed once, then re-applied from memory.

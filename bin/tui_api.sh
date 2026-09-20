@@ -8,7 +8,7 @@
 # tui.paint ID TEXT [STATE]  prints TEXT wrapped in ID's style + reset.
 # tui.class.paint CLASS TEXT [STATE]
 #
-# STATE: normal (default) | focus | border | title | hover
+# STATE: normal (default) | focus | border | title | hover | checked | unchecked
 # A non-normal STATE with no rules falls back to normal.
 # Usage:
 #   printf '%s%s%s\n' "$(tui.ansi mypane title)" "hi" "$(style.reset)"
@@ -379,7 +379,7 @@ _tui_api._monitor_run() {
 #  tui.get.panes [leaves]           all pane ids (or leaves only)
 #  tui.get.scroll PANE              "MODE V_OFF H_OFF TOTAL_LINES MAX_WIDTH"
 #  tui.get.lines PANE               number of output lines held
-#  tui.get.style ID FIELD [STATE]   FIELD = fg|bg|mods, STATE = normal|focus|border|title|hover
+#  tui.get.style ID FIELD [STATE]   FIELD = fg|bg|mods, STATE = normal|focus|border|title|hover|checked|unchecked
 #  tui.get.widgets [PANE]           widget ids (all, or those in PANE)
 #  tui.get.type ID                  label|button|input|checkbox
 #  tui.get.pane ID                  pane a widget lives in
@@ -601,7 +601,7 @@ tui.class.sgr() {
 }
 
 #   tui.class.names                 -> TUI_CLASSES (array, sorted): every class/pseudo-state key in the loaded theme
-#   tui.style.sgr ID [STATE]        -> TUI_SGR TUI_FG TUI_BG: the resolved style of a pane/widget (STATE: normal|focus|border|title|hover)
+#   tui.style.sgr ID [STATE]        -> TUI_SGR TUI_FG TUI_BG: the resolved style of a pane/widget (STATE: normal|focus|border|title|hover|checked|unchecked)
 tui.class.names() {
     local -A seen=(); local k
     for k in "${!_TUI_CLASS_FG[@]}" "${!_TUI_CLASS_BG[@]}" "${!_TUI_CLASS_MOD[@]}"; do seen[$k]=1; done

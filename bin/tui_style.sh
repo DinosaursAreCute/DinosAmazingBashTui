@@ -13,6 +13,8 @@
 #                               mouse is over it; a widget with no :hover
 #                               rules keeps its normal look. Has no effect on
 #                               panes - pane borders only react to :focus.
+#   .classname:checked { ... } / :unchecked { ... }   a checkbox's look while on / off (focus and hover still
+#                               win; fields left out fall back to the normal look).
 #
 # fg/bg accept a colors.sh name (e.g. "red") or a "#RRGGBB" hex value.
 # mods is a space-separated list of style.* modifiers (e.g. "bold underline").
@@ -20,7 +22,7 @@
 # tui.load_theme FILE   parses a stylesheet into the class table.
 # tui.class ID CLASS    applies a class's rules to a pane or widget id.
 # tui.style ID:STATE FG BG MODS   sets style directly, bypassing classes.
-#   STATE is one of: normal (default), focus, border, title, hover.
+#   STATE is one of: normal (default), focus, border, title, hover, checked, unchecked.
 
 declare -gA _TUI_STYLE_FG=() _TUI_STYLE_BG=() _TUI_STYLE_MOD=()
 declare -gA _TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=()
@@ -156,7 +158,7 @@ _tui._find_theme_collisions() {
     local key base
     for key in "${!_TUI_CLASS_FG[@]}" "${!_TUI_CLASS_BG[@]}" "${!_TUI_CLASS_MOD[@]}"; do
         base="$key"
-        base="${base%_focus}"; base="${base%_border}"; base="${base%_title}"; base="${base%_hover}"
+        base="${base%_focus}"; base="${base%_border}"; base="${base%_title}"; base="${base%_hover}"; base="${base%_unchecked}"; base="${base%_checked}"
         bases[$base]=1
     done
 
@@ -186,7 +188,7 @@ tui.class() {
     [[ -z "$cls" ]] && return
 
     local state suffix
-    for state in normal focus border title hover; do
+    for state in normal focus border title hover checked unchecked; do
         suffix="$cls"
         [[ "$state" != "normal" ]] && suffix="${cls}_${state}"
         if [[ -n "${_TUI_CLASS_FG[$suffix]:-}${_TUI_CLASS_BG[$suffix]:-}${_TUI_CLASS_MOD[$suffix]:-}" ]]; then

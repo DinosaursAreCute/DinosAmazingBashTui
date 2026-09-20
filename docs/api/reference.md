@@ -178,7 +178,7 @@ Read-only, print to stdout unless stated. Pane getters return 1 for an unknown p
 
 ## Styling and themes
 
-STATE = `normal` (default) `focus border title hover`; a state without rules falls back to normal.
+STATE = `normal` (default) `focus border title hover checked unchecked` (the last two apply to checkboxes); a state without rules falls back to normal.
 
 | Function | Parameters | Description |
 |---|---|---|

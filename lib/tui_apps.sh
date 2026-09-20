@@ -8,6 +8,9 @@
 #   title, description, author   optional, shown by `dabt app info`
 #   own_dir      optional   yes = the app lives in its own folder (~/.local/share/dabt-apps/NAME), default no =
 #                           it lives in ~/.config/DABT/apps/NAME next to its settings
+#   install_hook / uninstall_hook   optional   scripts (relative to the app folder) run with bash: install_hook after an install
+#                           or update, uninstall_hook before a remove. Env: DABT_HOOK (install|update|uninstall), DABT_APP_NAME,
+#                           DABT_APP_DIR, DABT_APP_CONF, DABT_APP_VERSION. A failing hook only warns. No hook = a warning.
 #   min_dabt / max_dabt   optional   the DABT versions it works with (both inclusive)
 #
 # Installed apps are listed in $TUI_HOME/apps.list (name|version|dir|entry|kind|installed|source; kind = meta | forced).
@@ -24,6 +27,7 @@
 
 _TUI_APPS_SELF="${BASH_SOURCE[0]%/*}"
 [[ -n "${TUI_HOME:-}" ]] || source "$_TUI_APPS_SELF/tui_home.sh"
+[[ -n "${_TUI_SCAN_LOADED:-}" ]] || { source "$_TUI_APPS_SELF/tui_scan.sh"; _TUI_SCAN_LOADED=1; }
 declare -F tui.version.newer >/dev/null || source "$_TUI_APPS_SELF/tui_update.sh"
 
 declare -g TUI_APPS_LIST="${TUI_APPS_LIST:-$TUI_HOME/apps.list}"
@@ -61,6 +65,10 @@ tui.apps.meta_load() {
     [[ -n "$entry" ]] || { TUI_APPS_ERROR=".dabt.metadata: 'entry' is missing"; return 1; }
     [[ "$entry" != /* && "$entry" != *..* && -f "$dir/$entry" ]] || { TUI_APPS_ERROR=".dabt.metadata: entry '$entry' is not a file inside the app"; return 1; }
     case "${own,,}" in yes|true|1) TUI_APP_META[own_dir]=yes ;; no|false|0|"") TUI_APP_META[own_dir]=no ;; *) TUI_APPS_ERROR=".dabt.metadata: own_dir must be yes or no"; return 1 ;; esac
+    for x in install_hook uninstall_hook; do
+        [[ -z "${TUI_APP_META[$x]:-}" ]] && continue
+        [[ "${TUI_APP_META[$x]}" != /* && "${TUI_APP_META[$x]}" != *..* && -f "$dir/${TUI_APP_META[$x]}" ]] || { TUI_APPS_ERROR=".dabt.metadata: $x '${TUI_APP_META[$x]}' is not a file inside the app"; return 1; }
+    done
     for x in version min_dabt max_dabt; do
         [[ -z "${TUI_APP_META[$x]:-}" ]] && continue
         _tui_apps.valid_ver "${TUI_APP_META[$x]}" || { TUI_APPS_ERROR=".dabt.metadata: $x '${TUI_APP_META[$x]}' is not a version number"; return 1; }
@@ -156,12 +164,31 @@ _tui_apps.wipe() {
     return 0
 }
 
+# ── hooks ────────────────────────────────────────────────────────────────
+# _tui_apps.hook KEY EVENT NAME DIR VERSION : run the app's KEY hook (install_hook|uninstall_hook) from DIR; warn when there is none
+_tui_apps.hook() {
+    local key="$1" event="$2" name="$3" dir="$4" ver="$5" h
+    tui.apps.meta_load "$dir" 2>/dev/null; h="${TUI_APP_META[$key]:-}"
+    if [[ -z "$h" ]]; then printf 'dabt app: warning: %s has no %s in .dabt.metadata (nothing to run on %s)\n' "$name" "$key" "$event" >&2; return 0; fi
+    printf '  running %s: %s\n' "$key" "$h"
+    ( cd "$dir" && DABT_HOOK="$event" DABT_APP_NAME="$name" DABT_APP_DIR="$dir" DABT_APP_CONF="$TUI_APPS_DIR/$name" DABT_APP_VERSION="$ver" bash "$h" ) \
+        || printf 'dabt app: warning: %s of %s failed (exit %d)\n' "$key" "$name" "$?" >&2
+    return 0
+}
+
+# the demo ships inside DABT itself: list it (never installed/removed by `dabt app`)
+_tui_apps.ensure_builtin() {
+    _tui_apps.lookup dabt_demo && return 0
+    [[ -f "${TUI_ROOT:-}/bin/DABT_demo.sh" ]] || return 0
+    _tui_apps.register dabt_demo "${TUI_VERSION:-0}" "$TUI_ROOT" bin/DABT_demo.sh builtin "$TUI_ROOT"
+}
+
 # ── install / update ─────────────────────────────────────────────────────
 tui.apps.install() {
-    local src="" force=0 name="" entry="" tmp dir own=no version=0 kind=meta dest prev="" updating=0 n
+    local src="" force=0 strict=0 noscan=0 name="" entry="" tmp dir own=no version=0 kind=meta dest prev="" updating=0 n
     while (( $# )); do
         case "$1" in
-            --force|-f) force=1 ;; --name) name="$2"; shift ;; --entry) entry="$2"; shift ;;
+            --force|-f) force=1 ;; --strict) strict=1 ;; --no-scan) noscan=1 ;; --name) name="$2"; shift ;; --entry) entry="$2"; shift ;;
             -*) _tui_apps.err "install: unknown option $1"; return 2 ;;
             *) [[ -z "$src" ]] && src="$1" || { _tui_apps.err "install: one source only"; return 2; } ;;
         esac
@@ -172,6 +199,11 @@ tui.apps.install() {
     trap 'rm -rf "$tmp"' RETURN
     _tui_apps.fetch "$src" "$tmp" || return 1
     dir="$_APP_SRC_DIR"
+    if (( ! noscan )); then
+        printf 'Scanning %s ...\n' "$src"; tui.scan.run "$dir"; tui.scan.print
+        if (( strict && TUI_SCAN_HIGH && ! force )); then _tui_apps.err "scan found $TUI_SCAN_HIGH high-risk issue(s): not installed (--force installs anyway)"; return 1; fi
+        (( TUI_SCAN_HIGH )) && printf 'dabt app: warning: review the HIGH findings above before you run this app\n' >&2
+    fi
 
     if tui.apps.meta_load "$dir"; then
         name="${TUI_APP_META[name]}"; entry="${TUI_APP_META[entry]}"; own="${TUI_APP_META[own_dir]}"; version="${TUI_APP_META[version]}"
@@ -200,16 +232,19 @@ tui.apps.install() {
     printf '%s %s %s\n  location  %s\n' "$( (( updating )) && echo Updated || echo Installed )" "$name" "$version" "$dest"
     if [[ -n "$entry" ]]; then printf '  entry     %s\n  run       dabt app run %s\n' "$entry" "$name"
     else printf '  run       dabt app run --entry PATH %s     (no entry script known: PATH is relative to the location)\n' "$name"; fi
+    _tui_apps.hook install_hook "$( (( updating )) && echo update || echo install )" "$name" "$dest" "$version"
 }
 
 tui.apps.update() {
     local names=("$@") n rc=0 args
     if (( ! ${#names[@]} )); then
+        _tui_apps.ensure_builtin
         [[ -r "$TUI_APPS_LIST" ]] && while IFS='|' read -r n _; do [[ -n "$n" && "$n" != \#* ]] && names+=("$n"); done < "$TUI_APPS_LIST"
     fi
     (( ${#names[@]} )) || { echo "no apps installed"; return 0; }
     for n in "${names[@]}"; do
         _tui_apps.lookup "$n" || { _tui_apps.err "$n is not installed"; rc=1; continue; }
+        [[ "$A_KIND" == builtin ]] && { echo "$n ships with DABT: it is updated by  dabt update"; continue; }
         args=("$A_SOURCE"); [[ "$A_KIND" == forced ]] && args+=(--force --name "$A_NAME" ${A_ENTRY:+--entry "$A_ENTRY"})
         tui.apps.install "${args[@]}" || rc=1
     done
@@ -221,8 +256,10 @@ tui.apps.remove() {
     for a in "$@"; do case "$a" in --yes|-y) yes=1 ;; --purge) purge=1 ;; -*) _tui_apps.err "remove: unknown option $a"; return 2 ;; *) name="$a" ;; esac; done
     [[ -n "$name" ]] || { _tui_apps.err "remove: give an app name"; return 2; }
     _tui_apps.lookup "$name" || { _tui_apps.err "$name is not installed"; return 1; }
+    [[ "$A_KIND" == builtin ]] && { _tui_apps.err "$name ships with DABT and cannot be removed"; return 1; }
     printf 'Will remove %s (%s)%s\n' "$name" "$A_DIR" "$( (( purge )) && echo " and its settings in $TUI_APPS_DIR/$name" )"
     if (( ! yes )); then local r; read -r -p "Remove? [y/N] " r; [[ "$r" == [yY]* ]] || { echo aborted; return 1; }; fi
+    _tui_apps.hook uninstall_hook uninstall "$name" "$A_DIR" "$A_VERSION"
     if (( purge )); then _tui_apps.managed "$A_DIR" && rm -rf -- "$A_DIR"; _tui_apps.managed "$TUI_APPS_DIR/$name" && rm -rf -- "$TUI_APPS_DIR/$name"
     else _tui_apps.wipe "$A_DIR"; fi
     _tui_apps.unregister "$name"
@@ -232,6 +269,7 @@ tui.apps.remove() {
 # ── list / info / run ────────────────────────────────────────────────────
 tui.apps.list() {
     local n v d e k w s any=0
+    _tui_apps.ensure_builtin
     if [[ -r "$TUI_APPS_LIST" ]]; then
         while IFS='|' read -r n v d e k w s; do
             [[ -z "$n" || "$n" == \#* ]] && continue
@@ -248,7 +286,7 @@ tui.apps.info() {
     printf '%-12s %s\n' name "$A_NAME" version "$A_VERSION" location "$A_DIR" entry "${A_ENTRY:--}" source "$A_SOURCE" installed "$A_WHEN" \
         metadata "$([[ "$A_KIND" == forced ]] && echo 'none (installed with --force)' || echo present)" settings "$TUI_APPS_DIR/$A_NAME"
     if tui.apps.meta_load "$A_DIR" 2>/dev/null; then
-        for x in title description author own_dir min_dabt max_dabt; do [[ -n "${TUI_APP_META[$x]:-}" ]] && printf '%-12s %s\n' "$x" "${TUI_APP_META[$x]}"; done
+        for x in title description author own_dir install_hook uninstall_hook min_dabt max_dabt; do [[ -n "${TUI_APP_META[$x]:-}" ]] && printf '%-12s %s\n' "$x" "${TUI_APP_META[$x]}"; done
     fi
 }
 
@@ -286,8 +324,9 @@ _tui_apps.help() {
     cat <<'HELP'
 dabt app - install and manage DABT applications
 
-  dabt app install SOURCE [--force] [--name N] [--entry PATH]
+  dabt app install SOURCE [--force] [--strict] [--no-scan] [--name N] [--entry PATH]
                           SOURCE = a folder or a git URL (URL#branch-or-tag). The app needs a .dabt.metadata file;
+                          The code is security-scanned first (dabt scan): --strict refuses on HIGH findings, --no-scan skips it.
                           --force installs one without it (or built for another DABT version) anyway.
   dabt app list                       installed apps and where they live
   dabt app info NAME                  details and metadata of an app
@@ -297,7 +336,7 @@ dabt app - install and manage DABT applications
   dabt app update [NAME...]           reinstall from the recorded source (no NAME = every app)
   dabt app remove NAME [--yes] [--purge]     remove an app; --purge also deletes its settings
 
-.dabt.metadata (key=value):  name  entry  [version title description author own_dir min_dabt max_dabt]
+.dabt.metadata (key=value):  name  entry  [version title description author own_dir install_hook uninstall_hook min_dabt max_dabt]
 Apps live in ~/.config/DABT/apps/NAME, or in ~/.local/share/dabt-apps/NAME when they set  own_dir=yes.
 HELP
 }

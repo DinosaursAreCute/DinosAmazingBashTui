@@ -224,10 +224,16 @@ tui.plugin.reload() {
 
 # ── install / remove ─────────────────────────────────────────────────────
 tui.plugin.install() {
-    local src="$1" force=0 dest base name
-    [[ "${2:-}" == --force ]] && force=1
-    TUI_PLUGIN_ERROR=""
+    local src="$1" force=0 strict=0 noscan=0 dest base name a
+    for a in "${@:2}"; do case "$a" in --force) force=1 ;; --strict) strict=1 ;; --no-scan) noscan=1 ;; esac; done
+    TUI_PLUGIN_ERROR=""; TUI_PLUGIN_WARNING=""
     [[ -e "$src" ]] || { TUI_PLUGIN_ERROR="not found: $src"; return 1; }
+    if (( ! noscan )); then   # quiet: the report is left in TUI_SCAN_REPORT, a one-line summary in TUI_PLUGIN_WARNING
+        declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/tui_scan.sh"
+        tui.scan.run "$src"
+        if (( strict && TUI_SCAN_HIGH && ! force )); then TUI_PLUGIN_ERROR="scan found $TUI_SCAN_HIGH high-risk issue(s) (--force installs anyway; dabt scan $src)"; return 1; fi
+        (( TUI_SCAN_HIGH + TUI_SCAN_WARN )) && TUI_PLUGIN_WARNING="scan: $TUI_SCAN_HIGH high, $TUI_SCAN_WARN warnings (dabt scan $src)"
+    fi
     _tui_plugin.user_dir; mkdir -p "$_UD" || { TUI_PLUGIN_ERROR="cannot create $_UD"; return 1; }
     src="${src%/}"; base="${src##*/}"; dest="$_UD/$base"
     if [[ -e "$dest" ]] && (( ! force )); then TUI_PLUGIN_ERROR="$base is already installed (use --force to replace)"; return 1; fi

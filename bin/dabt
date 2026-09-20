@@ -21,6 +21,7 @@ Commands:
   update [--check] [--yes] [--dev] [--policy override|skip|new]   update to the latest release (--dev: current main)
   install [install.sh options]                            install this copy (see install.sh --help)
   doctor                                                  same as --details
+  scan PATH... [--deep] [--strict]                        security-scan scripts (dabt scan --tools / --install)
   app <command>                                           install and manage DABT applications (dabt app help)
   clear-cache                                             delete the page cache (rebuilt on next run)
   reinstall [--yes]                                       reinstall from the install source, overriding local file changes
@@ -88,6 +89,7 @@ case "${1:-}" in
     -v|--version|version)   read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
     install)                shift; exec bash "$TUI_ROOT/install.sh" "$@" ;;
     app)                    shift; source "$TUI_ROOT/lib/tui_apps.sh"; tui.apps.cli "$@"; exit $? ;;
+    scan)                   shift; source "$TUI_ROOT/lib/tui_scan.sh"; tui.scan.cli "$@"; exit $? ;;
     clear-cache|--clear-cache) _clear_cache ;;
     reinstall|--reinstall)  shift; yes=0; [[ "${1:-}" == --yes || "${1:-}" == -y ]] && { yes=1; shift; }; _reinstall "$@" ;;
     uninstall|--uninstall)  shift; yes=0; for a in "$@"; do [[ "$a" == --yes || "$a" == -y ]] && yes=1; done; _uninstall "$@" ;;

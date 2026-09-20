@@ -4,9 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.6] - 2026-09-19
+## [0.0.7] - 2026-09-20
+
+DABT is now also an application manager: install, update and uninstall apps, with a security scan in front of every install.
 
 ### Added
+* `dabt scan PATH... [--deep] [--strict]` (`lib/tui_scan.sh`): security scan for shell scripts. Built-in grep rules (HIGH / WARN: pipe-to-shell, reverse shells, `rm -rf /`, setuid, secrets, persistence ...) need no dependencies; ShellCheck is used when on PATH, Semgrep with `--deep`. `dabt scan --tools`, `dabt scan --install shellcheck|semgrep` (shows the command, asks first).
+* `dabt app install|list|info|run|update|remove` (`lib/tui_apps.sh`): apps are folders with a `.dabt.metadata` file, installed from a folder or git URL, tracked in `apps.list`, settings kept on remove unless `--purge`. Installs are scanned first (`--strict` refuses on HIGH findings, `--no-scan` skips).
+* App hooks: `install_hook` / `uninstall_hook` in `.dabt.metadata`, run after install / update and before remove (`DABT_HOOK`, `DABT_APP_NAME`, `DABT_APP_DIR`, `DABT_APP_CONF`, `DABT_APP_VERSION`).
+* `tui.plugin.install` scans the plugin (`--strict`, `--no-scan`); a summary lands in `TUI_PLUGIN_WARNING`.
+* The demo is listed as a built-in app (`dabt_demo`); it cannot be removed and is updated by `dabt update`.
+* `docs/guide/install-and-update.md`; bats tests for the updater (`tests/updater.bats`).
 * `dabt`: no args = help; `-d/--details` kv-rendered install info; `--demo` runs the demo. Installer TUI wizard removed.
 * Installer: `install.sh` shows the locations and asks (plain prompt, no TUI) (`--yes`, `--prefix`, `--config`, `--bindir`, `--policy`, `--dry-run`). Detects an existing install (`~/.config/DABT`, else `$DABT_HOME`).
 * Updater: "DABT: Check for updates" / "DABT: Update DABT ..." in the command bar and `dabt update`. Downloads the release from GitHub, lists every changed file, asks per conflict (override / skip / write `.new` / show differences), backs up what it replaces.
@@ -40,6 +48,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Demo: Feature lab "Dialogs & toasts" column; Settings reset and Keybinds discard/drop ask first; saves and setting changes toast.
 * `bin/debug/dialog_shots.sh` / `.py`: headless frames and PNGs of every dialog state (doubles as a smoke test).
 * `config/tui.xsd` brought up to date (`split="fixed"`, `size_w`/`size_h`/`span`/`newline`, `<footer>`, `<bind>` scope, `defaults`).
+* `:checked` / `:unchecked` theme states for checkboxes, with a `.check` class in every shipped theme and used by the demo and default pages.
+
+### Changed
+* README: DABT is described as a TUI framework and an application manager (install, update, uninstall, security scan).
+* Demo header clock shows `%H:%M:%S` only.
+* Repository layout: framework moved from `bin/` to `lib/`, `config/default` -> `share/defaults`, shipped plugins -> `share/plugins`, `config/DABT_demo` -> `share/demo`, `bin/debug` and `scripts/` -> `tools/`, tests in `tests/`. The page cache and other runtime files live in the config home, not the program folder.
+* Demo Components toolbar is one `tui.fixed` grid of equal 15x1 button cells (was three weighted rows); adds the missing `.sc_purple` class to every theme.
+
+
+## [0.0.6] - 2026-09-19
+
+### Added
 * Docs reorganised: `docs/README.md` (architecture + map), `docs/guide/`, `docs/api/`, `docs/design/`.
 * API reference: `docs/api/reference.md` (every public function and parameter), task tour in `docs/api/README.md`, `docs/api/renderers.md`, generated `docs/api/terminal-controls.md` (`scripts/gen_terminal_controls_doc.sh`).
 * Design paper: `docs/design/rebindable-input-and-developer-ergonomics.md` (why the UX and DevX changes were made).
@@ -84,7 +104,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * `tui.get.*` getters for dimensions, position, border, pad, style, widgets, focus and more.
 * `tui.pane_size`, `tui.relayout [PANE]`, `tui.set_label`, `tui.pad`, `tui.pane_pad`.
 * App-wide theme overlays: `tui.theme.set/clear/current` with Ocean, Forest, Sunset and Light palettes.
-* `:checked` / `:unchecked` theme states for checkboxes, with a `.check` class in every shipped theme and used by the demo and default pages.
 * `TR_WIDTH` lets the box-style renderers fit a pane instead of the terminal.
 * `_TUI_ON_RESIZE_FN` and `_TUI_ON_KEY_EVENT` hooks.
 * Stylesheet memoization in `tui_cache.sh`: each stylesheet is parsed once, then re-applied from memory.
@@ -93,8 +112,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Demo: Keys page (live binding table, runtime rebinding) and a Debug Keyboard & mouse view that lights each key and button.
 
 ### Changed
-* Repository layout: framework moved from `bin/` to `lib/`, `config/default` -> `share/defaults`, shipped plugins -> `share/plugins`, `config/DABT_demo` -> `share/demo`, `bin/debug` and `scripts/` -> `tools/`, tests in `tests/`. The page cache and other runtime files live in the config home, not the program folder.
-* Demo Components toolbar is one `tui.fixed` grid of equal 15x1 button cells (was three weighted rows); adds the missing `.sc_purple` class to every theme.
 
 * Border ring, title tag and scrollbar now use the pane background, which removes the seam around panes.
 * Pane text now uses the pane's colours, so themes apply to content as well as chrome.
@@ -111,8 +128,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Nav reorganised: Forms is now Settings, Features is now Layout, and the Clock page was removed (the Live page replaces it).
 
 ### Fixed
-- The plugin registry shared `_TP_ORDER` with the theme parser: every theme class showed up as a plugin (and "Plugin: enable" appeared once per class with no name).
-- `tui.after` fired on the next tick instead of after SEC (toasts vanished at once); toasts now last 5 s by default.
 - Overlays/footer redraw only after a frame flush (was every tick); footer no longer wraps/scrolls the last row
 
 * Pane content vanished on resize because `_TUI_PANE_CONTENT` was never declared associative.

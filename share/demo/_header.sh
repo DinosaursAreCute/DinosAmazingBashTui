@@ -14,5 +14,5 @@ _dabt_title() {
     tui.set_text dabt_hdr_title "${out%$'\n'}"
 }
 
-tui.clock dabt_hdr_clock "%Y-%m-%d %H:%M:%S" box3
+tui.clock dabt_hdr_clock "%H:%M:%S" box3
 tui.every 3 _dabt_title dabt_hdr_title_job

@@ -1,10 +1,9 @@
 <div align="center">
 
-# 🦕 D.A.B.T
+<img src="assets/logo-transparent.png" alt="D.A.B.T - DinosAmazingBashTui" width="720">
 
-### DinosAmazingBashTui
-
-**A declarative, file-based terminal UI framework.**
+**A declarative terminal UI framework and application manager.**
+Build TUIs in XML + bash, then install, update, uninstall and security-scan them with one `dabt` command.
 Pure bash + POSIX utilities. No Python, no Node, no ncurses.
 
 [![Release](https://img.shields.io/github/v/release/DinosaursAreCute/DinosAmazingBashTui?include_prereleases&style=for-the-badge&color=2ea043&label=release)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases)
@@ -18,17 +17,21 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses.
 [![Repo size](https://img.shields.io/github/repo-size/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui)
 [![Made with bash](https://img.shields.io/badge/made%20with-bash-1f425f?style=flat-square&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
 
-[**Quick start**](#-quick-start) · [**Features**](#-features) · [**The `dabt` command**](#-the-dabt-command) · [**Plugins**](#-plugins) · [**Docs**](#-documentation) · [**Changelog**](CHANGELOG.md)
+[**Quick start**](#quick-start) · [**Features**](#features) · [**The `dabt` command**](#the-dabt-command) · [**Apps & security scan**](#security-scan) · [**Plugins**](#plugins) · [**Docs**](#documentation) · [**Changelog**](CHANGELOG.md)
 
-![Home](screenshots/default/home.png)
+<img src="screenshots/default/home.png" alt="Home" width="760">
 
 </div>
 
 ---
 
-## What is this?
+<h2 id="what-is-this"><img src="assets/headers/what-is-this.svg" alt="What is this?" height="35"></h2>
 
-D.A.B.T lets you build multi-page terminal interfaces the way you build a website: write markup, point at a stylesheet, wire up callbacks. The framework handles layout, rendering, focus, mouse support and live background processes, all in bash.
+D.A.B.T is two things in one.
+
+**An application manager.** `dabt` installs apps built on it from a folder or git URL, updates them, uninstalls them (settings kept unless you `--purge`), runs install / uninstall hooks, and security-scans every app and plugin before it is installed. It also updates and uninstalls itself. See [The `dabt` command](#the-dabt-command) and [Security scan](#security-scan).
+
+**A TUI framework.** It lets you build multi-page terminal interfaces the way you build a website: write markup, point at a stylesheet, wire up callbacks. The framework handles layout, rendering, focus, mouse support and live background processes, all in bash.
 
 ```xml
 <tui>
@@ -58,14 +61,14 @@ source lib/tui.sh
 tui.start "share/demo/home.xml"
 ```
 
-## 🚀 Quick start
+<h2 id="quick-start"><img src="assets/headers/quick-start.svg" alt="Quick start" height="35"></h2>
 
 ```bash
 git clone https://github.com/DinosaursAreCute/DinosAmazingBashTui.git
 cd DinosAmazingBashTui
 
 bin/dabt demo        # run the demo straight from the checkout, no install needed
-./install.sh         # optional: install the program and config home (asks first)
+./install.sh         # optional: install the program and config home
 ```
 
 After installing, everything goes through the `dabt` command:
@@ -78,7 +81,7 @@ dabt doctor          # where everything lives, what version is installed
 
 No package manager, no build step. Installing copies the program to `~/.local/share/dabt`, the defaults and plugins to `~/.config/DABT` (yours to edit) and links `~/.local/bin/dabt`. Details: [docs/guide/install-and-update.md](docs/guide/install-and-update.md).
 
-## 🧰 The `dabt` command
+<h2 id="the-dabt-command"><img src="assets/headers/the-dabt-command.svg" alt="The dabt command" height="35"></h2>
 
 | Command | What it does |
 |---|---|
@@ -91,13 +94,17 @@ No package manager, no build step. Installing copies the program to `~/.local/sh
 | `dabt update --dev` | update to the **current `main`**, even at the same version |
 | `dabt update --check` | only check; exit code 10 when an update is available |
 | `dabt update --yes --policy override\|skip\|new` | non-interactive; settle conflicts by policy |
+| `dabt scan PATH... [--deep] [--strict]` | security-scan scripts (apps, plugins) - see [Security scan](#security-scan) |
+| `dabt scan --tools` / `--install shellcheck\|semgrep` | show / install the optional scanners |
+| `dabt app install SRC [--strict] [--no-scan]` | install an app (scanned first) |
+| `dabt app list\|info\|run\|update\|remove` | manage installed apps (`dabt app help`) |
 | `dabt clear-cache` | delete the page cache in `~/.config/DABT/cache` |
 | `dabt reinstall [--yes]` | reinstall from the install source, overriding local changes |
 | `dabt uninstall [--yes] [--keep-config]` | remove the program, config home and the `dabt` link |
 
 **Safe updates.** The updater and installer use a three-way file sync (checksum manifest). Before anything is written you see every added, changed and removed file. Files you edited are never overwritten silently: for each conflict choose *override*, *skip*, *write a `.new` file* or *show the differences*. Replaced files are backed up in `~/.config/DABT/backups/`. The same flow is available in the app's command bar (`ctrl+p` → "DABT: Update DABT").
 
-## ✨ Features
+<h2 id="features"><img src="assets/headers/features.svg" alt="Features" height="35"></h2>
 
 | | |
 |---|---|
@@ -115,8 +122,36 @@ No package manager, no build step. Installing copies the program to `~/.local/sh
 | **Terminal renderers** | Standalone `box`, `table`, `gauge`, `hbar`, `tree`, `banner`, CSV charts and more, usable without the TUI |
 | **Mouse + keyboard** | Click routing, hover feedback, Tab focus cycling, the app owns every key (ctrl+c copies) |
 | **Installer & updater** | Release / dev channels, conflict resolution, backups, reinstall and clean uninstall |
+| **App manager** | `dabt app install/update/remove` for third-party apps, install / uninstall hooks, built-in demo app |
+| **Security scan** | `dabt scan` and scan-gated installs: built-in rules, optional ShellCheck / Semgrep |
 
-## 🔌 Plugins
+<h2 id="security-scan"><img src="assets/headers/security.svg" alt="Security scan" height="35"></h2>
+
+Apps and plugins are shell code that runs with your permissions. DABT scans them before you install them (`dabt app install`, `tui.plugin.install`) and on demand with `dabt scan PATH`. By default findings only warn; `--strict` refuses to install on HIGH findings (`--force` overrides, `--no-scan` skips).
+
+**Built-in scanner (always on, no dependencies).** A set of `grep` rules, pure bash + POSIX utilities, that flags the obvious red flags. Comment lines are ignored.
+
+| Severity | Examples |
+|---|---|
+| **HIGH** | `curl ... \| sh`, `eval "$(curl ...)"`, `base64 -d \| sh`, reverse shells (`/dev/tcp`, `nc -e`), `rm -rf /` or `~`, `dd of=/dev/...`, `mkfs`, setuid bits, edits to `/etc/passwd` / `sudoers` / `authorized_keys`, embedded private or AWS keys |
+| **WARN** | network downloads, `eval` of variables, `sudo`, world-writable `chmod`, persistence (cron, `.bashrc`, `systemctl enable`), hardcoded passwords/tokens, `LD_PRELOAD`, writes to `/etc` `/usr` `/opt` `/var` |
+
+It matches text patterns only. It cannot follow variables, spot obfuscation (`eval "$(echo ... | rev)"`) or tell a legitimate `curl` from a malicious one, so it has false positives and false negatives. **A clean report is not a guarantee.**
+
+**Optional scanners (recommended).** They go much deeper than a pattern list:
+
+- **[ShellCheck](https://www.shellcheck.net)** parses the script like a real shell parser. It finds the bugs that become injection holes: unquoted variables, `rm -rf $var/` with an empty `$var`, unsafe `eval`, bad `cd` handling, word-splitting on user input. It is the industry-standard shell linter and catches what a grep rule can't. Used automatically when installed.
+- **[Semgrep](https://semgrep.dev)** (`--deep`, or `DABT_SCAN_SEMGREP=1`) does structural pattern matching with maintained community rules, so it sees code shapes rather than text and its rules improve without a DABT release. Heavier (Python), so it is opt-in.
+
+Install either with `dabt scan --install shellcheck|semgrep`. DABT finds a known package manager (apt, dnf, pacman, zypper, apk, brew, nix, pipx/pip), **shows the exact command and asks before running it**. If no package manager is found, it tells you to install the tool yourself. Check what is available with `dabt scan --tools`.
+
+**Why non-POSIX tools are allowed here.** DABT's rule is *no dependencies* (see [Requirements](#requirements)), and that still holds: the framework, the built-in scanner and every scan-gated install work with nothing extra, and a missing tool is a one-line note, never an error. The exception exists because the built-in rules are the ceiling of what pure POSIX text tools can do, and security checking is where that ceiling matters. A real shell parser (ShellCheck) or a maintained rule engine (Semgrep) can't be reimplemented in `grep`/`awk` without being worse and unmaintained, and a hand-rolled scanner people trust too much is worse than none. So the extra tools are:
+
+- **optional**: never required to install, run or update anything;
+- **opt-in to install**: nothing is installed without your confirmation;
+- **used only by `dabt scan`**: they are not loaded by the TUI framework and add no runtime dependency to any app.
+
+<h2 id="plugins"><img src="assets/headers/plugins.svg" alt="Plugins" height="35"></h2>
 
 A plugin is one bash file that adds commands, keys, hooks, timers or overlays to any DABT app. Plugins live in `~/.config/DABT/plugins/`, are shared by every app, and can be enabled, disabled, reloaded, installed and removed while the app runs (Settings → Plugins, the command bar, or `tui.plugin.*`). Everything a plugin registered is cleaned up automatically when it is removed.
 
@@ -124,65 +159,65 @@ Ships with **`terminal_shortcuts`**: detects your terminal (kitty, GNOME Termina
 
 See [docs/guide/plugins.md](docs/guide/plugins.md) and [examples/plugins/](examples/plugins/).
 
-## 🖼️ Screenshots
+<h2 id="screenshots"><img src="assets/headers/screenshots.svg" alt="Screenshots" height="35"></h2>
 
 Default theme, generated with `tools/debug/screenshot_all.sh`.
 
 <details open>
 <summary><b>Components: every terminal renderer, with fit-to-pane and live tabs</b></summary>
 
-![Components](screenshots/default/components.png)
+<img src="screenshots/default/components.png" alt="Components" width="680">
 
 </details>
 
 <details>
 <summary><b>Case Study: real-world layout stress test</b></summary>
 
-![Case Study](screenshots/default/case_study.png)
+<img src="screenshots/default/case_study.png" alt="Case Study" width="680">
 
 </details>
 
 <details>
 <summary><b>Documentation: one tab per markdown file</b></summary>
 
-![Docs](screenshots/default/docu__doc_tab_3.png)
+<img src="screenshots/default/docu__doc_tab_3.png" alt="Docs" width="680">
 
 </details>
 
 <details>
 <summary><b>Scrolling: high-performance AWK shader viewports</b></summary>
 
-![Scrolling](screenshots/default/scrolling.png)
+<img src="screenshots/default/scrolling.png" alt="Scrolling" width="680">
 
 </details>
 
 <details>
 <summary><b>Monitor: live CPU, memory, load and disk straight from /proc</b></summary>
 
-![Monitor](screenshots/default/monitor.png)
+<img src="screenshots/default/monitor.png" alt="Monitor" width="680">
 
 </details>
 
 <details>
 <summary><b>Debug: every key and mouse event lights up as you press it</b></summary>
 
-![Keyboard and mouse](screenshots/default/debug_input.png)
+<img src="screenshots/default/debug_input.png" alt="Keyboard and mouse" width="680">
 
 </details>
 
-### Themes
+<h3 id="themes"><img src="assets/headers/themes.svg" alt="Themes" height="35"></h3>
 
 Switch the whole app from Settings; themes live in `share/demo/themes/*.css`.
 
 | Default | Ocean | Forest |
 |:---:|:---:|:---:|
-| ![default](screenshots/default/styles.png) | ![ocean](screenshots/ocean/styles.png) | ![forest](screenshots/forest/styles.png) |
+| <img src="screenshots/default/styles.png" alt="default" width="260"> | <img src="screenshots/ocean/styles.png" alt="ocean" width="260"> | <img src="screenshots/forest/styles.png" alt="forest" width="260"> |
 
 | Sunset | Light |
 |:---:|:---:|
-| ![sunset](screenshots/sunset/styles.png) | ![light](screenshots/light/styles.png) |
+| <img src="screenshots/sunset/styles.png" alt="sunset" width="260"> | <img src="screenshots/light/styles.png" alt="light" width="260"> |
 
-## 📚 Documentation
+<h2 id="documentation"><img src="assets/headers/documentation.svg" alt="Documentation" height="35"></h2>
 
 Start at **[docs/README.md](docs/README.md)** for the architecture overview and a map of everything below.
 
@@ -198,7 +233,7 @@ Start at **[docs/README.md](docs/README.md)** for the architecture overview and 
 | [Callbacks & viewports](docs/guide/callbacks-and-viewports.md) | callbacks, hover / focus feedback, scrolling |
 | [Design notes](docs/design/) | scrolling shader, pointer tracking, page cache, grid geometry |
 
-## 🏗️ Project structure
+<h2 id="project-structure"><img src="assets/headers/project-structure.svg" alt="Project structure" height="35"></h2>
 
 ```
 install.sh  VERSION                    installer entry point, current version
@@ -223,16 +258,17 @@ tools/                                 repo only: profiling, screenshots, genera
 tests/                                 repo only: bats tests (bats tests/)
 ```
 
-## Requirements
+<h2 id="requirements"><img src="assets/headers/requirements.svg" alt="Requirements" height="35"></h2>
 
 - **Bash 5.0+** (associative arrays, namerefs, `EPOCHREALTIME`, fractional `read -t`)
 - A terminal emulator with mouse support (virtually all modern ones)
 - `curl` or `wget` and `tar` for `dabt update` only
 - [`bats`](https://github.com/bats-core/bats-core) to run the tests (optional)
+- [`shellcheck`](https://www.shellcheck.net) / `semgrep` for deeper `dabt scan` checks (optional, [see why](#security-scan))
 
 That's the whole list.
 
-## Going beyond the demo
+<h2 id="going-beyond-the-demo"><img src="assets/headers/going-beyond-the-demo.svg" alt="Going beyond the demo" height="35"></h2>
 
 Write your own pages (see `share/demo/` for a complete app) and link to them with `page="yourpage.xml"` on a button. Callbacks are plain bash functions: source them with `<script>` and reference them by name in `action="…"` or `submit="…"`.
 
@@ -245,7 +281,7 @@ For a real embedded terminal, point `tui.exec` at any command:
 
 The process runs in a real PTY. Pipe stdin to it, cancel it, save its output, or retry it, all from the TUI.
 
-## Contributing
+<h2 id="contributing"><img src="assets/headers/contributing.svg" alt="Contributing" height="35"></h2>
 
 Issues and pull requests are welcome. Run `bats tests/` before submitting; tests mock the network and only write to tmp dirs. Release notes are in the [changelog](CHANGELOG.md).
 

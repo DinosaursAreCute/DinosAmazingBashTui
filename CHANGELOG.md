@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-09-21
+
 ### News
 
 - `dabt uninstall` now removes everything DABT put on your machine, including every app you installed with `dabt app install` (and their settings), so a reinstall starts clean. Your signing keys are moved to `~/.dabt-keys-backup`, not deleted.

@@ -1,4 +1,4 @@
-:root{--bg:#0b0f14;--bg2:#111820;--card:#141c26;--fg:#d7e0ea;--mut:#8497ab;--line:#22303f;--acc:#ff8cbf;--acc2:#a8d8ff;--c3:#fff3a8;--c4:#ff9e9e;--code:#0f151d;--r:12px;
+:root{--bg:#0b0f14;--bg2:#111820;--card:#141c26;--fg:#d7e0ea;--mut:#8497ab;--line:#22303f;--acc:#ff8cbf;--acc2:#a8d8ff;--c3:#fff3a8;--c4:#ff9e9e;--code:#0f151d;--r:0px;
 --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Inter',system-ui,-apple-system,Segoe UI,sans-serif}
 :root[data-theme=light]{--bg:#fafbfc;--bg2:#f1f4f7;--card:#fff;--fg:#1c2733;--mut:#5b6b7c;--line:#dde3ea;--acc:#d6408a;--acc2:#2b7fc4;--c3:#a67c00;--c4:#d64545;--code:#f3f6f9}
 @media(prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#fafbfc;--bg2:#f1f4f7;--card:#fff;--fg:#1c2733;--mut:#5b6b7c;--line:#dde3ea;--acc:#d6408a;--acc2:#2b7fc4;--c3:#a67c00;--c4:#d64545;--code:#f3f6f9}}
@@ -22,7 +22,8 @@ a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 .hero-text{display:flex;flex-direction:column;align-items:center;width:100%}
 .hero-shot{width:100%}
 .hero:before{content:"";position:absolute;inset:-60px -80px auto -80px;height:420px;background:radial-gradient(600px 300px at 20% 30%,color-mix(in srgb,var(--acc) 18%,transparent),transparent),radial-gradient(500px 280px at 85% 20%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent);z-index:-1;pointer-events:none}
-.hero-logo{display:block;width:min(560px,86%);height:auto;margin:0 auto 22px;filter:drop-shadow(0 12px 40px color-mix(in srgb,var(--acc) 30%,transparent))}
+.hero-logo{display:block;width:min(760px,92%);height:auto;margin:6px auto 30px;overflow:visible}
+.logo-shadow{fill:color-mix(in srgb,var(--acc2) 22%,transparent)}
 .eyebrow{font:500 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
 .hero h1{font-size:clamp(32px,4.4vw,52px);line-height:1.1;letter-spacing:-.03em;margin:0 0 16px;font-weight:800}
 .grad{background:linear-gradient(90deg,var(--acc),var(--acc2),var(--c3),var(--c4));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -31,8 +32,7 @@ a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 .btn{padding:9px 16px;border:1px solid var(--line);border-radius:10px;color:var(--fg);font-weight:600;font-size:14.5px;background:var(--card);transition:.15s}
 .btn:hover{border-color:var(--acc);text-decoration:none;transform:translateY(-1px)}
 .btn.primary{background:var(--acc);border-color:var(--acc);color:#1a0a12}
-.ic{width:1.1em;height:1.1em;vertical-align:-.17em;margin-right:.35em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.features div:nth-child(4n+1) .ic{color:var(--acc)}.features div:nth-child(4n+2) .ic{color:var(--acc2)}.features div:nth-child(4n+3) .ic{color:var(--c3)}.features div:nth-child(4n) .ic{color:var(--c4)}
+
 .install{margin:0 auto!important;max-width:100%;text-align:left;font-size:12.5px!important;overflow-x:auto}
 .term{border:1px solid var(--line);border-radius:0;overflow:visible;background:#000;box-shadow:0 30px 70px -20px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03)}
 .term-bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#1a2028;font:12px var(--mono);color:#7d8b99}
@@ -69,3 +69,25 @@ pre:hover .copy{opacity:1}.copy:hover{color:var(--acc);border-color:var(--acc)}
 @media(max-width:820px){.shell{grid-template-columns:1fr}.menu{display:block}.toplink{display:none}
 .side{position:fixed;inset:56px auto 0 0;width:270px;background:var(--bg);z-index:15;transform:translateX(-100%);transition:.2s;height:auto}
 body.open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}.features{grid-template-columns:1fr}}
+
+/* blocky look: hard edges, pixel shadows in the logo colours (D pink, A blue, B yellow, T coral) */
+.btn,.features div,.install,.term,.nav a,.brand em,.icon-btn,pre,code{border-radius:0!important}
+.btn{border-width:2px;box-shadow:4px 4px 0 var(--line);transition:transform .08s,box-shadow .08s,border-color .08s}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--acc2);border-color:var(--acc2)}
+.btn.primary{box-shadow:4px 4px 0 var(--acc2)}.btn.primary:hover{box-shadow:6px 6px 0 var(--c3);border-color:var(--acc)}
+.install{border:2px solid var(--line);box-shadow:4px 4px 0 var(--line)}
+.term{border:2px solid var(--line);box-shadow:10px 10px 0 color-mix(in srgb,var(--acc) 55%,transparent)}
+.term-bar i{border-radius:0;width:10px;height:10px}
+.hero:before{background:radial-gradient(700px 320px at 50% 8%,color-mix(in srgb,var(--acc) 16%,transparent),transparent),radial-gradient(500px 260px at 85% 30%,color-mix(in srgb,var(--acc2) 14%,transparent),transparent)}
+.features div{border:2px solid var(--line);box-shadow:4px 4px 0 var(--line)}
+.features div:hover{transform:translate(-2px,-2px);border-color:var(--acc);box-shadow:6px 6px 0 var(--acc)}
+.features div:nth-child(4n+2):hover{border-color:var(--acc2);box-shadow:6px 6px 0 var(--acc2)}
+.features div:nth-child(4n+3):hover{border-color:var(--c3);box-shadow:6px 6px 0 var(--c3)}
+.features div:nth-child(4n):hover{border-color:var(--c4);box-shadow:6px 6px 0 var(--c4)}
+.features b{display:flex;align-items:center;gap:10px}
+.ic{width:20px;height:20px;margin:0;flex:none;fill:currentColor;stroke:none;vertical-align:baseline}
+.btn .ic{width:14px;height:14px;margin-right:6px;vertical-align:-1px}
+.nav a{border-left:3px solid transparent}
+.nav a.active{border-left-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.eyebrow{color:var(--c3)}
+.hero-text .eyebrow,.hero-text h1,.hero-text .lead{text-align:center}

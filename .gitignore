@@ -13,3 +13,5 @@ DinosAmazingBashTui.code-workspace
 etc/
 tools/debug/screenshots/
 CLAUDE.md
+# build output (dabt build)
+dist/

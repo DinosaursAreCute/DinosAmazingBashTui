@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+DABT can now build, sign, verify and publish `.dapk` application packages, and packages itself with the same tooling.
+
+### News
+
+- New `dabt build` packages an app into one signed, reproducible `.dapk`; `dabt app install` accepts a `.dapk` (file or URL) or a `.zip` holding one, and verifies signature and checksums first.
+- The first install of an app asks whether to trust its signer (pin it with `--trust-key SHA256:...`); a changed signer later is refused.
+- Packages declare system dependencies; `dabt app install` lists what is missing and only installs them with your consent.
+- `dabt install` warns when the `dabt` command is not on your `PATH` and shows the line to add for your shell.
+
+### Added
+
+* `.dapk` packaging (`lib/dapk/`, `docs/guide/packaging.md`, `docs/concepts/dapk-packaging.md`): `dabt build [DIR]` turns an app folder into `<name>-<version>-<build>.dapk`, a reproducible gzip tar whose first member is a `MANIFEST` with the checksums of every top-level entry. Configured by `dabt.pkg` (strict TOML subset: `include_paths`, `exclude`, `[[include]]`, `[[dependency]]`, `changelog`, `publish_repo`, `sign_key`, `build_offset`, `requires_dabt`). Writes `<name>-<version>-<build>.dapk.sha256`, `<name>-news.txt`, `RELEASE_NOTES.md` and `dist/build.log`. Exit codes: 0 ok, 1 failure, 2 usage, 3 refused.
+* Signing: Ed25519 via `ssh-keygen -Y` (namespace `dabt-pkg`); the signature covers `MANIFEST`, which pins every checksum. Key priority `--key` > `DABT_SIGN_KEY` (private key text, for CI) > `sign_key` in `dabt.pkg` > `~/.config/DABT/keys/dabt_ed25519`; `--auto-sign` creates the default key, `--no-sign` builds unsigned. `dabt pkg key [--generate]` prints the fingerprint.
+* Versions and build numbers: the version comes from a CI tag (`v1.2.3`), `VERSION`, or `.dabt.metadata`; `--suffix dev|rc.N` adds a pre-release suffix. The build number is appended after a dash (`1.2.3-57`, `1.2.3-dev-57`) and comes from `DABT_BUILD_NUMBER`, the CI run counter (`GITHUB_RUN_NUMBER`, `CI_PIPELINE_IID`, `BUILDKITE_BUILD_NUMBER`, `CIRCLE_BUILD_NUM`, `BUILD_NUMBER`, `BUILD_BUILDID`) plus `build_offset`, or the git commit count (with a warning on a shallow clone).
+* `dabt pkg`: `verify`, `info` (descriptor and News without extracting), `news [--since VER]`, `version [show|bump]`, `release major|minor|patch` (closes the changelog, bumps `VERSION`, commits, tags), `publish [--draft|--prerelease|--release]` (GitHub release with the package, checksum and News as assets), `deps`, `include`, `dep`, `ci init github|gitlab` (workflows in `share/ci/`).
+* Changelog and News: `dabt build` closes `## [Unreleased]` in the package only and writes every version's `### News` bullets to `NEWS` and `<name>-news.txt`; release notes come from `share/release/default.tpl`. `dabt app install` shows the News newer than the installed version.
+* `dabt app install` for packages: verifies structure, signature and checksums (fail closed) before anything is written; `.zip` sources (for example a downloaded workflow artifact) are unpacked first; `--trust-key`, `--allow-unsigned`, `--plan`, `--install-path DIR`; trusted signers live in `~/.config/DABT/trusted_signers`.
+* Package dependencies: `[[dependency]]` tables are checked at install, missing ones listed; `--install-dependencies`, `--yes`, `--no-deps`, `--require-deps`, `--allow-custom-install`, `--pm NAME`. Installed apps carry a `deps unmet` marker until `dabt pkg deps APP` clears it.
+* CI: `.github/workflows/build.yml` runs the bats suite in parallel, builds and signs a DABT package (checked against the pinned `DABT_SIGNER_FINGERPRINT`), installs and updates DABT from that package, and publishes a draft or pre-release on `v*` tags. `tools/ci_setup.sh` sets the repository secret and variable, `tools/ci_integration.sh` is the install/update check.
+* `dabt.pkg` packages the framework itself (`docs/concepts/dabt-framework-package.md`); a `LICENSE` file (MIT).
+* Documentation site (Jekyll, GitHub Pages) built from `docs/`; README badges (build status, license), an "Apps built with D.A.B.T" section linking the DABT File Explorer, and tutorial links.
+* bats tests for packaging (`tests/dapk/`: build, verify, install, publish, toml, ui).
+
+### Changed
+
+* `dabt install`: when the `dabt` command's folder is not on `PATH` it prints a warning and the `fish`/`zsh`/`bash` line to add it.
+* `dabt` ends its command dispatch with `esac; exit $?` on one line, so `dabt update` can replace `bin/dabt` while it runs.
+
+### Fixed
+
+* Widgets outside their pane's content area are clipped instead of drawing over the border and neighbouring panes (charts and long content).
+* The `tui.exec` status line no longer overflows a narrow pane: the command is shortened and, when there is no room for both, only the status is shown.
+* `tui.reset_ui` dismisses running `tui.exec` instances with their page, so leaving a page no longer breaks the control pane of the next one.
+
 ## [0.0.7] - 2026-09-20
 
 DABT is now also an application manager: install, update and uninstall apps, with a security scan in front of every install.

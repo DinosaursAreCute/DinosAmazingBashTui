@@ -36,8 +36,12 @@ _meta() { local k v; [[ -r "$1/install.meta" ]] && while IFS='=' read -r k v; do
 _confirm() { (( ${yes:-0} )) && return 0; local a; read -r -p "$1 [y/N] " a; [[ "$a" == [yY]* ]]; }
 
 _clear_cache() {
-    source "$TUI_ROOT/lib/tui_home.sh"
-    if [[ -d "$TUI_HOME/cache" ]]; then rm -rf "$TUI_HOME/cache" && echo "cleared $TUI_HOME/cache"; else echo "no cache at $TUI_HOME/cache"; fi
+    source "$TUI_ROOT/lib/tui_home.sh";
+    if [[ -d "$TUI_HOME/cache" ]]; then 
+        rm -rf "$TUI_HOME/cache" && echo "cleared $TUI_HOME/cache"; 
+    else 
+        echo "no cache at $TUI_HOME/cache"; 
+    fi
 }
 
 _reinstall() {
@@ -99,4 +103,4 @@ case "${1:-}" in
     uninstall|--uninstall)  shift; yes=0; for a in "$@"; do [[ "$a" == --yes || "$a" == -y ]] && yes=1; done; _uninstall "$@" ;;
     update)              shift; source "$TUI_ROOT/lib/tui.sh"; tui.update.cli "$@" ;;
     *)                      echo "dabt: unknown option '$1'" >&2; _help >&2; exit 1 ;;
-esac
+esac; exit $?    # one line: `dabt update` can overwrite this very file, so bash must not read on past the case

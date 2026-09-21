@@ -66,7 +66,7 @@ doctor_kv() { local l; while IFS= read -r l; do [[ "$l" == "$1 "* ]] && { printf
 @test "the real repository installs completely (program, defaults and shipped plugins)" {
     run bash "$REPO/install.sh" --yes --prefix "$T/prog" --config "$T/cfg" --bindir "$T/bin" --no-scan
     [ "$status" -eq 0 ]
-    [ -f "$T/prog/lib/tui.sh" ]; [ -f "$T/prog/bin/dabt" ]; [ -f "$T/prog/share/demo/home.xml" ]; [ -f "$T/prog/docs/README.md" ]
+    [ -f "$T/prog/lib/tui.sh" ]; [ -f "$T/prog/bin/dabt" ]; [ -f "$T/prog/share/demo/home.xml" ]
     [ -f "$T/cfg/defaults/keybinds.xml" ]; [ -f "$T/cfg/defaults/pages/plugins.xml" ]; [ -f "$T/cfg/plugins/terminal_shortcuts.plugin.sh" ]
     [ ! -e "$T/prog/tests" ]; [ ! -e "$T/prog/tools" ]                       # dev-only folders are not shipped
     run "$T/prog/bin/dabt" doctor

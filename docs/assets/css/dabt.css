@@ -20,6 +20,7 @@ a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 .main{padding:32px 48px 40px;min-width:0}
 .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;padding:28px 0 36px;position:relative}
 .hero:before{content:"";position:absolute;inset:-60px -80px auto -80px;height:420px;background:radial-gradient(600px 300px at 20% 30%,color-mix(in srgb,var(--acc) 18%,transparent),transparent),radial-gradient(500px 280px at 85% 20%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent);z-index:-1;pointer-events:none}
+.hero-logo{display:block;height:88px;width:auto;margin:0 0 18px}
 .eyebrow{font:500 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
 .hero h1{font-size:clamp(32px,4.4vw,52px);line-height:1.1;letter-spacing:-.03em;margin:0 0 16px;font-weight:800}
 .grad{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -29,7 +30,7 @@ a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 .btn:hover{border-color:var(--acc);text-decoration:none;transform:translateY(-1px)}
 .btn.primary{background:var(--acc);border-color:var(--acc);color:#06120c}
 .install{margin:0!important;font-size:12.5px!important;overflow-x:auto}
-.term{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#000;box-shadow:0 30px 70px -20px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03)}
+.term{border:1px solid var(--line);border-radius:0;overflow:visible;background:#000;box-shadow:0 30px 70px -20px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03)}
 .term-bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#1a2028;font:12px var(--mono);color:#7d8b99}
 .term-bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.term-bar i:nth-child(2){background:#febc2e}.term-bar i:nth-child(3){background:#28c840}
 .term-bar span{margin-left:auto;margin-right:auto}.term img{display:block;width:100%;height:auto}
@@ -53,7 +54,7 @@ pre:hover .copy{opacity:1}.copy:hover{color:var(--acc);border-color:var(--acc)}
 .doc th{background:var(--bg2);text-align:left;font-weight:600}.doc th,.doc td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
 .doc tr:last-child td{border-bottom:0}.doc tbody tr:hover td{background:var(--bg2)}
 .doc blockquote{margin:1.2em 0;padding:.6em 1.1em;border-left:3px solid var(--acc);background:var(--bg2);border-radius:0 var(--r) var(--r) 0}
-.doc blockquote p{margin:.3em 0}.doc img{max-width:100%;height:auto;border-radius:var(--r);border:1px solid var(--line)}
+.doc blockquote p{margin:.3em 0}.doc img{max-width:100%;height:auto;border-radius:0;border:1px solid var(--line)}
 .doc hr{border:0;border-top:1px solid var(--line);margin:2em 0}
 .mermaid{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:1.2em 0;text-align:center;overflow-x:auto}
 /* syntax (rouge) */

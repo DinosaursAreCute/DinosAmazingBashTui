@@ -159,3 +159,18 @@ doctor_kv() { local l; while IFS= read -r l; do [[ "$l" == "$1 "* ]] && { printf
     run bash "$REL/install.sh" --yes --prefix "$REL" --config "$T/cfg" --no-link
     [ "$status" -eq 0 ]; [[ "$output" == *"left in place"* ]]; [ -f "$T/cfg/defaults/keybinds.xml" ]
 }
+
+@test "uninstall removes the program, config, launcher and every installed app; signing keys are moved, not deleted" {
+    bash "$REPO/install.sh" --yes --no-scan --prefix "$T/prog" --config "$T/cfg" --bindir "$T/bin" >/dev/null 2>&1
+    mkdir -p "$T/a1" "$T/a2"; printf 'echo hi\n' > "$T/a1/a.sh"; cp "$T/a1/a.sh" "$T/a2/b.sh"
+    printf 'name = one\nversion = 0.1.0\nentry = a.sh\nown_dir = yes\n' > "$T/a1/.dabt.metadata"
+    printf 'name = two\nversion = 0.2.0\nentry = b.sh\n' > "$T/a2/.dabt.metadata"
+    export PATH="$T/bin:$PATH"; unset TUI_HOME DABT_HOME
+    run dabt app install "$T/a1" --no-scan; [ "$status" -eq 0 ]
+    run dabt app install "$T/a2" --no-scan --install-path "$T/custom-two"; [ "$status" -eq 0 ]
+    mkdir -p "$T/cfg/keys"; echo k > "$T/cfg/keys/dabt_ed25519"
+    run dabt uninstall --yes; [ "$status" -eq 0 ]
+    [ ! -e "$T/prog" ]; [ ! -e "$T/cfg" ]; [ ! -e "$T/bin/dabt" ]; [ ! -e "$T/custom-two" ]
+    [ ! -e "$XDG_DATA_HOME/dabt-apps" ]
+    [ "$(cat "$HOME/.dabt-keys-backup/dabt_ed25519")" = k ]
+}

@@ -70,6 +70,8 @@ dapk_setup() {
     setup_env
     export TUI_HOME="$T/home/.config/DABT" DABT="$REPO/bin/dabt" DAPK_SUDO="" SOURCE_DATE_EPOCH=1700000000 DABT_BUILD_NUMBER=7
     unset CI GITHUB_ACTIONS GITLAB_CI GITHUB_TOKEN GH_TOKEN DABT_SIGN_KEY NO_COLOR
+    # a tag-triggered CI run sets these and would override the fixture's VERSION (1.2.3)
+    unset GITHUB_REF GITHUB_REF_NAME GITHUB_REF_TYPE CI_COMMIT_TAG
     mkdir -p "$TUI_HOME"
     ssh-keygen -q -t ed25519 -N "" -f "$T/key" -C test </dev/null
     FP="$(ssh-keygen -lf "$T/key" | awk '{print $2}')"; export FP

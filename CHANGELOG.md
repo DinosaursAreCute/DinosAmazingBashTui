@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+
+- `dabt uninstall` now removes everything DABT put on your machine, including every app you installed with `dabt app install` (and their settings), so a reinstall starts clean. Your signing keys are moved to `~/.dabt-keys-backup`, not deleted.
+
+### Changed
+
+* `dabt uninstall` removes all apps installed with `dabt` (through `dabt app remove --purge`, so their `uninstall_hook` runs), the shared `dabt-apps` folder when it is empty, and the launcher recorded at install time (`bindir=` in `install.meta`). `--keep-apps` leaves the apps, `--keep-config` leaves the config home.
+* Signing keys in the config home (`keys/`) are copied to `~/.dabt-keys-backup` before the config is removed; `--purge-keys` deletes them instead.
+
 ## [0.0.8] - 2026-09-21
 
 DABT can now build, sign, verify and publish `.dapk` application packages, and packages itself with the same tooling.

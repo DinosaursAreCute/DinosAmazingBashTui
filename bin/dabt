@@ -27,7 +27,7 @@ Commands:
   pkg <command>                                           verify, inspect, release and publish packages (dabt pkg help)
   clear-cache                                             delete the page cache (rebuilt on next run)
   reinstall [--yes]                                       reinstall from the install source, overriding local file changes
-  uninstall [--yes] [--keep-config]                       remove the program, config home and the dabt command
+  uninstall [--yes] [--keep-config] [--keep-apps] [--purge-keys]   remove the program, config home, the dabt command and every app installed with dabt
 HELP
 }
 
@@ -55,17 +55,44 @@ _reinstall() {
 
 _uninstall() {
     source "$TUI_ROOT/lib/tui_home.sh"
-    local keep_conf=0 a prefix conf targets=() l
-    for a in "$@"; do [[ "$a" == --keep-config ]] && keep_conf=1; done
-    conf="$TUI_HOME"; prefix="$(_meta "$conf" prefix)"; [[ -n "$prefix" ]] || prefix="$TUI_ROOT"
+    local keep_conf=0 keep_apps=0 purge_keys=0 a prefix conf bindir targets=() apps=() l n v d rest keys_dir keys_bak
+    for a in "$@"; do case "$a" in --keep-config) keep_conf=1 ;; --keep-apps) keep_apps=1 ;; --purge-keys) purge_keys=1 ;; esac; done
+    conf="$TUI_HOME"; prefix="$(_meta "$conf" prefix)"; [[ -n "$prefix" ]] || prefix="$TUI_ROOT"; bindir="$(_meta "$conf" bindir)"
     [[ -e "$prefix/.git" ]] && { echo "dabt: $prefix is a git checkout - not removing the program folder" >&2; prefix=""; }
+    [[ "$conf" == / || "$conf" == "$HOME" || -z "$conf" ]] && { echo "dabt: refusing to remove '$conf'" >&2; exit 1; }
+    # apps installed with `dabt app install` (not the built-in demo): removed through `dabt app remove --purge`, which runs their uninstall hook
+    if (( ! keep_apps )) && [[ -r "$conf/apps.list" ]]; then
+        while IFS='|' read -r n v d rest; do [[ -n "$n" && "$n" != \#* && "$rest" != builtin* && "${rest#*|}" != builtin* ]] && apps+=("$n|$d"); done < "$conf/apps.list"
+    fi
     [[ -n "$prefix" ]] && targets+=("$prefix")
     (( keep_conf )) || targets+=("$conf")
-    for l in "$HOME/.local/bin/dabt" "$(command -v dabt 2>/dev/null)"; do
-        [[ -L "$l" ]] && { [[ "$(readlink -f "$l")" == "$(readlink -f "$TUI_ROOT/bin/dabt")" ]] && targets+=("$l"); }
+    # launchers: the recorded bindir, ~/.local/bin, and whatever `dabt` on PATH points into this install
+    for l in "${bindir:+$bindir/dabt}" "$HOME/.local/bin/dabt" "$(command -v dabt 2>/dev/null)"; do
+        [[ -n "$l" && -L "$l" ]] || continue
+        [[ " ${targets[*]} " == *" $l "* ]] && continue
+        [[ "$(readlink -f "$l")" == "$(readlink -f "$TUI_ROOT/bin/dabt")" || "$(readlink -f "$l")" == "$(readlink -f "$prefix/bin/dabt" 2>/dev/null)" ]] && targets+=("$l")
     done
+    keys_dir="$conf/keys"
     printf 'Will remove:\n'; printf '  %s\n' "${targets[@]}"
+    for a in "${apps[@]}"; do printf '  app %s (%s) and its settings\n' "${a%%|*}" "${a#*|}"; done
+    if (( ! keep_conf && ! purge_keys )) && [[ -n "$(ls -A "$keys_dir" 2>/dev/null)" ]]; then
+        keys_bak="$HOME/.dabt-keys-backup"
+        printf '\nYour signing keys in %s are NOT deleted: they move to %s (delete it yourself, or use --purge-keys).\n' "$keys_dir" "$keys_bak"
+    fi
     _confirm "Uninstall DABT?" || { echo aborted; exit 1; }
+    if (( ${#apps[@]} )); then
+        source "$TUI_ROOT/lib/tui_apps.sh"
+        for a in "${apps[@]}"; do
+            n="${a%%|*}"; d="${a#*|}"
+            tui.apps.remove "$n" --yes --purge >/dev/null 2>&1 || echo "note: could not remove app $n cleanly"
+            [[ -n "$d" && -d "$d" ]] && { _tui_apps.managed "$d" 2>/dev/null && rm -rf -- "$d"; }
+            echo "removed app $n"
+        done
+        rmdir "$TUI_APPS_OWN_ROOT" 2>/dev/null && echo "removed $TUI_APPS_OWN_ROOT"      # the shared own_dir folder, when nothing else lives there
+    fi
+    if [[ -n "${keys_bak:-}" ]]; then
+        mkdir -p "$keys_bak" && chmod 700 "$keys_bak" && cp -a "$keys_dir"/. "$keys_bak"/ && echo "kept signing keys in $keys_bak" || { echo "dabt: could not back up $keys_dir - leaving the config in place" >&2; exit 1; }
+    fi
     for l in "${targets[@]}"; do rm -rf -- "$l" && echo "removed $l"; done
     [[ -n "${DABT_HOME:-}${TUI_HOME_ENV:-}" ]] && echo "note: DABT_HOME is set in your environment - remove it from your shell profile"
     echo "done. Variables live only in the running shell; open a new terminal to clear any leftovers."

@@ -7,6 +7,7 @@ Declarative XML pages + CSS-like themes + bash callbacks, with mouse support, li
 Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency ncurses alternative for shell scripts.
 
 [![Release](https://img.shields.io/github/v/release/DinosaursAreCute/DinosAmazingBashTui?include_prereleases&style=for-the-badge&color=2ea043&label=release)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/DinosaursAreCute/DinosAmazingBashTui/build.yml?style=for-the-badge&label=build)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/actions/workflows/build.yml)
 [![Bash 5+](https://img.shields.io/badge/bash-5.0%2B-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)](#requirements)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-blue?style=for-the-badge)](#requirements)
 [![Tests](https://img.shields.io/badge/tests-bats-orange?style=for-the-badge)](tests/)

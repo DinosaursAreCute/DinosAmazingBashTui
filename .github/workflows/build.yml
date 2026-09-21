@@ -1,4 +1,5 @@
 # Builds and signs the DABT framework package (dabt-<version>-<build>.dapk) with the repository's own `dabt build`.
+# Pipeline: test (bats) -> package -> install-update (install + update DABT from the artifact) -> release (tags only).
 #   push to main     -> dev build, kept as a workflow artifact (never published)
 #   tag v1.2.3       -> signed build + DRAFT GitHub release   (promote: dabt pkg publish --release)
 #   tag v1.2.3-rc.1  -> signed build + PRE-RELEASE
@@ -26,7 +27,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats unzip zip
+      - name: DABT test suite
+        run: bats tests/ tests/dapk/
+
   package:
+    needs: test
     runs-on: ubuntu-latest
     env:
       DABT_SIGN_KEY: ${{ secrets.DABT_SIGN_KEY }}
@@ -67,8 +78,42 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+
+  # installs DABT from the built package, then updates an older install to it (tools/ci_integration.sh)
+  install-update:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dabt-*.dapk
+          path: dist/
+          merge-multiple: true
+      - name: Baseline = the previous release (falls back to the package with VERSION 0.0.0)
+        id: base
+        run: |
+          tag="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          if [ -n "$tag" ]; then mkdir -p "$RUNNER_TEMP/baseline" && git archive "$tag" | tar -x -C "$RUNNER_TEMP/baseline"; echo "dir=$RUNNER_TEMP/baseline" >> "$GITHUB_OUTPUT"; echo "baseline: $tag"; else echo "dir=" >> "$GITHUB_OUTPUT"; echo "no earlier release tag: using the synthetic baseline"; fi
+      - name: Install and update from the package
+        run: bash tools/ci_integration.sh "$(ls dist/dabt-*.dapk | head -n1)" "${{ steps.base.outputs.dir }}"
+
+  release:
+    needs: install-update
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dabt-*.dapk
+          path: dist/
+          merge-multiple: true
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # a plain version becomes a draft, a version with a suffix (v1.2.3-rc.1) a pre-release

@@ -318,6 +318,94 @@ dabt app remove tasks           # remove (your saved tasks stay unless you add -
 
 `dabt app install` **scans the code first** and shows you what it found - the same scan protects everyone who installs your app. You can also publish the folder as a git repository and install with `dabt app install https://github.com/you/tasks`.
 
+<h2 id="step-9"><img src="img/app-9.svg" alt="Step 9: Package it" height="30"></h2>
+
+Installing from a folder works for you. To hand your app to other people, build a **package**: one signed file (`.dapk`) that carries your app, a list of checksums and your signature, so nobody can change it on the way without being noticed.
+
+**1. Write a changelog.** Create `CHANGELOG.md` next to `tasks.sh`. The `### News` bullets are what users see when they install or update, so write them for users:
+
+```markdown
+# Changelog
+
+## [Unreleased]
+
+### News
+
+- First release: a to-do list that lives in your terminal.
+
+### Added
+
+* Add, remove and clear tasks; tasks are saved between runs.
+```
+
+**2. Build it** (inside the `tasks` folder):
+
+```bash
+dabt build --auto-sign
+```
+
+`--auto-sign` creates a signing key for you once (`~/.config/DABT/keys/dabt_ed25519`) and reuses it later. The version comes from `.dabt.metadata` (or a `VERSION` file). Build output lands in `dist/`:
+
+| File | What it is |
+|---|---|
+| `tasks-0.1.0-1.dapk` | the package: name, version, **build number** (`-1`) |
+| `tasks-0.1.0-1.dapk.sha256` | its checksum |
+| `tasks-news.txt` | the News bullets of every version |
+| `RELEASE_NOTES.md` | ready-made release notes for GitHub |
+
+**3. Tell people your key's fingerprint** (they pin it once, and a different signer is refused later):
+
+```bash
+dabt pkg key
+# fingerprint  SHA256:205mKf...
+```
+
+**4. Try it like a user would:**
+
+```bash
+dabt pkg info dist/tasks-0.1.0-1.dapk                                   # what's inside, without installing
+dabt app install dist/tasks-0.1.0-1.dapk --trust-key SHA256:205mKf...   # verifies, shows the News, installs
+```
+
+A package that was changed after signing, or was signed by another key, is **refused before anything is written**. A `.zip` that contains one `.dapk` (for example a downloaded build artifact) installs the same way.
+
+Need a package for a private test only? `dabt build --no-sign` builds one that installs only with `--allow-unsigned`. More options (`dabt.pkg`, dependencies, what gets included): [../guide/packaging.md](../guide/packaging.md).
+
+<h2 id="step-10"><img src="img/app-10.svg" alt="Step 10: Release it" height="30"></h2>
+
+Put the app in a GitHub repository and let a workflow build and publish every release.
+
+**1. Add the workflow** (in the app's repository):
+
+```bash
+dabt pkg ci init github        # writes .github/workflows/dabt-release.yml
+```
+
+**2. Give it the signing key** as a repository secret named `DABT_SIGN_KEY`. Use a key **without a passphrase**, because CI cannot type one:
+
+```bash
+ssh-keygen -t ed25519 -N "" -f dabt_key
+gh secret set DABT_SIGN_KEY < dabt_key
+```
+
+Keep a backup of `dabt_key` somewhere safe and never commit it: lose it and users see a "signer changed" error on the next update. Publish `dabt_key.pub`'s fingerprint (`ssh-keygen -lf dabt_key`) so users can pin it.
+
+**3. Tell DABT where to publish**, in a `dabt.pkg` file next to `tasks.sh`:
+
+```toml
+name         = "tasks"
+publish_repo = "you/tasks"
+```
+
+**4. Release.** Move the `Unreleased` notes under a version and tag it:
+
+```bash
+dabt pkg release patch         # or minor / major: closes the changelog, bumps VERSION, commits, tags v0.1.1
+git push --follow-tags
+```
+
+The tag starts the workflow: it builds and signs the package and creates a **draft** GitHub release with the `.dapk`, its checksum and the News. Read it on GitHub, then click **Publish release** (or run `dabt pkg publish --release`). Users then run `dabt app install https://github.com/you/tasks/releases/latest/download/tasks-0.1.1-N.dapk` (or `dabt app update tasks`). The **build number** (`-N`) is the workflow's run number, so every build has a unique, ever-growing name.
+
 <h2 id="recap"><img src="img/app-recap.svg" alt="Recap" height="30"></h2>
 
 | You wrote | What it is | Web equivalent |
@@ -328,6 +416,7 @@ dabt app remove tasks           # remove (your saved tasks stay unless you add -
 | `theme.css` | `.class { fg; bg; mods }` plus `:hover` / `:focus` | CSS |
 | `$TUI_APP_CONF` | your app's private folder for saved data | localStorage |
 | `.dabt.metadata` | name, version, entry point | `package.json` |
+| `CHANGELOG.md`, `dist/*.dapk` | News for users; the signed package `dabt build` makes | release notes, `npm pack` |
 
 The whole loop of a DABT app: **the user does something → DABT calls your function → you change your data → you update widgets.**
 

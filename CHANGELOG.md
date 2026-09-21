@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-09-21
+
 DABT can now build, sign, verify and publish `.dapk` application packages, and packages itself with the same tooling.
 
 ### News
@@ -13,6 +15,7 @@ DABT can now build, sign, verify and publish `.dapk` application packages, and p
 - New `dabt build` packages an app into one signed, reproducible `.dapk`; `dabt app install` accepts a `.dapk` (file or URL) or a `.zip` holding one, and verifies signature and checksums first.
 - The first install of an app asks whether to trust its signer (pin it with `--trust-key SHA256:...`); a changed signer later is refused.
 - Packages declare system dependencies; `dabt app install` lists what is missing and only installs them with your consent.
+- The tutorial now covers packaging and releasing your own app (`dabt build`, signing, `dabt pkg ci init github`).
 - `dabt install` warns when the `dabt` command is not on your `PATH` and shows the line to add for your shell.
 
 ### Added
@@ -24,8 +27,9 @@ DABT can now build, sign, verify and publish `.dapk` application packages, and p
 * Changelog and News: `dabt build` closes `## [Unreleased]` in the package only and writes every version's `### News` bullets to `NEWS` and `<name>-news.txt`; release notes come from `share/release/default.tpl`. `dabt app install` shows the News newer than the installed version.
 * `dabt app install` for packages: verifies structure, signature and checksums (fail closed) before anything is written; `.zip` sources (for example a downloaded workflow artifact) are unpacked first; `--trust-key`, `--allow-unsigned`, `--plan`, `--install-path DIR`; trusted signers live in `~/.config/DABT/trusted_signers`.
 * Package dependencies: `[[dependency]]` tables are checked at install, missing ones listed; `--install-dependencies`, `--yes`, `--no-deps`, `--require-deps`, `--allow-custom-install`, `--pm NAME`. Installed apps carry a `deps unmet` marker until `dabt pkg deps APP` clears it.
-* CI: `.github/workflows/build.yml` runs the bats suite in parallel, builds and signs a DABT package (checked against the pinned `DABT_SIGNER_FINGERPRINT`), installs and updates DABT from that package, and publishes a draft or pre-release on `v*` tags. `tools/ci_setup.sh` sets the repository secret and variable, `tools/ci_integration.sh` is the install/update check.
+* CI: `.github/workflows/build.yml` runs the bats suite in parallel, builds and signs a DABT package (checked against the pinned `DABT_SIGNER_FINGERPRINT`), installs and updates DABT from that package, and publishes a GitHub release on `v*` tags (a pre-release for suffixed tags such as `v1.2.3-rc.1`). `tools/ci_setup.sh` sets the repository secret and variable, `tools/ci_integration.sh` is the install/update check.
 * `dabt.pkg` packages the framework itself (`docs/concepts/dabt-framework-package.md`); a `LICENSE` file (MIT).
+* Tutorial "Writing Your First App" gains steps 9 and 10: package the app with `dabt build` and release it from GitHub Actions.
 * Documentation site (Jekyll, GitHub Pages) built from `docs/`; README badges (build status, license), an "Apps built with D.A.B.T" section linking the DABT File Explorer, and tutorial links.
 * bats tests for packaging (`tests/dapk/`: build, verify, install, publish, toml, ui).
 

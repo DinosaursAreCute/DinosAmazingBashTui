@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ci_integration.sh PKG.dapk [BASELINE_DIR] - installs and updates DABT from a built package inside a throwaway HOME (nothing outside it is touched).
 #   1. fresh install: the package's own install.sh; `dabt --version` must equal the package version
-#   2. update: install BASELINE_DIR (default: the package with VERSION set to 0.0.0), then `dabt update` from the package (offline: file:// URLs)
+#   2. update: install BASELINE_DIR (default: the package); its VERSION is forced to 0.0.0, then `dabt update` from the package (offline: file:// URLs)
 #   3. the updated tree must be identical to a fresh install of the package
 set -euo pipefail
 pkg="$(readlink -f "${1:?usage: ci_integration.sh PKG.dapk [BASELINE_DIR]}")"; base="${2:-}"
@@ -30,7 +30,9 @@ echo "ok: $got"
 fresh_root="$(dirname "$(readlink -f "$(command -v dabt)")")/.."
 
 step "2/3 update to ${pkg##*/}"
-if [[ -z "$base" ]]; then cp -r "$work/pkg" "$work/baseline"; echo 0.0.0 > "$work/baseline/VERSION"; base="$work/baseline"; fi
+if [[ -z "$base" ]]; then base="$work/pkg"; fi
+# always force the baseline older than the package, else a same-version previous release makes `dabt update` a no-op
+cp -r "$base" "$work/baseline"; echo 0.0.0 > "$work/baseline/VERSION"; base="$work/baseline"
 env_for upd
 bash "$base/install.sh" --yes --no-scan
 before="$(dabt --version)"; echo "installed: $before"

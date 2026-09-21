@@ -7,6 +7,9 @@ CONF() { echo "$XDG_CONFIG_HOME/DABT"; }
 run_install() { run bash "$REL/install.sh" --yes --prefix "$T/prog" --bindir "$T/bin" "$@"; }
 
 # ── detecting an existing install ───────────────────────────────────────
+# value of a `dabt doctor` row ("Key ······ value") in $output
+doctor_kv() { local l; while IFS= read -r l; do [[ "$l" == "$1 "* ]] && { printf "%s" "${l#*· }"; return; }; done <<< "$output"; }
+
 @test "detect: nothing found" { run tui.install.detect; [ "$status" -eq 1 ]; [ -z "$output" ]; }
 @test "detect: ~/.config/DABT" { mkdir -p "$(CONF)"; run tui.install.detect; [ "$output" = "$(CONF)" ]; }
 @test "detect: falls back to \$DABT_HOME" { mkdir -p "$T/x"; DABT_HOME="$T/x" run tui.install.detect; [ "$output" = "$T/x" ]; }
@@ -58,7 +61,7 @@ run_install() { run bash "$REL/install.sh" --yes --prefix "$T/prog" --bindir "$T
     [ "$status" -eq 0 ]
     run "$T/prog/bin/dabt" doctor
     [ "$status" -eq 0 ]
-    [[ "$output" == *"config home    $T/mycfg   (found via: install)"* ]]
+    [ "$(doctor_kv "Config home")" = "$T/mycfg" ]; [ "$(doctor_kv "Found via")" = install ]
 }
 @test "the real repository installs completely (program, defaults and shipped plugins)" {
     run bash "$REPO/install.sh" --yes --prefix "$T/prog" --config "$T/cfg" --bindir "$T/bin"
@@ -67,7 +70,7 @@ run_install() { run bash "$REL/install.sh" --yes --prefix "$T/prog" --bindir "$T
     [ -f "$T/cfg/defaults/keybinds.xml" ]; [ -f "$T/cfg/defaults/pages/plugins.xml" ]; [ -f "$T/cfg/plugins/terminal_shortcuts.plugin.sh" ]
     [ ! -e "$T/prog/tests" ]; [ ! -e "$T/prog/tools" ]                       # dev-only folders are not shipped
     run "$T/prog/bin/dabt" doctor
-    [[ "$output" == *"config home    $T/cfg"* ]]; [[ "$output" == *"installed      yes"* ]]
+    [ "$(doctor_kv "Config home")" = "$T/cfg" ]; [ "$(doctor_kv "Installed")" = yes ]
     run "$T/prog/bin/dabt" version
     [[ "$output" == "DABT $(<"$REPO/VERSION")" ]]
 }

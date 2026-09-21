@@ -12,7 +12,7 @@ a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 .icon-btn{background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px}
 .icon-btn:hover{border-color:var(--acc)}.menu{display:none}
 .shell{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1360px;margin:0 auto}
-.side{position:sticky;top:56px;align-self:start;height:calc(100vh - 56px);overflow:auto;padding:24px 12px 24px 20px;border-right:1px solid var(--line)}
+.side{position:sticky;top:56px;align-self:start;height:calc(100vh - 56px);overflow:auto;padding:24px 0 24px 12px;scrollbar-width:thin;border-right:1px solid var(--line)}
 .nav-group{margin-bottom:22px}.nav-group h4{margin:0 0 6px 10px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .nav a{display:block;padding:5px 10px;border-radius:8px;color:var(--fg);font-size:14.5px;opacity:.85}
 .nav a:hover{background:var(--bg2);text-decoration:none;opacity:1}
@@ -91,3 +91,6 @@ body.open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}.features{grid
 .nav a.active{border-left-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent)}
 .eyebrow{color:var(--c3)}
 .hero-text .eyebrow,.hero-text h1,.hero-text .lead{text-align:center}
+/* sidebar: highlights run flush to the divider; header images and the logo carry no outline */
+.nav a{margin-right:0;padding-right:16px}
+.doc h1 img,.doc h2 img,.doc h3 img,.doc img[alt="D.A.B.T"]{border:0;border-radius:0;background:none;box-shadow:none}

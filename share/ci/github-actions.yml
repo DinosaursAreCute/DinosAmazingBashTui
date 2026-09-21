@@ -2,6 +2,9 @@
 #   push to main        -> dev build, kept as a workflow artifact (never published)
 #   tag v1.2.3          -> signed build + DRAFT GitHub release (promote it with: dabt pkg publish --release)
 #   tag v1.2.3-rc.1     -> signed build + PRE-RELEASE
+# Build numbers: github.run_number (GITHUB_RUN_NUMBER) is picked up automatically. It grows with every run of this workflow file, is the
+# same on a re-run of the same run, and never repeats: 1.2.3-57 is always newer than 1.2.3-56. Renaming the workflow file resets the
+# counter; set build_offset in dabt.pkg to the last number used so numbering continues.
 # Setup: add the repository secret DABT_SIGN_KEY (the private Ed25519 key, e.g. from `ssh-keygen -t ed25519 -f dabt_key`) and set
 # publish_repo / sign settings in dabt.pkg. The build number comes from the run number; the version from the tag or VERSION.
 name: DABT release

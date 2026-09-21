@@ -2,14 +2,14 @@
 bats_require_minimum_version 1.5.0
 load ../helpers
 setup() {
-    dapk_setup; P="$T/proj"; make_project "$P"; build_project "$P" >/dev/null 2>&1; PKG="$(pkg_of "$P")"; ROOT="demoapp-1.2.3+7"
+    dapk_setup; P="$T/proj"; make_project "$P"; build_project "$P" >/dev/null 2>&1; PKG="$(pkg_of "$P")"; ROOT="demoapp-1.2.3-7"
 }
 # repack DIR OUT : tar DIR/$ROOT with MANIFEST first (a tampered copy of the package)
 repack() { ( cd "$1" && { echo "$ROOT/MANIFEST"; echo "$ROOT/MANIFEST.sig"; find "$ROOT" ! -name MANIFEST ! -name MANIFEST.sig; } | tar --no-recursion -czf "$2" -T - ); }
 unpack() { rm -rf "$T/x"; mkdir "$T/x"; tar -xzf "$PKG" -C "$T/x"; }
 
 @test "verify: a good package passes with --trust-key, then without it (signer is pinned)" {
-    run bash "$DABT" pkg verify "$PKG" --trust-key "$FP"; [ "$status" -eq 0 ]; [[ "$output" == *"verified: demoapp 1.2.3+7"* ]]
+    run bash "$DABT" pkg verify "$PKG" --trust-key "$FP"; [ "$status" -eq 0 ]; [[ "$output" == *"verified: demoapp 1.2.3-7"* ]]
     grep -q '^demoapp namespaces="dabt-pkg" ssh-ed25519 ' "$TUI_HOME/trusted_signers"
     run bash "$DABT" pkg verify "$PKG"; [ "$status" -eq 0 ]; [[ "$output" == *"trusted signer"* ]]
 }

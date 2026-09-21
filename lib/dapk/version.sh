@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # version.sh - version and build-number resolution, semver comparison and bumping. No dependencies on other modules.
 #
-# dapk.version.valid V                 rc 0 when V is semver (MAJOR.MINOR.PATCH[-pre][+build])
-# dapk.version.cmp A B                 sets DAPK_VCMP to -1 | 0 | 1 (semver precedence; +build ignored)
+# dapk.version.valid V                 rc 0 when V is semver (MAJOR.MINOR.PATCH[-pre][+meta])
+# dapk.version.cmp A B                 sets DAPK_VCMP to -1 | 0 | 1 (semver precedence; +meta ignored)
 # dapk.version.bump KIND VERSION VAR   KIND = major|minor|patch : the bumped core version (pre-release dropped) into VAR
-# dapk.version.resolve DIR [SUFFIX]    sets DAPK_VERSION (no build), DAPK_BUILD, DAPK_FULL (version+build), DAPK_TAG (v<version>), DAPK_VERSION_SOURCE
+# dapk.version.resolve DIR [SUFFIX] [OFFSET]   sets DAPK_VERSION (no build), DAPK_BUILD, DAPK_FULL (version-build), DAPK_TAG (v<version>),
+#                                      DAPK_VERSION_SOURCE, DAPK_BUILD_SOURCE (which counter), DAPK_BUILD_NOTE (a warning worth showing)
 #   version: CI tag (v1.2.3) > DIR/VERSION > version= in DIR/.dabt.metadata > 0.0.0.   SUFFIX (dev|prerelease|rc.N) becomes -SUFFIX.
-#   build:   DABT_BUILD_NUMBER > GITHUB_RUN_NUMBER > CI_PIPELINE_IID > git commit count > 0.
+#   build:   DABT_BUILD_NUMBER (used as given) > the CI system's own run counter (GITHUB_RUN_NUMBER, CI_PIPELINE_IID, BUILDKITE_BUILD_NUMBER,
+#            CIRCLE_BUILD_NUM, BUILD_NUMBER (Jenkins), BUILD_BUILDID (Azure)) > git commit count > 0. OFFSET (build_offset in dabt.pkg) is added
+#            to the last two, so numbering can continue after moving CI systems. CI counters only ever grow and stay the same on a re-run.
 # dapk.version.write DIR VERSION       writes VERSION (and version= in .dabt.metadata when present)
 
-declare -g DAPK_VERSION="" DAPK_BUILD="" DAPK_FULL="" DAPK_TAG="" DAPK_VERSION_SOURCE="" DAPK_VCMP=0 DAPK_VERSION_ERROR=""
+declare -g DAPK_BUILD_SOURCE="" DAPK_BUILD_NOTE="" DAPK_VERSION=""  DAPK_BUILD="" DAPK_FULL="" DAPK_TAG="" DAPK_VERSION_SOURCE="" DAPK_VCMP=0 DAPK_VERSION_ERROR=""
 _DAPK_SEMVER='^([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9A-Za-z.-]+))?(\+([0-9A-Za-z.-]+))?$'
 
 dapk.version.valid() { [[ "$1" =~ $_DAPK_SEMVER ]]; }
@@ -63,8 +66,9 @@ _dapk.version.pad() {
 }
 
 dapk.version.resolve() {
-    local dir="${1:-.}" suffix="${2:-}" v="" src="" line n=""
-    DAPK_VERSION_ERROR=""
+    local dir="${1:-.}" suffix="${2:-}" off="${3:-0}" v="" src="" line n="" nsrc="" var
+    DAPK_VERSION_ERROR="" DAPK_BUILD_NOTE="" DAPK_BUILD_SOURCE=""
+    [[ "$off" =~ ^[0-9]+$ ]] || { DAPK_VERSION_ERROR="build_offset must be a non-negative integer (got '$off')"; return 1; }
     if [[ "${GITHUB_REF_TYPE:-}" == tag && "${GITHUB_REF_NAME:-}" == v[0-9]* ]]; then v="${GITHUB_REF_NAME#v}"; src="tag ${GITHUB_REF_NAME}"
     elif [[ "${CI_COMMIT_TAG:-}" == v[0-9]* ]]; then v="${CI_COMMIT_TAG#v}"; src="tag $CI_COMMIT_TAG"; fi
     if [[ -z "$v" && -r "$dir/VERSION" ]]; then read -r v < "$dir/VERSION"; v="${v//[[:space:]]/}"; src="VERSION"; fi
@@ -81,17 +85,20 @@ dapk.version.resolve() {
         [[ "$suffix" =~ ^[0-9A-Za-z.-]+$ ]] || { DAPK_VERSION_ERROR="invalid suffix '$suffix'"; return 1; }
         v="${v%%-*}-$suffix"
     fi
-    for n in "${DABT_BUILD_NUMBER:-}" "${GITHUB_RUN_NUMBER:-}" "${CI_PIPELINE_IID:-}"; do 
-        [[ "$n" =~ ^[0-9]+$ ]] && break; 
-        n=""; 
-    done
-
-    if [[ -z "$n" ]] && command -v git >/dev/null 2>&1; then 
-        n="$(git -C "$dir" rev-list --count HEAD 2>/dev/null)"; 
-        [[ "$n" =~ ^[0-9]+$ ]] || n=""; 
+    n=""
+    if [[ "${DABT_BUILD_NUMBER:-}" =~ ^[0-9]+$ ]]; then n="$DABT_BUILD_NUMBER" nsrc="DABT_BUILD_NUMBER"
+    else
+        for var in GITHUB_RUN_NUMBER CI_PIPELINE_IID BUILDKITE_BUILD_NUMBER CIRCLE_BUILD_NUM BUILD_NUMBER BUILD_BUILDID; do
+            [[ "${!var:-}" =~ ^[0-9]+$ ]] && { n=$(( 10#${!var} + off )); nsrc="$var"; break; }
+        done
+        if [[ -z "$n" ]] && command -v git >/dev/null 2>&1 && n="$(git -C "$dir" rev-list --count HEAD 2>/dev/null)" && [[ "$n" =~ ^[0-9]+$ ]]; then
+            n=$(( n + off )); nsrc="git commit count"
+            [[ "$(git -C "$dir" rev-parse --is-shallow-repository 2>/dev/null)" == true ]] \
+                && DAPK_BUILD_NOTE="shallow git clone: the commit count is too low to be a reliable build number (fetch full history, e.g. actions/checkout fetch-depth: 0)"
+        else [[ -n "$n" ]] || { n=""; }; fi
+        [[ -n "$n" ]] || { n=0; nsrc="none (0)"; }
     fi
-    
-    DAPK_VERSION="$v" DAPK_BUILD="${n:-0}" DAPK_FULL="$v+${n:-0}" DAPK_TAG="v$v" DAPK_VERSION_SOURCE="$src"
+    DAPK_VERSION="$v" DAPK_BUILD="${n:-0}" DAPK_FULL="$v-${n:-0}" DAPK_TAG="v$v" DAPK_VERSION_SOURCE="$src" DAPK_BUILD_SOURCE="$nsrc"
 }
 
 dapk.version.write() {

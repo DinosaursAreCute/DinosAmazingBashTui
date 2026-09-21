@@ -6,9 +6,9 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
 @test "build: produces the .dapk, sidecars and prints the artifact path on stdout" {
     run --separate-stderr build_project "$P"
     [ "$status" -eq 0 ]
-    [ "$output" = "$P/dist/demoapp-1.2.3+7.dapk" ]
-    for f in demoapp-1.2.3+7.dapk demoapp-1.2.3+7.dapk.sha256 demoapp-news.txt RELEASE_NOTES.md build.log; do [ -f "$P/dist/$f" ]; done
-    [ "$(tar -tzf "$output" | head -1)" = "demoapp-1.2.3+7/MANIFEST" ]
+    [ "$output" = "$P/dist/demoapp-1.2.3-7.dapk" ]
+    for f in demoapp-1.2.3-7.dapk demoapp-1.2.3-7.dapk.sha256 demoapp-news.txt RELEASE_NOTES.md build.log; do [ -f "$P/dist/$f" ]; done
+    [ "$(tar -tzf "$output" | head -1)" = "demoapp-1.2.3-7/MANIFEST" ]
 }
 
 @test "build: byte-identical for identical input (reproducible)" {
@@ -19,7 +19,7 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
 
 @test "build: MANIFEST lists every top-level entry with checksums and the descriptor" {
     build_project "$P" >/dev/null 2>&1
-    m="$(tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3+7/MANIFEST)"
+    m="$(tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3-7/MANIFEST)"
     [[ "$m" == "# DABT-MANIFEST 1"* ]]
     for k in name=demoapp version=1.2.3 build=7 entry=app.sh "signer=$FP"; do grep -qxF "$k" <<< "$m"; done
     for e in .dabt.metadata CHANGELOG.md NEWS app.sh config docs share; do grep -qE "^[fd] [0-9a-f]{64} .* $e\$" <<< "$m"; done
@@ -29,7 +29,7 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
 
 @test "build: changelog Unreleased is closed in the package (not in the working tree); News extracted" {
     build_project "$P" >/dev/null 2>&1
-    tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3+7/CHANGELOG.md > "$T/cl.md"
+    tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3-7/CHANGELOG.md > "$T/cl.md"
     grep -qx '## \[Unreleased\]' "$T/cl.md"; grep -qx '## \[1.2.3\] - 2023-11-14' "$T/cl.md"
     grep -qx '## \[Unreleased\]' "$P/CHANGELOG.md"; ! grep -q '1.2.3' "$P/CHANGELOG.md"
     grep -q $'^1.2.3\tShiny new thing$' "$P/dist/demoapp-news.txt"
@@ -37,16 +37,16 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
     grep -q $'^1.2.2\tOld thing$' "$P/dist/demoapp-news.txt"
 }
 
-@test "build: --suffix gives 1.2.3-dev+7 and a suffixed changelog header" {
+@test "build: --suffix gives 1.2.3-dev-7 and a suffixed changelog header" {
     build_project "$P" --suffix dev >/dev/null 2>&1
-    [ -f "$P/dist/demoapp-1.2.3-dev+7.dapk" ]
-    tar -xzOf "$P/dist/demoapp-1.2.3-dev+7.dapk" demoapp-1.2.3-dev+7/CHANGELOG.md | grep -qx '## \[1.2.3-dev+7\] - 2023-11-14'
-    tar -xzOf "$P/dist/demoapp-1.2.3-dev+7.dapk" demoapp-1.2.3-dev+7/.dabt.metadata | grep -qE 'version *= 1.2.3-dev$'
+    [ -f "$P/dist/demoapp-1.2.3-dev-7.dapk" ]
+    tar -xzOf "$P/dist/demoapp-1.2.3-dev-7.dapk" demoapp-1.2.3-dev-7/CHANGELOG.md | grep -qx '## \[1.2.3-dev-7\] - 2023-11-14'
+    tar -xzOf "$P/dist/demoapp-1.2.3-dev-7.dapk" demoapp-1.2.3-dev-7/.dabt.metadata | grep -qE 'version *= 1.2.3-dev$'
 }
 
 @test "build: a CI tag overrides VERSION, and the run number is the build number" {
     ( cd "$P" && GITHUB_REF_TYPE=tag GITHUB_REF_NAME=v2.0.0-rc.1 GITHUB_RUN_NUMBER=42 DABT_BUILD_NUMBER= DABT_SIGN_KEY="$(<"$T/key")" bash "$DABT" build ) >/dev/null 2>&1
-    [ -f "$P/dist/demoapp-2.0.0-rc.1+42.dapk" ]
+    [ -f "$P/dist/demoapp-2.0.0-rc.1-42.dapk" ]
 }
 
 @test "build: without a key it fails; --no-sign builds an unsigned package that install refuses" {
@@ -93,7 +93,7 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
     run bash "$DABT" build --plan; [ "$status" -eq 1 ]; [[ "$output" == *"symlink"* ]]
     make_project "$P"; mkdir emptydir; printf '[[include]]\ntype="directory"\nsource="emptydir"\ntarget="share/empty"\n' >> dabt.pkg
     run bash -c "bash '$DABT' build --no-sign 2>&1"; [ "$status" -eq 0 ]; [[ "$output" == *"matched no files"* ]]
-    tar -tzf "$(pkg_of "$P")" | grep -qx 'demoapp-1.2.3+7/share/empty/'
+    tar -tzf "$(pkg_of "$P")" | grep -qx 'demoapp-1.2.3-7/share/empty/'
     run bash "$DABT" build --no-sign --strict; [ "$status" -eq 1 ]                      # --strict: the warning fails the build
 }
 
@@ -126,7 +126,7 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
 }
 
 @test "version: show and bump" {
-    cd "$P"; run bash "$DABT" pkg version; [ "$output" = "1.2.3+7" ]
+    cd "$P"; run bash "$DABT" pkg version; [ "$output" = "1.2.3-7" ]
     run bash "$DABT" pkg version bump major; [ "$(<VERSION)" = 2.0.0 ]
 }
 
@@ -144,7 +144,7 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
     run bash -c "cd '$P' && bash '$DABT' build --auto-sign"; [ "$status" -eq 0 ]
     [ "$(stat -c %a "$TUI_HOME/keys/dabt_ed25519")" = 600 ]
     fp1="$(ssh-keygen -lf "$TUI_HOME/keys/dabt_ed25519" | awk '{print $2}')"
-    tar -xzOf "$P/dist/demoapp-1.2.3+7.dapk" demoapp-1.2.3+7/MANIFEST | grep -qx "signer=$fp1"
+    tar -xzOf "$P/dist/demoapp-1.2.3-7.dapk" demoapp-1.2.3-7/MANIFEST | grep -qx "signer=$fp1"
     rm -rf "$P/dist"; run bash -c "cd '$P' && bash '$DABT' build"; [ "$status" -eq 0 ]          # no flag needed once the key exists
     [ "$(ssh-keygen -lf "$TUI_HOME/keys/dabt_ed25519" | awk '{print $2}')" = "$fp1" ]           # not regenerated
     run bash "$DABT" app install "$(pkg_of "$P")" --no-scan --no-deps --trust-key "$fp1"; [ "$status" -eq 0 ]
@@ -155,5 +155,35 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
     run bash "$DABT" pkg key; [ "$status" -eq 0 ]; [[ "$output" == *"fingerprint  SHA256:"* ]]; [[ "$output" == *"--trust-key SHA256:"* ]]
     run bash "$DABT" pkg key --generate; [ "$status" -eq 1 ]                                    # never overwrites an existing key
     build_project "$P" >/dev/null 2>&1                                                            # DABT_SIGN_KEY (the test key) beats the default
-    tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3+7/MANIFEST | grep -qx "signer=$FP"
+    tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3-7/MANIFEST | grep -qx "signer=$FP"
+}
+
+# ── build numbers ────────────────────────────────────────────────────────
+bn() { ( cd "$P" && env DABT_BUILD_NUMBER= "$@" bash "$DABT" pkg version ) 2>&1; }
+
+@test "build number: the CI run counter is used and only grows; re-running the same run gives the same number" {
+    [ "$(bn GITHUB_RUN_NUMBER=42)" = "1.2.3-42" ]; [ "$(bn GITHUB_RUN_NUMBER=43)" = "1.2.3-43" ]; [ "$(bn GITHUB_RUN_NUMBER=42)" = "1.2.3-42" ]
+    [ "$(bn GITHUB_RUN_NUMBER=100)" = "1.2.3-100" ]                                    # numeric, not lexical: 100 > 43
+    [ "$(bn CI_PIPELINE_IID=9)" = "1.2.3-9" ]; [ "$(bn BUILD_NUMBER=15)" = "1.2.3-15" ]; [ "$(bn CIRCLE_BUILD_NUM=3)" = "1.2.3-3" ]
+    [ "$(bn BUILDKITE_BUILD_NUMBER=8)" = "1.2.3-8" ]; [ "$(bn BUILD_BUILDID=77)" = "1.2.3-77" ]
+}
+
+@test "build number: build_offset continues numbering after a CI move; DABT_BUILD_NUMBER is used exactly as given" {
+    printf 'build_offset = 100\n' | cat - "$P/dabt.pkg" > "$T/pkg" && mv "$T/pkg" "$P/dabt.pkg"
+    [ "$(bn GITHUB_RUN_NUMBER=42)" = "1.2.3-142" ]
+    [ "$(cd "$P" && DABT_BUILD_NUMBER=5 bash "$DABT" pkg version)" = "1.2.3-5" ]
+    sed -i 's/^build_offset.*/build_offset = -1/' "$P/dabt.pkg"; run bash -c "cd '$P' && bash '$DABT' pkg version"; [ "$status" -ne 0 ]
+}
+
+@test "build number: the build output names the counter it used" {
+    run bash -c "cd '$P' && GITHUB_RUN_NUMBER=42 DABT_BUILD_NUMBER= DABT_SIGN_KEY=\"\$(<'$T/key')\" bash '$DABT' build 2>&1"
+    [ "$status" -eq 0 ]; [[ "$output" == *"build      42  (GITHUB_RUN_NUMBER)"* ]]; [ -f "$P/dist/demoapp-1.2.3-42.dapk" ]
+}
+
+@test "build number: without a CI counter the git commit count is used; a shallow clone warns" {
+    cd "$P"; git init -q; git config user.email t@t; git config user.name t; git add -A; git commit -qm one; echo a >> LICENSE; git commit -qam two; echo b >> LICENSE; git commit -qam three
+    [ "$(bn)" = "1.2.3-3" ]
+    git clone -q --depth 1 "file://$P" "$T/shallow"; cp "$P/dabt.pkg" "$T/shallow/" 2>/dev/null
+    run bash -c "cd '$T/shallow' && env DABT_BUILD_NUMBER= bash '$DABT' pkg version 2>&1"; [[ "$output" == *"shallow git clone"* ]]; [[ "$output" == *"1.2.3-1"* ]]
+    run bash -c "cd '$T/shallow' && env DABT_BUILD_NUMBER= DABT_SIGN_KEY=\"\$(<'$T/key')\" bash '$DABT' build 2>&1"; [[ "$output" == *"shallow git clone"* ]]
 }

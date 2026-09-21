@@ -1,0 +1,10 @@
+# dabt.pkg - packages the DABT framework itself with `dabt build` (docs/concepts/dabt-framework-package.md).
+# Allowlist: only what the framework needs to run. docs/, examples/, tests/, tools/, assets/ and screenshots/ are not shipped.
+name          = "dabt"
+entry         = "bin/dabt"
+homepage      = "https://github.com/DinosaursAreCute/DinosAmazingBashTui"
+changelog     = "CHANGELOG.md"
+publish_repo  = "DinosaursAreCute/DinosAmazingBashTui"
+
+include_paths = ["bin", "lib", "share", "install.sh", "VERSION", "LICENSE"]
+exclude       = ["test_demo", "test.sh", "*.log"]

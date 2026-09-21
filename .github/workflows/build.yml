@@ -1,0 +1,75 @@
+# Builds and signs the DABT framework package (dabt-<version>-<build>.dapk) with the repository's own `dabt build`.
+#   push to main     -> dev build, kept as a workflow artifact (never published)
+#   tag v1.2.3       -> signed build + DRAFT GitHub release   (promote: dabt pkg publish --release)
+#   tag v1.2.3-rc.1  -> signed build + PRE-RELEASE
+#   manual run       -> dev build artifact
+# Build number: github.run_number (GITHUB_RUN_NUMBER) is picked up automatically by dabt. It grows with every run of this workflow file,
+# is identical on a re-run, and never repeats, so 0.0.7-57 is always newer than 0.0.7-56. If this file is ever renamed the counter restarts:
+# set build_offset in dabt.pkg to the last number used.
+#
+# Repository settings (set with the GitHub CLI, see tools/ci_setup.sh):
+#   secret   DABT_SIGN_KEY               the private Ed25519 signing key
+#   variable DABT_SIGNER_FINGERPRINT     SHA256:... of that key; the build fails if the package is signed by anything else
+name: Build DABT package
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    env:
+      DABT_SIGN_KEY: ${{ secrets.DABT_SIGN_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history: dabt's git-count fallback and the release notes' compare link need it
+
+      - name: Check the signing setup
+        run: |
+          [ -n "$DABT_SIGN_KEY" ] || { echo "::error::secret DABT_SIGN_KEY is not set (run tools/ci_setup.sh)"; exit 1; }
+          [ -n "${{ vars.DABT_SIGNER_FINGERPRINT }}" ] || { echo "::error::variable DABT_SIGNER_FINGERPRINT is not set (run tools/ci_setup.sh)"; exit 1; }
+
+      - name: Build (release tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: bash bin/dabt build
+
+      - name: Build (dev)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: bash bin/dabt build --suffix dev
+
+      - name: Verify the package
+        id: pkg
+        run: |
+          pkg="$(ls dist/dabt-*.dapk | head -n1)"
+          fp="$(tar -xzOf "$pkg" --occurrence=1 --wildcards '*/MANIFEST' | sed -n 's/^signer=//p')"
+          [ "$fp" = "${{ vars.DABT_SIGNER_FINGERPRINT }}" ] || { echo "::error::signed by $fp, expected ${{ vars.DABT_SIGNER_FINGERPRINT }}"; exit 1; }
+          bash bin/dabt pkg verify "$pkg" --trust-key "$fp"
+          echo "name=$(basename "$pkg")" >> "$GITHUB_OUTPUT"
+          { echo "### ${pkg##*/}"; echo; echo "- build number: \`${GITHUB_RUN_NUMBER}\`"; echo "- signer: \`$fp\`"; echo "- size: $(wc -c < "$pkg") bytes"; } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          TUI_HOME: ${{ runner.temp }}/dabt-home          # keep the runner's trust store out of the way
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pkg.outputs.name }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # a plain version becomes a draft, a version with a suffix (v1.2.3-rc.1) a pre-release
+        run: bash bin/dabt pkg publish

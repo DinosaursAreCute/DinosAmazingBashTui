@@ -33,7 +33,7 @@ dabt build / dabt pkg - package, sign, verify, release and publish DABT applicat
 
   dabt build [DIR] [--suffix dev|prerelease|rc.N] [--out DIR] [--key FILE | --auto-sign | --no-sign] [--plan] [--allow-external]
              [-f|--file -s SRC -t DEST] [-d|--directory -s SRC -t DEST [-r|--recursive]]...
-                                   build DIR/dist/<name>-<version>+<build>.dapk (+ .sha256, -news.txt, RELEASE_NOTES.md, build.log)
+                                   build DIR/dist/<name>-<version>-<build>.dapk (+ .sha256, -news.txt, RELEASE_NOTES.md, build.log)
   dabt pkg key [--generate] [--path FILE]     show the default signing key's fingerprint (users pin it with --trust-key); --generate creates it
   dabt pkg verify PKG [--trust-key SHA256:..] [--allow-unsigned]
   dabt pkg info PKG                descriptor, dependencies and News of a package (no extraction)
@@ -45,7 +45,7 @@ dabt build / dabt pkg - package, sign, verify, release and publish DABT applicat
   dabt pkg deps [APP|PKG|DIR] [--install-dependencies] [--yes] [--no-deps] [--pm NAME]     check (and install) declared dependencies
   dabt pkg include add|list|rm    edit the [[include]] entries of dabt.pkg      dabt pkg dep add|list|rm     edit [[dependency]] entries
   dabt pkg ci init github|gitlab [--force]    copy a CI workflow into the project
-  dabt app install PKG.dapk|URL   install a package (see: dabt app help)
+  dabt app install PKG.dapk|.zip|URL   install a package (see: dabt app help)
 
 Common options: -v|--verbose  -q|--quiet  --log FILE  --progress|--no-progress  --strict (warnings fail)
 HELP

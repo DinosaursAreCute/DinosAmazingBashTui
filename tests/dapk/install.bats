@@ -39,8 +39,8 @@ M
 
 @test "install: a tampered package installs nothing" {
     unpack() { rm -rf "$T/x"; mkdir "$T/x"; tar -xzf "$PKG" -C "$T/x"; }; unpack
-    echo evil >> "$T/x/demoapp-1.2.3+7/app.sh"
-    ( cd "$T/x" && { echo demoapp-1.2.3+7/MANIFEST; echo demoapp-1.2.3+7/MANIFEST.sig; find demoapp-1.2.3+7 ! -name MANIFEST ! -name MANIFEST.sig; } | tar --no-recursion -czf "$T/bad.dapk" -T - )
+    echo evil >> "$T/x/demoapp-1.2.3-7/app.sh"
+    ( cd "$T/x" && { echo demoapp-1.2.3-7/MANIFEST; echo demoapp-1.2.3-7/MANIFEST.sig; find demoapp-1.2.3-7 ! -name MANIFEST ! -name MANIFEST.sig; } | tar --no-recursion -czf "$T/bad.dapk" -T - )
     run bash "$DABT" app install "$T/bad.dapk" --trust-key "$FP" --no-scan --no-deps
     [ "$status" -eq 1 ]; ! installed; [ ! -d "$TUI_HOME/apps/demoapp" ]
 }
@@ -128,4 +128,10 @@ M
 @test "pkg deps APP: re-checks an installed app, installs with --yes and clears the marker" {
     "${INST[@]}" >/dev/null 2>&1; marker
     run bash "$DABT" pkg deps demoapp --yes --pm pacman; [ "$status" -eq 0 ]; ! marker; grep -q zzz-tool "$PM_LOG"
+}
+
+@test "install: a zip (workflow artifact) holding one .dapk installs" {
+    ( cd "$(dirname "$PKG")" && bsdtar -a -cf "$T/dapk.zip" "$(basename "$PKG")" 2>/dev/null || zip -q "$T/dapk.zip" "$(basename "$PKG")" )
+    run bash "$DABT" app install "$T/dapk.zip" --trust-key "$FP" --no-scan --no-deps
+    [ "$status" -eq 0 ]; [[ "$output" == *"unpacked"* ]]; installed
 }

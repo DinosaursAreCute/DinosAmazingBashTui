@@ -12,7 +12,7 @@
 
 declare -gA DAPK_CFG=()
 declare -g DAPK_ROOT="" DAPK_CONFIG_ERROR="" DAPK_CONFIG_FILE=""
-_DAPK_CFG_TOP=" name entry requires_dabt homepage title description author changelog suffix release_template sign_key publish_repo include_paths exclude "
+_DAPK_CFG_TOP=" name entry requires_dabt homepage title description author changelog suffix release_template sign_key publish_repo build_offset include_paths exclude "
 _DAPK_CFG_INC=" type source target recursive exclude optional overwrite follow_symlinks "
 _DAPK_CFG_DEP=" name check version_cmd min_version optional apt pacman dnf zypper apk brew install "
 
@@ -59,6 +59,7 @@ dapk.config.load() {
     fi
     if [[ -z "${DAPK_CFG[name]:-}" ]]; then base="${DAPK_ROOT##*/}"; base="${base,,}"; DAPK_CFG[name]="${base//[^a-z0-9._-]/-}"; fi
     [[ "${DAPK_CFG[name]}" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { DAPK_CONFIG_ERROR="invalid name '${DAPK_CFG[name]}' (a-z 0-9 . _ -)"; return 1; }
+    [[ "${DAPK_CFG[build_offset]:-0}" =~ ^[0-9]+$ ]] || { DAPK_CONFIG_ERROR="build_offset must be a non-negative integer"; return 1; }
     [[ -n "${DAPK_CFG[changelog]:-}" ]] || { [[ -f "$DAPK_ROOT/CHANGELOG.md" ]] && DAPK_CFG[changelog]="CHANGELOG.md"; }
     if [[ -z "${DAPK_CFG[release_template]:-}" ]]; then
         if [[ -f "$DAPK_ROOT/.dabt/release.tpl" ]]; then DAPK_CFG[release_template]=".dabt/release.tpl"

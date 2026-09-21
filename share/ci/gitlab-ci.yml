@@ -3,6 +3,11 @@
 #   tag v1.2.3 / v1.2.3-rc.1      -> signed build, artifact kept
 # Setup: add the CI/CD variable DABT_SIGN_KEY (type: Variable, masked/protected) holding the private Ed25519 key.
 # GitHub publishing (dabt pkg publish) needs GITHUB_TOKEN and publish_repo; add a job for it if you mirror releases to GitHub.
+# Build numbers: the pipeline IID (CI_PIPELINE_IID) is used automatically; it only ever grows. dabt needs full history for the
+# git-count fallback, hence GIT_DEPTH 0.
+variables:
+  GIT_DEPTH: "0"
+
 stages: [build]
 
 .dabt: &dabt

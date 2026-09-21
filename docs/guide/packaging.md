@@ -8,9 +8,9 @@ title: Packaging and releasing apps
 
 ```bash
 export DABT_SIGN_KEY="$(cat ~/.ssh/dabt_ed25519)"     # or sign_key in dabt.pkg, or --key FILE; --no-sign for local tests
-dabt build                                            # -> dist/<name>-<version>+<build>.dapk (+ .sha256, -news.txt, RELEASE_NOTES.md, build.log)
-dabt pkg verify dist/myapp-1.2.3+7.dapk --trust-key SHA256:...
-dabt app install dist/myapp-1.2.3+7.dapk --trust-key SHA256:...
+dabt build                                            # -> dist/<name>-<version>-<build>.dapk (+ .sha256, -news.txt, RELEASE_NOTES.md, build.log)
+dabt pkg verify dist/myapp-1.2.3-7.dapk --trust-key SHA256:...
+dabt app install dist/myapp-1.2.3-7.dapk --trust-key SHA256:...
 ```
 
 **Automatic signing:** `dabt build --auto-sign` creates a passphrase-less Ed25519 key at `~/.config/DABT/keys/dabt_ed25519` (mode 600) if none exists and signs with it; later plain `dabt build` reuses it. Key priority: `--key` > `DABT_SIGN_KEY` > `sign_key` in `dabt.pkg` > that default key. `dabt pkg key` prints its fingerprint (`--generate` creates it). Or create your own once: `ssh-keygen -t ed25519 -f ~/.ssh/dabt_ed25519`. The fingerprint (`ssh-keygen -lf ~/.ssh/dabt_ed25519`) is what users pin with `--trust-key`.
@@ -50,7 +50,7 @@ The same include entries work on the command line: `dabt build -f -s LICENSE -t 
 
 ## Versions
 
-Version: a CI tag (`v1.2.3`) > `VERSION` > `.dabt.metadata` > `0.0.0`. `--suffix dev` gives `1.2.3-dev`. Build number: `DABT_BUILD_NUMBER`, `GITHUB_RUN_NUMBER`, `CI_PIPELINE_IID`, the git commit count, else 0. Full version `1.2.3-dev+57`.
+Version: a CI tag (`v1.2.3`) > `VERSION` > `.dabt.metadata` > `0.0.0`. `--suffix dev` gives `1.2.3-dev`. Build number (auto-incrementing in CI): `DABT_BUILD_NUMBER` (used exactly as given), else the CI system's own run counter (`GITHUB_RUN_NUMBER`, `CI_PIPELINE_IID`, `BUILDKITE_BUILD_NUMBER`, `CIRCLE_BUILD_NUM`, `BUILD_NUMBER`, `BUILD_BUILDID`), else the git commit count, else 0. Full version `1.2.3-dev-57` (version, then the build number after a dash; the file is `myapp-1.2.3-dev-57.dapk`). Note: in strict SemVer a `-57` part reads as a pre-release, so do not compare full versions with a SemVer tool; dabt itself compares the version without the build number, and `MANIFEST` keeps `version=` and `build=` as separate fields. CI counters only grow, never repeat, and are identical on a re-run of the same run, so `-57` is always newer than `-56`. `build_offset = N` in `dabt.pkg` is added to the CI counter or commit count, to continue numbering after renaming a workflow or moving CI systems (those reset the counter). A shallow git clone gives a too-small commit count: dabt warns; use full history (`fetch-depth: 0`, `GIT_DEPTH: 0`, already in the shipped templates). The build output shows which counter was used.
 
 ## Changelog and News
 
@@ -75,7 +75,7 @@ Version: a CI tag (`v1.2.3`) > `VERSION` > `.dabt.metadata` > `0.0.0`. `--suffix
 
 ## Installing and dependencies
 
-`dabt app install PKG.dapk|URL` verifies structure, signature and every checksum first (fail closed), shows News, then hands the tree to the normal app installer. The first install of an app asks whether to trust the signer (or pass `--trust-key SHA256:...`); a changed signer later is a hard error. Trusted keys live in `~/.config/DABT/trusted_signers`. Unsigned packages need `--allow-unsigned`; `--install-path DIR` picks the app folder.
+`dabt app install PKG.dapk|PKG.zip|URL` (a workflow-artifact zip holding one `.dapk` is unpacked first) verifies structure, signature and every checksum first (fail closed), shows News, then hands the tree to the normal app installer. The first install of an app asks whether to trust the signer (or pass `--trust-key SHA256:...`); a changed signer later is a hard error. Trusted keys live in `~/.config/DABT/trusted_signers`. Unsigned packages need `--allow-unsigned`; `--install-path DIR` picks the app folder.
 
 | flag | dependencies |
 |---|---|

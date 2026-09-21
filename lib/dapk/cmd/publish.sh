@@ -17,13 +17,14 @@ dapk.cmd.publish() {
     dapk.ui.init; dapk.ui.steps 2
     dapk.ui.step "Preparing"
     dapk.config.load "$root" || { dapk.ui.err "$DAPK_CONFIG_ERROR"; _dapk.cmd.finish 1; return; }
-    dapk.version.resolve "$root" "$suffix" || { dapk.ui.err "$DAPK_VERSION_ERROR"; _dapk.cmd.finish 1; return; }
+    dapk.version.resolve "$root" "$suffix" "${DAPK_CFG[build_offset]:-0}" || { dapk.ui.err "$DAPK_VERSION_ERROR"; _dapk.cmd.finish 1; return; }
     name="${DAPK_CFG[name]}"
-    for f in "$root/dist/$name-$DAPK_VERSION+"*."$DABT_PKG_EXT"; do
+    for f in "$root/dist/$name-$DAPK_VERSION-"*."$DABT_PKG_EXT"; do
         [[ -f "$f" ]] || continue
+        [[ "${f##*/}" =~ ^"$name-$DAPK_VERSION"-[0-9]+\."$DABT_PKG_EXT"$ ]] || continue      # exactly <name>-<version>-<build>: not another suffix's build
         if [[ -z "$best" ]] || [[ "$f" -nt "$best" ]]; then best="$f"; fi
     done
-    [[ -n "$best" ]] || { dapk.ui.err "no dist/$name-$DAPK_VERSION+*.$DABT_PKG_EXT: run  dabt build  first"; _dapk.cmd.finish 1; return; }
+    [[ -n "$best" ]] || { dapk.ui.err "no dist/$name-$DAPK_VERSION-N.$DABT_PKG_EXT: run  dabt build  first"; _dapk.cmd.finish 1; return; }
     pkg="$best"
     DAPK_PUB_ASSETS=("$pkg"); [[ -f "$pkg.sha256" ]] && DAPK_PUB_ASSETS+=("$pkg.sha256"); [[ -f "$root/dist/$name-news.txt" ]] && DAPK_PUB_ASSETS+=("$root/dist/$name-news.txt")
     DAPK_PUB_REPO="$(dapk.notes.repo_slug "$root")" DAPK_PUB_TAG="$DAPK_TAG" DAPK_PUB_NAME="$name $DAPK_VERSION" DAPK_PUB_BODY="$root/dist/RELEASE_NOTES.md"

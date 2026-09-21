@@ -17,7 +17,7 @@ dapk.cmd.verify() {
     dapk.ui.init; dapk.ui.steps 1
     dapk.ui.step "Verifying ${pkg##*/}"
     dapk.verify.run "$pkg"; rc=$?
-    (( rc == 0 )) && { dapk.ui.ok "verified: ${DAPK_MANIFEST_H[name]} ${DAPK_MANIFEST_H[version]}+${DAPK_MANIFEST_H[build]:-0}"; }
+    (( rc == 0 )) && { dapk.ui.ok "verified: ${DAPK_MANIFEST_H[name]} ${DAPK_MANIFEST_H[version]}-${DAPK_MANIFEST_H[build]:-0}"; }
     _dapk.cmd.finish "$rc"
 }
 

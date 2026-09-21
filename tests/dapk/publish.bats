@@ -35,7 +35,7 @@ M
     run bash -c "cd '$P' && bash '$DABT' pkg publish"; [ "$status" -eq 0 ]
     grep -q '"draft":true,"prerelease":false' "$BODY_LOG"; grep -q '"tag_name":"v1.2.3"' "$BODY_LOG"
     grep -q '^POST https://api.test/repos/me/demoapp/releases$' "$REQ_LOG"
-    for a in 'demoapp-1.2.3+7.dapk' 'demoapp-1.2.3+7.dapk.sha256' 'demoapp-news.txt'; do grep -qF "POST https://up.test/repos/me/demoapp/releases/99/assets?name=$a" "$REQ_LOG"; done
+    for a in 'demoapp-1.2.3-7.dapk' 'demoapp-1.2.3-7.dapk.sha256' 'demoapp-news.txt'; do grep -qF "POST https://up.test/repos/me/demoapp/releases/99/assets?name=$a" "$REQ_LOG"; done
     ! grep -q ghp_SECRET123 "$REQ_LOG"; grep -q ghp_SECRET123 "$STDIN_LOG"
     grep -q 'Shiny new thing' "$BODY_LOG"                                      # the rendered release notes are the body
 }
@@ -70,4 +70,10 @@ M
 
 @test "publish: an API error is reported with the HTTP status and message" {
     MOCK_HTTP_FAIL=1 run bash -c "cd '$P' && bash '$DABT' pkg publish"; [ "$status" -eq 1 ]; [[ "$output" == *"HTTP 422"*"Validation Failed"* ]]
+}
+
+@test "publish: only the package of exactly this version and suffix is picked (not another suffix's build)" {
+    build_project "$P" --suffix dev >/dev/null 2>&1                                 # dist now also holds demoapp-1.2.3-dev-7.dapk
+    run bash -c "cd '$P' && bash '$DABT' pkg publish --dry-run"; [ "$status" -eq 0 ]; [[ "$output" == *"demoapp-1.2.3-7.dapk"* ]]; [[ "$output" != *"dev"* ]]
+    run bash -c "cd '$P' && bash '$DABT' pkg publish --dry-run --suffix dev"; [[ "$output" == *"demoapp-1.2.3-dev-7.dapk"* ]]
 }

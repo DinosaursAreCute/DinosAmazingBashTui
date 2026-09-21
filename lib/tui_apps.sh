@@ -201,7 +201,7 @@ tui.apps.install() {
     # a .dapk package (file or URL): verify, show News, resolve dependencies (lib/dapk), then come back here with the verified folder
     local prev=""
     for a in "$@"; do
-        if [[ "$a" == *.dapk && "$a" != -* && "$prev" != --origin ]]; then
+        if [[ ( "$a" == *.dapk || "$a" == *.zip ) && "$a" != -* && "$prev" != --origin ]]; then
             [[ -n "${_DAPK_LOADED:-}" ]] || source "$_TUI_APPS_SELF/dapk/dapk.sh"
             dapk.install.run "$@"; return $?
         fi
@@ -351,7 +351,7 @@ _tui_apps.help() {
 dabt app - install and manage DABT applications
 
   dabt app install SOURCE [--force] [--strict] [--no-scan] [--name N] [--entry PATH] [--install-path DIR]
-                          SOURCE = a folder, a git URL (URL#branch-or-tag) or a .dapk package (file or URL, see: dabt pkg help).
+                          SOURCE = a folder, a git URL (URL#branch-or-tag) or a .dapk package or a .zip holding one (file or URL, see: dabt pkg help).
                           A .dapk is verified (signature + checksums) first; extra options: --install-dependencies --yes --no-deps
                           --require-deps --allow-custom-install --trust-key SHA256:.. --allow-unsigned --plan.
                           The app needs a .dabt.metadata file;

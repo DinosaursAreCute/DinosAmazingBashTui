@@ -11,7 +11,7 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
 }
 
 @test "ui: stdout carries only the artifact path" {
-    run --separate-stderr build_project "$P"; [ "$output" = "$P/dist/demoapp-1.2.3+7.dapk" ]
+    run --separate-stderr build_project "$P"; [ "$output" = "$P/dist/demoapp-1.2.3-7.dapk" ]
 }
 
 @test "ui: GitHub Actions gets group and warning annotations" {

@@ -101,12 +101,14 @@ _dapk.cmd.build_run() {
     dapk.ui.step "Configuration"
     dapk.config.load "$root" || { dapk.ui.err "$DAPK_CONFIG_ERROR"; return 1; }
     for x in "${DAPK_CONFIG_UNKNOWN[@]}"; do dapk.ui.warn "dabt.pkg: unknown key '$x' (ignored)"; done
-    dapk.version.resolve "$root" "$suffix" || { dapk.ui.err "$DAPK_VERSION_ERROR"; return 1; }
+    dapk.version.resolve "$root" "$suffix" "${DAPK_CFG[build_offset]:-0}" || { dapk.ui.err "$DAPK_VERSION_ERROR"; return 1; }
     for (( i = 0; i < ${#_BI_INC[@]}; i++ )); do
         IFS='|' read -r t s g r <<< "${_BI_INC[i]}"; dapk.config.add_include "$t" "$s" "$g" "$r"
     done
     _dapk.cmd.epoch "$root"
     dapk.ui.kv name "${DAPK_CFG[name]}"; dapk.ui.kv version "$DAPK_FULL  ($DAPK_VERSION_SOURCE)"
+    dapk.ui.kv build "$DAPK_BUILD  ($DAPK_BUILD_SOURCE)"
+    [[ -n "$DAPK_BUILD_NOTE" ]] && dapk.ui.warn "$DAPK_BUILD_NOTE"
     [[ -n "${DAPK_CFG[entry]:-}" ]] && dapk.ui.kv entry "${DAPK_CFG[entry]}"
     if (( ! nosign && ! plan )); then
         dapk.sign.resolve_key "$key" "${DAPK_CFG[sign_key]:-}" "$autosign" || { dapk.ui.err "$DAPK_SIGN_ERROR"; return 1; }

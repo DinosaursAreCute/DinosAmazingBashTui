@@ -13,7 +13,9 @@ dapk.cmd.version() {
         esac
     done
     root="$(cd -P "$dir" 2>/dev/null && pwd -P)" || { _dapk.cmd.usage "version: '$dir' is not a folder"; return 2; }
-    dapk.version.resolve "$root" "$suffix" || { printf 'dabt: %s\n' "$DAPK_VERSION_ERROR" >&2; return 1; }
+    dapk.config.load "$root" >/dev/null 2>&1
+    dapk.version.resolve "$root" "$suffix" "${DAPK_CFG[build_offset]:-0}" || { printf 'dabt: %s\n' "$DAPK_VERSION_ERROR" >&2; return 1; }
+    [[ -n "$DAPK_BUILD_NOTE" ]] && printf 'dabt: warning: %s\n' "$DAPK_BUILD_NOTE" >&2
     if [[ "$action" == show ]]; then printf '%s\n' "$DAPK_FULL"; return 0; fi
     local nv; dapk.version.bump "$kind" "$DAPK_VERSION" nv || { _dapk.cmd.usage "version bump: use major, minor or patch"; return 2; }
     dapk.version.write "$root" "$nv" || return 1
@@ -37,7 +39,7 @@ dapk.cmd.release() {
     dapk.ui.init; dapk.ui.steps 3
     dapk.ui.step "Checking"
     dapk.config.load "$root" || { dapk.ui.err "$DAPK_CONFIG_ERROR"; _dapk.cmd.finish 1; return; }
-    dapk.version.resolve "$root" || { dapk.ui.err "$DAPK_VERSION_ERROR"; _dapk.cmd.finish 1; return; }
+    dapk.version.resolve "$root" "" "${DAPK_CFG[build_offset]:-0}" || { dapk.ui.err "$DAPK_VERSION_ERROR"; _dapk.cmd.finish 1; return; }
     cur="${DAPK_VERSION%%-*}"
     case "$arg" in major|minor|patch) dapk.version.bump "$arg" "$cur" nv ;; *) nv="${arg#v}"; dapk.version.valid "$nv" || { dapk.ui.err "'$arg' is not a semantic version"; _dapk.cmd.finish 1; return; } ;; esac
     dapk.version.cmp "$nv" "$cur"; (( DAPK_VCMP > 0 )) || { dapk.ui.err "$nv is not newer than $cur"; _dapk.cmd.finish 1; return; }
@@ -75,7 +77,7 @@ dapk.cmd.notes() {
     root="$(cd -P "$dir" 2>/dev/null && pwd -P)" || { _dapk.cmd.usage "notes: '$dir' is not a folder"; return 2; }
     DAPK_UI_QUIET=1; dapk.ui.init
     dapk.config.load "$root" || { dapk.ui.err "$DAPK_CONFIG_ERROR"; return 1; }
-    dapk.version.resolve "$root" || { dapk.ui.err "$DAPK_VERSION_ERROR"; return 1; }
+    dapk.version.resolve "$root" "" "${DAPK_CFG[build_offset]:-0}" || { dapk.ui.err "$DAPK_VERSION_ERROR"; return 1; }
     _dapk.cmd.epoch "$root"
     _WORK="$(mktemp -d "${TMPDIR:-/tmp}/dapk_notes.XXXXXX")" || return 1
     stage="$_WORK/${DAPK_CFG[name]}-$DAPK_FULL"

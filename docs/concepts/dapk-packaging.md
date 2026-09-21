@@ -48,7 +48,7 @@ This concept introduces:
 | `dabt.pkg` | Developer-authored build configuration (TOML) |
 | Descriptor | The header section of `MANIFEST`. There is no separate descriptor file. |
 | Top-level entry | A direct child of the package root (file or directory) |
-| Full version | `<semver>[-<suffix>]+<build>`, e.g. `1.4.2-dev+57` |
+| Full version | `<semver>[-<suffix>]-<build>`, e.g. `1.4.2-dev-57` |
 | News | Bullets from a changelog's `### News` section |
 | Signer | The Ed25519 key that signed `MANIFEST` |
 
@@ -56,13 +56,13 @@ This concept introduces:
 
 ### 4.1 Identity
 - Extension: `.dapk`, held in one constant, `DABT_PKG_EXT`.
-- Filename: `<name>-<version>+<build>.dapk`, e.g. `myapp-1.4.2+57.dapk`.
-- Container: gzip-compressed POSIX tar with a single root directory `<name>-<version>+<build>/`.
+- Filename: `<name>-<version>-<build>.dapk`, e.g. `myapp-1.4.2-57.dapk`.
+- Container: gzip-compressed POSIX tar with a single root directory `<name>-<version>-<build>/`.
 - A file is a valid `.dapk` only if its first tar member is `<root>/MANIFEST` and begins with `# DABT-MANIFEST 1`. Plain tarballs are rejected.
 
 ### 4.2 Layout
 ```
-myapp-1.4.2+57/
+myapp-1.4.2-57/
   MANIFEST        first member: descriptor + checksums
   MANIFEST.sig    ssh-keygen signature over MANIFEST
   NEWS            extracted News bullets (only if a changelog is configured)
@@ -212,7 +212,7 @@ dabt build --plan              # print resolved source -> target list; write not
 - Version source: `VERSION` (semver). In CI, a tag `vX.Y.Z[-suffix]` overrides it.
 - Suffix: `--suffix dev|prerelease|rc.N` or `suffix=` in `dabt.pkg`, yielding `1.4.2-dev`. Ordering follows semver prerelease rules.
 - Build number, first match wins: `DABT_BUILD_NUMBER`, `GITHUB_RUN_NUMBER`, `CI_PIPELINE_IID`, `git rev-list --count HEAD`, else `0`.
-- Full version: `1.4.2-dev+57`. Per semver, build metadata does not affect precedence.
+- Full version: `1.4.2-dev-57`. Per semver, build metadata does not affect precedence.
 - `dabt version` prints the resolved version. `dabt version bump patch|minor|major` edits `VERSION`.
 
 ## 7. Changelog and News
@@ -236,7 +236,7 @@ Keep-a-Changelog conventions:
 - A **bullet** is a line starting with `- `. Indented lines that follow continue it. Other lines are ignored.
 
 ### 7.2 Build behavior (never mutates the working tree)
-In the packaged copy of the changelog, `## [Unreleased]` becomes `## [<version>] - <date>` and a fresh empty `## [Unreleased]` is inserted above it. For suffixed builds the header is `## [<version>+<build>] - <date>`.
+In the packaged copy of the changelog, `## [Unreleased]` becomes `## [<version>] - <date>` and a fresh empty `## [Unreleased]` is inserted above it. For suffixed builds the header is `## [<version>-<build>] - <date>`.
 
 The section for the built version yields:
 - `NEWS` inside the package, one `version<TAB>text` line per bullet.
@@ -521,6 +521,7 @@ Each step is shippable and has its own tests in `tests/dapk/`:
 - Signing key priority: `--key` > `$DABT_SIGN_KEY` (private key text, for CI) > `sign_key` in `dabt.pkg`.
 - The unmet-dependency marker is `$TUI_HOME/apps.deps/<name>` (the signed manifest copy is not edited); `dabt app run` warns about it, `dabt pkg deps APP` clears it.
 - `--install-path DIR` is the exact app folder. Dependency `check`/`version_cmd` strings run through `bash -c`, only after the package verified.
+- Build numbers: CI counters (GitHub, GitLab, Buildkite, CircleCI, Jenkins, Azure) are used first; `build_offset` in `dabt.pkg` shifts them (and the git commit count); a shallow clone warns. See docs/guide/packaging.md.
 - `dabt pkg publish --suffix S` selects a suffixed build; CI tags with a suffix resolve it from the tag.
 
 ## 18. Decision log and open questions

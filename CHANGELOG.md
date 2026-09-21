@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-09-21
+
 ### News
 
 - Release notes now come with the block-font header images, a centered logo, and a version header generated for every release (`dabt pkg release` writes it), in the layout of the 0.0.8 notes.

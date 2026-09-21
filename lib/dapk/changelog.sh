@@ -9,6 +9,7 @@
 #                                              "## [Unreleased]" above it. rc 1 when IN has no Unreleased section.
 # dapk.changelog.news FILE [DEFAULT_VERSION]   prints "version<TAB>text" per News bullet (a ### News outside any version uses DEFAULT_VERSION)
 # dapk.changelog.section FILE VERSION NAME     prints the body of "### NAME" inside "## [VERSION]" (NAME empty: the whole version section)
+# dapk.changelog.intro FILE VERSION            prints the paragraph(s) between "## [VERSION]" and its first "###" (the release summary)
 # dapk.changelog.unreleased_empty FILE         rc 0 when the Unreleased section holds no entries (or is missing)
 # dapk.changelog.previous FILE                 prints the newest released version heading found (after Unreleased)
 
@@ -50,6 +51,14 @@ dapk.changelog.section() {
             in_sec = (tolower(t) == tolower(name)); next
         }
         name == "" || in_sec { print }' "$1" | awk 'NF { started = 1 } started { lines[++n] = $0 } END { while (n > 0 && lines[n] ~ /^[ \t\r]*$/) n--; for (i = 1; i <= n; i++) print lines[i] }'
+}
+
+dapk.changelog.intro() {
+    awk -v want="$2" '
+        function ver_of(line) { if (match(line, /\[[^]]+\]/)) return substr(line, RSTART + 1, RLENGTH - 2); t = line; sub(/^#+[ \t]+/, "", t); sub(/[ \t].*$/, "", t); return t }
+        /^##[ \t]/ && !/^###/ { in_ver = (ver_of($0) == want); next }
+        /^###[ \t]/ { in_ver = 0 }
+        in_ver { print }' "$1" | awk 'NF { started = 1 } started { lines[++n] = $0 } END { while (n > 0 && lines[n] ~ /^[ \t\r]*$/) n--; for (i = 1; i <= n; i++) print lines[i] }'
 }
 
 dapk.changelog.unreleased_empty() {

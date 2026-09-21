@@ -188,3 +188,23 @@ bn() { ( cd "$P" && env $NOCI DABT_BUILD_NUMBER= "$@" bash "$DABT" pkg version )
     run bash -c "cd '$T/shallow' && env $NOCI DABT_BUILD_NUMBER= bash '$DABT' pkg version 2>&1"; [[ "$output" == *"shallow git clone"* ]]; [[ "$output" == *"1.2.3-1"* ]]
     run bash -c "cd '$T/shallow' && env $NOCI DABT_BUILD_NUMBER= DABT_SIGN_KEY=\"\$(<'$T/key')\" bash '$DABT' build 2>&1"; [[ "$output" == *"shallow git clone"* ]]
 }
+
+@test "release: writes and commits the version header; the notes use the header images, the logo and the summary" {
+    cd "$P"; mkdir -p assets; printf 'png\n' > assets/logo.png
+    printf 'release_title = "Demo App"\nrelease_logo = "assets/logo.png"\npublish_repo = "me/demoapp"\n' | cat - dabt.pkg > "$T/pkg" && mv "$T/pkg" dabt.pkg
+    printf '# Changelog\n\n## [Unreleased]\n\nA summary line.\n\n### News\n\n- Something new.\n\n### Fixed\n\n* A bug.\n' > CHANGELOG.md
+    git init -q; git config user.email t@t; git config user.name t; git add -A; git commit -qm init
+    run bash "$DABT" pkg release minor; [ "$status" -eq 0 ]
+    [ -f assets/headers/v1-3-0.svg ]; grep -q '<rect' assets/headers/v1-3-0.svg; git ls-files --error-unmatch assets/headers/v1-3-0.svg
+    [ -z "$(git status --porcelain)" ]
+    run env GITHUB_REF_TYPE=tag GITHUB_REF_NAME=v1.3.0 bash "$DABT" pkg notes; [ "$status" -eq 0 ]
+    [[ "$output" == *'<img src="https://raw.githubusercontent.com/me/demoapp/v1.3.0/assets/logo.png"'* ]]
+    [[ "$output" == *'<h1><img src="https://raw.githubusercontent.com/me/demoapp/v1.3.0/assets/headers/v1-3-0.svg" alt="Demo App 1.3.0"'* ]]
+    [[ "$output" == *"A summary line."* ]]
+    [[ "$output" == *'headers/release-new.svg" alt="What'* ]]; [[ "$output" == *'headers/release-fixed.svg" alt="Fixed"'* ]]
+    [[ "$output" != *"release-added.svg"* ]]                        # no ### Added: no header
+}
+
+@test "release notes: without a version header file the heading falls back to plain markdown" {
+    cd "$P"; run bash "$DABT" pkg notes; [ "$status" -eq 0 ]; [[ "$output" == "# demoapp 1.2.3"* ]]
+}

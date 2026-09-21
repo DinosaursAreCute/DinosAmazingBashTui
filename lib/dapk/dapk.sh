@@ -18,7 +18,7 @@ declare -g DAPK_SIG_NAMESPACE="dabt-pkg"
 [[ -n "${TUI_HOME:-}" ]] || source "$DAPK_DIR/../tui_home.sh"
 
 # order = dependency order (ui, toml, version have no dependencies)
-for _dapk_m in ui toml version config changelog news collect manifest pack sign verify deps notes publish ci install; do
+for _dapk_m in ui toml version header config changelog news collect manifest pack sign verify deps notes publish ci install; do
     source "$DAPK_DIR/$_dapk_m.sh"
 done
 for _dapk_m in "$DAPK_DIR"/cmd/*.sh; do [[ -e "$_dapk_m" ]] && source "$_dapk_m"; done

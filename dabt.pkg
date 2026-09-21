@@ -5,6 +5,8 @@ entry         = "bin/dabt"
 homepage      = "https://github.com/DinosaursAreCute/DinosAmazingBashTui"
 changelog     = "CHANGELOG.md"
 publish_repo  = "DinosaursAreCute/DinosAmazingBashTui"
+release_title = "D.A.B.T"                        # the version header of the release notes: "D.A.B.T 0.0.9" in the block font
+release_logo  = "assets/logo-transparent.png"    # shown centered above it
 
 include_paths = ["bin", "lib", "share", "install.sh", "VERSION", "LICENSE"]
 exclude       = ["test_demo", "test.sh", "*.log"]

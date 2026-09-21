@@ -25,6 +25,8 @@ homepage         = "https://github.com/me/myapp"
 changelog        = "CHANGELOG.md"          # default: CHANGELOG.md when present
 suffix           = ""                      # dev | prerelease | rc.N   (--suffix overrides)
 release_template = ".dabt/release.tpl"     # default: share/release/default.tpl
+release_title    = "My App"                # text of the version header image ("MY APP 1.2.3"); default: title, else name
+release_logo     = "assets/logo.png"       # optional: shown centered above the heading in the release notes
 sign_key         = "~/.ssh/dabt_ed25519"
 publish_repo     = "me/myapp"              # default: the github.com origin remote
 
@@ -68,6 +70,8 @@ Version: a CI tag (`v1.2.3`) > `VERSION` > `.dabt.metadata` > `0.0.0`. `--suffix
 ## Release notes
 
 `RELEASE_NOTES.md` is rendered from `release_template`: `{{name}} {{version}} {{build}} {{date}} {{commit}} {{news}} {{compare_url}} {{checksums}}`, `{{section:Fixed}}` (a changelog section of the built version) and `{{#if var}}...{{/if}}`. Unknown variables are errors. `dabt pkg notes` renders without building.
+
+**Images in the notes.** The default template lays the notes out with the block-font headers (`What's new`, `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`), a centered logo and a version header. The section headers are the shared ones from the DABT repo (`release_header_base` points elsewhere). The version header is written by `dabt pkg release` to `assets/headers/v1-2-3.svg`, committed with the release, and referenced at the release tag; the logo is `release_logo`, referenced the same way. Extra template variables: `{{title}} {{summary}} {{heading}} {{logo}} {{header_base}}` (`summary` is the paragraph under the version heading, before the first `###`). Without a header file (a tag made by hand) the heading falls back to `# name version`.
 
 ## Publishing to GitHub
 

@@ -23,7 +23,7 @@ dapk.cmd.version() {
 }
 
 dapk.cmd.release() {
-    local dir="." arg="" push=0 commit=1 root cur nv cl date tag rc=0
+    local dir="." arg="" push=0 commit=1 root cur nv cl date tag rc=0 hdr=""
     while (( $# )); do
         if _dapk.cmd.ui "$1" "${2:-}"; then shift "$_UI_SHIFT"; continue; fi
         case "$1" in
@@ -56,13 +56,16 @@ dapk.cmd.release() {
     dapk.ui.step "Updating files"
     tag="v$nv"; printf -v date '%(%Y-%m-%d)T' -1
     dapk.version.write "$root" "$nv" && dapk.ui.ok "VERSION $nv"
+    hdr="$(dapk.header.version_file "$nv")"
+    if dapk.header.generate "${DAPK_CFG[release_title]:-${DAPK_CFG[title]:-${DAPK_CFG[name]}}} $nv" "$root/$hdr" 10; then dapk.ui.ok "release header $hdr"
+    else hdr=""; dapk.ui.warn "could not generate the release header (release_title has no letters or digits the block font knows)"; fi
     if [[ -n "$cl" ]]; then
         dapk.changelog.rewrite "$root/$cl" "$root/$cl.tmp" "$nv" "$date" && mv -f "$root/$cl.tmp" "$root/$cl" && dapk.ui.ok "$cl: Unreleased -> [$nv] - $date" || dapk.ui.warn "$cl has no Unreleased section"
     fi
 
     dapk.ui.step "Commit and tag"
     if (( commit )) && git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
-        local f; for f in VERSION .dabt.metadata ${cl:+"$cl"}; do [[ -e "$root/$f" ]] && git -C "$root" add -- "$f"; done
+        local f; for f in VERSION .dabt.metadata ${cl:+"$cl"} ${hdr:+"$hdr"}; do [[ -e "$root/$f" ]] && git -C "$root" add -- "$f"; done
         git -C "$root" commit -q -m "Release $tag" && git -C "$root" tag "$tag" && dapk.ui.ok "committed and tagged $tag" || { dapk.ui.err "git commit/tag failed"; rc=1; }
         (( push && rc == 0 )) && { git -C "$root" push && git -C "$root" push origin "$tag" && dapk.ui.ok "pushed" || { dapk.ui.err "git push failed"; rc=1; }; }
     else dapk.ui.info "no commit made (--no-commit or not a git repository)"; fi

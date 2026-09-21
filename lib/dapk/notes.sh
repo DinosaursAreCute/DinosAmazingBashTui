@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # notes.sh - release-note templates. Three constructs only:
-#     {{var}}                        substitution (name version build date commit news compare_url checksums)
+#     {{var}}                        substitution (name version build date commit news compare_url checksums title summary heading logo header_base)
 #     {{section:Name}}               the body of "### Name" in the changelog section of the built version
 #     {{#if var}} ... {{/if}}        conditional block (own lines, may nest); var may also be section:Name
 # An unknown variable is an error (a typo must not silently produce empty release notes).
@@ -12,7 +12,7 @@
 
 declare -gA DAPK_NOTES=()
 declare -g DAPK_NOTES_CHANGELOG="" DAPK_NOTES_VERSION="" DAPK_NOTES_ERROR=""
-_DAPK_NOTES_VARS=" name version build date commit news compare_url checksums "
+_DAPK_NOTES_VARS=" name version build date commit news compare_url checksums title summary heading logo header_base "
 
 _dapk.notes.value() {   # VAR -> _NV ; rc 1 for an unknown variable
     local v="$1"

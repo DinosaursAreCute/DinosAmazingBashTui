@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+
+- Release notes now come with the block-font header images, a centered logo, and a version header generated for every release (`dabt pkg release` writes it), in the layout of the 0.0.8 notes.
+
+### Added
+
+* Release notes: the default template uses the header images (`release-new`, `release-added`, `-changed`, `-deprecated`, `-removed`, `-fixed`, `-security` in `assets/headers/`), `logo`, `heading` and `summary`. New `dabt.pkg` keys `release_title`, `release_logo`, `release_header_base`; new template variables `title summary heading logo header_base`.
+* `dabt pkg release` generates `assets/headers/v<X-Y-Z>.svg` (block font, `lib/dapk/header.sh`) and commits it with the release; `tools/gen_header.sh` uses the same generator.
+
+### Fixed
+
+* `dabt pkg publish` parses the pretty-printed JSON that api.github.com returns (it failed with "could not read the release id" and could not update an existing release).
+
 ## [0.0.9] - 2026-09-21
 
 ### News

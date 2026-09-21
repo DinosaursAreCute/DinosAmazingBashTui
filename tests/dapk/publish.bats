@@ -25,6 +25,7 @@ case "$method $url" in
   *) code=404; body='{"message":"Not Found"}' ;;
 esac
 [[ -n "${MOCK_HTTP_FAIL:-}" && "$method" == POST && "$url" == *releases ]] && { code=422; body='{"message":"Validation Failed"}'; }
+[[ -n "${MOCK_PRETTY:-}" ]] && body="$(printf '%s' "$body" | sed -E 's/\{"/{\n    "/g; s/,"/,\n    "/g; s/":/": /g; s/\}\]$/\n  }\n]/')"   # api.github.com pretty-prints
 [[ -n "$out" ]] && printf '%s' "$body" > "$out"; printf '%s' "$code"
 M
     chmod +x "$MOCKBIN/curl"
@@ -76,4 +77,13 @@ M
     build_project "$P" --suffix dev >/dev/null 2>&1                                 # dist now also holds demoapp-1.2.3-dev-7.dapk
     run bash -c "cd '$P' && bash '$DABT' pkg publish --dry-run"; [ "$status" -eq 0 ]; [[ "$output" == *"demoapp-1.2.3-7.dapk"* ]]; [[ "$output" != *"dev"* ]]
     run bash -c "cd '$P' && bash '$DABT' pkg publish --dry-run --suffix dev"; [[ "$output" == *"demoapp-1.2.3-dev-7.dapk"* ]]
+}
+
+@test "publish: pretty-printed GitHub responses (the real API) are parsed: release id, existing release, assets" {
+    export MOCK_PRETTY=1
+    run bash -c "cd '$P' && bash '$DABT' pkg publish --release"; [ "$status" -eq 0 ]
+    grep -q "POST https://up.test/repos/me/demoapp/releases/99/assets" "$REQ_LOG"
+    printf '[{"url":"https://api.test/repos/me/demoapp/releases/77","id":77,"tag_name":"v1.2.3"}]' | sed -E 's/\{"/{\n    "/g; s/,"/,\n    "/g; s/":/": /g; s/\}\]$/\n  }\n]/' > "$REMOTE/releases.json"
+    : > "$REQ_LOG"; run bash -c "cd '$P' && bash '$DABT' pkg publish --release"; [ "$status" -eq 0 ]
+    grep -q "PATCH https://api.test/repos/me/demoapp/releases/77" "$REQ_LOG"
 }

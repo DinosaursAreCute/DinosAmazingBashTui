@@ -7,12 +7,13 @@
 # dapk.config.table_append FILE TABLE KEY=VALUE...          append a [[TABLE]] to dabt.pkg (strings are quoted)
 # dapk.config.table_remove FILE TABLE N                     remove the Nth [[TABLE]]
 # Keys: name entry requires_dabt homepage title description author changelog suffix release_template sign_key publish_repo
+#       release_title release_logo release_header_base (release-note images, see docs/guide/packaging.md)
 #       include_paths exclude ; tables include.N.* (type source target recursive exclude optional overwrite follow_symlinks)
 #       dependency.N.* (name check version_cmd min_version optional apt pacman dnf zypper apk brew install)
 
 declare -gA DAPK_CFG=()
 declare -g DAPK_ROOT="" DAPK_CONFIG_ERROR="" DAPK_CONFIG_FILE=""
-_DAPK_CFG_TOP=" name entry requires_dabt homepage title description author changelog suffix release_template sign_key publish_repo build_offset include_paths exclude "
+_DAPK_CFG_TOP=" name entry requires_dabt homepage title description author changelog suffix release_template sign_key publish_repo build_offset release_title release_logo release_header_base include_paths exclude "
 _DAPK_CFG_INC=" type source target recursive exclude optional overwrite follow_symlinks "
 _DAPK_CFG_DEP=" name check version_cmd min_version optional apt pacman dnf zypper apk brew install "
 

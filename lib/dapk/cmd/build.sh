@@ -90,6 +90,18 @@ _dapk.cmd.notes_vars() {
     DAPK_NOTES[news]="${news%$'\n'}"
     repo="$(dapk.notes.repo_slug "$root")"
     DAPK_NOTES[compare_url]="$(dapk.notes.compare_url "$repo" "$tag" "$root")"
+    # release-note images: the block-font headers live in the DABT repo (override with release_header_base); the version header and the logo
+    # are files of the app's own repo, referenced at the release tag so they exist exactly when the release does
+    local title="${DAPK_CFG[release_title]:-${DAPK_CFG[title]:-${DAPK_CFG[name]}}}" raw="" f
+    [[ -n "$repo" ]] && raw="https://raw.githubusercontent.com/$repo/$tag"
+    DAPK_NOTES[title]="$title"
+    DAPK_NOTES[header_base]="${DAPK_CFG[release_header_base]:-https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers}"
+    [[ -n "$DAPK_NOTES_CHANGELOG" ]] && DAPK_NOTES[summary]="$(dapk.changelog.intro "$DAPK_NOTES_CHANGELOG" "$DAPK_NOTES_VERSION")"
+    DAPK_NOTES[logo]=""; f="${DAPK_CFG[release_logo]:-}"
+    [[ -n "$raw" && -n "$f" && -f "$root/$f" ]] && DAPK_NOTES[logo]="$raw/$f"
+    f="$(dapk.header.version_file "$DAPK_VERSION")"
+    if [[ -n "$raw" && -f "$root/$f" ]]; then DAPK_NOTES[heading]="<h1><img src=\"$raw/$f\" alt=\"$title $DAPK_VERSION\" height=\"50\"></h1>"
+    else DAPK_NOTES[heading]="# $title $DAPK_VERSION"; fi
 }
 
 _dapk.cmd.tpl_path() { local t="${DAPK_CFG[release_template]}"; [[ "$t" == /* ]] && printf '%s' "$t" || printf '%s/%s' "$DAPK_ROOT" "$t"; }

@@ -17,6 +17,11 @@ _dapk.publish.jstr() {   # TEXT : JSON string literal
     printf '"%s"' "$s"
 }
 
+# GitHub answers with pretty-printed JSON (newlines, indentation, `"key": value`); the parsers below expect the compact form `{"key":value,...}`
+_dapk.publish.compact() {
+    printf '%s' "$1" | tr -d '\r\n' | sed -E 's/"[[:space:]]*:[[:space:]]+/":/g; s/,[[:space:]]+"/,"/g; s/\{[[:space:]]+"/{"/g; s/\[[[:space:]]+\{/[{/g; s/[[:space:]]+([]}])/\1/g'
+}
+
 # METHOD URL [--data FILE | --upload FILE] : response body -> _PUB_BODY, rc 0 on 2xx
 _dapk.publish.api() {
     local method="$1" url="$2" kind="${3:-}" file="${4:-}" tok="${GITHUB_TOKEN:-${GH_TOKEN:-}}" tmp code
@@ -30,6 +35,7 @@ _dapk.publish.api() {
     _dapk.ui.log DEBUG "curl $method $url"
     code="$(printf 'header = "Authorization: Bearer %s"\n' "$tok" | curl "${args[@]}" "$url" 2>>"${DAPK_UI_LOG_FILE:-/dev/null}")" || { rm -f "$tmp"; DAPK_PUB_ERROR="network error calling $url"; return 1; }
     _PUB_BODY="$(<"$tmp")"; rm -f "$tmp"
+    _PUB_BODY="$(_dapk.publish.compact "$_PUB_BODY")"
     [[ "$code" =~ ^2 ]] && return 0
     local msg="" ; [[ "$_PUB_BODY" =~ \"message\":\"([^\"]*)\" ]] && msg="${BASH_REMATCH[1]}"
     DAPK_PUB_ERROR="GitHub API $method ${url#*://*/} -> HTTP $code${msg:+: $msg}"; return 1

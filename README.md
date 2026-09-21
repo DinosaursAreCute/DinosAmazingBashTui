@@ -301,9 +301,7 @@ The process runs in a real PTY. Pipe stdin to it, cancel it, save its output, or
 
 <h2 id="contributing"><img src="assets/headers/contributing.svg" alt="Contributing" height="35"></h2>
 
-Issues and pull requests are welcome. Run `bats tests/` before submitting; tests mock the network and only write to tmp dirs. Release notes are in the [changelog](CHANGELOG.md).
-
-<h2 id="license"><img src="assets/headers/contributing.svg" alt="License" height="35"></h2>
+Contributions are currently not accepted. Contributions will be allowed once DABT has reached a maturity both in code, tests, and documentation that make effective contributing possible.
 
 [MIT](LICENSE): free to use, modify and redistribute for any purpose, no warranty, no liability.
 

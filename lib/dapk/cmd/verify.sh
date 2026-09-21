@@ -71,3 +71,16 @@ dapk.cmd.news() {
     if (( ${#DAPK_NEWS_ITEMS[@]} )); then dapk.news.print; else printf 'no news\n' >&2; fi
     return 0
 }
+
+dapk.cmd.key() {
+    local gen=0 path="" k fp
+    while (( $# )); do
+        case "$1" in --generate) gen=1; shift ;; --path) path="${2:-}"; shift 2 ;; -h|--help) _dapk.cmd.help; return 0 ;; *) _dapk.cmd.usage "key: unknown option $1"; return 2 ;; esac
+    done
+    k="${path:-$(dapk.sign.default_key)}"
+    if (( gen )); then dapk.sign.generate "$k" || { printf 'dabt: %s\n' "$DAPK_SIGN_ERROR" >&2; return 1; }; printf 'created %s\n' "$k" >&2; fi
+    [[ -r "$k" ]] || { printf 'dabt: no signing key at %s (create one with: dabt pkg key --generate)\n' "$k" >&2; return 1; }
+    fp="$(dapk.sign.fingerprint "$k")"; [[ -n "$fp" ]] || { printf 'dabt: cannot read %s\n' "$k" >&2; return 1; }
+    printf 'key          %s\nfingerprint  %s\n' "$k" "$fp"
+    printf 'users trust it with:  dabt app install PKG.%s --trust-key %s\n' "$DABT_PKG_EXT" "$fp"
+}

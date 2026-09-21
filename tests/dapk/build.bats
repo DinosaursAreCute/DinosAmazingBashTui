@@ -136,3 +136,24 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
     run bash "$DABT" pkg ci init github --force; [ "$status" -eq 0 ]
     run bash "$DABT" pkg ci init gitlab; [ -f .gitlab-ci.yml ]
 }
+
+@test "signing: the default key is picked up automatically; --auto-sign creates it once (mode 600) and reuses it" {
+    unset DABT_SIGN_KEY
+    run bash -c "cd '$P' && bash '$DABT' build"; [ "$status" -eq 1 ]; [[ "$output" == *"--auto-sign"* ]]
+    [ ! -e "$TUI_HOME/keys/dabt_ed25519" ]
+    run bash -c "cd '$P' && bash '$DABT' build --auto-sign"; [ "$status" -eq 0 ]
+    [ "$(stat -c %a "$TUI_HOME/keys/dabt_ed25519")" = 600 ]
+    fp1="$(ssh-keygen -lf "$TUI_HOME/keys/dabt_ed25519" | awk '{print $2}')"
+    tar -xzOf "$P/dist/demoapp-1.2.3+7.dapk" demoapp-1.2.3+7/MANIFEST | grep -qx "signer=$fp1"
+    rm -rf "$P/dist"; run bash -c "cd '$P' && bash '$DABT' build"; [ "$status" -eq 0 ]          # no flag needed once the key exists
+    [ "$(ssh-keygen -lf "$TUI_HOME/keys/dabt_ed25519" | awk '{print $2}')" = "$fp1" ]           # not regenerated
+    run bash "$DABT" app install "$(pkg_of "$P")" --no-scan --no-deps --trust-key "$fp1"; [ "$status" -eq 0 ]
+}
+
+@test "signing: --key and DABT_SIGN_KEY win over the default key; dabt pkg key prints the fingerprint" {
+    bash "$DABT" pkg key --generate >/dev/null 2>&1
+    run bash "$DABT" pkg key; [ "$status" -eq 0 ]; [[ "$output" == *"fingerprint  SHA256:"* ]]; [[ "$output" == *"--trust-key SHA256:"* ]]
+    run bash "$DABT" pkg key --generate; [ "$status" -eq 1 ]                                    # never overwrites an existing key
+    build_project "$P" >/dev/null 2>&1                                                            # DABT_SIGN_KEY (the test key) beats the default
+    tar -xzOf "$(pkg_of "$P")" demoapp-1.2.3+7/MANIFEST | grep -qx "signer=$FP"
+}

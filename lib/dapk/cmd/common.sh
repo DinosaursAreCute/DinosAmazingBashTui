@@ -31,9 +31,10 @@ _dapk.cmd.help() {
     cat <<'HELP'
 dabt build / dabt pkg - package, sign, verify, release and publish DABT applications (.dapk)
 
-  dabt build [DIR] [--suffix dev|prerelease|rc.N] [--out DIR] [--key FILE | --no-sign] [--plan] [--allow-external]
+  dabt build [DIR] [--suffix dev|prerelease|rc.N] [--out DIR] [--key FILE | --auto-sign | --no-sign] [--plan] [--allow-external]
              [-f|--file -s SRC -t DEST] [-d|--directory -s SRC -t DEST [-r|--recursive]]...
                                    build DIR/dist/<name>-<version>+<build>.dapk (+ .sha256, -news.txt, RELEASE_NOTES.md, build.log)
+  dabt pkg key [--generate] [--path FILE]     show the default signing key's fingerprint (users pin it with --trust-key); --generate creates it
   dabt pkg verify PKG [--trust-key SHA256:..] [--allow-unsigned]
   dabt pkg info PKG                descriptor, dependencies and News of a package (no extraction)
   dabt pkg news SRC [--since VER]  News bullets from a .dapk, a -news.txt (file or URL) or a CHANGELOG.md
@@ -53,7 +54,7 @@ HELP
 dapk.cmd.dispatch() {
     local cmd="${1:-}"; shift
     case "$cmd" in
-        build|verify|info|news|version|release|notes|publish|deps|include|dep|ci) "dapk.cmd.$cmd" "$@" ;;
+        build|key|verify|info|news|version|release|notes|publish|deps|include|dep|ci) "dapk.cmd.$cmd" "$@" ;;
         ""|-h|--help|help) _dapk.cmd.help ;;
         *) printf "dabt pkg: unknown command '%s'\n\n" "$cmd" >&2; _dapk.cmd.help >&2; return 2 ;;
     esac

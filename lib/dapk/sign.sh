@@ -4,7 +4,10 @@
 # The signature covers MANIFEST only; the manifest pins every top-level checksum, so it covers the whole package. MANIFEST.sig travels
 # inside the package. Trust store: $TUI_HOME/trusted_signers (ssh allowed_signers format, one principal per app name).
 #
-# dapk.sign.resolve_key [KEY] [CFGKEY]   sets DAPK_SIGN_KEYFILE. Priority: KEY (--key) > a private temp file written from $DABT_SIGN_KEY > CFGKEY (sign_key in dabt.pkg)
+# dapk.sign.resolve_key [KEY] [CFGKEY] [AUTO]   sets DAPK_SIGN_KEYFILE. Priority: KEY (--key) > a private temp file written from $DABT_SIGN_KEY >
+#                                        CFGKEY (sign_key in dabt.pkg) > the default key $TUI_HOME/keys/dabt_ed25519 when it exists;
+#                                        AUTO=1 (--auto-sign) generates the default key when none of those exist
+# dapk.sign.default_key                  path of the default key       dapk.sign.generate [PATH]   create a passphrase-less Ed25519 key (mode 600)
 # dapk.sign.cleanup                      remove the temp key
 # dapk.sign.fingerprint KEYFILE          prints SHA256:...
 # dapk.sign.sign MANIFEST KEYFILE        writes MANIFEST.sig next to MANIFEST
@@ -15,6 +18,17 @@
 declare -g DAPK_SIGN_KEYFILE="" DAPK_SIGN_FPR="" DAPK_SIGN_TYPE="" DAPK_SIGN_B64="" DAPK_SIGN_ERROR="" _DAPK_SIGN_TMP=""
 
 dapk.sign.trust_file() { printf '%s' "${DAPK_TRUST_FILE:-$TUI_HOME/trusted_signers}"; }
+
+dapk.sign.default_key() { printf '%s' "${DAPK_DEFAULT_KEY:-$TUI_HOME/keys/dabt_ed25519}"; }
+
+dapk.sign.generate() {
+    local k="${1:-$(dapk.sign.default_key)}"
+    command -v ssh-keygen >/dev/null 2>&1 || { DAPK_SIGN_ERROR="ssh-keygen (OpenSSH) is required"; return 1; }
+    [[ ! -e "$k" ]] || { DAPK_SIGN_ERROR="$k already exists"; return 1; }
+    mkdir -p "$(dirname "$k")" && chmod 700 "$(dirname "$k")" 2>/dev/null
+    ssh-keygen -q -t ed25519 -N "" -C "dabt-pkg" -f "$k" </dev/null >/dev/null 2>&1 && chmod 600 "$k" || { DAPK_SIGN_ERROR="key generation failed"; return 1; }
+    DAPK_SIGN_KEYFILE="$k"
+}
 
 dapk.sign.resolve_key() {
     DAPK_SIGN_ERROR=""
@@ -32,7 +46,9 @@ dapk.sign.resolve_key() {
         chmod 700 "$_DAPK_SIGN_TMP"; ( umask 077; printf '%s\n' "$DABT_SIGN_KEY" > "$_DAPK_SIGN_TMP/key" ); chmod 600 "$_DAPK_SIGN_TMP/key"
         DAPK_SIGN_KEYFILE="$_DAPK_SIGN_TMP/key"; return 0
     fi
-    DAPK_SIGN_ERROR="no signing key: set sign_key in dabt.pkg, pass --key FILE, or export DABT_SIGN_KEY (or build with --no-sign)"; return 1
+    if [[ -r "$(dapk.sign.default_key)" ]]; then DAPK_SIGN_KEYFILE="$(dapk.sign.default_key)"; return 0; fi
+    if [[ "${3:-0}" == 1 ]]; then dapk.sign.generate && return 0; return 1; fi
+    DAPK_SIGN_ERROR="no signing key: set sign_key in dabt.pkg, pass --key FILE, export DABT_SIGN_KEY, or build with --auto-sign (or --no-sign)"; return 1
 }
 
 dapk.sign.cleanup() { [[ -n "$_DAPK_SIGN_TMP" && -d "$_DAPK_SIGN_TMP" ]] && rm -rf "$_DAPK_SIGN_TMP"; _DAPK_SIGN_TMP=""; }

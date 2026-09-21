@@ -54,7 +54,8 @@ dapk.install.run() {
             want="$(awk '{print $1; exit}' "$pkg.sha256")"; got="$(dapk.manifest.sha256 "$pkg")"
             [[ "$want" == "$got" ]] && dapk.ui.ok "download checksum" || { dapk.ui.err "download checksum mismatch (expected $want, got $got)"; rc=1; }
         elif (( rc == 0 )); then dapk.ui.debug "no .sha256 published next to the package"; fi
-    elif [[ ! -f "$src" ]]; then dapk.ui.err "package not found: $src"; rc=1; fi
+    elif [[ ! -f "$src" ]]; then dapk.ui.err "package not found: $src"; rc=1
+    else src="$(cd -P "$(dirname "$src")" && pwd -P)/${src##*/}"; pkg="$src"; fi     # record an absolute path as the update source
     (( rc == 0 )) && { dapk.verify.run "$pkg" || rc=1; }
 
     if (( rc == 0 )); then

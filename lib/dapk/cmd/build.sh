@@ -95,7 +95,7 @@ _dapk.cmd.notes_vars() {
 _dapk.cmd.tpl_path() { local t="${DAPK_CFG[release_template]}"; [[ "$t" == /* ]] && printf '%s' "$t" || printf '%s/%s' "$DAPK_ROOT" "$t"; }
 
 _dapk.cmd.build_run() {
-    local root="$1" outdir="$2" suffix="$3" plan="$4" nosign="$5" key="$6" stage pkg root_name fp="" repo built commit x i
+    local root="$1" outdir="$2" suffix="$3" plan="$4" nosign="$5" key="$6" autosign="$7" stage pkg root_name fp="" repo built commit x i
     dapk.ui.steps "$( (( plan )) && echo 2 || echo 7 )"
 
     dapk.ui.step "Configuration"
@@ -109,9 +109,10 @@ _dapk.cmd.build_run() {
     dapk.ui.kv name "${DAPK_CFG[name]}"; dapk.ui.kv version "$DAPK_FULL  ($DAPK_VERSION_SOURCE)"
     [[ -n "${DAPK_CFG[entry]:-}" ]] && dapk.ui.kv entry "${DAPK_CFG[entry]}"
     if (( ! nosign && ! plan )); then
-        dapk.sign.resolve_key "$key" "${DAPK_CFG[sign_key]:-}" || { dapk.ui.err "$DAPK_SIGN_ERROR"; return 1; }
+        dapk.sign.resolve_key "$key" "${DAPK_CFG[sign_key]:-}" "$autosign" || { dapk.ui.err "$DAPK_SIGN_ERROR"; return 1; }
         fp="$(dapk.sign.fingerprint "$DAPK_SIGN_KEYFILE")"; [[ -n "$fp" ]] || { dapk.ui.err "cannot read the signing key $DAPK_SIGN_KEYFILE"; return 1; }
         dapk.ui.kv signer "$fp"
+        [[ "$DAPK_SIGN_KEYFILE" == "$(dapk.sign.default_key)" ]] && dapk.ui.kv key "$DAPK_SIGN_KEYFILE"
     elif (( nosign )); then dapk.ui.warn "building without a signature (--no-sign): the package cannot be installed without --allow-unsigned"; fi
 
     dapk.ui.step "Collecting files"
@@ -164,7 +165,7 @@ _dapk.cmd.build_run() {
 }
 
 dapk.cmd.build() {
-    local dir="." suffix="" plan=0 nosign=0 key="" outdir="" rc root
+    local dir="." suffix="" plan=0 nosign=0 key="" outdir="" rc root autosign=0
     _BI_INC=(); _BI_TYPE="" _BI_SRC="" _BI_TGT="" _BI_REC=0
     while (( $# )); do
         if _dapk.cmd.ui "$1" "${2:-}"; then shift "$_UI_SHIFT"; continue; fi
@@ -172,7 +173,7 @@ dapk.cmd.build() {
             --suffix) [[ -n "${2:-}" ]] || { _dapk.cmd.usage "--suffix needs a value"; return 2; }; suffix="$2"; shift 2 ;;
             --out) outdir="$2"; shift 2 ;;
             --key) key="$2"; shift 2 ;;
-            --no-sign) nosign=1; shift ;;
+            --no-sign) nosign=1; shift ;; --auto-sign) autosign=1; shift ;;
             --plan) plan=1; shift ;;
             --allow-external) DAPK_COLLECT_ALLOW_EXTERNAL=1; shift ;;
             -f|--file) _dapk.cmd.flush_inc || return 2; _BI_TYPE=file; shift ;;
@@ -192,7 +193,7 @@ dapk.cmd.build() {
     dapk.ui.init
     (( DAPK_UI_QUIET )) || printf '%sD.A.B.T%s build  %s%s%s\n' "$BLUE" "$R" "$D" "$(<"$TUI_ROOT/VERSION")" "$R" >&2
     trap 'rm -rf "$_WORK"; dapk.sign.cleanup; dapk.ui.cleanup' EXIT
-    _dapk.cmd.build_run "$root" "$outdir" "$suffix" "$plan" "$nosign" "$key"; rc=$?
+    _dapk.cmd.build_run "$root" "$outdir" "$suffix" "$plan" "$nosign" "$key" "$autosign"; rc=$?
     [[ -n "$_WORK" ]] && rm -rf "$_WORK"; _WORK=""
     trap - EXIT
     _dapk.cmd.finish "$rc"

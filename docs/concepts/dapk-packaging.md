@@ -514,6 +514,15 @@ Each step is shippable and has its own tests in `tests/dapk/`:
 - UI: bar formatter at fixed percents with escapes stripped; `CI=1` yields no `\r` or escapes; `NO_COLOR`; `-q` versus log contents; redraw only on percent change.
 - Signing uses a throwaway keypair generated per test run.
 
+## 17a. As implemented: deviations from this concept
+
+- Commands: `dabt build` is top-level; the rest live under `dabt pkg <cmd>` (`dabt version`, `dabt info`, ... already mean other things). Installing a package is `dabt app install PKG.dapk|URL`, because `dabt install` installs DABT itself. `.dapk` support was added to the existing `dabt app` installer (`lib/tui_apps.sh`), which keeps using `.dabt.metadata`; `dabt build` keeps that file in sync or generates it.
+- `--trust-key` takes the signer fingerprint (`--trust-key SHA256:...`), so a key is never trusted blindly. Unsigned packages: `dabt build --no-sign` and `dabt app install --allow-unsigned`.
+- Signing key priority: `--key` > `$DABT_SIGN_KEY` (private key text, for CI) > `sign_key` in `dabt.pkg`.
+- The unmet-dependency marker is `$TUI_HOME/apps.deps/<name>` (the signed manifest copy is not edited); `dabt app run` warns about it, `dabt pkg deps APP` clears it.
+- `--install-path DIR` is the exact app folder. Dependency `check`/`version_cmd` strings run through `bash -c`, only after the package verified.
+- `dabt pkg publish --suffix S` selects a suffixed build; CI tags with a suffix resolve it from the tag.
+
 ## 18. Decision log and open questions
 
 Decided:

@@ -13,6 +13,7 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency n
 [![Tests](https://img.shields.io/badge/tests-bats-orange?style=for-the-badge)](tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE)
 
+[![Build DABT package](https://github.com/DinosaursAreCute/DinosAmazingBashTui/actions/workflows/build.yml/badge.svg)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/actions/workflows/build.yml)
 [![Last commit](https://img.shields.io/github/last-commit/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/commits/main)
 [![Stars](https://img.shields.io/github/stars/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/stargazers)
 [![Issues](https://img.shields.io/github/issues/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/issues)

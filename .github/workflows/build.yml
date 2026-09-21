@@ -1,7 +1,7 @@
 # Builds and signs the DABT framework package (dabt-<version>-<build>.dapk) with the repository's own `dabt build`.
 # Pipeline: test (bats) -> package -> install-update (install + update DABT from the artifact) -> release (tags only).
 #   push to main     -> dev build, kept as a workflow artifact (never published)
-#   tag v1.2.3       -> signed build + DRAFT GitHub release   (promote: dabt pkg publish --release)
+#   tag v1.2.3       -> signed build + published GitHub release (full release, no manual step)
 #   tag v1.2.3-rc.1  -> signed build + PRE-RELEASE
 #   manual run       -> dev build artifact
 # Build number: github.run_number (GITHUB_RUN_NUMBER) is picked up automatically by dabt. It grows with every run of this workflow file,
@@ -122,5 +122,9 @@ jobs:
       - name: Publish GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # a plain version becomes a draft, a version with a suffix (v1.2.3-rc.1) a pre-release
-        run: bash bin/dabt pkg publish
+        # v1.2.3 is published as a full release right away; v1.2.3-rc.1 (a suffix) becomes a pre-release
+        run: |
+          case "$GITHUB_REF_NAME" in
+            *-*) bash bin/dabt pkg publish ;;
+            *)   bash bin/dabt pkg publish --release ;;
+          esac

@@ -87,6 +87,7 @@ tui.install.run() {
     mkdir -p "$prefix/etc" && printf '# written by the DABT installer\nDABT_HOME="%s"\n' "$conf" > "$prefix/etc/dabt.env"
     local now; printf -v now '%(%Y-%m-%d %H:%M:%S)T' -1
     { printf '# DABT install record\nversion=%s\nprefix=%s\nconfig=%s\nsource=%s\n' "$ver" "$prefix" "$conf" "$src"
+      (( link )) && [[ -n "$bindir" ]] && printf 'bindir=%s\n' "$bindir"
       if [[ -n "$was" && -r "$conf/install.meta.prev" ]]; then :; fi
       printf 'updated_at=%s\n' "$now"; } > "$conf/install.meta.tmp"
     if [[ -f "$conf/install.meta" ]]; then

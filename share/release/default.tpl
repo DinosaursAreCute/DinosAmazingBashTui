@@ -1,11 +1,11 @@
 {{#if logo}}
 <div align="center">
 <img src="{{logo}}" alt="{{name}}" width="560">
-</div>
+
 
 {{/if}}
 {{heading}}
-
+</div>
 {{#if summary}}
 {{summary}}
 

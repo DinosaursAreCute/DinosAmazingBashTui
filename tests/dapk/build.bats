@@ -159,7 +159,8 @@ setup() { dapk_setup; P="$T/proj"; make_project "$P"; }
 }
 
 # ── build numbers ────────────────────────────────────────────────────────
-bn() { ( cd "$P" && env DABT_BUILD_NUMBER= "$@" bash "$DABT" pkg version ) 2>&1; }
+NOCI="-u GITHUB_RUN_NUMBER -u CI_PIPELINE_IID -u BUILDKITE_BUILD_NUMBER -u CIRCLE_BUILD_NUM -u BUILD_NUMBER -u BUILD_BUILDID"   # a CI runner sets these itself
+bn() { ( cd "$P" && env $NOCI DABT_BUILD_NUMBER= "$@" bash "$DABT" pkg version ) 2>&1; }
 
 @test "build number: the CI run counter is used and only grows; re-running the same run gives the same number" {
     [ "$(bn GITHUB_RUN_NUMBER=42)" = "1.2.3-42" ]; [ "$(bn GITHUB_RUN_NUMBER=43)" = "1.2.3-43" ]; [ "$(bn GITHUB_RUN_NUMBER=42)" = "1.2.3-42" ]
@@ -184,6 +185,6 @@ bn() { ( cd "$P" && env DABT_BUILD_NUMBER= "$@" bash "$DABT" pkg version ) 2>&1;
     cd "$P"; git init -q; git config user.email t@t; git config user.name t; git add -A; git commit -qm one; echo a >> LICENSE; git commit -qam two; echo b >> LICENSE; git commit -qam three
     [ "$(bn)" = "1.2.3-3" ]
     git clone -q --depth 1 "file://$P" "$T/shallow"; cp "$P/dabt.pkg" "$T/shallow/" 2>/dev/null
-    run bash -c "cd '$T/shallow' && env DABT_BUILD_NUMBER= bash '$DABT' pkg version 2>&1"; [[ "$output" == *"shallow git clone"* ]]; [[ "$output" == *"1.2.3-1"* ]]
-    run bash -c "cd '$T/shallow' && env DABT_BUILD_NUMBER= DABT_SIGN_KEY=\"\$(<'$T/key')\" bash '$DABT' build 2>&1"; [[ "$output" == *"shallow git clone"* ]]
+    run bash -c "cd '$T/shallow' && env $NOCI DABT_BUILD_NUMBER= bash '$DABT' pkg version 2>&1"; [[ "$output" == *"shallow git clone"* ]]; [[ "$output" == *"1.2.3-1"* ]]
+    run bash -c "cd '$T/shallow' && env $NOCI DABT_BUILD_NUMBER= DABT_SIGN_KEY=\"\$(<'$T/key')\" bash '$DABT' build 2>&1"; [[ "$output" == *"shallow git clone"* ]]
 }

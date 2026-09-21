@@ -11,6 +11,7 @@ setup_env() {
     unset TUI_HOME DABT_HOME TUI_ROOT TUI_DEFAULTS_DIR TUI_APP_CONF TUI_PLUGINS_DIR TUI_SYNC_POLICY TUI_SYNC_STAMP TUI_SYNC_BACKUP \
           TUI_UPDATE_REPO TUI_UPDATE_BRANCH TUI_UPDATE_CHANNEL TUI_UPDATE_TAG TUI_UPDATE_VERSION_URL TUI_UPDATE_ARCHIVE_URL MOCK_CURL_FAIL
     export TUI_APP_NAME=dabt
+    export TUI_UPDATE_NOSCAN=1                    # the security scan is slow (~2s per install/update) and has its own tests
     MOCKBIN="$T/mockbin"; REMOTE="$T/remote"; mkdir -p "$MOCKBIN" "$REMOTE"
     export PATH="$MOCKBIN:$PATH" REMOTE MOCKBIN
     : > "$T/curl.log"

@@ -4,7 +4,7 @@ load helpers
 setup() { setup_env; source "$REPO/lib/tui_sync.sh"; source "$REPO/lib/tui_install.sh"; REL="$T/rel"; }
 
 CONF() { echo "$XDG_CONFIG_HOME/DABT"; }
-run_install() { run bash "$REL/install.sh" --yes --prefix "$T/prog" --bindir "$T/bin" "$@"; }
+run_install() { run bash "$REL/install.sh" --yes --prefix "$T/prog" --bindir "$T/bin" --no-scan "$@"; }
 
 # ── detecting an existing install ───────────────────────────────────────
 # value of a `dabt doctor` row ("Key ······ value") in $output
@@ -57,14 +57,14 @@ doctor_kv() { local l; while IFS= read -r l; do [[ "$l" == "$1 "* ]] && { printf
     [[ "$output" == *'export DABT_HOME='* ]]
 }
 @test "the installed program finds a custom config through etc/dabt.env (dabt doctor)" {
-    run bash "$REPO/install.sh" --yes --prefix "$T/prog" --config "$T/mycfg" --no-link
+    run bash "$REPO/install.sh" --yes --prefix "$T/prog" --config "$T/mycfg" --no-link --no-scan
     [ "$status" -eq 0 ]
     run "$T/prog/bin/dabt" doctor
     [ "$status" -eq 0 ]
     [ "$(doctor_kv "Config home")" = "$T/mycfg" ]; [ "$(doctor_kv "Found via")" = install ]
 }
 @test "the real repository installs completely (program, defaults and shipped plugins)" {
-    run bash "$REPO/install.sh" --yes --prefix "$T/prog" --config "$T/cfg" --bindir "$T/bin"
+    run bash "$REPO/install.sh" --yes --prefix "$T/prog" --config "$T/cfg" --bindir "$T/bin" --no-scan
     [ "$status" -eq 0 ]
     [ -f "$T/prog/lib/tui.sh" ]; [ -f "$T/prog/bin/dabt" ]; [ -f "$T/prog/share/demo/home.xml" ]; [ -f "$T/prog/docs/README.md" ]
     [ -f "$T/cfg/defaults/keybinds.xml" ]; [ -f "$T/cfg/defaults/pages/plugins.xml" ]; [ -f "$T/cfg/plugins/terminal_shortcuts.plugin.sh" ]
@@ -98,7 +98,7 @@ doctor_kv() { local l; while IFS= read -r l; do [[ "$l" == "$1 "* ]] && { printf
     [ "$status" -eq 2 ]; [ ! -e "$T/prog" ]
 }
 @test "unknown option" { run bash "$REPO/install.sh" --frobnicate; [ "$status" -eq 2 ]; }
-@test "installing never modifies the source tree" { make_release "$REL" 1.0.0; run_install --config "$T/cfg"; assert_repo_untouched; run bash "$REPO/install.sh" --yes --prefix "$T/p2" --config "$T/c2" --no-link; assert_repo_untouched; }
+@test "installing never modifies the source tree" { make_release "$REL" 1.0.0; run_install --config "$T/cfg"; assert_repo_untouched; run bash "$REPO/install.sh" --yes --prefix "$T/p2" --config "$T/c2" --no-link --no-scan; assert_repo_untouched; }
 
 # ── installing over an existing install (an update) ─────────────────────
 @test "running the installer twice changes nothing the second time" {

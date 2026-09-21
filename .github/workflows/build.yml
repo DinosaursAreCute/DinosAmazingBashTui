@@ -62,7 +62,7 @@ jobs:
       - name: Verify the package
         id: pkg
         run: |
-          pkg="$(ls dist/dabt-*.dapk | head -n1)"
+          pkg="$(ls -t dist/dabt-*.dapk | head -n1)"
           fp="$(bash bin/dabt pkg info "$pkg" | awk '$1 == "signer" {print $2; exit}')"
           if [ -z "$fp" ]; then
             echo "::group::debug: package info and MANIFEST"
@@ -104,7 +104,7 @@ jobs:
           tag="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
           if [ -n "$tag" ]; then mkdir -p "$RUNNER_TEMP/baseline" && git archive "$tag" | tar -x -C "$RUNNER_TEMP/baseline"; echo "dir=$RUNNER_TEMP/baseline" >> "$GITHUB_OUTPUT"; echo "baseline: $tag"; else echo "dir=" >> "$GITHUB_OUTPUT"; echo "no earlier release tag: using the synthetic baseline"; fi
       - name: Install and update from the package
-        run: bash tools/ci_integration.sh "$(ls dist/dabt-*.dapk | head -n1)" "${{ steps.base.outputs.dir }}"
+        run: bash tools/ci_integration.sh "$(ls -t dist/dabt-*.dapk | head -n1)" "${{ steps.base.outputs.dir }}"
 
   release:
     needs: install-update

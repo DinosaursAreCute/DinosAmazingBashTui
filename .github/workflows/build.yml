@@ -64,6 +64,12 @@ jobs:
         run: |
           pkg="$(ls dist/dabt-*.dapk | head -n1)"
           fp="$(bash bin/dabt pkg info "$pkg" | awk '$1 == "signer" {print $2; exit}')"
+          if [ -z "$fp" ]; then
+            echo "::group::debug: package info and MANIFEST"
+            ls -l dist/; bash bin/dabt pkg info "$pkg" 2>&1 | head -20; tar -tzf "$pkg" | head -5
+            tar -xzOf "$pkg" --wildcards '*/MANIFEST' 2>&1 | head -15
+            echo "::endgroup::"
+          fi
           [ "$fp" = "${{ vars.DABT_SIGNER_FINGERPRINT }}" ] || { echo "::error::signed by $fp, expected ${{ vars.DABT_SIGNER_FINGERPRINT }}"; exit 1; }
           bash bin/dabt pkg verify "$pkg" --trust-key "$fp"
           echo "name=$(basename "$pkg")" >> "$GITHUB_OUTPUT"

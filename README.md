@@ -299,6 +299,12 @@ For a real embedded terminal, point `tui.exec` at any command:
 
 The process runs in a real PTY. Pipe stdin to it, cancel it, save its output, or retry it, all from the TUI.
 
+**Learn by building:**
+
+- **[Writing Your First App](docs/tutorials/writing-your-first-app.md)**: step-by-step tutorial for complete beginners (pages, themes, callbacks).
+- **[Writing Your First Plugin](docs/tutorials/writing-your-first-plugin.md)**: commands, keys, timers and settings.
+- **[DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer)**: a complete example application. Browse folders and preview files, then read its `config/` and `explorer.sh` as a real-world reference. Try it with `dabt app install https://github.com/DinosaursAreCute/DabtFileExplorer`.
+
 <h2 id="contributing"><img src="assets/headers/contributing.svg" alt="Contributing" height="35"></h2>
 
 Contributions are currently not accepted. Contributions will be allowed once DABT has reached a maturity both in code, tests, and documentation that make effective contributing possible.

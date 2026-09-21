@@ -1,0 +1,34 @@
+# DABT build pipeline (copied by `dabt pkg ci init gitlab`).
+#   commits to the default branch -> dev build (artifact only)
+#   tag v1.2.3 / v1.2.3-rc.1      -> signed build, artifact kept
+# Setup: add the CI/CD variable DABT_SIGN_KEY (type: Variable, masked/protected) holding the private Ed25519 key.
+# GitHub publishing (dabt pkg publish) needs GITHUB_TOKEN and publish_repo; add a job for it if you mirror releases to GitHub.
+stages: [build]
+
+.dabt: &dabt
+  image: ubuntu:24.04
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq curl git openssh-client tar gzip
+    - curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/install.sh | bash -s -- --yes --no-scan
+    - export PATH="$HOME/.local/bin:$PATH"
+
+build-dev:
+  <<: *dabt
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - dabt build --suffix dev
+  artifacts:
+    paths: [dist/]
+    expire_in: 2 weeks
+
+build-release:
+  <<: *dabt
+  stage: build
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
+  script:
+    - dabt build
+  artifacts:
+    paths: [dist/]

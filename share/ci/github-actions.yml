@@ -1,0 +1,53 @@
+# DABT release workflow (copied by `dabt pkg ci init github`).
+#   push to main        -> dev build, kept as a workflow artifact (never published)
+#   tag v1.2.3          -> signed build + DRAFT GitHub release (promote it with: dabt pkg publish --release)
+#   tag v1.2.3-rc.1     -> signed build + PRE-RELEASE
+# Setup: add the repository secret DABT_SIGN_KEY (the private Ed25519 key, e.g. from `ssh-keygen -t ed25519 -f dabt_key`) and set
+# publish_repo / sign settings in dabt.pkg. The build number comes from the run number; the version from the tag or VERSION.
+name: DABT release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install DABT
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/install.sh | bash -s -- --yes --no-scan
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          DABT_SIGN_KEY: ${{ secrets.DABT_SIGN_KEY }}
+        run: dabt build
+
+      - name: Build (dev)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        env:
+          DABT_SIGN_KEY: ${{ secrets.DABT_SIGN_KEY }}
+        run: dabt build --suffix dev
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dapk
+          path: dist/
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # a plain version becomes a draft, a version with a suffix (v1.2.3-rc.1) a pre-release
+        run: dabt pkg publish

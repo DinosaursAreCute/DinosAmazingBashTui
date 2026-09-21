@@ -35,7 +35,7 @@ declare -g TUI_APPS_DIR="${TUI_APPS_DIR:-$TUI_HOME/apps}"
 declare -g TUI_APPS_OWN_ROOT="${TUI_APPS_OWN_ROOT:-${XDG_DATA_HOME:-$HOME/.local/share}/dabt-apps}"
 declare -g TUI_APPS_ERROR=""
 declare -gA TUI_APP_META=()
-declare -g _APP_SRC_DIR="" _APP_ORIGIN=""
+declare -g _APP_SRC_DIR="" _APP_ORIGIN="" _TUI_APPS_CUSTOM_DEST=""
 declare -g A_NAME="" A_VERSION="" A_DIR="" A_ENTRY="" A_KIND="" A_WHEN="" A_SOURCE=""
 declare -ga _TUI_APPS_KEEP=(dabt.conf keybinds.xml settings.conf app.meta 'terminal_shortcuts.*')
 
@@ -43,7 +43,19 @@ _tui_apps.err() { TUI_APPS_ERROR="$*"; printf 'dabt app: %s\n' "$*" >&2; return 
 
 _tui_apps.valid_name() { [[ "$1" =~ ^[a-z0-9][a-z0-9._-]*$ && "$1" != dabt ]]; }
 _tui_apps.valid_ver() { [[ "$1" =~ ^v?[0-9]+(\.[0-9]+)*([-+][0-9A-Za-z.]+)?$ ]]; }
-_tui_apps.managed() { [[ -n "$1" && ( "$1" == "$TUI_APPS_DIR/"* || "$1" == "$TUI_APPS_OWN_ROOT/"* ) && "$1" != *..* ]]; }
+# a dir dabt may write to / delete: the shared apps folder, the own_dir root, the --install-path of this call, or a dir an app was registered at
+_tui_apps.registered() {
+    local n v d e k w s
+    [[ -r "$TUI_APPS_LIST" ]] || return 1
+    while IFS='|' read -r n v d e k w s; do [[ "$d" == "$1" && "$k" != builtin ]] && return 0; done < "$TUI_APPS_LIST"
+    return 1
+}
+_tui_apps.managed() {
+    [[ -n "$1" && "$1" != *..* ]] || return 1
+    [[ "$1" == "$TUI_APPS_DIR/"* || "$1" == "$TUI_APPS_OWN_ROOT/"* ]] && return 0
+    [[ "$1" == /* && "$1" != / && "$1" != "$HOME" && "$1" != "$HOME/" ]] || return 1
+    [[ "$1" == "${_TUI_APPS_CUSTOM_DEST:-}" ]] || _tui_apps.registered "$1"
+}
 
 # ── .dabt.metadata ───────────────────────────────────────────────────────
 # tui.apps.meta_load DIR : parse + validate DIR/.dabt.metadata into TUI_APP_META; rc 1 with TUI_APPS_ERROR set
@@ -185,10 +197,20 @@ _tui_apps.ensure_builtin() {
 
 # ── install / update ─────────────────────────────────────────────────────
 tui.apps.install() {
-    local src="" force=0 strict=0 noscan=0 name="" entry="" tmp dir own=no version=0 kind=meta dest prev="" updating=0 n
+    local src="" force=0 strict=0 noscan=0 name="" entry="" tmp dir own=no version=0 kind=meta dest prev="" updating=0 n origin="" ipath="" a
+    # a .dapk package (file or URL): verify, show News, resolve dependencies (lib/dapk), then come back here with the verified folder
+    local prev=""
+    for a in "$@"; do
+        if [[ "$a" == *.dapk && "$a" != -* && "$prev" != --origin ]]; then
+            [[ -n "${_DAPK_LOADED:-}" ]] || source "$_TUI_APPS_SELF/dapk/dapk.sh"
+            dapk.install.run "$@"; return $?
+        fi
+        prev="$a"
+    done
     while (( $# )); do
         case "$1" in
             --force|-f) force=1 ;; --strict) strict=1 ;; --no-scan) noscan=1 ;; --name) name="$2"; shift ;; --entry) entry="$2"; shift ;;
+            --origin) origin="$2"; shift ;; --install-path) ipath="$2"; shift ;;
             -*) _tui_apps.err "install: unknown option $1"; return 2 ;;
             *) [[ -z "$src" ]] && src="$1" || { _tui_apps.err "install: one source only"; return 2; } ;;
         esac
@@ -198,7 +220,7 @@ tui.apps.install() {
     tmp="$(mktemp -d)" || return 1
     trap 'rm -rf "$tmp"' RETURN
     _tui_apps.fetch "$src" "$tmp" || return 1
-    dir="$_APP_SRC_DIR"
+    dir="$_APP_SRC_DIR"; [[ -n "$origin" ]] && _APP_ORIGIN="$origin"
     if (( ! noscan )); then
         tui.scan.run_spin "$dir" "Scanning incoming files for vulnerabilities"; tui.scan.print
         if (( strict && TUI_SCAN_HIGH && ! force )); then _tui_apps.err "scan found $TUI_SCAN_HIGH high-risk issue(s): not installed (--force installs anyway)"; return 1; fi
@@ -222,13 +244,16 @@ tui.apps.install() {
     fi
     _tui_apps.valid_name "$name" || { _tui_apps.err "invalid app name '$name' (use --name; a-z 0-9 . _ -, not 'dabt')"; return 1; }
 
-    if [[ "$own" == yes ]]; then dest="$TUI_APPS_OWN_ROOT/$name"; else dest="$TUI_APPS_DIR/$name"; fi
+    if [[ -n "$ipath" ]]; then
+        [[ "$ipath" == /* && "$ipath" != *..* && "$ipath" != / && "$ipath" != "$HOME" ]] || { _tui_apps.err "--install-path must be an absolute folder path (not / or your home)"; return 2; }
+        dest="${ipath%/}"; _TUI_APPS_CUSTOM_DEST="$dest"
+    elif [[ "$own" == yes ]]; then dest="$TUI_APPS_OWN_ROOT/$name"; else dest="$TUI_APPS_DIR/$name"; fi
     if _tui_apps.lookup "$name"; then updating=1; prev="$A_DIR"
-    elif [[ "$own" == yes && -e "$dest" ]] && (( ! force )); then _tui_apps.err "$dest already exists (--force replaces it)"; return 1; fi
+    elif [[ ( "$own" == yes || -n "$ipath" ) && -e "$dest" ]] && [[ -n "$(ls -A "$dest" 2>/dev/null)" ]] && (( ! force )); then _tui_apps.err "$dest already exists (--force replaces it)"; return 1; fi
 
-    _tui_apps.copy "$dir" "$dest" || return 1
+    _tui_apps.copy "$dir" "$dest" || { _TUI_APPS_CUSTOM_DEST=""; return 1; }
     [[ -n "$prev" && "$prev" != "$dest" ]] && _tui_apps.wipe "$prev"
-    _tui_apps.register "$name" "$version" "$dest" "$entry" "$kind" "$_APP_ORIGIN"
+    _tui_apps.register "$name" "$version" "$dest" "$entry" "$kind" "$_APP_ORIGIN"; _TUI_APPS_CUSTOM_DEST=""
     printf '%s %s %s\n  location  %s\n' "$( (( updating )) && echo Updated || echo Installed )" "$name" "$version" "$dest"
     if [[ -n "$entry" ]]; then printf '  entry     %s\n  run       dabt app run %s\n' "$entry" "$name"
     else printf '  run       dabt app run --entry PATH %s     (no entry script known: PATH is relative to the location)\n' "$name"; fi
@@ -262,7 +287,7 @@ tui.apps.remove() {
     _tui_apps.hook uninstall_hook uninstall "$name" "$A_DIR" "$A_VERSION"
     if (( purge )); then _tui_apps.managed "$A_DIR" && rm -rf -- "$A_DIR"; _tui_apps.managed "$TUI_APPS_DIR/$name" && rm -rf -- "$TUI_APPS_DIR/$name"
     else _tui_apps.wipe "$A_DIR"; fi
-    _tui_apps.unregister "$name"
+    _tui_apps.unregister "$name"; rm -f "$TUI_HOME/apps.deps/$name"
     echo "removed $name"
 }
 
@@ -315,6 +340,7 @@ tui.apps.run() {
     fi
     if [[ -z "$name" ]]; then name="${dir##*/}"; name="${name,,}"; name="${name//[^a-z0-9._-]/-}"; fi
     _tui_apps.valid_name "$name" || name=app
+    [[ -f "$TUI_HOME/apps.deps/$name" ]] && printf 'dabt app: warning: %s has unmet dependencies: run  dabt pkg deps %s\n' "$name" "$name" >&2
     export TUI_APP_NAME="$name" DABT_APP_DIR="$dir"
     cd "$dir" && exec bash "$file" "$@"
 }
@@ -324,8 +350,11 @@ _tui_apps.help() {
     cat <<'HELP'
 dabt app - install and manage DABT applications
 
-  dabt app install SOURCE [--force] [--strict] [--no-scan] [--name N] [--entry PATH]
-                          SOURCE = a folder or a git URL (URL#branch-or-tag). The app needs a .dabt.metadata file;
+  dabt app install SOURCE [--force] [--strict] [--no-scan] [--name N] [--entry PATH] [--install-path DIR]
+                          SOURCE = a folder, a git URL (URL#branch-or-tag) or a .dapk package (file or URL, see: dabt pkg help).
+                          A .dapk is verified (signature + checksums) first; extra options: --install-dependencies --yes --no-deps
+                          --require-deps --allow-custom-install --trust-key SHA256:.. --allow-unsigned --plan.
+                          The app needs a .dabt.metadata file;
                           The code is security-scanned first (dabt scan): --strict refuses on HIGH findings, --no-scan skips it.
                           --force installs one without it (or built for another DABT version) anyway.
   dabt app list                       installed apps and where they live

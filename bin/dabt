@@ -23,6 +23,8 @@ Commands:
   doctor                                                  same as --details
   scan PATH... [--deep] [--strict]                        security-scan scripts (dabt scan --tools / --install)
   app <command>                                           install and manage DABT applications (dabt app help)
+  build [DIR] [options]                                   package an application into a signed .dapk (dabt pkg help)
+  pkg <command>                                           verify, inspect, release and publish packages (dabt pkg help)
   clear-cache                                             delete the page cache (rebuilt on next run)
   reinstall [--yes]                                       reinstall from the install source, overriding local file changes
   uninstall [--yes] [--keep-config]                       remove the program, config home and the dabt command
@@ -89,6 +91,8 @@ case "${1:-}" in
     -v|--version|version)   read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
     install)                shift; exec bash "$TUI_ROOT/install.sh" "$@" ;;
     app)                    shift; source "$TUI_ROOT/lib/tui_apps.sh"; tui.apps.cli "$@"; exit $? ;;
+    build)                  shift; source "$TUI_ROOT/lib/dapk/dapk.sh"; dapk.cmd.build "$@"; exit $? ;;
+    pkg)                    shift; source "$TUI_ROOT/lib/dapk/dapk.sh"; dapk.cmd.dispatch "$@"; exit $? ;;
     scan)                   shift; source "$TUI_ROOT/lib/tui_scan.sh"; tui.scan.cli "$@"; exit $? ;;
     clear-cache|--clear-cache) _clear_cache ;;
     reinstall|--reinstall)  shift; yes=0; [[ "${1:-}" == --yes || "${1:-}" == -y ]] && { yes=1; shift; }; _reinstall "$@" ;;

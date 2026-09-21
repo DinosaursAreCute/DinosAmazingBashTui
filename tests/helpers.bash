@@ -2,7 +2,7 @@
 # RULES: everything is mocked or lives in $BATS_TEST_TMPDIR. HOME, XDG_* and every install / config / program location point into it,
 # `curl` and `wget` are replaced by a mock that serves files from $REMOTE (nothing touches the network), and the source tree is only read.
 
-REPO="$(cd "$BATS_TEST_DIRNAME/.." && pwd -P)"; export REPO
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"; export REPO
 
 setup_env() {
     T="$BATS_TEST_TMPDIR"; export T
@@ -62,3 +62,44 @@ pack_release() {
 assert_repo_untouched() { [[ -z "$(find "$REPO" -newer "$marker" -type f -not -path '*/.git/*' -not -path '*/__pycache__/*' 2>/dev/null | head -1)" ]]; }
 
 file_has() { grep -qF -- "$2" "$1"; }
+
+# ── dapk (packaging) helpers ─────────────────────────────────────────────
+# dapk_setup : isolated env + a throwaway Ed25519 key ($T/key, fingerprint in $FP); dabt is run from the source tree
+dapk_setup() {
+    setup_env
+    export TUI_HOME="$T/home/.config/DABT" DABT="$REPO/bin/dabt" DAPK_SUDO="" SOURCE_DATE_EPOCH=1700000000 DABT_BUILD_NUMBER=7
+    unset CI GITHUB_ACTIONS GITLAB_CI GITHUB_TOKEN GH_TOKEN DABT_SIGN_KEY NO_COLOR
+    mkdir -p "$TUI_HOME"
+    ssh-keygen -q -t ed25519 -N "" -f "$T/key" -C test </dev/null
+    FP="$(ssh-keygen -lf "$T/key" | awk '{print $2}')"; export FP
+}
+
+# make_project DIR : a small app (entry app.sh, config/, assets/, LICENSE, CHANGELOG with News, VERSION 1.2.3) and a dabt.pkg
+make_project() {
+    local d="$1"
+    mkdir -p "$d/config" "$d/assets"
+    printf '#!/usr/bin/env bash\necho hi\n' > "$d/app.sh"; chmod +x "$d/app.sh"
+    echo x > "$d/config/a.xml"; echo lic > "$d/LICENSE"; echo one > "$d/assets/one.txt"
+    printf '# Changelog\n\n## [Unreleased]\n### News\n- Shiny new thing\n- Two line\n  bullet\n### Fixed\n- a bug\n\n## [1.2.2] - 2026-01-01\n### News\n- Old thing\n' > "$d/CHANGELOG.md"
+    echo 1.2.3 > "$d/VERSION"
+    cat > "$d/dabt.pkg" <<'T'
+name = "demoapp"
+entry = "app.sh"
+include_paths = ["app.sh", "config"]
+
+[[include]]
+type = "file"
+source = "LICENSE"
+target = "docs/"
+
+[[include]]
+type = "directory"
+source = "assets"
+target = "share/assets"
+recursive = true
+T
+}
+
+# build_project DIR [build args] : runs dabt build signed with the test key; prints nothing, the package is $DIR/dist/demoapp-*.dapk
+build_project() { local d="$1"; shift; ( cd "$d" && DABT_SIGN_KEY="$(<"$T/key")" bash "$DABT" build "$@" ); }
+pkg_of() { ls "$1"/dist/*.dapk | head -1; }

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>try{var t=localStorage.getItem('dabt-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+  {% seo %}
+  <link rel="icon" href="{{ '/assets/img/logo.png' | relative_url }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/css/dabt.css' | relative_url }}">
+  {% include head-custom.html %}
+</head>
+<body>
+<header class="top">
+  <button class="icon-btn menu" id="menu" aria-label="Menu">☰</button>
+  <a class="brand" href="{{ '/' | relative_url }}"><img src="{{ '/assets/img/logo.png' | relative_url }}" alt=""><span>D.A.B.T</span><em>v{{ site.version | default: '0.0.7' }}</em></a>
+  <span class="grow"></span>
+  <a class="toplink" href="{{ '/tutorials/writing-your-first-app' | relative_url }}">Tutorial</a>
+  <a class="toplink" href="{{ '/api/reference' | relative_url }}">API</a>
+  <a class="toplink" href="{{ site.github.repository_url }}">GitHub ↗</a>
+  <button class="icon-btn" id="theme" aria-label="Toggle theme">◐</button>
+</header>
+<div class="shell">
+  <aside class="side">{% include nav.html %}</aside>
+  <main class="main">
+    {% if page.url == '/' %}
+    <section class="hero">
+      <div class="hero-text">
+        <p class="eyebrow">Pure bash · zero dependencies</p>
+        <h1>Build real terminal UIs<br><span class="grad">in nothing but bash.</span></h1>
+        <p class="lead">Declarative XML pages, CSS-like themes, mouse support and live process panes. No Python, no Node, no ncurses.</p>
+        <div class="cta">
+          <a class="btn primary" href="{{ '/tutorials/writing-your-first-app' | relative_url }}">Build your first app →</a>
+          <a class="btn" href="{{ '/api/reference' | relative_url }}">API reference</a>
+          <a class="btn" href="{{ site.github.repository_url }}">★ GitHub</a>
+        </div>
+        <pre class="install"><code>curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/install.sh | bash</code></pre>
+      </div>
+      <div class="hero-shot">
+        <div class="term"><div class="term-bar"><i></i><i></i><i></i><span>dabt</span></div>
+          <img src="{{ '/assets/img/home.png' | relative_url }}" alt="D.A.B.T home screen" loading="eager"></div>
+      </div>
+    </section>
+    <section class="features">
+      <div><b>📄 Markup</b><span>Pages as XML, like HTML for your terminal.</span></div>
+      <div><b>🎨 Themes</b><span>CSS-like classes with :focus, :border, :title.</span></div>
+      <div><b>🖱 Mouse</b><span>Hover, click and scroll routing built in.</span></div>
+      <div><b>⚡ Live panes</b><span>Stream PTY processes with <code>tui.exec</code>.</span></div>
+      <div><b>🔌 Plugins</b><span>Install, update and security-scan apps.</span></div>
+      <div><b>🪶 Zero deps</b><span>Bash 5 + POSIX utils + awk. That's it.</span></div>
+    </section>
+    {% endif %}
+    <article class="doc">
+      {% if page.url != '/' and page.title %}<h1 class="page-title">{{ page.title }}</h1>{% endif %}
+      {{ content }}
+    </article>
+    <footer class="foot">
+      <span>D.A.B.T · MIT licensed</span>
+      <a href="{{ site.github.repository_url }}/edit/main/docs/{{ page.path }}">Edit this page</a>
+    </footer>
+  </main>
+</div>
+<script src="{{ '/assets/js/dabt.js' | relative_url }}"></script>
+</body>
+</html>

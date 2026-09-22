@@ -326,6 +326,7 @@ _tui._drain_input() {
     while (( n++ < 4096 )) && IFS= read -rsn1 -t 0.02 _d; do :; done
 }
 
+# tui.cleanup : restore terminal state and clean up TUI environment
 tui.cleanup() {
     mouse.any_off
     mouse.sgr_off

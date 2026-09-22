@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-09-22
+
 ### News
 
 - `dabt update -h` / `--help` now shows help for the update command instead of silently ignoring the flag and running an update check.

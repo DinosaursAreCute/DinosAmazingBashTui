@@ -18,7 +18,7 @@ Options:
       --demo       run the demo application
 
 Commands:
-  update [--check] [--yes] [--dev] [--policy override|skip|new] [--force] [--no-scan]   update to the latest release (--dev: current main)
+  update [--check] [--path PATH] [--yes] [--dev] [--policy override|skip|new] [--force] [--no-scan]   update to the latest release, or from a local file/folder with --path (dabt update --help)
   install [install.sh options]                            install this copy (see install.sh --help)
   doctor                                                  same as --details
   scan PATH... [--deep] [--strict]                        security-scan scripts (dabt scan --tools / --install)

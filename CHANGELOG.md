@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-09-22
+
+### Fixed
+
+* `dabt -h`'s `update` line didn't mention `--path`/`--trust-key`/`--allow-unsigned` (added in 0.0.12) and spelled out every flag instead of pointing at `dabt update --help` like the other subcommands do; now it's a short summary plus that pointer (`bin/dabt:_help`), so top-level help stays in sync as `dabt update --help` grows.
+
 ## [0.0.12] - 2026-09-22
 
 ### News

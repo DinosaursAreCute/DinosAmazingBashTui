@@ -28,6 +28,8 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency n
 
 ---
 
+<br/>
+<br/>
 <h2 id="what-is-this"><img src="assets/headers/what-is-this.svg" alt="What is this?" height="35"></h2>
 
 D.A.B.T (DinosAmazingBashTui) is a bash TUI framework and application manager in one.
@@ -63,7 +65,19 @@ D.A.B.T (DinosAmazingBashTui) is a bash TUI framework and application manager in
 source lib/tui.sh
 tui.start "share/demo/home.xml"
 ```
+<br/>
+<br/>
 
+<h2 id="vs-code-extension"><img src="assets/headers/vs-code-extension.svg" alt="VS Code extension" height="35"></h2>
+
+
+**[DABT Tools](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin)** is a companion VS Code extension for writing DABT apps: inlay hints and signature help for `dabt` function arguments, `class=` completion with live theme-aware color swatches, and required-attribute markers on your XML markup — all inferred straight from your app's own source, not a hardcoded schema.
+
+<img src="assets/vscode_extension.png" alt="A &lt;pane&gt; tag in the editor: a required-attribute marker, a class= color swatch, and fg/bg inlay hints resolved from theme.css" width="680">
+
+Grab the `.vsix` from [the latest release](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin/releases/latest) and install it with `code --install-extension dabt-tools-*.vsix`.
+<br/>
+<br/>
 <h2 id="quick-start"><img src="assets/headers/quick-start.svg" alt="Quick start" height="35"></h2>
 
 **Install** (downloads the repo and installs it, no clone needed):
@@ -93,7 +107,8 @@ dabt doctor          # where everything lives, what version is installed
 ```
 
 No package manager, no build step. Installing copies the program to `~/.local/share/dabt`, the defaults and plugins to `~/.config/DABT` (yours to edit) and links `~/.local/bin/dabt`. Details: [docs/guide/install-and-update.md](docs/guide/install-and-update.md).
-
+<br/>
+<br/>
 <h2 id="the-dabt-command"><img src="assets/headers/the-dabt-command.svg" alt="The dabt command" height="35"></h2>
 
 | Command | What it does |
@@ -116,7 +131,8 @@ No package manager, no build step. Installing copies the program to `~/.local/sh
 | `dabt uninstall [--yes] [--keep-config]` | remove the program, config home and the `dabt` link |
 
 **Safe updates.** The updater and installer use a three-way file sync (checksum manifest). Before anything is written you see every added, changed and removed file. Files you edited are never overwritten silently: for each conflict choose *override*, *skip*, *write a `.new` file* or *show the differences*. Replaced files are backed up in `~/.config/DABT/backups/`. The same flow is available in the app's command bar (`ctrl+p` → "DABT: Update DABT").
-
+<br/>
+<br/>
 <h2 id="features"><img src="assets/headers/features.svg" alt="Features" height="35"></h2>
 
 | | |
@@ -137,7 +153,8 @@ No package manager, no build step. Installing copies the program to `~/.local/sh
 | **Installer & updater** | Release / dev channels, conflict resolution, backups, reinstall and clean uninstall |
 | **App manager** | `dabt app install/update/remove` for third-party apps, install / uninstall hooks, built-in demo app |
 | **Security scan** | `dabt scan` and scan-gated installs: built-in rules, optional ShellCheck / Semgrep |
-
+<br/>
+<br/>
 <h2 id="security-scan"><img src="assets/headers/security.svg" alt="Security scan" height="35"></h2>
 
 Apps and plugins are shell code that runs with your permissions. DABT scans them before you install them (`dabt app install`, `tui.plugin.install`) and on demand with `dabt scan PATH`. By default findings only warn; `--strict` refuses to install on HIGH findings (`--force` overrides, `--no-scan` skips).
@@ -163,7 +180,8 @@ Install either with `dabt scan --install shellcheck|semgrep`. DABT finds a known
 - **optional**: never required to install, run or update anything;
 - **opt-in to install**: nothing is installed without your confirmation;
 - **used only by `dabt scan`**: they are not loaded by the TUI framework and add no runtime dependency to any app.
-
+<br/>
+<br/>
 <h2 id="plugins"><img src="assets/headers/plugins.svg" alt="Plugins" height="35"></h2>
 
 A plugin is one bash file that adds commands, keys, hooks, timers or overlays to any DABT app. Plugins live in `~/.config/DABT/plugins/`, are shared by every app, and can be enabled, disabled, reloaded, installed and removed while the app runs (Settings → Plugins, the command bar, or `tui.plugin.*`). Everything a plugin registered is cleaned up automatically when it is removed.
@@ -171,7 +189,8 @@ A plugin is one bash file that adds commands, keys, hooks, timers or overlays to
 Ships with **`terminal_shortcuts`**: detects your terminal (kitty, GNOME Terminal, tmux, alacritty, wezterm, ghostty, Windows Terminal ...), lists the keys it swallows, temporarily frees them while DABT runs and restores them on exit or after a crash.
 
 See [docs/guide/plugins.md](docs/guide/plugins.md) and [examples/plugins/](examples/plugins/).
-
+<br/>
+<br/>
 <h2 id="screenshots"><img src="assets/headers/screenshots.svg" alt="Screenshots" height="35"></h2>
 
 Default theme, generated with `tools/debug/screenshot_all.sh`.
@@ -217,7 +236,8 @@ Default theme, generated with `tools/debug/screenshot_all.sh`.
 <img src="screenshots/default/debug_input.png" alt="Keyboard and mouse" width="680">
 
 </details>
-
+<br/>
+<br/>
 <h3 id="themes"><img src="assets/headers/themes.svg" alt="Themes" height="35"></h3>
 
 Switch the whole app from Settings; themes live in `share/demo/themes/*.css`.
@@ -229,7 +249,8 @@ Switch the whole app from Settings; themes live in `share/demo/themes/*.css`.
 | Sunset | Light |
 |:---:|:---:|
 | <img src="screenshots/sunset/styles.png" alt="sunset" width="260"> | <img src="screenshots/light/styles.png" alt="light" width="260"> |
-
+<br/>
+<br/>
 <h2 id="documentation"><img src="assets/headers/documentation.svg" alt="Documentation" height="35"></h2>
 
 Browse the [documentation site](https://dinosaursarecute.github.io/DinosAmazingBashTui/) or start at **[docs/README.md](docs/README.md)** for the architecture overview and a map of everything below.
@@ -248,7 +269,8 @@ Browse the [documentation site](https://dinosaursarecute.github.io/DinosAmazingB
 | [Install & update](docs/guide/install-and-update.md) | installer, config home, updates, conflicts |
 | [Callbacks & viewports](docs/guide/callbacks-and-viewports.md) | callbacks, hover / focus feedback, scrolling |
 | [Design notes](docs/design/) | scrolling shader, pointer tracking, page cache, grid geometry |
-
+<br/>
+<br/>
 <h2 id="project-structure"><img src="assets/headers/project-structure.svg" alt="Project structure" height="35"></h2>
 
 ```
@@ -273,7 +295,8 @@ docs/  examples/                       documentation, examples
 tools/                                 repo only: profiling, screenshots, generators
 tests/                                 repo only: bats tests (bats tests/)
 ```
-
+<br/>
+<br/>
 <h2 id="requirements"><img src="assets/headers/requirements.svg" alt="Requirements" height="35"></h2>
 
 - **Bash 5.0+** (associative arrays, namerefs, `EPOCHREALTIME`, fractional `read -t`)
@@ -283,7 +306,8 @@ tests/                                 repo only: bats tests (bats tests/)
 - [`shellcheck`](https://www.shellcheck.net) / `semgrep` for deeper `dabt scan` checks (optional, [see why](#security-scan))
 
 That's the whole list.
-
+<br/>
+<br/>
 <h2 id="apps-built-with-dabt"><img src="assets/headers/features.svg" alt="Apps built with D.A.B.T" height="35"></h2>
 
 - **[DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer)**: browse folders and preview files in the terminal. Install with `dabt app install https://github.com/DinosaursAreCute/DabtFileExplorer`.
@@ -306,7 +330,8 @@ The process runs in a real PTY. Pipe stdin to it, cancel it, save its output, or
 - **[Writing Your First App](docs/tutorials/writing-your-first-app.md)**: step-by-step tutorial for complete beginners (pages, themes, callbacks).
 - **[Writing Your First Plugin](docs/tutorials/writing-your-first-plugin.md)**: commands, keys, timers and settings.
 - **[DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer)**: a complete example application. Browse folders and preview files, then read its `config/` and `explorer.sh` as a real-world reference. Try it with `dabt app install https://github.com/DinosaursAreCute/DabtFileExplorer`.
-
+<br/>
+<br/>
 <h2 id="contributing"><img src="assets/headers/contributing.svg" alt="Contributing" height="35"></h2>
 
 Contributions are currently not accepted. Contributions will be allowed once DABT has reached a maturity both in code, tests, and documentation that make effective contributing possible.

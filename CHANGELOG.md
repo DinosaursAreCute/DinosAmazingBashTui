@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+
+- `dabt update -h` / `--help` now shows help for the update command instead of silently ignoring the flag and running an update check.
+- `dabt update --check` now shows what's new since your installed version, not just that an update exists.
+- `dabt pkg news` accepts an installed app's name, not just a package/file/URL - it looks up where the app was installed from and, by default, shows news since the version you have.
+- `dabt update --path PATH` updates from a local release folder, a `.dapk` package (verified: signature + checksums, same as an app install) or a `.tar.gz`, instead of downloading - for offline machines. It always prints what it's using and how it checked out before touching anything. `--check --path` reports whether it's newer and shows its News.
+- `dabt app install --path PATH` and `dabt app update NAME --path PATH` install/update an app from a local folder or `.dapk` file, no connection needed.
+- `dabt app run` can now run a plain folder (no `.dabt.metadata`) by pointing `--entry` at its start script, in addition to running a bare script path directly.
+
+### Added
+
+* `dabt pkg news APPNAME`: when `SRC` doesn't look like a `.dapk`/URL/`.md`/existing file, it's resolved via `_tui_apps.lookup` (`lib/tui_apps.sh`) against `apps.list`; `A_SOURCE` becomes the news source and `--since` defaults to `A_VERSION` when not given (`lib/dapk/cmd/verify.sh:dapk.cmd.news`). Errors when the app isn't installed or has no recorded source (e.g. installed with `--force`).
+* `tui.update.local PATH DIR` (`lib/tui_update.sh`): populates `DIR/src` from a local release folder (symlinked), a `.dapk` package, or a `.tar.gz`/`.tgz` (extracted); sets `TUI_UPDATE_SRC_KIND` (`folder`|`dapk`|`archive`) so the caller can report what it used. A `.dapk` goes through the real `dapk.verify.run` (`lib/dapk/dapk.sh`, sourced standalone) - structure, signature/trust, checksums, fail closed - not a bare `tar` extraction; new `dabt update --trust-key SHA256:..` / `--allow-unsigned` map to `DAPK_VERIFY_TRUST_KEY` / `DAPK_VERIFY_ALLOW_UNSIGNED` for that step, and its temp verify dir (`TUI_UPDATE_LOCAL_WORK`) is cleaned up alongside the update's own temp dir. Every source is still checked with `tui.sync.valid_source` and security-scanned (`--no-scan` skips it) before anything is applied, same as a download. `tui.update.cli --path PATH` uses this instead of `tui.update.check`/`tui.update.download`, reads `VERSION` from the local copy for the "newer?" comparison, prints which kind of source it used and (for a `.dapk`) the verified signer before showing what would change, and otherwise joins the normal plan/confirm/apply flow. `_tui_update.news_since` split into `_tui_update.news_since_file FILE SINCE` (shared by the network and local paths) plus the existing network fetch wrapper.
+* `tui.apps.install` (`lib/tui_apps.sh`): `--path PATH` is normalized to a bare positional `SOURCE` before any other parsing (including the `.dapk`/`.zip` sniff), so it goes through the exact same local-folder/`.dapk` handling as a positional source - no new install path to maintain, just an explicit, connection-free spelling.
+* `tui.apps.update` (`lib/tui_apps.sh`): now parses its own options; `--path PATH` requires exactly one app name, looks it up, and reinstalls from `PATH` instead of the recorded `A_SOURCE` (still passing `--force --name --entry` for apps installed without metadata, same as a normal update). Refuses `--path` on the builtin demo app (updated by `dabt update`).
+* `tui.apps.run` (`lib/tui_apps.sh`): the folder branch now accepts `--entry REL` as an alternative to requiring `.dabt.metadata` in that folder, so an arbitrary script inside an uninstalled app folder can be named explicitly instead of only being runnable via its bare path.
+
+### Changed
+
+* `tui.update.cli --check` (`lib/tui_update.sh`) now fetches `CHANGELOG.md` from the same ref used for the update (release tag or branch), extracts News with the existing `dapk.changelog.news`/`dapk.news.*` helpers (`lib/dapk/changelog.sh`, `lib/dapk/news.sh`, `lib/dapk/version.sh`, sourced standalone - no dependency on the rest of the `dapk` module), and prints bullets newer than `$TUI_VERSION` before returning. New `_tui_update.changelog_url` / `_tui_update.news_since`.
+
+### Fixed
+
+* `tui.update.cli` (`dabt update`) treated `-h`/`--help` as an unknown flag and fell through to checking for an update; it now prints usage (`_tui_update.cli_help`, `lib/tui_update.sh`) and returns before touching the network.
+
 ## [0.0.11] - 2026-09-21
 
 ### News: 

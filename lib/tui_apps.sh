@@ -198,6 +198,11 @@ _tui_apps.ensure_builtin() {
 # ── install / update ─────────────────────────────────────────────────────
 tui.apps.install() {
     local src="" force=0 strict=0 noscan=0 name="" entry="" tmp dir own=no version=0 kind=meta dest prev="" updating=0 n origin="" ipath="" a
+    # --path PATH is sugar for a plain positional SRC (a local folder or .dapk file - no network): normalize it away up front
+    # so the rest of this function (and the .dapk sniff below) only ever sees one positional source, same as always.
+    local -a _norm=()
+    while (( $# )); do [[ "$1" == --path ]] && { _norm+=("$2"); shift 2; continue; }; _norm+=("$1"); shift; done
+    set -- "${_norm[@]}"
     # a .dapk package (file or URL): verify, show News, resolve dependencies (lib/dapk), then come back here with the verified folder
     local prev=""
     for a in "$@"; do
@@ -261,7 +266,19 @@ tui.apps.install() {
 }
 
 tui.apps.update() {
-    local names=("$@") n rc=0 args
+    local path="" a; local -a names=()
+    while (( $# )); do
+        case "$1" in --path) path="$2"; shift 2; continue ;; -*) _tui_apps.err "update: unknown option $1"; return 2 ;; *) names+=("$1") ;; esac
+        shift
+    done
+    if [[ -n "$path" ]]; then   # update from a local folder or .dapk instead of the recorded source (works offline)
+        (( ${#names[@]} == 1 )) || { _tui_apps.err "update --path: give exactly one app name"; return 2; }
+        _tui_apps.lookup "${names[0]}" || { _tui_apps.err "${names[0]} is not installed"; return 1; }
+        [[ "$A_KIND" == builtin ]] && { _tui_apps.err "$A_NAME ships with DABT: update it with  dabt update --path PATH"; return 1; }
+        local args=("$path"); [[ "$A_KIND" == forced ]] && args+=(--force --name "$A_NAME" ${A_ENTRY:+--entry "$A_ENTRY"})
+        tui.apps.install "${args[@]}"; return $?
+    fi
+    local n rc=0 args
     if (( ! ${#names[@]} )); then
         _tui_apps.ensure_builtin
         [[ -r "$TUI_APPS_LIST" ]] && while IFS='|' read -r n _; do [[ -n "$n" && "$n" != \#* ]] && names+=("$n"); done < "$TUI_APPS_LIST"
@@ -330,8 +347,13 @@ tui.apps.run() {
         file="$(cd -P "$(dirname "$target")" && pwd -P)/${target##*/}"; dir="${file%/*}"
     elif [[ -d "$target" ]]; then
         dir="$(cd -P "$target" && pwd -P)"
-        tui.apps.meta_load "$dir" || { _tui_apps.err "$TUI_APPS_ERROR (pass the entry script itself instead)"; return 1; }
-        file="$dir/${TUI_APP_META[entry]}"
+        if [[ -n "$entry" ]]; then
+            [[ "$entry" != /* && "$entry" != *..* && -f "$dir/$entry" ]] || { _tui_apps.err "--entry '$entry' is not a file inside $dir"; return 1; }
+            file="$dir/$entry"
+        else
+            tui.apps.meta_load "$dir" || { _tui_apps.err "$TUI_APPS_ERROR (pass the entry script itself, or --entry PATH)"; return 1; }
+            file="$dir/${TUI_APP_META[entry]}"
+        fi
     else _tui_apps.err "'$target' is not an installed app, an entry script or an app folder (see: dabt app list)"; return 1; fi
     [[ -f "$file" ]] || { _tui_apps.err "entry script not found: $file"; return 1; }
     if tui.apps.meta_load "$dir" 2>/dev/null; then
@@ -350,8 +372,9 @@ _tui_apps.help() {
     cat <<'HELP'
 dabt app - install and manage DABT applications
 
-  dabt app install SOURCE [--force] [--strict] [--no-scan] [--name N] [--entry PATH] [--install-path DIR]
+  dabt app install SOURCE|--path PATH [--force] [--strict] [--no-scan] [--name N] [--entry PATH] [--install-path DIR]
                           SOURCE = a folder, a git URL (URL#branch-or-tag) or a .dapk package or a .zip holding one (file or URL, see: dabt pkg help).
+                          --path PATH is the same as SOURCE but only ever local (a folder or a .dapk file) - no connection needed.
                           A .dapk is verified (signature + checksums) first; extra options: --install-dependencies --yes --no-deps
                           --require-deps --allow-custom-install --trust-key SHA256:.. --allow-unsigned --plan.
                           The app needs a .dabt.metadata file;
@@ -361,8 +384,9 @@ dabt app - install and manage DABT applications
   dabt app info NAME                  details and metadata of an app
   dabt app run NAME [ARGS...]         start an installed app
   dabt app run PATH [ARGS...]         start an entry script (or an app folder) without installing it
-  dabt app run --entry PATH NAME      start an app installed with --force (PATH relative to its folder)
+  dabt app run --entry PATH NAME|DIR  use PATH (relative) as the entry script: for an app installed with --force, or a plain folder with no .dabt.metadata
   dabt app update [NAME...]           reinstall from the recorded source (no NAME = every app)
+  dabt app update NAME --path PATH    update one app from a local folder or .dapk instead of its recorded source - no connection needed
   dabt app remove NAME [--yes] [--purge]     remove an app; --purge also deletes its settings
 
 .dabt.metadata (key=value):  name  entry  [version title description author own_dir install_hook uninstall_hook min_dabt max_dabt]

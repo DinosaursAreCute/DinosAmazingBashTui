@@ -37,7 +37,7 @@ dabt build / dabt pkg - package, sign, verify, release and publish DABT applicat
   dabt pkg key [--generate] [--path FILE]     show the default signing key's fingerprint (users pin it with --trust-key); --generate creates it
   dabt pkg verify PKG [--trust-key SHA256:..] [--allow-unsigned]
   dabt pkg info PKG                descriptor, dependencies and News of a package (no extraction)
-  dabt pkg news SRC [--since VER]  News bullets from a .dapk, a -news.txt (file or URL) or a CHANGELOG.md
+  dabt pkg news SRC [--since VER]  News bullets from a .dapk, a -news.txt (file or URL), a CHANGELOG.md, or an installed app name (uses its source, --since defaults to its installed version)
   dabt pkg version [show | bump patch|minor|major]
   dabt pkg release [patch|minor|major|X.Y.Z] [--push] [--no-commit]     bump VERSION, close the changelog's Unreleased section, commit + tag
   dabt pkg notes [DIR]             render the release notes to stdout

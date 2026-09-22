@@ -58,7 +58,13 @@ dapk.cmd.news() {
             *) src="$1"; shift ;;
         esac
     done
-    [[ -n "$src" ]] || { _dapk.cmd.usage "news: give a .$DABT_PKG_EXT, a -news.txt (file or URL) or a CHANGELOG.md"; return 2; }
+    [[ -n "$src" ]] || { _dapk.cmd.usage "news: give a .$DABT_PKG_EXT, a -news.txt (file or URL), a CHANGELOG.md or an installed app name"; return 2; }
+    if [[ "$src" != http://* && "$src" != https://* && "$src" != *."$DABT_PKG_EXT" && "$src" != *.md && ! -e "$src" ]]; then
+        source "$TUI_ROOT/lib/tui_apps.sh"
+        _tui_apps.lookup "$src" || { _dapk.cmd.usage "news: '$src' is not an installed app, and not a readable file"; return 2; }
+        [[ -n "$A_SOURCE" ]] || { printf 'dabt: %s has no recorded source (installed with --force or built in)\n' "$A_NAME" >&2; return 1; }
+        src="$A_SOURCE"; [[ -n "$since" ]] || since="$A_VERSION"
+    fi
     tmp="$(mktemp "${TMPDIR:-/tmp}/dapk_news.XXXXXX")" || return 1
     case "$src" in
         *."$DABT_PKG_EXT") dapk.pack.check "$src" || { rm -f "$tmp"; printf 'dabt: %s\n' "$DAPK_PACK_ERROR" >&2; return 1; }; dapk.pack.file_in "$src" NEWS > "$tmp" ;;

@@ -56,6 +56,10 @@
 **Full changelog:** {{compare_url}}
 
 {{/if}}
+<div align="center">
+<sub>built with <a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui"><img src="https://img.shields.io/badge/DABT-ff8cbf?style=flat-square&labelColor=1a1a1a" alt="DABT" height="16" valign="middle"></a></sub>
+</div>
+
 <details><summary>Checksums (sha256)</summary>
 
 ```

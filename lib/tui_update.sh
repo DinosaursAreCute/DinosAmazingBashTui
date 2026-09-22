@@ -37,6 +37,33 @@ _tui_update.archive_url() {
     elif [[ -n "$TUI_UPDATE_TAG" && "$TUI_UPDATE_CHANNEL" == release ]]; then printf '%s' "https://github.com/$TUI_UPDATE_REPO/archive/refs/tags/$TUI_UPDATE_TAG.tar.gz"
     else printf '%s' "https://github.com/$TUI_UPDATE_REPO/archive/refs/heads/$TUI_UPDATE_BRANCH.tar.gz"; fi
 }
+_tui_update.changelog_url() {
+    local ref="$TUI_UPDATE_BRANCH"; [[ -n "$TUI_UPDATE_TAG" && "$TUI_UPDATE_CHANNEL" == release ]] && ref="$TUI_UPDATE_TAG"
+    printf '%s' "https://raw.githubusercontent.com/$TUI_UPDATE_REPO/$ref/CHANGELOG.md"
+}
+
+# prints the News bullets newer than SINCE, from CHANGELOG FILE ; silent (not an error) when there is none
+_tui_update.news_since_file() {
+    local file="$1" since="$2"
+    [[ -r "$file" ]] || return 0
+    declare -F dapk.changelog.news >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/changelog.sh"
+    declare -F dapk.news.load >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/news.sh"
+    declare -F dapk.version.cmp >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/version.sh"
+    local tsv; tsv="$(mktemp)" || return 1
+    dapk.changelog.news "$file" "$TUI_UPDATE_LATEST" > "$tsv"
+    dapk.news.load "$tsv"; rm -f "$tsv"
+    dapk.news.since "$since"
+    (( ${#DAPK_NEWS_ITEMS[@]} )) || return 0
+    printf '\nWhat this brings (you have %s):\n' "$since"; dapk.news.print "  "
+}
+
+# fetches the release's CHANGELOG.md and prints News bullets newer than SINCE ; silent (not an error) when there is none
+_tui_update.news_since() {
+    local since="$1" tmp
+    tmp="$(mktemp)" || return 1
+    _tui_update.fetch "$(_tui_update.changelog_url)" "$tmp" || { rm -f "$tmp"; return 1; }
+    _tui_update.news_since_file "$tmp" "$since"; rm -f "$tmp"
+}
 
 # URL DEST : rc 0 ok
 _tui_update.fetch() {
@@ -94,6 +121,43 @@ tui.update.download() {
     return 0
 }
 
+# PATH DIR -> DIR/src ; PATH = an extracted release folder, a .dapk package (verified: structure + signature + checksums,
+# same as `dabt app install`) or a .tar.gz/.tgz of a release. Sets TUI_UPDATE_SRC_KIND (folder|dapk|archive) and, for a
+# .dapk, TUI_UPDATE_LOCAL_WORK (the verify work dir - remove it once the update is done or abandoned). rc 0 ok.
+declare -g TUI_UPDATE_SRC_KIND="" TUI_UPDATE_LOCAL_WORK=""
+tui.update.local() {
+    local path="$1" dir="$2"
+    TUI_UPDATE_ERROR=""; TUI_UPDATE_SRC_KIND=""; TUI_UPDATE_LOCAL_WORK=""
+    mkdir -p "$dir" || { TUI_UPDATE_ERROR="cannot create $dir"; return 1; }
+    if [[ -d "$path" ]]; then
+        TUI_UPDATE_SRC_KIND=folder
+        ln -s "$(cd -P "$path" && pwd -P)" "$dir/src" || { TUI_UPDATE_ERROR="cannot use $path"; return 1; }
+    elif [[ "$path" == *.dapk ]]; then
+        [[ -f "$path" ]] || { TUI_UPDATE_ERROR="not found: $path"; return 1; }
+        TUI_UPDATE_SRC_KIND=dapk
+        declare -F dapk.verify.run >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/dapk.sh"
+        dapk.ui.init
+        DAPK_VERIFY_TRUST_KEY="${TUI_UPDATE_TRUST_KEY:-}" DAPK_VERIFY_ALLOW_UNSIGNED="${TUI_UPDATE_ALLOW_UNSIGNED:-0}"
+        if ! dapk.verify.run "$path"; then TUI_UPDATE_ERROR="package verification failed: $DAPK_VERIFY_ERROR"; dapk.verify.cleanup; return 1; fi
+        [[ "${DAPK_MANIFEST_H[name]:-}" == dabt ]] || printf 'dabt: warning: package name is "%s", not "dabt" - using it anyway\n' "${DAPK_MANIFEST_H[name]:-?}" >&2
+        TUI_UPDATE_LOCAL_WORK="$DAPK_VERIFY_WORK"
+        ln -s "$DAPK_VERIFY_DIR" "$dir/src" || { TUI_UPDATE_ERROR="cannot use $DAPK_VERIFY_DIR"; return 1; }
+    elif [[ -f "$path" ]]; then
+        TUI_UPDATE_SRC_KIND=archive
+        command -v tar >/dev/null 2>&1 || { TUI_UPDATE_ERROR="tar is not installed"; return 1; }
+        mkdir -p "$dir/src" || { TUI_UPDATE_ERROR="cannot create $dir/src"; return 1; }
+        tar -xzf "$path" -C "$dir/src" --strip-components=1 2>/dev/null || { TUI_UPDATE_ERROR="$path is not a valid DABT release archive"; return 1; }
+    else TUI_UPDATE_ERROR="not found: $path"; return 1; fi
+    tui.sync.valid_source "$dir/src" || { TUI_UPDATE_ERROR="$path is not a DABT release (need VERSION, lib/tui.sh, share/defaults)"; return 1; }
+    TUI_UPDATE_SCAN_HIGH=0 TUI_UPDATE_SCAN_WARN=0 TUI_UPDATE_SCAN_REPORT=""
+    if [[ "${TUI_UPDATE_NOSCAN:-0}" != 1 ]]; then   # local copies are scanned too - a shared drive or old download is not automatically trusted
+        declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/tui_scan.sh"
+        if [[ "${TUI_UPDATE_SPIN:-0}" == 1 ]]; then tui.scan.run_spin "$dir/src"; else tui.scan.run "$dir/src"; fi
+        TUI_UPDATE_SCAN_HIGH=$TUI_SCAN_HIGH TUI_UPDATE_SCAN_WARN=$TUI_SCAN_WARN TUI_UPDATE_SCAN_REPORT="$TUI_SCAN_REPORT"
+    fi
+    return 0
+}
+
 tui.update.plan() {
     local src="$1"
     TUI_UPDATE_GIT=0; [[ -e "$TUI_ROOT/.git" ]] && TUI_UPDATE_GIT=1
@@ -142,27 +206,67 @@ _tui_update.cli_resolver() {   # REL -> asks on the terminal (or uses the policy
     done
 }
 
+_tui_update.cli_help() {
+    cat <<HELP
+Usage: dabt update [options]
+
+Check for a newer DABT release and, once confirmed, apply it.
+
+Options:
+  -h, --help          show this help
+  --check             only check for an update, don't download or apply it; also shows the News since your version
+  --path PATH         update from a local release folder, a .dapk package or a .tar.gz instead of downloading (works offline)
+  --trust-key SHA256:..  trust this exact signer of a new --path .dapk (first use only; asks on a terminal otherwise)
+  --allow-unsigned    accept a --path .dapk that has no signature
+  --dev               update to the current main branch instead of the latest release
+  --release           update to the latest release (default)
+  -y, --yes           don't prompt for confirmation; also picks a default conflict policy ("new")
+  --policy MODE       how to resolve changed config files: override|skip|new
+  -f, --force         apply even if the security scan of the download finds high-risk findings
+  --no-scan           skip the security scan of the download
+HELP
+}
+
 tui.update.cli() {
-    local check=0 yes=0 force=0 policy="" tmp rc
+    local check=0 yes=0 force=0 policy="" path="" tmp rc
+    local TUI_UPDATE_TRUST_KEY="" TUI_UPDATE_ALLOW_UNSIGNED=0
     TUI_UPDATE_SPIN=1
+    local a; for a in "$@"; do [[ "$a" == -h || "$a" == --help ]] && { _tui_update.cli_help; return 0; }; done
     exec 3< "${TUI_UPDATE_TTY:-/dev/tty}" 2>/dev/null || exec 3< /dev/null
     while (( $# )); do
-        case "$1" in --check) check=1 ;; --dev) TUI_UPDATE_CHANNEL=dev ;; --release) TUI_UPDATE_CHANNEL=release ;; --yes|-y) yes=1 ;; --force|-f) force=1 ;; --no-scan) TUI_UPDATE_NOSCAN=1 ;; --policy) policy="$2"; shift ;; esac
+        case "$1" in
+            --check) check=1 ;; --path) path="$2"; shift ;; --trust-key) TUI_UPDATE_TRUST_KEY="$2"; shift ;; --allow-unsigned) TUI_UPDATE_ALLOW_UNSIGNED=1 ;;
+            --dev) TUI_UPDATE_CHANNEL=dev ;; --release) TUI_UPDATE_CHANNEL=release ;; --yes|-y) yes=1 ;; --force|-f) force=1 ;; --no-scan) TUI_UPDATE_NOSCAN=1 ;; --policy) policy="$2"; shift ;;
+        esac
         shift
     done
-    printf 'DABT %s installed. Checking %s ...\n' "$TUI_VERSION" "$(_tui_update.version_url)"
-    tui.update.check; rc=$?
-    case $rc in
-        2) printf 'Could not check for updates: %s\n' "$TUI_UPDATE_ERROR" >&2; return 2 ;;
-        1) printf 'You are up to date (latest: %s).\n' "${TUI_UPDATE_LATEST:-$TUI_VERSION}"; return 0 ;;
-    esac
-    printf 'A newer version is available: %s (you have %s).\n' "$TUI_UPDATE_LATEST" "$TUI_VERSION"
-    (( check )) && return 10
     tmp="$(mktemp -d)" || return 1
-    trap 'rm -rf "$tmp"' RETURN
-    tui.update.download "$tmp" || { printf 'Download failed: %s\n' "$TUI_UPDATE_ERROR" >&2; return 1; }
+    trap '[[ -n "$TUI_UPDATE_LOCAL_WORK" ]] && rm -rf "$TUI_UPDATE_LOCAL_WORK"; rm -rf "$tmp"' RETURN
+    if [[ -n "$path" ]]; then
+        printf 'DABT %s installed. Using local %s: %s\n' "$TUI_VERSION" "$( [[ -d "$path" ]] && echo folder || echo file )" "$path"
+        tui.update.local "$path" "$tmp" || { printf 'dabt: not using %s: %s\n' "$path" "$TUI_UPDATE_ERROR" >&2; return 1; }
+        case "$TUI_UPDATE_SRC_KIND" in
+            dapk) printf 'Package verified: signer %s%s.\n' "$DAPK_VERIFY_FPR" "$( (( ! DAPK_VERIFY_SIGNED )) && echo ' (unsigned, accepted via --allow-unsigned)' )" ;;
+            archive) printf 'Archive extracted and checked: looks like a DABT release.\n' ;;
+            folder) printf 'Folder checked: looks like a DABT release.\n' ;;
+        esac
+        read -r TUI_UPDATE_LATEST < "$tmp/src/VERSION"; TUI_UPDATE_LATEST="${TUI_UPDATE_LATEST//[[:space:]]/}"
+        if tui.version.newer "$TUI_UPDATE_LATEST" "$TUI_VERSION"; then printf 'Version %s is newer than what you have (%s).\n' "$TUI_UPDATE_LATEST" "$TUI_VERSION"
+        else printf 'Version %s is not newer than what you have (%s) - it will still be applied if you continue.\n' "$TUI_UPDATE_LATEST" "$TUI_VERSION"; fi
+        if (( check )); then _tui_update.news_since_file "$tmp/src/CHANGELOG.md" "$TUI_VERSION"; return 10; fi
+    else
+        printf 'DABT %s installed. Checking %s ...\n' "$TUI_VERSION" "$(_tui_update.version_url)"
+        tui.update.check; rc=$?
+        case $rc in
+            2) printf 'Could not check for updates: %s\n' "$TUI_UPDATE_ERROR" >&2; return 2 ;;
+            1) printf 'You are up to date (latest: %s).\n' "${TUI_UPDATE_LATEST:-$TUI_VERSION}"; return 0 ;;
+        esac
+        printf 'A newer version is available: %s (you have %s).\n' "$TUI_UPDATE_LATEST" "$TUI_VERSION"
+        if (( check )); then _tui_update.news_since "$TUI_VERSION"; return 10; fi
+        tui.update.download "$tmp" || { printf 'Download failed: %s\n' "$TUI_UPDATE_ERROR" >&2; return 1; }
+    fi
     if [[ "${TUI_UPDATE_NOSCAN:-0}" != 1 ]]; then
-        printf "Security scan of the download:\n"; [[ -n "$TUI_UPDATE_SCAN_REPORT" ]] && printf "%s" "$TUI_UPDATE_SCAN_REPORT"
+        printf "Security scan of the %s:\n" "$( [[ -n "$path" ]] && echo copy || echo download )"; [[ -n "$TUI_UPDATE_SCAN_REPORT" ]] && printf "%s" "$TUI_UPDATE_SCAN_REPORT"
         printf "scan: %d high, %d warnings\n" "$TUI_UPDATE_SCAN_HIGH" "$TUI_UPDATE_SCAN_WARN"
         if (( TUI_UPDATE_SCAN_HIGH && ! force )); then printf "Update refused: %d high-risk finding(s). Review them, then rerun with --force to apply anyway.\n" "$TUI_UPDATE_SCAN_HIGH" >&2; return 3; fi
     fi

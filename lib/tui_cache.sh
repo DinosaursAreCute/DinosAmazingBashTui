@@ -508,9 +508,11 @@ tui.cache.warm_with_spinner() {
 
 # tui.start_cached FIRST_PAGE - like tui.start, but first pre-warms the
 # cache for every config/*.xml sibling of FIRST_PAGE (every page a nav bar
-# in the same directory would ever link to) behind a D.A.B.T spinner, then
-# serves FIRST_PAGE - and every later tui.goto to one of those siblings -
-# from that warm cache.
+# in the same directory would ever link to), plus the shipped default pages
+# (share/defaults/pages/ - Settings, Keybinds, Plugins - reachable from any
+# app through the command palette, tui.action.goto_default) behind a
+# D.A.B.T spinner, then serves FIRST_PAGE - and every later tui.goto to one
+# of those siblings or defaults - from that warm cache.
 tui.start_cached() {
     local file="$1"
     [[ -r "$file" ]] || { echo "tui.start_cached: cannot read '$file'" >&2; return 1; }
@@ -525,6 +527,10 @@ tui.start_cached() {
         [[ "$(basename "$f")" == _* ]] && continue
         pages+=("$f")
     done < <(find "$dir" -maxdepth 1 -name '*.xml' | sort)
+    while IFS= read -r f; do
+        [[ "$(basename "$f")" == _* ]] && continue
+        pages+=("$f")
+    done < <(find "$TUI_DEFAULTS_DIR/pages" -maxdepth 1 -name '*.xml' 2>/dev/null | sort)
 
     # Load whatever's already on disk from a previous run - load_dir
     # itself drops anything whose page (or an include it pulled in) has

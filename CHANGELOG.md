@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added 
+- Added pre-commit hook that auto runs shftm formatter
+
+### Changed 
+- Ran formatter on all files 
+
 ## [0.0.15] - 2026-09-22
 ### News 
 - Dev Test do not worry about it :3c

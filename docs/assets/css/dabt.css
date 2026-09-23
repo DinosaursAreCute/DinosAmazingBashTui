@@ -27,7 +27,28 @@ a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 .search-modal #search{padding:4px 12px 12px;overflow-y:auto}
 body.search-open{overflow:hidden}
 :root{--pagefind-ui-scale:.92;--pagefind-ui-primary:var(--acc);--pagefind-ui-text:var(--fg);--pagefind-ui-background:var(--bg);--pagefind-ui-border:var(--line);--pagefind-ui-border-width:1px;--pagefind-ui-border-radius:6px;--pagefind-ui-tag:var(--acc2);--pagefind-ui-font:var(--sans)}
-.shell{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1360px;margin:0 auto}
+
+/* Pagefind's own CSS hardcodes several colors its --pagefind-ui-* variables
+   don't reach (the input's background, the filter panel), so those need
+   direct overrides to actually sit inside the dark/light theme. The filter
+   panel itself is hidden: .search-scope above already does that job. */
+.search-modal .pagefind-ui__form{border:0;margin:0}
+.search-modal .pagefind-ui__search-input{background:var(--bg2)!important;color:var(--fg)!important;border:1px solid var(--line)!important;border-radius:6px!important;padding:9px 34px 9px 12px!important;font:14.5px var(--sans)!important}
+.search-modal .pagefind-ui__search-input::placeholder{color:var(--mut)}
+.search-modal .pagefind-ui__search-clear{color:var(--mut);background:none}
+.search-modal .pagefind-ui__search-clear:hover{color:var(--acc)}
+.search-modal .pagefind-ui__filter-panel,
+.search-modal .pagefind-ui__filters{display:none!important}
+.search-modal .pagefind-ui__message{color:var(--mut);font-size:13.5px;padding:10px 2px}
+.search-modal .pagefind-ui__results{margin:0;padding:0;list-style:none}
+.search-modal .pagefind-ui__result{border:0;border-top:1px solid var(--line);padding:14px 2px;margin:0}
+.search-modal .pagefind-ui__result:first-child{border-top:0}
+.search-modal .pagefind-ui__result-link{color:var(--fg);font-weight:600;font-size:15px}
+.search-modal .pagefind-ui__result-link:hover{color:var(--acc);text-decoration:none}
+.search-modal .pagefind-ui__result-excerpt{color:var(--mut);font-size:13.5px;line-height:1.55}
+.search-modal .pagefind-ui__result-excerpt mark{background:color-mix(in srgb,var(--acc) 30%,transparent);color:var(--fg);border-radius:2px;padding:0 1px}
+.search-modal .pagefind-ui__result-nested{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+.shell{display:grid;grid-template-columns:clamp(200px,20vw,260px) minmax(0,1fr);max-width:1360px;margin:0 auto}
 .side{position:sticky;top:56px;align-self:start;height:calc(100vh - 56px);overflow:auto;padding:24px 0 24px 12px;scrollbar-width:thin;border-right:1px solid var(--line)}
 .nav-group{margin-bottom:22px}.nav-group h4{margin:0 0 6px 10px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .nav a{display:block;padding:5px 10px;border-radius:8px;color:var(--fg);font-size:14.5px;opacity:.85}
@@ -37,7 +58,7 @@ body.search-open{overflow:hidden}
 .hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:36px;padding:20px 0 36px;position:relative}
 .hero-text{display:flex;flex-direction:column;align-items:center;width:100%}
 .hero-shot{width:100%}
-.hero:before{content:"";position:absolute;inset:-60px -80px auto -80px;height:420px;background:radial-gradient(600px 300px at 20% 30%,color-mix(in srgb,var(--acc) 18%,transparent),transparent),radial-gradient(500px 280px at 85% 20%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent);z-index:-1;pointer-events:none}
+.hero:before{content:"";position:absolute;inset:-60px -80px auto -80px;height:420px;background:radial-gradient(clamp(300px,45vw,600px) clamp(150px,22vw,300px) at 20% 30%,color-mix(in srgb,var(--acc) 18%,transparent),transparent),radial-gradient(clamp(260px,38vw,500px) clamp(140px,20vw,280px) at 85% 20%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent);z-index:-1;pointer-events:none}
 .hero-logo{display:block;width:min(760px,92%);height:auto;margin:6px auto 30px;overflow:visible}
 .logo-shadow{fill:color-mix(in srgb,var(--acc2) 22%,transparent)}
 .eyebrow{font:500 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
@@ -97,7 +118,7 @@ body.open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}.features{grid
 .install{border:2px solid var(--line);box-shadow:4px 4px 0 var(--line)}
 .term{border:2px solid var(--line);box-shadow:10px 10px 0 color-mix(in srgb,var(--acc) 55%,transparent)}
 .term-bar i{border-radius:0;width:10px;height:10px}
-.hero:before{background:radial-gradient(700px 320px at 50% 8%,color-mix(in srgb,var(--acc) 16%,transparent),transparent),radial-gradient(500px 260px at 85% 30%,color-mix(in srgb,var(--acc2) 14%,transparent),transparent)}
+.hero:before{background:radial-gradient(clamp(340px,52vw,700px) clamp(160px,24vw,320px) at 50% 8%,color-mix(in srgb,var(--acc) 16%,transparent),transparent),radial-gradient(clamp(260px,38vw,500px) clamp(130px,20vw,260px) at 85% 30%,color-mix(in srgb,var(--acc2) 14%,transparent),transparent)}
 .features div{border:2px solid var(--line);box-shadow:4px 4px 0 var(--line)}
 .features div:hover{transform:translate(-2px,-2px);border-color:var(--acc);box-shadow:6px 6px 0 var(--acc)}
 .features div:nth-child(4n+2):hover{border-color:var(--acc2);box-shadow:6px 6px 0 var(--acc2)}

@@ -256,12 +256,15 @@ Preconditions: clean tree, non-empty Unreleased section. Steps: bump `VERSION`, 
 
 - Location: `release_template` in `dabt.pkg`, default `.dabt/release.tpl`. `share/release/default.tpl` ships as the fallback.
 - Engine: awk, three constructs only:
+  {% raw %}
   - `{{var}}` substitution
   - `{{#if var}} ... {{/if}}`
   - `{{section:Name}}` (any changelog section of the built version)
+  {% endraw %}
 - Variables: `name`, `version`, `build`, `date`, `commit`, `news`, `compare_url`, `checksums` (top-level manifest entries).
 - Unknown variables are a build error (typos must not silently produce empty notes). Output goes to `dist/RELEASE_NOTES.md`; `dabt notes` renders it without building.
 
+{% raw %}
 ```
 # {{name}} {{version}}
 {{#if news}}
@@ -272,6 +275,7 @@ Preconditions: clean tree, non-empty Unreleased section. Steps: bump `VERSION`, 
 
 **Full changelog:** {{compare_url}}
 ```
+{% endraw %}
 
 ## 9. Publishing to GitHub
 

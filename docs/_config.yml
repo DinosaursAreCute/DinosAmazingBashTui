@@ -35,4 +35,8 @@ defaults:
   - scope:
       path: ""
     values:
+      # GitHub's *native* Jekyll build applies this implicitly for a themed
+      # site; a plain `jekyll build` (our custom Actions build) does not, so
+      # it must be explicit or every page renders with no layout at all.
+      layout: default
       description: Pure bash TUI framework documentation - tutorials, markup guide, widgets, plugins and API reference.

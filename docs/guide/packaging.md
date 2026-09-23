@@ -69,9 +69,9 @@ Version: a CI tag (`v1.2.3`) > `VERSION` > `.dabt.metadata` > `0.0.0`. `--suffix
 
 ## Release notes
 
-`RELEASE_NOTES.md` is rendered from `release_template`: `{{name}} {{version}} {{build}} {{date}} {{commit}} {{news}} {{compare_url}} {{checksums}}`, `{{section:Fixed}}` (a changelog section of the built version) and `{{#if var}}...{{/if}}`. Unknown variables are errors. `dabt pkg notes` renders without building.
+{% raw %}`RELEASE_NOTES.md` is rendered from `release_template`: `{{name}} {{version}} {{build}} {{date}} {{commit}} {{news}} {{compare_url}} {{checksums}}`, `{{section:Fixed}}` (a changelog section of the built version) and `{{#if var}}...{{/if}}`. Unknown variables are errors. `dabt pkg notes` renders without building.{% endraw %}
 
-**Images in the notes.** The default template lays the notes out with the block-font headers (`What's new`, `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`), a centered logo and a version header. The section headers are the shared ones from the DABT repo (`release_header_base` points elsewhere). The version header is written by `dabt pkg release` to `assets/headers/v1-2-3.svg`, committed with the release, and referenced at the release tag; the logo is `release_logo`, referenced the same way. Extra template variables: `{{title}} {{summary}} {{heading}} {{logo}} {{header_base}}` (`summary` is the paragraph under the version heading, before the first `###`). Without a header file (a tag made by hand) the heading falls back to `# name version`.
+**Images in the notes.** The default template lays the notes out with the block-font headers (`What's new`, `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`), a centered logo and a version header. The section headers are the shared ones from the DABT repo (`release_header_base` points elsewhere). The version header is written by `dabt pkg release` to `assets/headers/v1-2-3.svg`, committed with the release, and referenced at the release tag; the logo is `release_logo`, referenced the same way. {% raw %}Extra template variables: `{{title}} {{summary}} {{heading}} {{logo}} {{header_base}}` (`summary` is the paragraph under the version heading, before the first `###`).{% endraw %} Without a header file (a tag made by hand) the heading falls back to `# name version`.
 
 ## Publishing to GitHub
 

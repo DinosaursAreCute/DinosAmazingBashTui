@@ -200,7 +200,7 @@ Install flags: `--strict` refuses on HIGH scan findings, `--no-scan` skips the s
 
 ## Testing
 
-TUI behaviour has to be seen in a real terminal ([`run` skill](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/CLAUDE.md), `bash bin/DABT_demo.sh`). For automation, run under a pseudo-terminal with a fixed size and a sandboxed home, so tests never touch real settings:
+TUI behaviour has to be seen in a real terminal, `bash bin/DABT_demo.sh`. For automation, run under a pseudo-terminal with a fixed size and a sandboxed home, so tests never touch real settings:
 
 ```bash
 H=$(mktemp -d)

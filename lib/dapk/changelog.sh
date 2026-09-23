@@ -14,15 +14,15 @@
 # dapk.changelog.previous FILE                 prints the newest released version heading found (after Unreleased)
 
 dapk.changelog.rewrite() {
-    local in="$1" out="$2" ver="$3" date="$4"
-    grep -qiE '^##[[:space:]]+\[?unreleased\]?' "$in" || return 1
-    awk -v ver="$ver" -v date="$date" '
+	local in="$1" out="$2" ver="$3" date="$4"
+	grep -qiE '^##[[:space:]]+\[?unreleased\]?' "$in" || return 1
+	awk -v ver="$ver" -v date="$date" '
         !done && tolower($0) ~ /^##[ \t]+\[?unreleased\]?/ { print "## [Unreleased]"; print ""; print "## [" ver "] - " date; done = 1; next }
-        { print }' "$in" > "$out"
+        { print }' "$in" >"$out"
 }
 
 dapk.changelog.news() {
-    awk -v def="${2:-}" '
+	awk -v def="${2:-}" '
         function flush() { if (cur != "") { printf "%s\t%s\n", ver, cur; cur = "" } }
         BEGIN { ver = def; in_news = 0; cur = "" }
         /^#{1,2}[ \t]/ && !/^###/ {
@@ -41,7 +41,7 @@ dapk.changelog.news() {
 }
 
 dapk.changelog.section() {
-    awk -v want="$2" -v name="${3:-}" '
+	awk -v want="$2" -v name="${3:-}" '
         function ver_of(line) { if (match(line, /\[[^]]+\]/)) return substr(line, RSTART + 1, RLENGTH - 2); t = line; sub(/^#+[ \t]+/, "", t); sub(/[ \t].*$/, "", t); return t }
         /^##[ \t]/ && !/^###/ { in_ver = (ver_of($0) == want); in_sec = 0; next }
         !in_ver { next }
@@ -54,7 +54,7 @@ dapk.changelog.section() {
 }
 
 dapk.changelog.intro() {
-    awk -v want="$2" '
+	awk -v want="$2" '
         function ver_of(line) { if (match(line, /\[[^]]+\]/)) return substr(line, RSTART + 1, RLENGTH - 2); t = line; sub(/^#+[ \t]+/, "", t); sub(/[ \t].*$/, "", t); return t }
         /^##[ \t]/ && !/^###/ { in_ver = (ver_of($0) == want); next }
         /^###[ \t]/ { in_ver = 0 }
@@ -62,14 +62,14 @@ dapk.changelog.intro() {
 }
 
 dapk.changelog.unreleased_empty() {
-    [[ -r "$1" ]] || return 0
-    local body
-    body="$(awk '
+	[[ -r "$1" ]] || return 0
+	local body
+	body="$(awk '
         /^##[ \t]/ && !/^###/ { if (tolower($0) ~ /unreleased/) { on = 1; next } else if (on) exit }
         on && !/^###/ && NF { print }' "$1")"
-    [[ -z "$body" ]]
+	[[ -z "$body" ]]
 }
 
 dapk.changelog.previous() {
-    awk '/^##[ \t]/ && !/^###/ && tolower($0) !~ /unreleased/ { if (match($0, /\[[^]]+\]/)) { print substr($0, RSTART + 1, RLENGTH - 2); exit } }' "$1"
+	awk '/^##[ \t]/ && !/^###/ && tolower($0) !~ /unreleased/ { if (match($0, /\[[^]]+\]/)) { print substr($0, RSTART + 1, RLENGTH - 2); exit } }' "$1"
 }

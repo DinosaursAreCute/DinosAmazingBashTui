@@ -12,10 +12,15 @@
 
 declare -g DAPK_TOML_ERROR=""
 
-dapk.toml.split() { local -n _out="$2"; _out=(); [[ -n "$1" ]] && IFS=$'\x1f' read -r -a _out <<< "$1"; return 0; }
+dapk.toml.split() {
+	local -n _out="$2"
+	_out=()
+	[[ -n "$1" ]] && IFS=$'\x1f' read -r -a _out <<<"$1"
+	return 0
+}
 
 _dapk.toml.awk() {
-    awk '
+	awk '
     function fail(msg) { printf "ERR\t%d: %s\n", NR, msg; bad = 1; exit 1 }
     function strip_comment(s,   i, c, q, out, n) {
         q = ""; out = ""; n = length(s)
@@ -130,13 +135,21 @@ _dapk.toml.awk() {
 }
 
 dapk.toml.parse() {
-    local file="$1" line k v
-    local -n _tt="$2"
-    DAPK_TOML_ERROR=""
-    [[ -r "$file" ]] || { DAPK_TOML_ERROR="cannot read $file"; return 1; }
-    while IFS= read -r line; do
-        if [[ "$line" == ERR$'\t'* ]]; then DAPK_TOML_ERROR="${file##*/}:${line#ERR$'\t'}"; return 1; fi
-        k="${line%%=*}"; v="${line#*=}"; _tt[$k]="$v"
-    done < <(_dapk.toml.awk "$file")
-    [[ -z "$DAPK_TOML_ERROR" ]]
+	local file="$1" line k v
+	local -n _tt="$2"
+	DAPK_TOML_ERROR=""
+	[[ -r "$file" ]] || {
+		DAPK_TOML_ERROR="cannot read $file"
+		return 1
+	}
+	while IFS= read -r line; do
+		if [[ "$line" == ERR$'\t'* ]]; then
+			DAPK_TOML_ERROR="${file##*/}:${line#ERR$'\t'}"
+			return 1
+		fi
+		k="${line%%=*}"
+		v="${line#*=}"
+		_tt[$k]="$v"
+	done < <(_dapk.toml.awk "$file")
+	[[ -z "$DAPK_TOML_ERROR" ]]
 }

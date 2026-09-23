@@ -42,7 +42,7 @@ The runtime profile is an **allowlist**, so a new dev-only folder can never leak
 | `install.sh` | yes | entry point when installing from an extracted package |
 | `VERSION`, `LICENSE` | yes | required by the sync (`valid_source`) and licensing |
 | `docs/`, `examples/`, `README.md`, `CHANGELOG.md` | second package | see below |
-| `tests/`, `tools/`, `assets/`, `screenshots/`, `CLAUDE.md`, `.gitignore` | no | development only (`tools/` is most of the 40 MB) |
+| `tests/`, `tools/`, `assets/`, `screenshots/`, `.gitignore` | no | development only (`tools/` is most of the 40 MB) |
 
 Sizes today: `lib` 804 KB, `share` 368 KB, `bin` 20 KB, against `docs` 632 KB, `examples` 64 KB.
 

@@ -42,31 +42,31 @@ TUI_FONT[' ']="   \n   \n   "
 # STRING RENDERER
 # ============================================================================
 render_banner() {
-    # Automatically convert input to uppercase to match the dictionary
-    local input_string="${1^^}"
-    local out1="" out2="" out3=""
-    local char
-    local -a lines
-    local _idx
+	# Automatically convert input to uppercase to match the dictionary
+	local input_string="${1^^}"
+	local out1="" out2="" out3=""
+	local char
+	local -a lines
+	local _idx
 
-    for (( _idx=0; _idx<${#input_string}; _idx++ )); do
-        char="${input_string:$_idx:1}"
-        
-        # Fallback to space if character is missing
-        if [[ -z "${TUI_FONT[$char]+x}" ]]; then
-            char=" "
-        fi
-        
-        # Safely split the 3-line string block
-        readarray -t lines <<< "${TUI_FONT[$char]}"
-        
-        # Build the rows, adding 1 space gap between characters
-        out1+="${lines[0]} "
-        out2+="${lines[1]} "
-        out3+="${lines[2]} "
-    done
+	for ((_idx = 0; _idx < ${#input_string}; _idx++)); do
+		char="${input_string:$_idx:1}"
 
-    printf "%s\n%s\n%s\n" "$out1" "$out2" "$out3"
+		# Fallback to space if character is missing
+		if [[ -z "${TUI_FONT[$char]+x}" ]]; then
+			char=" "
+		fi
+
+		# Safely split the 3-line string block
+		readarray -t lines <<<"${TUI_FONT[$char]}"
+
+		# Build the rows, adding 1 space gap between characters
+		out1+="${lines[0]} "
+		out2+="${lines[1]} "
+		out3+="${lines[2]} "
+	done
+
+	printf "%s\n%s\n%s\n" "$out1" "$out2" "$out3"
 }
 
 # --- Example Usage ---

@@ -5,30 +5,56 @@
 
 # _dapk.cmd.ui ARG NEXT : consume a common UI flag; sets _UI_SHIFT (1 or 2) and returns 0 when ARG was one
 _dapk.cmd.ui() {
-    case "$1" in
-        -v|--verbose)  DAPK_UI_VERBOSE=1; _UI_SHIFT=1 ;;
-        -q|--quiet)    DAPK_UI_QUIET=1; _UI_SHIFT=1 ;;
-        --log)         DAPK_UI_LOG_FILE="$2"; _UI_SHIFT=2 ;;
-        --progress)    DAPK_UI_PROGRESS_MODE=on; _UI_SHIFT=1 ;;
-        --no-progress) DAPK_UI_PROGRESS_MODE=off; _UI_SHIFT=1 ;;
-        --strict)      DAPK_UI_STRICT=1; _UI_SHIFT=1 ;;
-        *) return 1 ;;
-    esac
+	case "$1" in
+		-v | --verbose)
+			DAPK_UI_VERBOSE=1
+			_UI_SHIFT=1
+			;;
+		-q | --quiet)
+			DAPK_UI_QUIET=1
+			_UI_SHIFT=1
+			;;
+		--log)
+			DAPK_UI_LOG_FILE="$2"
+			_UI_SHIFT=2
+			;;
+		--progress)
+			DAPK_UI_PROGRESS_MODE=on
+			_UI_SHIFT=1
+			;;
+		--no-progress)
+			DAPK_UI_PROGRESS_MODE=off
+			_UI_SHIFT=1
+			;;
+		--strict)
+			DAPK_UI_STRICT=1
+			_UI_SHIFT=1
+			;;
+		*) return 1 ;;
+	esac
 }
 
 # _dapk.cmd.usage MESSAGE : print a usage error, rc 2
-_dapk.cmd.usage() { printf 'dabt: %s\n' "$1" >&2; return 2; }
+_dapk.cmd.usage() {
+	printf 'dabt: %s\n' "$1" >&2
+	return 2
+}
 
 # _dapk.cmd.finish RC : print the warnings summary, clean up, and turn --strict warnings into a failure
 _dapk.cmd.finish() {
-    local rc="$1"
-    dapk.ui.summary || { (( rc == 0 )) && { rc=1; dapk.ui.err "warnings treated as errors (--strict)"; }; }
-    dapk.verify.cleanup; dapk.sign.cleanup; dapk.ui.cleanup
-    return "$rc"
+	local rc="$1"
+	dapk.ui.summary || { ((rc == 0)) && {
+		rc=1
+		dapk.ui.err "warnings treated as errors (--strict)"
+	}; }
+	dapk.verify.cleanup
+	dapk.sign.cleanup
+	dapk.ui.cleanup
+	return "$rc"
 }
 
 _dapk.cmd.help() {
-    cat <<'HELP'
+	cat <<'HELP'
 dabt build / dabt pkg - package, sign, verify, release and publish DABT applications (.dapk)
 
   dabt build [DIR] [--suffix dev|prerelease|rc.N] [--out DIR] [--key FILE | --auto-sign | --no-sign] [--plan] [--allow-external]
@@ -52,10 +78,15 @@ HELP
 }
 
 dapk.cmd.dispatch() {
-    local cmd="${1:-}"; shift
-    case "$cmd" in
-        build|key|verify|info|news|version|release|notes|publish|deps|include|dep|ci) "dapk.cmd.$cmd" "$@" ;;
-        ""|-h|--help|help) _dapk.cmd.help ;;
-        *) printf "dabt pkg: unknown command '%s'\n\n" "$cmd" >&2; _dapk.cmd.help >&2; return 2 ;;
-    esac
+	local cmd="${1:-}"
+	shift
+	case "$cmd" in
+		build | key | verify | info | news | version | release | notes | publish | deps | include | dep | ci) "dapk.cmd.$cmd" "$@" ;;
+		"" | -h | --help | help) _dapk.cmd.help ;;
+		*)
+			printf "dabt pkg: unknown command '%s'\n\n" "$cmd" >&2
+			_dapk.cmd.help >&2
+			return 2
+			;;
+	esac
 }

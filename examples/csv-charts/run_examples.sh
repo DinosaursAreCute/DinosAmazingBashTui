@@ -9,9 +9,9 @@ DATA="$EX_DIR/data"
 source "$BIN_DIR/terminal_renderer.sh"
 
 section() {
-    echo
-    divider "$1"
-    echo
+	echo
+	divider "$1"
+	echo
 }
 
 banner "CHARTS"
@@ -38,9 +38,9 @@ csv_linechart -h 12 -c "GREEN,RED,BRIGHT_YELLOW" "$DATA/stock_prices.csv"
 
 section "Disk Usage as single-element gauges - reading the CSV by hand"
 while IFS=',' read -r drive pct; do
-    [[ -z "$drive" ]] && continue
-    gauge -l "$(printf '%-6s' "$drive")" -w 30 "$pct"
-done < "$DATA/disk_usage.csv"
+	[[ -z "$drive" ]] && continue
+	gauge -l "$(printf '%-6s' "$drive")" -w 30 "$pct"
+done <"$DATA/disk_usage.csv"
 
 echo
 quote -a "terminal_renderer.sh" "Same data, five different shapes - pick whichever tells the story best."

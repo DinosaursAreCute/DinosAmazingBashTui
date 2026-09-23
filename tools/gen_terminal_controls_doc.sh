@@ -2,9 +2,10 @@
 # gen_terminal_controls_doc.sh - regenerate docs/api/terminal-controls.md from lib/terminal_controls.sh
 # (function name, arguments used, and the trailing "# comment"). Run from anywhere: tools/gen_terminal_controls_doc.sh
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/lib/terminal_controls.sh"; OUT="$ROOT/docs/api/terminal-controls.md"
+SRC="$ROOT/lib/terminal_controls.sh"
+OUT="$ROOT/docs/api/terminal-controls.md"
 {
-cat <<'HDR'
+	cat <<'HDR'
 # Terminal controls reference
 
 Generated from `lib/terminal_controls.sh` by `tools/gen_terminal_controls_doc.sh` - do not edit by hand.
@@ -12,7 +13,7 @@ Generated from `lib/terminal_controls.sh` by `tools/gen_terminal_controls_doc.sh
 Stateless helpers that print escape sequences (`echo -ne`). They are usable on their own (`source lib/terminal_controls.sh`) and are what the TUI core is built on. Arguments are positional; `[N]` = optional (defaults to 1 where relevant). Functions whose Description is empty are queries or wrappers: read the source next to the function.
 
 HDR
-awk '
+	awk '
 function args(body,   a, i, m, s, seen) {           # positional params referenced in the body, in order
     s = ""; delete seen
     while (match(body, /\$\{?[1-9]/)) {
@@ -37,5 +38,5 @@ END {
         printf "\n## %s\n\n| Function | Args | Description |\n|---|---|---|\n%s", (ns == "(misc)" ? "Misc helpers" : ns ".*"), rows[ns]
     }
 }' "$SRC"
-} > "$OUT"
+} >"$OUT"
 echo "wrote $OUT ($(grep -c '^| `' "$OUT") functions)"

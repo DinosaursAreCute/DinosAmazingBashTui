@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Regenerates the colored section headers of docs/tutorials/*.md (block5 font, see tools/gen_header.sh).
 set -eu
-d=$(cd "$(dirname "$0")" && pwd); out="$d/../docs/tutorials/img"
+d=$(cd "$(dirname "$0")" && pwd)
+out="$d/../docs/tutorials/img"
 while IFS='|' read -r slug text; do
-  [[ -n "$slug" ]] && "$d/gen_header.sh" "$text" "$out/$slug.svg" 6 >/dev/null
+	[[ -n "$slug" ]] && "$d/gen_header.sh" "$text" "$out/$slug.svg" 6 >/dev/null
 done <<'LIST'
 app-title|WRITING YOUR FIRST APP
 app-what|WHAT YOU WILL BUILD

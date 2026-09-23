@@ -8,8 +8,9 @@
 
 [[ -n "${_DAPK_LOADED:-}" ]] && return 0
 declare -g _DAPK_LOADED=1
-declare -g DAPK_DIR; DAPK_DIR="$(cd -P "${BASH_SOURCE[0]%/*}" && pwd -P)"
-declare -g DABT_PKG_EXT="dapk"          # the package file extension: one constant
+declare -g DAPK_DIR
+DAPK_DIR="$(cd -P "${BASH_SOURCE[0]%/*}" && pwd -P)"
+declare -g DABT_PKG_EXT="dapk" # the package file extension: one constant
 declare -g DAPK_MANIFEST_MAGIC="# DABT-MANIFEST 1"
 declare -g DAPK_SIG_NAMESPACE="dabt-pkg"
 
@@ -19,7 +20,7 @@ declare -g DAPK_SIG_NAMESPACE="dabt-pkg"
 
 # order = dependency order (ui, toml, version have no dependencies)
 for _dapk_m in ui toml version header config changelog news collect manifest pack sign verify deps notes publish ci install; do
-    source "$DAPK_DIR/$_dapk_m.sh"
+	source "$DAPK_DIR/$_dapk_m.sh"
 done
 for _dapk_m in "$DAPK_DIR"/cmd/*.sh; do [[ -e "$_dapk_m" ]] && source "$_dapk_m"; done
 unset _dapk_m

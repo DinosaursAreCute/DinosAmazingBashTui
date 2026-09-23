@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added 
 - Added pre-commit hook that auto runs shftm formatter
+- Changed lib structure to be seperated by concern and topic for better readability and to improve mental model. 
 
 ### Changed 
 - Ran formatter on all files 

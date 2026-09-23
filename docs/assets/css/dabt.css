@@ -43,19 +43,27 @@ body.search-open{overflow:hidden}
 .search-modal .pagefind-ui__results{margin:0;padding:0;list-style:none}
 .search-modal .pagefind-ui__result{border:0;border-top:1px solid var(--line);padding:14px 2px;margin:0}
 .search-modal .pagefind-ui__result:first-child{border-top:0}
-.search-modal .pagefind-ui__result-link{color:var(--fg);font-weight:600;font-size:15px}
-.search-modal .pagefind-ui__result-link:hover{color:var(--acc);text-decoration:none}
-.search-modal .pagefind-ui__result-excerpt{color:var(--mut);font-size:13.5px;line-height:1.55}
-.search-modal .pagefind-ui__result-excerpt mark{background:color-mix(in srgb,var(--acc) 30%,transparent);color:var(--fg);border-radius:2px;padding:0 1px}
+/* Broad + !important on purpose: Pagefind's own CSS sets text colors with
+   enough specificity that scoped class-name guesses alone weren't winning
+   (confirmed - title/excerpt rendered dark-on-dark). This forces every
+   result's text to the theme regardless of Pagefind's exact markup/classes,
+   then the excerpt/mark rules narrow it back down. */
+.search-modal .pagefind-ui__result,
+.search-modal .pagefind-ui__result *{color:var(--fg)!important}
+.search-modal .pagefind-ui__result a{font-weight:600;font-size:15px;text-decoration:none}
+.search-modal .pagefind-ui__result a:hover{color:var(--acc)!important}
+.search-modal .pagefind-ui__result-excerpt,
+.search-modal .pagefind-ui__result-excerpt *{color:var(--mut)!important;font-weight:400;font-size:13.5px;line-height:1.55}
+.search-modal .pagefind-ui__result-excerpt mark{background:color-mix(in srgb,var(--acc) 35%,transparent)!important;color:var(--fg)!important;border-radius:2px;padding:0 1px}
 .search-modal .pagefind-ui__result-nested{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
-.shell{display:grid;grid-template-columns:clamp(200px,20vw,260px) minmax(0,1fr);max-width:1360px;margin:0 auto}
+.shell{display:grid;grid-template-columns:clamp(200px,20vw,260px) minmax(0,1fr);width:100%}
 .side{position:sticky;top:56px;align-self:start;height:calc(100vh - 56px);overflow:auto;padding:24px 0 24px 12px;scrollbar-width:thin;border-right:1px solid var(--line)}
 .nav-group{margin-bottom:22px}.nav-group h4{margin:0 0 6px 10px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .nav a{display:block;padding:5px 10px;border-radius:8px;color:var(--fg);font-size:14.5px;opacity:.85}
 .nav a:hover{background:var(--bg2);text-decoration:none;opacity:1}
 .nav a.active{background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc);font-weight:600;opacity:1}
 .main{padding:32px 48px 40px;min-width:0}
-.hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:36px;padding:20px 0 36px;position:relative}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:36px;padding:20px 0 36px;position:relative;max-width:1100px;margin:0 auto}
 .hero-text{display:flex;flex-direction:column;align-items:center;width:100%}
 .hero-shot{width:100%}
 .hero:before{content:"";position:absolute;inset:-60px -80px auto -80px;height:420px;background:radial-gradient(clamp(300px,45vw,600px) clamp(150px,22vw,300px) at 20% 30%,color-mix(in srgb,var(--acc) 18%,transparent),transparent),radial-gradient(clamp(260px,38vw,500px) clamp(140px,20vw,280px) at 85% 20%,color-mix(in srgb,var(--acc2) 16%,transparent),transparent);z-index:-1;pointer-events:none}
@@ -75,7 +83,7 @@ body.search-open{overflow:hidden}
 .term-bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#1a2028;font:12px var(--mono);color:#7d8b99}
 .term-bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.term-bar i:nth-child(2){background:#febc2e}.term-bar i:nth-child(3){background:#28c840}
 .term-bar span{margin-left:auto;margin-right:auto}.term img{display:block;width:100%;height:auto}
-.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:8px 0 40px}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:8px auto 40px;max-width:1100px}
 .features div{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:4px;transition:.15s}
 .features div:hover{border-color:var(--acc);transform:translateY(-2px)}
 .features span{color:var(--mut);font-size:14px;line-height:1.5}

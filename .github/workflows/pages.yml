@@ -43,6 +43,10 @@ jobs:
         run: bundle exec jekyll build --destination _site
         env:
           JEKYLL_ENV: production
+          # jekyll-theme-primer pulls in jekyll-github-metadata for site.github.*
+          # (repository_url, build_revision, ...); GitHub's native Pages build sets
+          # this automatically, a plain checkout here does not.
+          PAGES_REPO_NWO: ${{ github.repository }}
 
       - name: Index with Pagefind
         run: npx --yes pagefind --site docs/_site

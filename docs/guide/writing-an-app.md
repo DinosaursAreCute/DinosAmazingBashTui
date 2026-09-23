@@ -1,6 +1,6 @@
 # Writing a DABT application
 
-Technical reference for building, structuring, packaging and shipping an application on DABT. New to all of this? Start with the tutorial [Writing Your First App](../tutorials/writing-your-first-app.md); this page is the precise version. Function tables: [../api/reference.md](../api/reference.md). Tag reference: [markup.md](markup.md).
+Technical reference for building, structuring, packaging and shipping an application on DABT. New to all of this? Start with the tutorial [Writing Your First App](../tutorials/writing-your-first-app.md); this page is the precise version. Function tables: [../api/](../api/). Tag reference: [markup.md](markup.md).
 
 Contents: [Anatomy](#anatomy) · [The entry script](#the-entry-script) · [Application identity and state](#application-identity-and-state) · [Pages](#pages) · [Callbacks](#callbacks) · [State and persistence](#state-and-persistence) · [Live content](#live-content) · [Input, commands, footer](#input-commands-footer) · [Dialogs and messages](#dialogs-and-messages) · [Themes](#themes) · [Plugins in your app](#plugins-in-your-app) · [Packaging](#packaging-and-distribution) · [Testing](#testing) · [Rules and pitfalls](#rules-and-pitfalls)
 

@@ -8,6 +8,8 @@ export REPO
 setup_env() {
 	T="$BATS_TEST_TMPDIR"
 	export T
+	exec </dev/null # bats hands the caller's terminal to the tests; without this `[[ -t 0 ]]` prompts hang or change behaviour
+
 	export HOME="$T/home" XDG_CONFIG_HOME="$T/home/.config" XDG_DATA_HOME="$T/home/.local/share"
 	mkdir -p "$HOME"
 	unset TUI_HOME DABT_HOME TUI_ROOT TUI_DEFAULTS_DIR TUI_APP_CONF TUI_PLUGINS_DIR TUI_SYNC_POLICY TUI_SYNC_STAMP TUI_SYNC_BACKUP \
@@ -46,10 +48,10 @@ MOCK
 # "<name> v<VERSION>", so a new version changes them all unless a test rewrites one.
 make_release() {
 	local d="$1" v="$2" f
-	mkdir -p "$d/lib" "$d/bin" "$d/share/defaults/pages" "$d/share/plugins" "$d/docs"
+	mkdir -p "$d/lib/apps" "$d/bin" "$d/share/defaults/pages" "$d/share/plugins" "$d/docs"
 	printf '%s\n' "$v" >"$d/VERSION"
 	printf '# stub\n' >"$d/lib/tui.sh"
-	cp "$REPO/lib/apps/tui_sync.sh" "$REPO/lib/apps/tui_install.sh" "$d/lib/"
+	cp "$REPO/lib/apps/tui_sync.sh" "$REPO/lib/apps/tui_install.sh" "$REPO/lib/apps/tui_scan.sh" "$d/lib/apps/"
 	printf '#!/usr/bin/env bash\necho dabt %s\n' "$v" >"$d/bin/dabt"
 	chmod +x "$d/bin/dabt"
 	cp "$REPO/install.sh" "$d/install.sh"

@@ -427,4 +427,4 @@ The whole loop of a DABT app: **the user does something → DABT calls your func
 - **Keys and the command bar:** `tui.bind ctrl+e on_export`, `tui.cmd.add` (the `ctrl+p` palette).
 - **Extend any app with a plugin:** [Writing Your First Plugin](writing-your-first-plugin.md).
 - **The technical guide** (lifecycle, rules, pitfalls, packaging): [../guide/writing-an-app.md](../guide/writing-an-app.md).
-- **Every function:** [../api/reference.md](../api/reference.md). **Every tag:** [../guide/markup.md](../guide/markup.md). **The demo app to read:** [`share/demo/`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/demo/).
+- **Every function:** [../api/](../api/). **Every tag:** [../guide/markup.md](../guide/markup.md). **The demo app to read:** [`share/demo/`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/demo/).

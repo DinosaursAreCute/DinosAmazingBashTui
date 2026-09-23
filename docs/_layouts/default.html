@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>try{var t=localStorage.getItem('dabt-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+  <script>try{var t=localStorage.getItem('dabt-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}document.documentElement.dataset.baseurl="{{ site.baseurl }}";</script>
   {% seo %}
   <link rel="icon" href="{{ '/assets/img/logo.png' | relative_url }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,16 +15,33 @@
 <body>
 <header class="top">
   <button class="icon-btn menu" id="menu" aria-label="Menu">☰</button>
-  <a class="brand" href="{{ '/' | relative_url }}"><img src="{{ '/assets/img/logo.png' | relative_url }}" alt=""><span>D.A.B.T</span><em>v{{ site.version | default: '0.0.11' }}</em></a>
+  <a class="brand" href="{{ '/' | relative_url }}"><img src="{{ '/assets/img/logo.png' | relative_url }}" alt=""><span>D.A.B.T</span><em>v{{ site.data.version.number | default: 'dev' }}</em></a>
+  <button class="search-trigger" id="search-trigger" aria-label="Search (press / )">
+    <svg class="ic" viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges"><rect x="0" y="0" width="1" height="1" fill="currentColor"/><rect x="1" y="0" width="1" height="1" fill="currentColor"/><rect x="2" y="0" width="1" height="1" fill="currentColor"/><rect x="0" y="1" width="1" height="1" fill="currentColor"/><rect x="2" y="1" width="1" height="1" fill="currentColor"/><rect x="0" y="2" width="1" height="1" fill="currentColor"/><rect x="1" y="2" width="1" height="1" fill="currentColor"/><rect x="2" y="2" width="1" height="1" fill="currentColor"/><rect x="3" y="3" width="1" height="1" fill="currentColor"/><rect x="4" y="4" width="1" height="1" fill="currentColor"/></svg>
+    <span>Search</span><kbd>/</kbd>
+  </button>
   <span class="grow"></span>
   <a class="toplink" href="{{ '/tutorials/writing-your-first-app' | relative_url }}">Tutorial</a>
-  <a class="toplink" href="{{ '/api/reference' | relative_url }}">API</a>
+  <a class="toplink" href="{{ '/api/' | relative_url }}">API</a>
+  <a class="toplink" href="https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin">DABT Tools ↗</a>
   <a class="toplink" href="{{ site.github.repository_url }}">GitHub ↗</a>
   <button class="icon-btn" id="theme" aria-label="Toggle theme">◐</button>
 </header>
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-modal">
+    <div class="search-modal-head">
+      <div class="search-scope" id="search-scope" role="tablist" aria-label="Search scope">
+        <button type="button" role="tab" data-scope="section" aria-selected="true">This section</button>
+        <button type="button" role="tab" data-scope="all" aria-selected="false">Everywhere</button>
+      </div>
+      <button class="icon-btn" id="search-close" aria-label="Close search (Esc)">✕</button>
+    </div>
+    <div id="search"></div>
+  </div>
+</div>
 <div class="shell">
   <aside class="side">{% include nav.html %}</aside>
-  <main class="main">
+  <main class="main" data-pagefind-body>
     {% if page.url == '/' %}
     <section class="hero">
       <div class="hero-text">
@@ -53,7 +70,8 @@
       <div><b><svg class="ic" viewBox="0 0 6 6" aria-hidden="true" shape-rendering="crispEdges"><rect x="1" y="0" width="1" height="1" fill="var(--acc)"/><rect x="2" y="0" width="1" height="1" fill="var(--acc)"/><rect x="3" y="0" width="1" height="1" fill="var(--acc)"/><rect x="4" y="0" width="1" height="1" fill="var(--acc)"/><rect x="0" y="1" width="1" height="1" fill="var(--acc)"/><rect x="1" y="1" width="1" height="1" fill="var(--acc)"/><rect x="4" y="1" width="1" height="1" fill="var(--acc)"/><rect x="5" y="1" width="1" height="1" fill="var(--acc)"/><rect x="0" y="2" width="1" height="1" fill="var(--acc)"/><rect x="1" y="2" width="1" height="1" fill="var(--acc)"/><rect x="3" y="2" width="1" height="1" fill="var(--acc)"/><rect x="4" y="2" width="1" height="1" fill="var(--acc)"/><rect x="5" y="2" width="1" height="1" fill="var(--acc)"/><rect x="0" y="3" width="1" height="1" fill="var(--acc)"/><rect x="1" y="3" width="1" height="1" fill="var(--acc)"/><rect x="2" y="3" width="1" height="1" fill="var(--acc)"/><rect x="4" y="3" width="1" height="1" fill="var(--acc)"/><rect x="5" y="3" width="1" height="1" fill="var(--acc)"/><rect x="0" y="4" width="1" height="1" fill="var(--acc)"/><rect x="1" y="4" width="1" height="1" fill="var(--acc)"/><rect x="4" y="4" width="1" height="1" fill="var(--acc)"/><rect x="5" y="4" width="1" height="1" fill="var(--acc)"/><rect x="1" y="5" width="1" height="1" fill="var(--acc)"/><rect x="2" y="5" width="1" height="1" fill="var(--acc)"/><rect x="3" y="5" width="1" height="1" fill="var(--acc)"/><rect x="4" y="5" width="1" height="1" fill="var(--acc)"/></svg> Zero deps</b><span>Bash 5 + POSIX utils + awk. That's it.</span></div>
     </section>
     {% endif %}
-    <article class="doc">
+    {% assign doc_section = page.dir | remove: '/' %}
+    <article class="doc"{% if doc_section != '' %} data-pagefind-filter="section:{{ doc_section }}"{% endif %}>
       {% if page.url != '/' and page.title %}<h1 class="page-title">{{ page.title }}</h1>{% endif %}
       {{ content }}
     </article>

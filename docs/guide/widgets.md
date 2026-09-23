@@ -1,6 +1,6 @@
 # Widgets: text editing, lists, tables, select, progress
 
-Besides label, button, checkbox and input, DABT has a multi-line **textarea**, a masked **password** field, a scrollable **list**, a **table**, a **select** (dropdown) and a **progress** bar. They are ordinary widgets: they take part in focus (Tab, arrows), theming (`class=`), hover and click, and `tui.get` / `tui.set` / `tui.update` work on them. API tables: [../api/reference.md](../api/reference.md#richer-widgets-and-text-editing).
+Besides label, button, checkbox and input, DABT has a multi-line **textarea**, a masked **password** field, a scrollable **list**, a **table**, a **select** (dropdown) and a **progress** bar. They are ordinary widgets: they take part in focus (Tab, arrows), theming (`class=`), hover and click, and `tui.get` / `tui.set` / `tui.update` work on them. API tables: [../api/widgets.md](../api/widgets.md#richer-widgets-and-text-editing).
 
 ```xml
 <textarea id="notes"  pane="p" row="0" placeholder="type here..." rows="0" on_change="saved_draft"/>   <!-- rows 0 = fill the pane -->

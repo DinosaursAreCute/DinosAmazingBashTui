@@ -163,4 +163,4 @@ bindings, terminal width or page history change.
 
 ## Dialogs, prompts and toasts
 
-Confirmations, one-line prompts, list pickers and toast notifications are built on the modal layer (`tui.confirm`, `tui.message`, `tui.prompt`, `tui.choose`, `tui.notify`). While a dialog is open it owns the keyboard and mouse like the palette does. "Ask before quitting" is a setting (`tui.config.set confirm.quit 1`, also a checkbox on the default Settings page). API and flags: [../api/reference.md](../api/reference.md#dialogs-and-notifications).
+Confirmations, one-line prompts, list pickers and toast notifications are built on the modal layer (`tui.confirm`, `tui.message`, `tui.prompt`, `tui.choose`, `tui.notify`). While a dialog is open it owns the keyboard and mouse like the palette does. "Ask before quitting" is a setting (`tui.config.set confirm.quit 1`, also a checkbox on the default Settings page). API and flags: [../api/chrome.md](../api/chrome.md#dialogs-and-notifications).

@@ -1,13 +1,20 @@
 # Developer API
 
-The public surface of D.A.B.T, grouped by task with short examples. For a flat lookup of every function and parameter use **[reference.md](reference.md)**. For how the pieces fit together see the [documentation index](../README.md).
+The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic directory, the way a Javadoc package-summary page mirrors a Java package. Use the search in the header (or press `/`) to find a function by name across every page at once; it's pre-scoped to "This section" when you're already inside `api/`, with an "Everywhere" toggle to search the whole site. For how the pieces fit together see the [documentation index](../README.md).
 
-| Page | Contents |
-|---|---|
-| [reference.md](reference.md) | Every public function, parameters, description (one table per area). |
-| [renderers.md](renderers.md) | `box`, `table`, charts, `banner`... standalone renderers. |
-| [terminal-controls.md](terminal-controls.md) | All ~310 escape-sequence helpers (generated). |
-| this page | Task-oriented tour with examples. |
+| Module | Covers | Mirrors |
+|---|---|---|
+| **[Core](core.md)** | Lifecycle, layout (panes), tabs, factory widgets, content/output, `tui.exec`, live updates, getters, logging/perf, event & result variables | `lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh` |
+| **[Style](style.md)** | Themes | `lib/style/` |
+| **[Input](input.md)** | Key/mouse bindings, built-in actions | `lib/input/` |
+| **[Widgets](widgets.md)** | Widget constructors, richer widgets & text editing | `lib/widgets/` |
+| **[Chrome](chrome.md)** | Command palette, modal/overlay, dialogs & toasts, footer | `lib/chrome/` |
+| **[Markup](markup.md)** | Pages & cache | `lib/markup/` |
+| **[Config](config.md)** | Persisted settings | `lib/config/` |
+| **[Plugins](plugin.md)** | Plugins & hooks | `lib/plugin/` |
+| **[Renderers](renderers.md)** | Standalone box/table/chart/banner renderers | `lib/terminal_renderer.sh` |
+| **[Terminal controls](terminal-controls.md)** | ~310 escape-sequence helpers (generated) | `lib/terminal_controls.sh` |
+| this page | Task-oriented tour with examples, below | |
 
 Rules of the road: call only public functions (`tui.*`, renderers, `cur.*`/`mode.*`/...); never `_tui.*`, `_exec_*`, `_tr_*` or any leading-underscore name. Callbacks are plain bash functions that receive the widget id (`action="on_save"` → `on_save btn_save`).
 
@@ -21,7 +28,7 @@ tui.cmd.load "$APP/commands.xml"          # optional: your commands in the comma
 tui.start "$APP/config/home.xml"          # init + load + run + cleanup
 ```
 
-`tui.start_cached` does the same after pre-warming every sibling page. Pages, includes and callbacks: [../guide/markup.md](../guide/markup.md). → reference: [Lifecycle](reference.md#lifecycle).
+`tui.start_cached` does the same after pre-warming every sibling page. Pages, includes and callbacks: [../guide/markup.md](../guide/markup.md). → reference: [Lifecycle](core.md#lifecycle).
 
 ## 2. Build layout in code (instead of, or next to, XML)
 
@@ -33,7 +40,7 @@ tui.grid bottom 1 3 pack "" "" a b c        # 1 row × 3 cols
 tui.fixed keys 6 3 esc f1 f2 space:4        # every child 6×3 cells, space is 4 units wide
 ```
 
-XML equivalents and the grid/tab details: [../guide/grid-layouts-and-tabs.md](../guide/grid-layouts-and-tabs.md). → [Layout](reference.md#layout-panes).
+XML equivalents and the grid/tab details: [../guide/grid-layouts-and-tabs.md](../guide/grid-layouts-and-tabs.md). → [Layout](core.md#layout-panes).
 
 ## 3. Widgets and forms
 
@@ -49,7 +56,7 @@ on_save() {
 }
 ```
 
-Inputs keep focus after Enter by default (`tui.input.retain ID false` to drop it). Use `tui.update ID VALUE` to change a value and redraw. Runtime-built forms: `tui.factory.*` (`tui.factory.grid demo grid_pane 6 3; tui.factory.button demo "$_TUI_FACTORY_LAST_ID"...`, then `tui.factory.clear demo`). → [Widgets](reference.md#widgets), [Factory](reference.md#factory-runtime-widgets), [Tabs](reference.md#tabs).
+Inputs keep focus after Enter by default (`tui.input.retain ID false` to drop it). Use `tui.update ID VALUE` to change a value and redraw. Runtime-built forms: `tui.factory.*` (`tui.factory.grid demo grid_pane 6 3; tui.factory.button demo "$_TUI_FACTORY_LAST_ID"...`, then `tui.factory.clear demo`). → [Widgets](widgets.md#widgets), [Factory](core.md#factory-runtime-widgets), [Tabs](core.md#tabs).
 
 ### Text editing and data widgets
 
@@ -63,7 +70,7 @@ tui.select mode form 3 "Mode:" mode_changed; tui.select.set mode fast balanced c
 tui.progress job form 5 "Job:"; tui.progress.set job 40
 ```
 
-Key tables, mouse behaviour and the Markdown roadmap: [../guide/widgets.md](../guide/widgets.md). -> [Richer widgets](reference.md#richer-widgets-and-text-editing).
+Key tables, mouse behaviour and the Markdown roadmap: [../guide/widgets.md](../guide/widgets.md). -> [Richer widgets](widgets.md#richer-widgets-and-text-editing).
 
 ## 4. Put content in panes
 
@@ -75,7 +82,7 @@ tui.output stats "$(table_string 'A|B' '1|2')" # renderer output is just text wi
 tui.pane_scroll log v                          # wheel / j k / drag scrollbar
 ```
 
-For anything updated in a loop use `tui.set_text PANE TEXT` (fork-free, redraws only on change). Long-running processes: `tui.exec "ping -c3 host" out_pane ctl_pane` streams live through a PTY; several can share a pane. Scrolling internals: [../design/viewport-scrolling.md](../design/viewport-scrolling.md), viewport tips: [../guide/callbacks-and-viewports.md](../guide/callbacks-and-viewports.md). → [Content](reference.md#content-and-output), [tui.exec](reference.md#process-streaming-tuiexec).
+For anything updated in a loop use `tui.set_text PANE TEXT` (fork-free, redraws only on change). Long-running processes: `tui.exec "ping -c3 host" out_pane ctl_pane` streams live through a PTY; several can share a pane. Scrolling internals: [../design/viewport-scrolling.md](../design/viewport-scrolling.md), viewport tips: [../guide/callbacks-and-viewports.md](../guide/callbacks-and-viewports.md). → [Content](core.md#content-and-output), [tui.exec](core.md#process-streaming-tuiexec).
 
 ## 5. Live, continuously updating things
 
@@ -91,7 +98,7 @@ refresh_stats() {
 }
 ```
 
-Timers share one tick listener, cost no fork per update and are cleared on page change. Custom per-frame work: `tui.tick.add my_fn` (never overwrite `_TUI_TICK_FN`). → [Live updates](reference.md#live-updates).
+Timers share one tick listener, cost no fork per update and are cleared on page change. Custom per-frame work: `tui.tick.add my_fn` (never overwrite `_TUI_TICK_FN`). → [Live updates](core.md#live-updates).
 
 ## 6. Read state
 
@@ -102,7 +109,7 @@ tui.get.focused; tui.get.hovered pane; tui.get.scroll log
 tui.get.class.style brand fg             # theme value without a pane
 ```
 
-Inside a handler `TUI_EVENT_KEY`, `TUI_EVENT_X/Y`, `TUI_EVENT_PANE`, `TUI_EVENT_WIDGET` describe the event. → [Getters](reference.md#getters), [Variables](reference.md#event-and-result-variables).
+Inside a handler `TUI_EVENT_KEY`, `TUI_EVENT_X/Y`, `TUI_EVENT_PANE`, `TUI_EVENT_WIDGET` describe the event. → [Getters](core.md#getters), [Variables](core.md#event-and-result-variables).
 
 ## 7. Style and themes
 
@@ -118,7 +125,7 @@ tui.theme.set "$APP/themes/ocean.css"  # app-wide overlay over every page's own 
 tui.class.sgr nav_link focus; printf '%s text\e[0m' "$TUI_SGR"
 ```
 
-Reference of selectors and properties: [../guide/markup.md#styling](../guide/markup.md#styling). → [Styling and themes](reference.md#styling-and-themes).
+Reference of selectors and properties: [../guide/markup.md#styling](../guide/markup.md#styling). → [Styling and themes](style.md#styling-and-themes).
 
 ## 8. Keys, mouse, actions
 
@@ -131,7 +138,7 @@ tui.keys.suspend_key ctrl+g                        # change the kill-switch key
 tui.bind.save                                      # persist user (--user) binds
 ```
 
-Default bindings live in `share/defaults/keybinds.xml`, grouped and opt-out. Full model (lookup order, `--pass`, repeat coalescing, pass-through mode, paste): [../guide/input-bindings.md](../guide/input-bindings.md). → [Input](reference.md#input-and-bindings), [Actions](reference.md#built-in-actions).
+Default bindings live in `share/defaults/keybinds.xml`, grouped and opt-out. Full model (lookup order, `--pass`, repeat coalescing, pass-through mode, paste): [../guide/input-bindings.md](../guide/input-bindings.md). → [Input](input.md#input-and-bindings), [Actions](input.md#built-in-actions).
 
 ## 9. Command bar, modals, dialogs, footer
 
@@ -149,7 +156,7 @@ tui.modal.open confirm my_keys my_draw
 <footer items="@tui.action.quit|Quit;@tui.palette.open|Command bar;ctrl+s|Save"/>
 ```
 
-`@ACTION` items show whichever key is currently bound to the action. Defaults and the shipped Settings/Keybinds pages: [../guide/input-bindings.md](../guide/input-bindings.md). → [Commands](reference.md#commands-and-palette), [Modal](reference.md#modal-and-overlay), [Footer](reference.md#footer).
+`@ACTION` items show whichever key is currently bound to the action. Defaults and the shipped Settings/Keybinds pages: [../guide/input-bindings.md](../guide/input-bindings.md). → [Commands](chrome.md#commands-and-palette), [Modal](chrome.md#modal-and-overlay), [Footer](chrome.md#footer).
 
 ### Dialogs and toasts
 
@@ -163,7 +170,7 @@ name_ok() { [[ -n "$1" && "$1" != */* ]] || { TUI_DIALOG_ERROR="no slashes, not 
 do_rename() { mv "$old" "$1" && tui.notify "Renamed to $1" success || tui.notify "Rename failed" error 6; }
 ```
 
-Dialogs never block: they return at once and call your function afterwards, so a callback can open the next dialog (prompt then confirm). `tui.config.set confirm.quit 1` makes every quit ask first. → [Dialogs and notifications](reference.md#dialogs-and-notifications).
+Dialogs never block: they return at once and call your function afterwards, so a callback can open the next dialog (prompt then confirm). `tui.config.set confirm.quit 1` makes every quit ask first. → [Dialogs and notifications](chrome.md#dialogs-and-notifications).
 
 ## 10. Pages, history, persisted settings
 
@@ -175,7 +182,7 @@ tui.config.get my.option off            # with default
 tui.action.goto_default settings        # DABT's shipped Settings page (also in the palette)
 ```
 
-Pages are recorded and replayed from a cache keyed on file mtimes (page + includes); why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). → [Pages and cache](reference.md#pages-and-cache), [Config](reference.md#persisted-config).
+Pages are recorded and replayed from a cache keyed on file mtimes (page + includes); why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). → [Pages and cache](markup.md#pages-and-cache), [Config](config.md#persisted-config).
 
 ## 11. Plugins
 
@@ -186,7 +193,7 @@ tui.plugin.disable hello            # its commands, keys, hooks and timers are r
 tui.hook.on page my_page_hook       # react to every page switch
 ```
 
-A plugin file, where DABT keeps its files, hooks and the built-in terminal_shortcuts plugin: [../guide/plugins.md](../guide/plugins.md). -> [Plugins](reference.md#plugins-and-hooks).
+A plugin file, where DABT keeps its files, hooks and the built-in terminal_shortcuts plugin: [../guide/plugins.md](../guide/plugins.md). -> [Plugins](plugin.md#plugins-and-hooks).
 
 ## 12. Renderers without the TUI
 

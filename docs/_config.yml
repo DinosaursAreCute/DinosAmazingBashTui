@@ -25,6 +25,12 @@ titles_from_headings:
   collections: true
 github:
   repository_url: https://github.com/DinosaursAreCute/DinosAmazingBashTui
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - .bundle/
+  - node_modules/
 defaults:
   - scope:
       path: ""

@@ -83,7 +83,7 @@ doctor_kv() { local l; while IFS= read -r l; do [[ "$l" == "$1 "* ]] && { printf
     [ ! -e "$T/prog" ]; [ ! -e "$(CONF)" ]; [ ! -e "$T/bin" ]
 }
 @test "refuses a folder that is not a DABT release" {
-    mkdir -p "$T/notdabt"; cp "$REPO/install.sh" "$T/notdabt/"; mkdir -p "$T/notdabt/lib"; cp "$REPO/lib/apps/tui_sync.sh" "$REPO/lib/apps/tui_install.sh" "$T/notdabt/lib/"
+    mkdir -p "$T/notdabt"; cp "$REPO/install.sh" "$T/notdabt/"; mkdir -p "$T/notdabt/lib/apps"; cp "$REPO/lib/apps/tui_sync.sh" "$REPO/lib/apps/tui_install.sh" "$T/notdabt/lib/apps/"
     run bash "$T/notdabt/install.sh" --yes --prefix "$T/prog"
     [ "$status" -eq 2 ]; [[ "$output" == *"not a DABT release"* ]]; [ ! -e "$T/prog" ]
 }

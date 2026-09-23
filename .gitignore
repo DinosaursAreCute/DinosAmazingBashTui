@@ -16,3 +16,10 @@ dist/
 
 tools/export_txt.sh
 txt_export/
+
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/.bundle/
+docs/vendor/
+docs/_data/version.yml

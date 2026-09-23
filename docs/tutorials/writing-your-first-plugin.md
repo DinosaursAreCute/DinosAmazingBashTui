@@ -233,4 +233,4 @@ plugin.stretch.on_disable() { ... }     # optional; registrations are undone aut
 - **A plugin with files:** make a folder `NAME/plugin.sh` and keep assets next to it (find them with `tui.plugin.dir NAME`).
 - **Read real ones:** [`examples/plugins/hello.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/plugins/hello.plugin.sh) (the smallest possible) and [`share/plugins/terminal_shortcuts.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/plugins/terminal_shortcuts.plugin.sh).
 - **Write your own app:** [Writing Your First App](writing-your-first-app.md), and the technical guide [../guide/writing-an-app.md](../guide/writing-an-app.md).
-- **Every function:** [../api/reference.md](../api/reference.md#plugins-and-hooks).
+- **Every function:** [../api/plugin.md](../api/plugin.md#plugins-and-hooks).

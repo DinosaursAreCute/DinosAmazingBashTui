@@ -1,0 +1,64 @@
+# Builds the Jekyll site in docs/, indexes it with Pagefind (site-wide +
+# per-section search), and deploys to GitHub Pages.
+#
+# Replaces GitHub's automatic "deploy from a branch" Jekyll build, which has
+# no hook for a post-build indexing step. One-time setup after this merges:
+# repo Settings -> Pages -> Source -> "GitHub Actions".
+name: Deploy docs site
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/**, VERSION, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: docs
+
+      - name: Write the current DABT version for the site header
+        run: |
+          mkdir -p docs/_data
+          printf 'number: %s\n' "$(cat VERSION)" > docs/_data/version.yml
+
+      - name: Build Jekyll site
+        working-directory: docs
+        run: bundle exec jekyll build --destination _site
+        env:
+          JEKYLL_ENV: production
+
+      - name: Index with Pagefind
+        run: npx --yes pagefind --site docs/_site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

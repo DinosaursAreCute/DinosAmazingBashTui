@@ -66,4 +66,4 @@ locate() { bash -c 'source "$REPO/lib/tui_home.sh"; echo "$TUI_HOME_SOURCE|$TUI_
     [ "$output" = "moved" ]
 }
 
-#@test "the tests never touch the source tree" { assert_repo_untouched; } Temporarily disabled to test if this is blocking pipelines
+@test "the tests never touch the source tree" { assert_repo_untouched; }

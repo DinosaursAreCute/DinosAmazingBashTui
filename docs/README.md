@@ -7,8 +7,8 @@ This page is the map: how the framework is put together, and where to look for w
 
 | I want to... | Read |
 |---|---|
-| **New here?** Build a working app step by step | [tutorials/writing-your-first-app.md](tutorials/writing-your-first-app.md) |
-| **New here?** Write a plugin step by step | [tutorials/writing-your-first-plugin.md](tutorials/writing-your-first-plugin.md) |
+| **New here?**  Build a working app step by step | [tutorials/writing-your-first-app.md](tutorials/writing-your-first-app.md) |
+| **New here?**  Write a plugin step by step | [tutorials/writing-your-first-plugin.md](tutorials/writing-your-first-plugin.md) |
 | Structure, package and ship an application (technical guide) | [guide/writing-an-app.md](guide/writing-an-app.md) |
 | Build a page from XML (panes, grids, tabs, includes, themes) | [guide/markup.md](guide/markup.md) |
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
@@ -17,7 +17,7 @@ This page is the map: how the framework is put together, and where to look for w
 | Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
 | Write, install and manage plugins; where DABT keeps its files | [guide/plugins.md](guide/plugins.md) |
 | Install DABT, update it from GitHub, resolve conflicts | [guide/install-and-update.md](guide/install-and-update.md) |
-| Look up **any function and its parameters** | [api/reference.md](api/reference.md) (one big table) |
+| Look up **any function and its parameters** | [api/](api/) - one page per module, plus search (press `/`) |
 | Read the API grouped by topic, with examples | [api/README.md](api/README.md) |
 | Use the renderers (box, table, charts, banner...) without the TUI | [api/renderers.md](api/renderers.md), [examples/csv-charts](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/csv-charts/README.md) |
 | Know why scrolling / hover / caching are built the way they are | [design/](#design-write-ups) |
@@ -26,17 +26,17 @@ This page is the map: how the framework is put together, and where to look for w
 
 Fastest start: copy `share/demo/home.xml` + `bin/DABT_demo.sh`, then read [guide/markup.md](guide/markup.md).
 
-Real-world example app: [DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer).
+Real-world example app: [DABT File Explorer](https://github.com/DinosaursAreCute/DabtFileExplorer). Writing an app in an editor? **[DABT Tools](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin)** is a companion VS Code extension: inlay hints and signature help for `dabt` function arguments, `class=` completion with live theme-aware color swatches, and required-attribute markers on your XML markup.
 
 ## High-level architecture
 
 ```mermaid
 flowchart TB
   app["<b>Your app</b><br/>page.xml, theme.css, page_callbacks.sh"]
-  markup["<b>tui_markup.sh</b><br/>XML parser + page cache"]
-  styl["<b>tui_style.sh</b><br/>theme.css to colours"]
-  core["<b>tui.sh</b><br/>layout, input, render loop"]
-  helpers["<b>Helpers</b><br/>tui_input, tui_cmd, tui_modal<br/>tui_footer, tui_api"]
+  markup["<b>markup/tui_markup.sh</b><br/>XML parser + page cache"]
+  styl["<b>style/tui_style.sh</b><br/>theme.css to colours"]
+  core["<b>tui.sh + state.sh</b><br/>layout, input, render loop"]
+  helpers["<b>Topic dirs</b><br/>input/, chrome/, widgets/<br/>config/, plugin/, apps/"]
   rend["<b>terminal_renderer.sh</b><br/>box, table, charts<br/>(usable standalone)"]
   ctl["<b>terminal_controls.sh + colors.sh</b><br/>raw ANSI, no state"]
   tty(["Terminal"])
@@ -54,19 +54,25 @@ flowchart TB
 
 ### Layers (load order in `lib/tui.sh`)
 
+`lib/` puts shared/public files at its root and groups the rest by topic into subdirectories - see the [API index](api/) for the matching per-module API pages.
+
 | Layer | File | Job |
 |---|---|---|
 | Terminal primitives | `terminal_controls.sh`, `colors.sh` | Cursor, erase, SGR, modes, mouse, OSC. Stateless one-liners that print escape sequences. |
-| Markup | `tui_markup.sh` | Parses XML pages into `tui.*` calls. `tui.start FILE` = init + load + run + cleanup. `tui.goto` switches page. |
-| Style | `tui_style.sh` | `theme.css` (`.class`, `:focus`, `:hover`, `:border`, `:title`) resolved to fg/bg/mods per pane/widget. |
+| State | `state.sh` | `tui.sh`'s global state (pane geometry, widget registries, background-exec instances) extracted into one file. |
+| Markup | `markup/tui_markup.sh` | Parses XML pages into `tui.*` calls. `tui.start FILE` = init + load + run + cleanup. `tui.goto` switches page. |
+| Style | `style/tui_style.sh` | `theme.css` (`.class`, `:focus`, `:hover`, `:border`, `:title`) resolved to fg/bg/mods per pane/widget. |
 | Core | `tui.sh` | Pane tree + layout engine (`hsplit`/`vsplit`/`grid`/`fixed`), widgets, focus, mouse routing, render (AWK "shader" viewports), main loop, `tui.exec`. |
-| Input | `tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`share/defaults/keybinds.xml`), paste, focus movement, user keybind persistence. |
-| Commands | `tui_cmd.sh`, `tui_modal.sh`, `tui_footer.sh` | Command registry + palette, overlay/modal layer, `<footer/>` key-hint bar. |
-| Home + plugins | `tui_home.sh`, `tui_plugin.sh` | Where files live (`~/.config/DABT/`), app metadata, and the plugin system with hooks. |
-| Config | `tui_config.sh` | Persisted framework settings (`~/.config/DABT/apps/<app>/dabt.conf`). |
-| Cache | `tui_cache.sh` | Page record/replay cache, stylesheet memo, on-disk cache, warm-up. |
+| Input | `input/tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`share/defaults/keybinds.xml`), paste, focus movement, user keybind persistence. |
+| Commands | `chrome/tui_cmd.sh`, `chrome/tui_modal.sh`, `chrome/tui_footer.sh`, `chrome/tui_dialog.sh` | Command registry + palette, overlay/modal layer, `<footer/>` key-hint bar, dialogs and toasts. |
+| Widgets | `widgets/tui_widgets.sh`, `widgets/tui_text.sh` | Widget constructors and the shared text-editing engine (input, password, textarea). |
+| Home + plugins | `tui_home.sh`, `plugin/tui_plugin.sh` | Where files live (`~/.config/DABT/`), app metadata, and the plugin system with hooks. |
+| Config | `config/tui_config.sh` | Persisted framework settings (`~/.config/DABT/apps/<app>/dabt.conf`). |
+| Cache | `markup/tui_cache.sh` | Page record/replay cache, stylesheet memo, on-disk cache, warm-up. |
+| App lifecycle | `apps/tui_apps.sh`, `apps/tui_install.sh`, `apps/tui_sync.sh`, `apps/tui_update.sh`, `apps/tui_scan.sh` | `dabt app`/`dabt update` install, sync and security-scan machinery. |
 | Public helpers | `tui_api.sh` | Getters, live helpers (`tui.every`, `tui.clock`, `tui.watch`, `tui.monitor`), theme overlay, style helpers. |
 | Renderers | `terminal_renderer.sh` | `box`, `table`, `hbar`, `linechart`, `banner`... each with a printing and a `_string` form. Usable with no TUI at all. |
+| Packaging | `dapk/` | `.dapk` build/sign/verify/publish - the module behind `dabt build` / `dabt pkg`. |
 
 ### What happens when a page loads
 

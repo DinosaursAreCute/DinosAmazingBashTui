@@ -202,6 +202,7 @@ tui.every.list() {
 tui.clock() {
 	local pane="$1" fmt="${2:-%H:%M:%S}" font="${3:-}" id="${4:-clock_$1}"
 	if [[ -n "$font" ]] && ! declare -F _banner_build >/dev/null; then
+		# shellcheck source=terminal_renderer.sh
 		source "${_TUI_API_DIR}/terminal_renderer.sh"
 	fi
 	_TA_ARGS[$id]="${pane}"$'\x1f'"${fmt}"$'\x1f'"${font}"
@@ -390,6 +391,7 @@ tui.hist.get() { printf '%s' "${_TA_HIST[$1]:-}"; }
 
 tui.monitor() {
 	local pane="$1" sec="${2:-1}" id="${3:-monitor_$1}"
+	# shellcheck source=terminal_renderer.sh
 	declare -F _gauge_build >/dev/null || source "${_TUI_API_DIR}/terminal_renderer.sh"
 	_TA_ARGS[$id]="$pane"
 	tui.sys.cpu
@@ -714,8 +716,10 @@ _tui_api.on_resize() {
 declare -gA _TUI_REQUIRED=()
 tui.require() {
 	[[ -n "${_TUI_REQUIRED[$1]:-}" ]] && return 0
+	# shellcheck source=terminal_renderer.sh
 	case "$1" in
-		terminal_renderer | terminal_controls | tui_scan) source "${SCRIPT_DIR}/$1.sh" ;;
+		terminal_renderer | terminal_controls) source "${SCRIPT_DIR}/$1.sh" ;;
+		tui_scan) source "${SCRIPT_DIR}/apps/tui_scan.sh" ;;
 		*)
 			echo "tui.require: unknown library '$1'" >&2
 			return 1

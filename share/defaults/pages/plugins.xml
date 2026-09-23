@@ -1,5 +1,5 @@
 <!-- DABT default Settings > Plugins tab (palette: "DABT: Plugins"): every detected plugin, its details and a browsable, readable
-     tree of its files. Everything goes through the public tui.plugin.* API (lib/tui_plugin.sh). -->
+     tree of its files. Everything goes through the public tui.plugin.* API (lib/plugin/tui_plugin.sh). -->
 <tui on_visit="plg_visit">
   <script src="plugins_callbacks.sh"/>
   <theme src="../theme.css"/>

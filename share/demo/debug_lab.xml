@@ -52,7 +52,7 @@
   <input  id="inp_keep"  pane="lab_buttons" row="22" label="keeps:" label_width="8" placeholder="Enter submits, cursor stays" submit="lab_submit_keep"/>
   <input  id="inp_form"  pane="lab_buttons" row="23" label="leaves:" label_width="8" placeholder="Enter submits, then leaves" submit="lab_submit_form" retain_input_on_submit="false"/>
 
-  <!-- Dialogs and notifications (lib/tui_dialog.sh): callback style, the result lands in the log on the right -->
+  <!-- Dialogs and notifications (lib/chrome/tui_dialog.sh): callback style, the result lands in the log on the right -->
   <label  id="ld_h1" pane="lab_dialogs" row="0" text="Dialogs" class="brand"/>
   <button id="ld_conf"   pane="lab_dialogs" row="1" text="[ Confirm ]"                action="lab_dlg_confirm"  class="info_button"    align="fill"/>
   <button id="ld_dang"   pane="lab_dialogs" row="2" text="[ Confirm (danger) ]"       action="lab_dlg_danger"   class="danger_button"  align="fill"/>

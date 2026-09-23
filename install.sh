@@ -16,7 +16,7 @@
 SRC="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # Bootstrap: run standalone (curl ... | bash) there is no checkout next to this script, so fetch the repo archive and run its install.sh.
 #   DABT_REF=<branch|tag> picks what to download (default main); DABT_REPO overrides owner/name.
-if [[ ! -f "$SRC/lib/tui_sync.sh" ]]; then
+if [[ ! -f "$SRC/lib/apps/tui_sync.sh" ]]; then
 	case "${1:-}" in -h | --help)
 		sed -n '2,16p' "${BASH_SOURCE[0]:-$0}" 2>/dev/null | sed 's/^# \?//'
 		exit 0
@@ -91,8 +91,8 @@ while (($#)); do
 	esac
 	shift
 done
-source "$SRC/lib/tui_sync.sh"
-source "$SRC/lib/tui_install.sh"
+source "$SRC/lib/apps/tui_sync.sh"
+source "$SRC/lib/apps/tui_install.sh"
 tui.sync.valid_source "$SRC" || {
 	echo "install.sh: $SRC is not a DABT release (VERSION, lib/tui.sh, share/defaults are missing)" >&2
 	exit 2
@@ -118,7 +118,7 @@ _kv() { printf '  %s%-9s%s %s\n' "$D" "$1" "$R" "$2"; }
 
 _scan() {
 	_step "Security scan"
-	source "$SRC/lib/tui_scan.sh"
+	source "$SRC/lib/apps/tui_scan.sh"
 	tui.scan.run_spin "$SRC" "Scanning incoming files for vulnerabilities"
 	[[ -n "$TUI_SCAN_REPORT" ]] && while IFS= read -r l; do
 		case "$l" in "  HIGH "*) printf '%s%s%s\n' "$RED" "$l" "$R" ;; "  WARN "*) printf '%s%s%s\n' "$YEL" "$l" "$R" ;; *) printf '%s%s%s\n' "$D" "$l" "$R" ;; esac

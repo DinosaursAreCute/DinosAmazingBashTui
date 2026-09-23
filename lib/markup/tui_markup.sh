@@ -33,7 +33,7 @@
 # paints the whole row with the element's fg/bg instead of just the text.
 #
 # `class` applies a named style from a loaded <theme> stylesheet - see
-# lib/tui_style.sh and config/theme.css. A `.class:hover { … }` rule is
+# lib/style/tui_style.sh and config/theme.css. A `.class:hover { … }` rule is
 # applied to a widget (button/input) while the mouse sits over it; it has
 # no effect on panes. A pane's border instead uses the class's `.class:focus`
 # rule while any widget inside it has keyboard focus (falling back to
@@ -192,7 +192,7 @@ _tui_markup_resolve_grid() {
 	local total_cells=$((rows * cols))
 	local -a flat=()
 	local i
-	for ((i = 0; i < total_cells; i++)); do flat[$i]=""; done
+	for ((i = 0; i < total_cells; i++)); do flat[i]=""; done
 
 	local -a loose=()
 	local entry cid gr gc
@@ -206,7 +206,7 @@ _tui_markup_resolve_grid() {
 				if [[ -n "${flat[$ci]}" ]]; then
 					echo "tui.load: grid '$id' cell (${gr},${gc}) already occupied by '${flat[$ci]}' - '$cid' overrides it" >&2
 				fi
-				flat[$ci]="$cid"
+				flat[ci]="$cid"
 			else
 				echo "tui.load: grid '$id' child '$cid' grid_row/grid_col out of bounds - treating as loose" >&2
 				loose+=("$cid")
@@ -219,7 +219,7 @@ _tui_markup_resolve_grid() {
 	local li=0
 	for ((i = 0; i < total_cells && li < ${#loose[@]}; i++)); do
 		if [[ -z "${flat[$i]}" ]]; then
-			flat[$i]="${loose[$li]}"
+			flat[i]="${loose[$li]}"
 			((li++))
 		fi
 	done

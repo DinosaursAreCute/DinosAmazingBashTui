@@ -26,11 +26,14 @@
 # terminal_shortcuts.*). Apps keep their state in $TUI_APP_CONF (~/.config/DABT/apps/NAME), which `remove` keeps unless --purge.
 
 _TUI_APPS_SELF="${BASH_SOURCE[0]%/*}"
-[[ -n "${TUI_HOME:-}" ]] || source "$_TUI_APPS_SELF/tui_home.sh"
+# shellcheck source=../tui_home.sh
+[[ -n "${TUI_HOME:-}" ]] || source "$_TUI_APPS_SELF/../tui_home.sh"
 [[ -n "${_TUI_SCAN_LOADED:-}" ]] || {
+	# shellcheck source=tui_scan.sh
 	source "$_TUI_APPS_SELF/tui_scan.sh"
 	_TUI_SCAN_LOADED=1
 }
+# shellcheck source=tui_update.sh
 declare -F tui.version.newer >/dev/null || source "$_TUI_APPS_SELF/tui_update.sh"
 
 declare -g TUI_APPS_LIST="${TUI_APPS_LIST:-$TUI_HOME/apps.list}"
@@ -308,7 +311,8 @@ tui.apps.install() {
 	local prev=""
 	for a in "$@"; do
 		if [[ ("$a" == *.dapk || "$a" == *.zip) && "$a" != -* && "$prev" != --origin ]]; then
-			[[ -n "${_DAPK_LOADED:-}" ]] || source "$_TUI_APPS_SELF/dapk/dapk.sh"
+			# shellcheck source=../dapk/dapk.sh
+			[[ -n "${_DAPK_LOADED:-}" ]] || source "$_TUI_APPS_SELF/../dapk/dapk.sh"
 			dapk.install.run "$@"
 			return $?
 		fi

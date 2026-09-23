@@ -291,7 +291,7 @@
 .toast_warn    { fg: #2b2100; bg: #ecc94b; }
 .toast_error   { fg: #ffffff; bg: #b00020; mods: bold; }
 
-/* Text selection, lists, tables and progress bars (lib/tui_text.sh, lib/tui_widgets.sh). Missing classes fall back to built-ins. */
+/* Text selection, lists, tables and progress bars (lib/widgets/tui_text.sh, lib/widgets/tui_widgets.sh). Missing classes fall back to built-ins. */
 .selection     { fg: #ffffff; bg: #3e5c8a; }
 .list_sel      { fg: #10131c; bg: #61afef; mods: bold; }
 .table_sel     { fg: #10131c; bg: #61afef; mods: bold; }

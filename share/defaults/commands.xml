@@ -1,4 +1,4 @@
-<!-- DABT default commands (the command palette: ctrl+p or ':'). Loaded by lib/tui_cmd.sh through tui.cmd.load -
+<!-- DABT default commands (the command palette: ctrl+p or ':'). Loaded by lib/chrome/tui_cmd.sh through tui.cmd.load -
      the same API an app uses to add its own. One <cmd .../> per line:
        id (unique)  title  action (function + args, ';' chains)  [group]  [desc]  [when=FN: listed only while FN succeeds]
      State-dependent commands (go to page, themes, focus pane, default-key groups) come from providers in tui_cmd.sh.

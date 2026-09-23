@@ -2,7 +2,7 @@
 
 The project includes a lightweight HTML/XML-like config format for building TUIs
 declaratively instead of hand-calling `tui.*` functions. The loader
-(`lib/tui_markup.sh`) is pure **bash + POSIX utilities only**.
+(`lib/markup/tui_markup.sh`) is pure **bash + POSIX utilities only**.
 
 It is sourced automatically by `tui.sh`, so `tui.load` and `tui.goto` are
 available anywhere `tui.sh` is sourced.
@@ -286,7 +286,7 @@ remaining row width:
 
 ## Styling
 
-`lib/tui_style.sh` adds a CSS-like theme system, loaded with `<theme src="theme.css"/>`:
+`lib/style/tui_style.sh` adds a CSS-like theme system, loaded with `<theme src="theme.css"/>`:
 
 ```css
 .danger_button        { fg: white; bg: #b00020; mods: bold; }

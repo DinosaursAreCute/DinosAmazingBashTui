@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft: concept, not implemented |
-| Builds on | [dapk-packaging.md](dapk-packaging.md) (`lib/dapk/`), `lib/tui_sync.sh`, `lib/tui_install.sh`, `lib/tui_update.sh`, `install.sh` |
+| Builds on | [dapk-packaging.md](dapk-packaging.md) (`lib/dapk/`), `lib/apps/tui_sync.sh`, `lib/apps/tui_install.sh`, `lib/apps/tui_update.sh`, `install.sh` |
 | Constraint | Reuse the dapk logic as-is wherever possible; no new runtime dependencies |
 
 ## 1. Summary

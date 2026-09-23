@@ -16,6 +16,7 @@ dapk.header.generate() {
 	local text="${1^^}" out="$2" C="${3:-7}" LG=1 WG=3 body="" cx=0 i=0 n r c ch row w
 	local -a cols rows
 	[[ -n "$text" && -n "$out" ]] || return 1
+	# shellcheck source=../terminal_renderer.sh
 	declare -F _banner_font_init >/dev/null || source "${TUI_ROOT:-${DAPK_DIR%/lib/dapk}}/lib/terminal_renderer.sh" || return 1
 	[[ -n "${_BANNER_FONT[A]+x}" ]] || _banner_font_init
 	read -ra cols <<<"${HEADER_COLORS:-$_DAPK_HEADER_COLORS}"

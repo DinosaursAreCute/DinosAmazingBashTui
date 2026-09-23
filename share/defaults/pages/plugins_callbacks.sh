@@ -321,7 +321,7 @@ plg_do_install() {
 	else tui.notify "Install failed: $TUI_PLUGIN_ERROR" error 6; fi
 }
 
-# ── security scan: the selected plugin's files, result in a scrollable modal (tui.scan.*, lib/tui_scan.sh) ──
+# ── security scan: the selected plugin's files, result in a scrollable modal (tui.scan.*, lib/apps/tui_scan.sh) ──
 plg_scan() {
 	local n root verdict title report line
 	n="$(_plg_name)"

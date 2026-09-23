@@ -11,7 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed 
 - Ran formatter on all files 
-
+- Repository layout: `lib/` reorganised by topic into subdirectories (`style/`, `input/`, `widgets/`, `chrome/`, `markup/`, `config/`, `plugin/`, `apps/`), mirroring `lib/dapk/`; shared/public files (`tui.sh`, `tui_api.sh`, `tui_home.sh`, `terminal_*.sh`, `colors.sh`) stay at `lib/` root. `tui.sh`'s global state (pane/widget registries, background-exec instances) extracted into `lib/state.sh`.
+- Addressed Relevant Shellcheck Issues
 ## [0.0.15] - 2026-09-22
 ### News 
 - Dev Test do not worry about it :3c

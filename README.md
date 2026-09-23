@@ -68,24 +68,14 @@ tui.start "share/demo/home.xml"
 <br/>
 <br/>
 
-<h2 id="vs-code-extension"><img src="assets/headers/vs-code-extension.svg" alt="VS Code extension" height="35"></h2>
-
-
-**[DABT Tools](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin)** is a companion VS Code extension for writing DABT apps: inlay hints and signature help for `dabt` function arguments, `class=` completion with live theme-aware color swatches, and required-attribute markers on your XML markup — all inferred straight from your app's own source, not a hardcoded schema.
-
-<img src="assets/vscode_extension.png" alt="A &lt;pane&gt; tag in the editor: a required-attribute marker, a class= color swatch, and fg/bg inlay hints resolved from theme.css" width="680">
-
-Grab the `.vsix` from [the latest release](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin/releases/latest) and install it with `code --install-extension dabt-tools-*.vsix`.
 <br/>
 <br/>
 <h2 id="quick-start"><img src="assets/headers/quick-start.svg" alt="Quick start" height="35"></h2>
 
-**Install** (downloads the repo and installs it, no clone needed):
-
+**Install** (Single Command Install: Downloads the repo and installs it):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/install.sh | bash
-# pass options after -s --:  ... | bash -s -- --yes --prefix ~/apps/dabt
 ```
 
 **Or from a checkout** (to hack on it or try the demo first):
@@ -94,7 +84,7 @@ curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTu
 git clone https://github.com/DinosaursAreCute/DinosAmazingBashTui.git
 cd DinosAmazingBashTui
 
-bin/dabt demo        # run the demo straight from the checkout, no install needed
+bin/dabt demo        # run the demo straight from the checkout
 ./install.sh         # optional: install the program and config home
 ```
 
@@ -106,31 +96,8 @@ dabt update --dev    # update to the current state of main
 dabt doctor          # where everything lives, what version is installed
 ```
 
-No package manager, no build step. Installing copies the program to `~/.local/share/dabt`, the defaults and plugins to `~/.config/DABT` (yours to edit) and links `~/.local/bin/dabt`. Details: [docs/guide/install-and-update.md](docs/guide/install-and-update.md).
-<br/>
-<br/>
-<h2 id="the-dabt-command"><img src="assets/headers/the-dabt-command.svg" alt="The dabt command" height="35"></h2>
+**Note**: Installing copies the program to `~/.local/share/dabt`, the defaults and plugins to `~/.config/DABT`.
 
-| Command | What it does |
-|---|---|
-| `dabt` / `dabt --help` | show help |
-| `dabt --demo` | run the demo application |
-| `dabt -d` / `doctor` | installed version, locations, install metadata |
-| `dabt -v` | print the version |
-| `dabt install [opts]` | install this copy (`--prefix`, `--config`, `--bindir`, `--policy`, `--dry-run`, `--yes`) |
-| `dabt update` | update to the **latest release** |
-| `dabt update --dev` | update to the **current `main`**, even at the same version |
-| `dabt update --check` | only check; exit code 10 when an update is available |
-| `dabt update --yes --policy override\|skip\|new` | non-interactive; settle conflicts by policy |
-| `dabt scan PATH... [--deep] [--strict]` | security-scan scripts (apps, plugins) - see [Security scan](#security-scan) |
-| `dabt scan --tools` / `--install shellcheck\|semgrep` | show / install the optional scanners |
-| `dabt app install SRC [--strict] [--no-scan]` | install an app (scanned first) |
-| `dabt app list\|info\|run\|update\|remove` | manage installed apps (`dabt app help`) |
-| `dabt clear-cache` | delete the page cache in `~/.config/DABT/cache` |
-| `dabt reinstall [--yes]` | reinstall from the install source, overriding local changes |
-| `dabt uninstall [--yes] [--keep-config]` | remove the program, config home and the `dabt` link |
-
-**Safe updates.** The updater and installer use a three-way file sync (checksum manifest). Before anything is written you see every added, changed and removed file. Files you edited are never overwritten silently: for each conflict choose *override*, *skip*, *write a `.new` file* or *show the differences*. Replaced files are backed up in `~/.config/DABT/backups/`. The same flow is available in the app's command bar (`ctrl+p` → "DABT: Update DABT").
 <br/>
 <br/>
 <h2 id="features"><img src="assets/headers/features.svg" alt="Features" height="35"></h2>
@@ -153,6 +120,7 @@ No package manager, no build step. Installing copies the program to `~/.local/sh
 | **Installer & updater** | Release / dev channels, conflict resolution, backups, reinstall and clean uninstall |
 | **App manager** | `dabt app install/update/remove` for third-party apps, install / uninstall hooks, built-in demo app |
 | **Security scan** | `dabt scan` and scan-gated installs: built-in rules, optional ShellCheck / Semgrep |
+
 <br/>
 <br/>
 <h2 id="security-scan"><img src="assets/headers/security.svg" alt="Security scan" height="35"></h2>
@@ -180,6 +148,43 @@ Install either with `dabt scan --install shellcheck|semgrep`. DABT finds a known
 - **optional**: never required to install, run or update anything;
 - **opt-in to install**: nothing is installed without your confirmation;
 - **used only by `dabt scan`**: they are not loaded by the TUI framework and add no runtime dependency to any app.
+
+
+<h2 id="vs-code-extension"><img src="assets/headers/vs-code-extension.svg" alt="VS Code extension" height="35"></h2>
+
+
+**[DABT Tools](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin)** is a companion VS Code extension for writing DABT apps: inlay hints and signature help for `dabt` function arguments, `class=` completion with live theme-aware color swatches, and required-attribute markers on your XML markup — all inferred straight from your app's own source, not a hardcoded schema.
+
+<img src="assets/vscode_extension.png" alt="A &lt;pane&gt; tag in the editor: a required-attribute marker, a class= color swatch, and fg/bg inlay hints resolved from theme.css" width="680">
+
+Grab the `.vsix` from [the latest release](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin/releases/latest) and install it with `code --install-extension dabt-tools-*.vsix`.
+local/bin/dabt`. Details: [docs/guide/install-and-update.md](docs/guide/install-and-update.md).
+<br/>
+<br/>
+<h2 id="the-dabt-command"><img src="assets/headers/the-dabt-command.svg" alt="The dabt command" height="35"></h2>
+
+| Command | What it does |
+|---|---|
+| `dabt` / `dabt --help` | show help |
+| `dabt --demo` | run the demo application |
+| `dabt -d` / `doctor` | installed version, locations, install metadata |
+| `dabt -v` | print the version |
+| `dabt install [opts]` | install this copy (`--prefix`, `--config`, `--bindir`, `--policy`, `--dry-run`, `--yes`) |
+| `dabt update` | update to the **latest release** |
+| `dabt update --dev` | update to the **current `main`**, even at the same version |
+| `dabt update --check` | only check; exit code 10 when an update is available |
+| `dabt update --yes --policy override\|skip\|new` | non-interactive; settle conflicts by policy |
+| `dabt scan PATH... [--deep] [--strict]` | security-scan scripts (apps, plugins) - see [Security scan](#security-scan) |
+| `dabt scan --tools` / `--install shellcheck\|semgrep` | show / install the optional scanners |
+| `dabt app install SRC [--strict] [--no-scan]` | install an app (scanned first) |
+| `dabt app list\|info\|run\|update\|remove` | manage installed apps (`dabt app help`) |
+| `dabt clear-cache` | delete the page cache in `~/.config/DABT/cache` |
+| `dabt reinstall [--yes]` | reinstall from the install source, overriding local changes |
+| `dabt uninstall [--yes] [--keep-config]` | remove the program, config home and the `dabt` link |
+
+**Safe updates.** The updater and installer use a three-way file sync (checksum manifest). Before anything is written you see every added, changed and removed file. Files you edited are never overwritten silently: for each conflict choose *override*, *skip*, *write a `.new` file* or *show the differences*. Replaced files are backed up in `~/.config/DABT/backups/`. The same flow is available in the app's command bar (`ctrl+p` → "DABT: Update DABT").
+
+
 <br/>
 <br/>
 <h2 id="plugins"><img src="assets/headers/plugins.svg" alt="Plugins" height="35"></h2>
@@ -278,14 +283,21 @@ install.sh  VERSION                    installer entry point, current version
 bin/
 ├── dabt                               the command (see above)
 └── DABT_demo.sh                       starts the demo application
-lib/                                   the framework
-├── tui.sh                             core: layout, widgets, event loop        ├── tui_input.sh  keys and mouse
-├── tui_markup.sh / tui_style.sh       XML pages, CSS-like themes               ├── tui_cmd.sh    command bar
-├── tui_text.sh / tui_widgets.sh       text editing, list/table/select/...      ├── tui_dialog.sh dialogs, toasts
-├── tui_plugin.sh                      plugins and hooks                        ├── tui_home.sh   where files live
-├── tui_cache.sh                       page cache
-├── tui_sync.sh / tui_install.sh / tui_update.sh   installer + updater (three-way file sync)
-└── terminal_controls.sh / terminal_renderer.sh / colors.sh   escape sequences, renderers, colours
+lib/                                   the framework - shared/public files at the root, the rest grouped by topic
+├── tui.sh                             core: layout, widgets, event loop
+├── state.sh                           tui.sh's global state, extracted
+├── tui_api.sh                         public callback-facing API
+├── tui_home.sh                        where files live
+├── terminal_controls.sh / terminal_renderer.sh / colors.sh   escape sequences, renderers, colours
+├── style/tui_style.sh                 CSS-like theme engine
+├── input/tui_input.sh                 keys and mouse
+├── widgets/                           tui_text.sh, tui_widgets.sh - text editing, list/table/select/...
+├── chrome/                            tui_modal.sh, tui_dialog.sh, tui_cmd.sh, tui_footer.sh - overlays, palette, footer
+├── markup/                            tui_markup.sh, tui_cache.sh - XML pages, page cache
+├── config/tui_config.sh               app settings
+├── plugin/tui_plugin.sh               plugins and hooks
+├── apps/                              tui_apps.sh, tui_install.sh, tui_sync.sh, tui_update.sh, tui_scan.sh - app lifecycle
+└── dapk/                              .dapk packaging (build, sign, verify, publish)
 share/
 ├── defaults/                          default keybinds, commands, theme, pages  -> ~/.config/DABT/defaults
 ├── plugins/                           plugins that ship with DABT               -> ~/.config/DABT/plugins

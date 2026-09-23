@@ -276,6 +276,7 @@ tui.scan.run_spin() {
 	rc=$?
 	trap - INT
 	printf '\r\e[K\e[?25h'
+	# shellcheck disable=SC1090 # a generated tempfile, no fixed path to point at
 	source "$tmp"
 	rm -f "$tmp"
 	return $rc

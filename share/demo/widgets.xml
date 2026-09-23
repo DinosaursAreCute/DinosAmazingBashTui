@@ -31,7 +31,7 @@
   <progress id="wx_prog" pane="wx_form" row="8" label="Job:" value="0"/>
 
   <list  id="wx_list"  pane="wx_data" row="0" rows="6" action="wx_list_open" on_change="wx_list_moved" items="Home|Components|Settings|Monitor|Terminal|Scrolling|Docs|Layout|Styles|Widgets"/>
-  <table id="wx_table" pane="wx_data" row="7" action="wx_table_open" columns="File|Size|Kind" data="README.md|8k|text;CHANGELOG.md|21k|text;lib/tui.sh|121k|script;lib/tui_text.sh|24k|script;docs/README.md|9k|text;screenshots/|4.1M|images;config/|60k|dir"/>
+  <table id="wx_table" pane="wx_data" row="7" action="wx_table_open" columns="File|Size|Kind" data="README.md|8k|text;CHANGELOG.md|21k|text;lib/tui.sh|121k|script;lib/widgets/tui_text.sh|24k|script;docs/README.md|9k|text;screenshots/|4.1M|images;config/|60k|dir"/>
 
   <include src="_nav.xml"/>
 </tui>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install.sh (module) - installing a .dapk as a DABT application: fetch, verify, show News, resolve dependencies, then hand the verified
-# tree to tui.apps.install (lib/tui_apps.sh), which scans, registers and copies it. Entered through `dabt app install PKG.dapk|URL`.
+# tree to tui.apps.install (lib/apps/tui_apps.sh), which scans, registers and copies it. Entered through `dabt app install PKG.dapk|URL`.
 #
 # dapk.install.run SOURCE [OPTIONS]
 #   --install-dependencies  --yes|-y  --no-deps  --require-deps  --allow-custom-install  --pm NAME   dependency handling (see deps.sh)
@@ -175,7 +175,8 @@ dapk.install.run() {
 		dapk.ui.kv signer "${DAPK_VERIFY_FPR:-unsigned}"
 		[[ -n "${DAPK_MANIFEST_H[requires_dabt]:-}" ]] && dapk.ui.kv requires "DABT ${DAPK_MANIFEST_H[requires_dabt]}"
 		[[ -n "${DAPK_MANIFEST_H[homepage]:-}" ]] && dapk.ui.kv homepage "${DAPK_MANIFEST_H[homepage]}"
-		source "$TUI_ROOT/lib/tui_apps.sh"
+		# shellcheck source=../apps/tui_apps.sh
+		source "$TUI_ROOT/lib/apps/tui_apps.sh"
 		since=""
 		_tui_apps.lookup "$name" && since="$A_VERSION"
 		newsf="$DAPK_VERIFY_DIR/NEWS"

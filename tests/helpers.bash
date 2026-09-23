@@ -49,7 +49,7 @@ make_release() {
 	mkdir -p "$d/lib" "$d/bin" "$d/share/defaults/pages" "$d/share/plugins" "$d/docs"
 	printf '%s\n' "$v" >"$d/VERSION"
 	printf '# stub\n' >"$d/lib/tui.sh"
-	cp "$REPO/lib/tui_sync.sh" "$REPO/lib/tui_install.sh" "$d/lib/"
+	cp "$REPO/lib/apps/tui_sync.sh" "$REPO/lib/apps/tui_install.sh" "$d/lib/"
 	printf '#!/usr/bin/env bash\necho dabt %s\n' "$v" >"$d/bin/dabt"
 	chmod +x "$d/bin/dabt"
 	cp "$REPO/install.sh" "$d/install.sh"

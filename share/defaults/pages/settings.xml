@@ -1,5 +1,5 @@
 <!-- DABT default Settings page (ships with the framework; palette: "DABT: Settings"). Everything applies live and
-     is saved through tui.config (see lib/tui_config.sh). An app can replace it: re-register the command id
+     is saved through tui.config (see lib/config/tui_config.sh). An app can replace it: re-register the command id
      dabt.settings to point at its own page. -->
 <tui on_visit="dset_visit">
   <script src="settings_callbacks.sh"/>

@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# lib/tui_sync.sh (the three-way compare) and lib/tui_update.sh (check, download, plan, apply, CLI).
+# lib/apps/tui_sync.sh (the three-way compare) and lib/apps/tui_update.sh (check, download, plan, apply, CLI).
 # The network is a mock (helpers.bash: mock_network); every write happens in $BATS_TEST_TMPDIR.
 load helpers
 
 setup() {
     setup_env; mock_network
-    source "$REPO/lib/tui_sync.sh"; source "$REPO/lib/tui_install.sh"; source "$REPO/lib/tui_update.sh"
+    source "$REPO/lib/apps/tui_sync.sh"; source "$REPO/lib/apps/tui_install.sh"; source "$REPO/lib/apps/tui_update.sh"
     export TUI_ROOT="$T/prog" TUI_HOME="$T/cfg" TUI_VERSION=1.0.0
     make_release "$T/v1" 1.0.0
     bash "$T/v1/install.sh" --yes --prefix "$T/prog" --config "$T/cfg" --no-link > /dev/null

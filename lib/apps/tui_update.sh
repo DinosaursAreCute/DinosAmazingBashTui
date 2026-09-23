@@ -50,9 +50,12 @@ _tui_update.changelog_url() {
 _tui_update.news_since_file() {
 	local file="$1" since="$2"
 	[[ -r "$file" ]] || return 0
-	declare -F dapk.changelog.news >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/changelog.sh"
-	declare -F dapk.news.load >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/news.sh"
-	declare -F dapk.version.cmp >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/version.sh"
+	# shellcheck source=../dapk/changelog.sh
+	declare -F dapk.changelog.news >/dev/null || source "${BASH_SOURCE[0]%/*}/../dapk/changelog.sh"
+	# shellcheck source=../dapk/news.sh
+	declare -F dapk.news.load >/dev/null || source "${BASH_SOURCE[0]%/*}/../dapk/news.sh"
+	# shellcheck source=../dapk/version.sh
+	declare -F dapk.version.cmp >/dev/null || source "${BASH_SOURCE[0]%/*}/../dapk/version.sh"
 	local tsv
 	tsv="$(mktemp)" || return 1
 	dapk.changelog.news "$file" "$TUI_UPDATE_LATEST" >"$tsv"
@@ -168,6 +171,7 @@ tui.update.download() {
 	}
 	TUI_UPDATE_SCAN_HIGH=0 TUI_UPDATE_SCAN_WARN=0 TUI_UPDATE_SCAN_REPORT=""
 	if [[ "${TUI_UPDATE_NOSCAN:-0}" != 1 ]]; then # the release is security-scanned before anything is applied
+		# shellcheck source=tui_scan.sh
 		declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/tui_scan.sh"
 		if [[ "${TUI_UPDATE_SPIN:-0}" == 1 ]]; then tui.scan.run_spin "$dir/src"; else tui.scan.run "$dir/src"; fi # spinner only for the CLI, never inside the TUI
 		TUI_UPDATE_SCAN_HIGH=$TUI_SCAN_HIGH TUI_UPDATE_SCAN_WARN=$TUI_SCAN_WARN TUI_UPDATE_SCAN_REPORT="$TUI_SCAN_REPORT"
@@ -200,7 +204,8 @@ tui.update.local() {
 			return 1
 		}
 		TUI_UPDATE_SRC_KIND=dapk
-		declare -F dapk.verify.run >/dev/null || source "${BASH_SOURCE[0]%/*}/dapk/dapk.sh"
+		# shellcheck source=../dapk/dapk.sh
+		declare -F dapk.verify.run >/dev/null || source "${BASH_SOURCE[0]%/*}/../dapk/dapk.sh"
 		dapk.ui.init
 		DAPK_VERIFY_TRUST_KEY="${TUI_UPDATE_TRUST_KEY:-}" DAPK_VERIFY_ALLOW_UNSIGNED="${TUI_UPDATE_ALLOW_UNSIGNED:-0}"
 		if ! dapk.verify.run "$path"; then
@@ -238,6 +243,7 @@ tui.update.local() {
 	}
 	TUI_UPDATE_SCAN_HIGH=0 TUI_UPDATE_SCAN_WARN=0 TUI_UPDATE_SCAN_REPORT=""
 	if [[ "${TUI_UPDATE_NOSCAN:-0}" != 1 ]]; then # local copies are scanned too - a shared drive or old download is not automatically trusted
+		# shellcheck source=tui_scan.sh
 		declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/tui_scan.sh"
 		if [[ "${TUI_UPDATE_SPIN:-0}" == 1 ]]; then tui.scan.run_spin "$dir/src"; else tui.scan.run "$dir/src"; fi
 		TUI_UPDATE_SCAN_HIGH=$TUI_SCAN_HIGH TUI_UPDATE_SCAN_WARN=$TUI_SCAN_WARN TUI_UPDATE_SCAN_REPORT="$TUI_SCAN_REPORT"

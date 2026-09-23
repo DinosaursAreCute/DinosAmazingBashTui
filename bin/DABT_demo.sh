@@ -4,6 +4,7 @@ TUI_APP_NAME=dabt_demo # its files live in ~/.config/DABT/apps/dabt_demo/ (setti
 TUI_APP_TITLE="DABT demo"
 TUI_APP_DESC="The showcase application that ships with DinosAmazingBashTui"
 TUI_APP_ENTRY="bin/DABT_demo.sh"
+# shellcheck source=../lib/tui.sh
 source "$(dirname "$0")/../lib/tui.sh"
 
 DEMO_DIR="$(cd "$(dirname "$0")/../share/demo" && pwd)"

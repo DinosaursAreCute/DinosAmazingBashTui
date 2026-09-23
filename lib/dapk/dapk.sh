@@ -16,11 +16,14 @@ declare -g DAPK_SIG_NAMESPACE="dabt-pkg"
 
 # TUI_HOME / TUI_ROOT are needed for the trust store and installed apps
 [[ -n "${TUI_ROOT:-}" ]] || TUI_ROOT="$(cd -P "$DAPK_DIR/../.." && pwd -P)"
+# shellcheck source=../tui_home.sh
 [[ -n "${TUI_HOME:-}" ]] || source "$DAPK_DIR/../tui_home.sh"
 
 # order = dependency order (ui, toml, version have no dependencies)
+# shellcheck disable=SC1090 # loops over this module's own fixed file list, one path per iteration
 for _dapk_m in ui toml version header config changelog news collect manifest pack sign verify deps notes publish ci install; do
 	source "$DAPK_DIR/$_dapk_m.sh"
 done
+# shellcheck disable=SC1090 # every cmd/*.sh subcommand file, discovered by glob
 for _dapk_m in "$DAPK_DIR"/cmd/*.sh; do [[ -e "$_dapk_m" ]] && source "$_dapk_m"; done
 unset _dapk_m

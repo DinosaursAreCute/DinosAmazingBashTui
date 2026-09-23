@@ -212,7 +212,7 @@ _tr_csv_parse() {
 			local f="${fields[$i]}"
 			f="${f#"${f%%[![:space:]]*}"}"
 			f="${f%"${f##*[![:space:]]}"}"
-			fields[$i]="$f"
+			fields[i]="$f"
 		done
 		_TR_CSV_ROWS+=("$(
 			IFS=$'\x01'
@@ -482,7 +482,7 @@ _table_build() {
 			local cell="${cells[$c]}"
 			cell="${cell#"${cell%%[![:space:]]*}"}"
 			cell="${cell%"${cell##*[![:space:]]}"}"
-			cells[$c]="$cell"
+			cells[c]="$cell"
 			local clen=${#cell}
 			if [[ "$cell" == *$'\n'* ]]; then
 				clen=0
@@ -491,7 +491,7 @@ _table_build() {
 			if ((c >= ${#col_widths[@]})); then
 				col_widths+=("$clen")
 			elif ((clen > col_widths[c])); then
-				col_widths[$c]=$clen
+				col_widths[c]=$clen
 			fi
 		done
 		all_cells+=("$(
@@ -502,7 +502,7 @@ _table_build() {
 
 	# Enforce minimum col width of 3
 	for ((c = 0; c < num_cols; c++)); do
-		((col_widths[c] < 3)) && col_widths[$c]=3
+		((col_widths[c] < 3)) && col_widths[c]=3
 	done
 
 	# Build horizontal bars
@@ -1285,8 +1285,8 @@ _linechart_build() {
 	local total=$((rows * width))
 	local -a grid=() gridcolor=()
 	for ((k = 0; k < total; k++)); do
-		grid[$k]=" "
-		gridcolor[$k]=""
+		grid[k]=" "
+		gridcolor[k]=""
 	done
 
 	local marker="●"
@@ -1302,8 +1302,8 @@ _linechart_build() {
 			((row < 0)) && row=0
 			((row >= rows)) && row=$((rows - 1))
 			local idx=$((row * width + x))
-			grid[$idx]="$marker"
-			gridcolor[$idx]="$colval"
+			grid[idx]="$marker"
+			gridcolor[idx]="$colval"
 		done
 	done
 
@@ -1559,14 +1559,14 @@ _csv_linechart_build() {
 	((ncols < 2)) && return 1
 
 	local -a series_vals=()
-	for ((c = 1; c < ncols; c++)); do series_vals[$c]=""; done
+	for ((c = 1; c < ncols; c++)); do series_vals[c]=""; done
 
 	for ((i = 1; i < ${#_TR_CSV_ROWS[@]}; i++)); do
 		local -a f=()
 		IFS=$'\x01' read -ra f <<<"${_TR_CSV_ROWS[$i]}"
 		for ((c = 1; c < ncols; c++)); do
-			[[ -n "${series_vals[$c]}" ]] && series_vals[$c]+=","
-			series_vals[$c]+="${f[$c]:-0}"
+			[[ -n "${series_vals[$c]}" ]] && series_vals[c]+=","
+			series_vals[c]+="${f[$c]:-0}"
 		done
 	done
 
@@ -1896,8 +1896,8 @@ _banner_build() {
 		glyph="${_bf[$ch]:-${_bf[' ']}}"
 		IFS="$sep" read -ra glyph_rows <<<"$glyph"
 		for ((r = 0; r < height; r++)); do
-			[[ -n "${rows[$r]}" ]] && rows[$r]+=" "
-			rows[$r]+="${glyph_rows[$r]:-}"
+			[[ -n "${rows[$r]}" ]] && rows[r]+=" "
+			rows[r]+="${glyph_rows[$r]:-}"
 		done
 	done
 

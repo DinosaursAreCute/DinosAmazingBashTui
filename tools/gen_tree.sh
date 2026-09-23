@@ -31,6 +31,7 @@ popd >/dev/null
 declare -A DESCRIPTIONS=(
 	# bin/
 	["tui.sh"]="Core framework - layout, widgets, event loop"
+	["state.sh"]="tui.sh's global state, extracted"
 	["tui_markup.sh"]="XML config loader"
 	["tui_style.sh"]="CSS-like theme engine"
 	["terminal_controls.sh"]="Low-level terminal escape sequences"
@@ -82,31 +83,52 @@ gen_dir_tree() {
 		return 1
 	}
 
+	# raw entries as "level|name|desc" (desc may be empty); level 0 = direct
+	# child of $dir, level 1 = one subdirectory down (recurses one level
+	# only - deep enough for lib/'s topic subdirs without turning this into
+	# a full recursive tree walker).
 	local -a raw=()
-	local f base
+	local f base sf sbase
 	for f in "$REPO_ROOT/$dir"/*; do
-		[[ -f "$f" ]] || continue
 		base="$(basename "$f")"
-		raw+=("$(_describe "$base")")
+		if [[ -f "$f" ]]; then
+			raw+=("0|$(_describe "$base")")
+		elif [[ -d "$f" ]]; then
+			raw+=("0|${base}/|")
+			for sf in "$f"/*; do
+				[[ -f "$sf" ]] || continue
+				sbase="$(basename "$sf")"
+				raw+=("1|$(_describe "$sbase")")
+			done
+		fi
 	done
 
 	# Column-align "name|description" pairs before handing them to tree,
 	# since tree() only prefixes whatever text it's given - it doesn't
 	# know these lines are two columns.
-	local maxlen=0 name desc
+	local maxlen=0 name desc level
 	for r in "${raw[@]}"; do
-		name="${r%%|*}"
+		name="${r#*|}"
+		name="${name%%|*}"
 		((${#name} > maxlen)) && maxlen=${#name}
 	done
 
 	local -a items=("${dir}/")
 	for r in "${raw[@]}"; do
-		if [[ "$r" == *"|"* ]]; then
-			name="${r%%|*}"
-			desc="${r#*|}"
+		level="${r%%|*}"
+		r="${r#*|}"
+		name="${r%%|*}"
+		desc="${r#*|}"
+		if [[ "$r" == *"|"* && -n "$desc" ]]; then
 			printf -v r "%-*s # %s" "$maxlen" "$name" "$desc"
+		else
+			r="$name"
 		fi
-		items+=("  $r")
+		if [[ "$level" == 1 ]]; then
+			items+=("    $r")
+		else
+			items+=("  $r")
+		fi
 	done
 
 	tree "${items[@]}"

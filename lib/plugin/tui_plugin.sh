@@ -178,6 +178,7 @@ tui.plugin.enable() {
         tui.plugin.enable "$r" "${2:-}" || { TUI_PLUGIN_ERROR="$name needs $r: $TUI_PLUGIN_ERROR"; _TPL_STATE[$name]=error; _TPL_ERR[$name]="$TUI_PLUGIN_ERROR"; return 1; }
     done
     prev="$_TPL_CUR"; _TPL_CUR="$name"
+    # shellcheck disable=SC1090 # an arbitrary installed plugin's own file, no fixed path to point at
     if ! source "${_TPL_FILE[$name]}" || { declare -F "plugin.$name.on_enable" >/dev/null && ! "plugin.$name.on_enable"; }; then
         _TPL_CUR="$prev"
         TUI_PLUGIN_ERROR="$name failed to start"
@@ -229,7 +230,8 @@ tui.plugin.install() {
     TUI_PLUGIN_ERROR=""; TUI_PLUGIN_WARNING=""
     [[ -e "$src" ]] || { TUI_PLUGIN_ERROR="not found: $src"; return 1; }
     if (( ! noscan )); then   # quiet: the report is left in TUI_SCAN_REPORT, a one-line summary in TUI_PLUGIN_WARNING
-        declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/tui_scan.sh"
+        # shellcheck source=../apps/tui_scan.sh
+        declare -F tui.scan.run >/dev/null || source "${BASH_SOURCE[0]%/*}/../apps/tui_scan.sh"
         tui.scan.run "$src"
         if (( strict && TUI_SCAN_HIGH && ! force )); then TUI_PLUGIN_ERROR="scan found $TUI_SCAN_HIGH high-risk issue(s) (--force installs anyway; dabt scan $src)"; return 1; fi
         (( TUI_SCAN_HIGH + TUI_SCAN_WARN )) && TUI_PLUGIN_WARNING="scan: $TUI_SCAN_HIGH high, $TUI_SCAN_WARN warnings (dabt scan $src)"

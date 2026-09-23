@@ -1,6 +1,6 @@
 # Plugins
 
-A plugin is a bash file that adds commands, keys, hooks, timers or overlays to any DABT application, and can be listed, enabled, disabled, reloaded, installed and removed while the app runs (Settings > Plugins, the command bar, or `tui.plugin.*`). API table: [../api/reference.md](../api/reference.md#plugins-and-hooks). Source: [../../lib/tui_plugin.sh](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/lib/tui_plugin.sh).
+A plugin is a bash file that adds commands, keys, hooks, timers or overlays to any DABT application, and can be listed, enabled, disabled, reloaded, installed and removed while the app runs (Settings > Plugins, the command bar, or `tui.plugin.*`). API table: [../api/reference.md](../api/reference.md#plugins-and-hooks). Source: [../../lib/plugin/tui_plugin.sh](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/lib/plugin/tui_plugin.sh).
 
 ## Where things live
 

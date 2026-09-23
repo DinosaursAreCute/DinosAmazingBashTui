@@ -1,6 +1,6 @@
 # Developer Guide: Grid Layouts and Tabs
 
-`lib/tui_markup.sh` and `lib/tui.sh` provide two features for arranging
+`lib/markup/tui_markup.sh` and `lib/tui.sh` provide two features for arranging
 several elements together without hand-declaring one sub-pane per element:
 `split="grid"` and `<tabs>`. This guide covers when to reach for each, how
 placement and sizing actually resolve, and the gotchas that aren't obvious

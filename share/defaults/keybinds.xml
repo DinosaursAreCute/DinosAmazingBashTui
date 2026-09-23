@@ -1,4 +1,4 @@
-<!-- DABT default keybinds. Loaded once by lib/tui_input.sh (tui.bind.defaults).
+<!-- DABT default keybinds. Loaded once by lib/input/tui_input.sh (tui.bind.defaults).
      One <bind> per line:  key  action  group  [always="true"]  [desc]
      - key:    see docs/guide/input-bindings.md (ctrl+alt+x, shift+up, wheel:down, mouse:left, paste, ...)
      - action: a function + optional args; several may be chained with ';'

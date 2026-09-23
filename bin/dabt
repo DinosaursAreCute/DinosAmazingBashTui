@@ -36,6 +36,7 @@ _meta() { local k v; [[ -r "$1/install.meta" ]] && while IFS='=' read -r k v; do
 _confirm() { (( ${yes:-0} )) && return 0; local a; read -r -p "$1 [y/N] " a; [[ "$a" == [yY]* ]]; }
 
 _clear_cache() {
+    # shellcheck source=../lib/tui_home.sh
     source "$TUI_ROOT/lib/tui_home.sh";
     if [[ -d "$TUI_HOME/cache" ]]; then 
         rm -rf "$TUI_HOME/cache" && echo "cleared $TUI_HOME/cache"; 
@@ -45,6 +46,7 @@ _clear_cache() {
 }
 
 _reinstall() {
+    # shellcheck source=../lib/tui_home.sh
     source "$TUI_ROOT/lib/tui_home.sh"
     local src; src="$(_meta "$TUI_HOME" source)"
     [[ -f "$src/install.sh" ]] || src="$TUI_ROOT"
@@ -54,6 +56,7 @@ _reinstall() {
 }
 
 _uninstall() {
+    # shellcheck source=../lib/tui_home.sh
     source "$TUI_ROOT/lib/tui_home.sh"
     local keep_conf=0 keep_apps=0 purge_keys=0 a prefix conf bindir targets=() apps=() l n v d rest keys_dir keys_bak
     for a in "$@"; do case "$a" in --keep-config) keep_conf=1 ;; --keep-apps) keep_apps=1 ;; --purge-keys) purge_keys=1 ;; esac; done
@@ -81,7 +84,8 @@ _uninstall() {
     fi
     _confirm "Uninstall DABT?" || { echo aborted; exit 1; }
     if (( ${#apps[@]} )); then
-        source "$TUI_ROOT/lib/tui_apps.sh"
+        # shellcheck source=../lib/apps/tui_apps.sh
+        source "$TUI_ROOT/lib/apps/tui_apps.sh"
         for a in "${apps[@]}"; do
             n="${a%%|*}"; d="${a#*|}"
             tui.apps.remove "$n" --yes --purge >/dev/null 2>&1 || echo "note: could not remove app $n cleanly"
@@ -99,6 +103,8 @@ _uninstall() {
 }
 
 _details() {
+    # shellcheck source=../lib/tui.sh
+    # shellcheck source=../lib/terminal_renderer.sh
     source "$TUI_ROOT/lib/tui.sh"; source "$TUI_ROOT/lib/terminal_renderer.sh"
     local rows=(
         "Version: $TUI_VERSION"
@@ -121,13 +127,38 @@ case "${1:-}" in
     -d|--details|doctor|paths) _details ;;
     -v|--version|version)   read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
     install)                shift; exec bash "$TUI_ROOT/install.sh" "$@" ;;
-    app)                    shift; source "$TUI_ROOT/lib/tui_apps.sh"; tui.apps.cli "$@"; exit $? ;;
-    build)                  shift; source "$TUI_ROOT/lib/dapk/dapk.sh"; dapk.cmd.build "$@"; exit $? ;;
-    pkg)                    shift; source "$TUI_ROOT/lib/dapk/dapk.sh"; dapk.cmd.dispatch "$@"; exit $? ;;
-    scan)                   shift; source "$TUI_ROOT/lib/tui_scan.sh"; tui.scan.cli "$@"; exit $? ;;
+    app)
+        shift
+        # shellcheck source=../lib/apps/tui_apps.sh
+        source "$TUI_ROOT/lib/apps/tui_apps.sh"
+        tui.apps.cli "$@"; exit $?
+        ;;
+    build)
+        shift
+        # shellcheck source=../lib/dapk/dapk.sh
+        source "$TUI_ROOT/lib/dapk/dapk.sh"
+        dapk.cmd.build "$@"; exit $?
+        ;;
+    pkg)
+        shift
+        # shellcheck source=../lib/dapk/dapk.sh
+        source "$TUI_ROOT/lib/dapk/dapk.sh"
+        dapk.cmd.dispatch "$@"; exit $?
+        ;;
+    scan)
+        shift
+        # shellcheck source=../lib/apps/tui_scan.sh
+        source "$TUI_ROOT/lib/apps/tui_scan.sh"
+        tui.scan.cli "$@"; exit $?
+        ;;
     clear-cache|--clear-cache) _clear_cache ;;
     reinstall|--reinstall)  shift; yes=0; [[ "${1:-}" == --yes || "${1:-}" == -y ]] && { yes=1; shift; }; _reinstall "$@" ;;
     uninstall|--uninstall)  shift; yes=0; for a in "$@"; do [[ "$a" == --yes || "$a" == -y ]] && yes=1; done; _uninstall "$@" ;;
-    update)              shift; source "$TUI_ROOT/lib/tui.sh"; tui.update.cli "$@" ;;
+    update)
+        shift
+        # shellcheck source=../lib/tui.sh
+        source "$TUI_ROOT/lib/tui.sh"
+        tui.update.cli "$@"
+        ;;
     *)                      echo "dabt: unknown option '$1'" >&2; _help >&2; exit 1 ;;
 esac; exit $?    # one line: `dabt update` can overwrite this very file, so bash must not read on past the case

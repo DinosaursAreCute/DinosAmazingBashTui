@@ -65,7 +65,8 @@ dapk.cmd.deps() {
         DAPK_VERIFY_ASK=0; dapk.verify.run "$target" || { _dapk.cmd.finish 1; return; }
         dapk.deps.load_manifest
     else
-        source "$TUI_ROOT/lib/tui_apps.sh"
+        # shellcheck source=../../apps/tui_apps.sh
+        source "$TUI_ROOT/lib/apps/tui_apps.sh"
         _tui_apps.lookup "$target" || { dapk.ui.err "'$target' is not an installed app, a package or a folder"; _dapk.cmd.finish 1; return; }
         app="$A_NAME"
         tmp="$(mktemp "${TMPDIR:-/tmp}/dapk_dm.XXXXXX")" || return 1

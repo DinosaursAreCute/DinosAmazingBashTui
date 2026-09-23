@@ -12,7 +12,7 @@
 #
 # usage: tools/legacy/bench_page_switch.sh [-n iterations] [-c] [page.xml ...]
 #   no page args -> benchmarks every config/*.xml (skips _*.xml fragments)
-#   -c            -> switch via tui.load_cached (lib/tui_cache.sh) instead of
+#   -c            -> switch via tui.load_cached (lib/markup/tui_cache.sh) instead of
 #                     the raw tui.load, and pick up any already-warmed disk
 #                     cache first - run once with -c and once without to
 #                     compare the two logs/<run>/report.txt side by side.

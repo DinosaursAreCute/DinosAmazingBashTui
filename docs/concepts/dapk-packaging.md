@@ -5,7 +5,7 @@
 | Status | Draft: concept, not implemented |
 | Scope | `bin/dabt` subcommands, the new `lib/dapk/` module (section 14), `share/ci/`, `share/release/` |
 | Constraint | Pure bash + POSIX utils + awk. No new runtime dependencies |
-| Related | `lib/tui_sync.sh` (three-way sync), `lib/tui_install.sh`, `lib/tui_update.sh`, `install.sh`, `lib/tui_cache.sh` (progress palette) |
+| Related | `lib/apps/tui_sync.sh` (three-way sync), `lib/apps/tui_install.sh`, `lib/apps/tui_update.sh`, `install.sh`, `lib/markup/tui_cache.sh` (progress palette) |
 
 ## 1. Summary
 
@@ -386,7 +386,7 @@ DABT: (Hashing files)  ▕██████████████░░░░
 ```
 - Identical look to the cache spinner bar: 30 cells, `█` filled, `░` empty, `▕`/`▏` end caps. If the locale is not UTF-8 it falls back to `#`, `-`, `[`, `]`.
 - One line redrawn with `\r\e[K`, repainted only when the integer percent changes, no forks per redraw.
-- Colors reuse the cache spinner palette from `lib/tui_cache.sh` (`tui.cache.warm_with_spinner`):
+- Colors reuse the cache spinner palette from `lib/markup/tui_cache.sh` (`tui.cache.warm_with_spinner`):
 
 | Segment | Color | RGB | 256-color |
 |---|---|---|---|
@@ -466,7 +466,7 @@ tests/dapk/       one bats file per module
 - **Testable seams.** External effects (network, package manager, `ssh-keygen`, `sudo`) are isolated behind small functions in `publish.sh`, `deps.sh` and `sign.sh`, so tests replace them by mock executables on `PATH` or by overriding a function.
 
 ### 14.3 Touch points outside the module
-- `install.sh` and `lib/tui_update.sh` are unchanged in this effort. `ui.sh` exposes a stable interface (`dapk.ui.step`-style output, `dapk.ui.bar`) so `install.sh` can adopt it when the wider migration happens. Until then the two share the visual design, not code.
+- `install.sh` and `lib/apps/tui_update.sh` are unchanged in this effort. `ui.sh` exposes a stable interface (`dapk.ui.step`-style output, `dapk.ui.bar`) so `install.sh` can adopt it when the wider migration happens. Until then the two share the visual design, not code.
 - App-facing wrappers (`tui.news.*` for apps, a `<news>` markup tag) are thin delegates to `dapk.news` and are added on the `tui` side only when needed.
 - New non-code assets: `share/ci/*`, `share/release/default.tpl`, `docs/guide/packaging.md`.
 
@@ -516,7 +516,7 @@ Each step is shippable and has its own tests in `tests/dapk/`:
 
 ## 17a. As implemented: deviations from this concept
 
-- Commands: `dabt build` is top-level; the rest live under `dabt pkg <cmd>` (`dabt version`, `dabt info`, ... already mean other things). Installing a package is `dabt app install PKG.dapk|URL`, because `dabt install` installs DABT itself. `.dapk` support was added to the existing `dabt app` installer (`lib/tui_apps.sh`), which keeps using `.dabt.metadata`; `dabt build` keeps that file in sync or generates it.
+- Commands: `dabt build` is top-level; the rest live under `dabt pkg <cmd>` (`dabt version`, `dabt info`, ... already mean other things). Installing a package is `dabt app install PKG.dapk|URL`, because `dabt install` installs DABT itself. `.dapk` support was added to the existing `dabt app` installer (`lib/apps/tui_apps.sh`), which keeps using `.dabt.metadata`; `dabt build` keeps that file in sync or generates it.
 - `--trust-key` takes the signer fingerprint (`--trust-key SHA256:...`), so a key is never trusted blindly. Unsigned packages: `dabt build --no-sign` and `dabt app install --allow-unsigned`.
 - Signing key priority: `--key` > `$DABT_SIGN_KEY` (private key text, for CI) > `sign_key` in `dabt.pkg`.
 - The unmet-dependency marker is `$TUI_HOME/apps.deps/<name>` (the signed manifest copy is not edited); `dabt app run` warns about it, `dabt pkg deps APP` clears it.

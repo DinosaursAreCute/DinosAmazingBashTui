@@ -1,7 +1,7 @@
 # Keyboard & mouse bindings
 
 Raw bytes, escape sequences and SGR mouse reports are decoded **once**
-(`lib/tui_input.sh`) into readable names. Everything the framework does in
+(`lib/input/tui_input.sh`) into readable names. Everything the framework does in
 response is an ordinary binding to a named action you can rebind.
 
 ```bash
@@ -132,7 +132,7 @@ Turn the palette's own keys off with `tui.defaults.off palette`.
 
 While it is open it owns the keyboard and mouse. The mechanism is public, for your own dialogs: `tui.modal.open NAME
 KEYFN DRAWFN [MOUSEFN]`, `tui.modal.close`, and `tui.overlay.add/remove FN` (overlays are redrawn after every render
-and once per loop, so a repaint underneath never leaves one half covered). See `lib/tui_modal.sh`.
+and once per loop, so a repaint underneath never leaves one half covered). See `lib/chrome/tui_modal.sh`.
 
 ## Pages that ship with DABT (Settings and Keybinds)
 Every app gets two ready-made pages through the palette: **DABT: Settings** and **DABT: Keybinds** (files in

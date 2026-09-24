@@ -94,7 +94,11 @@ Three things are worth understanding here:
 
 1. **`source .../tui.sh`** loads the framework into your script. After that line, all the `tui.*` functions exist.
 2. **`TUI_APP_NAME`** is set *before* that line. It gives your app a private folder, `~/.config/DABT/apps/tasks/`, for its settings and data. (You will use it in step 7.)
-3. **`tui.start FILE`** does everything: prepares the terminal, loads the page, runs the event loop, and - importantly - **puts your terminal back to normal** when the app quits, even if it crashes.
+3. **`tui.start_cached FILE`** does everything: prepares the terminal, loads the page, runs the event loop, and - importantly - **puts your terminal back to normal** when the app quits, even if it crashes.
+
+**NOTE**: We recommend to use tui.start_cached in any case. 
+This will lead to much faster loading times. 
+
 
 <h2 id="step-2"><img src="img/app-2.svg" alt="Step 2: A first page" height="30"></h2>
 

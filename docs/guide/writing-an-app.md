@@ -1,5 +1,28 @@
 # Writing a DABT application
 
+## Table of Contents
+
+<details>
+
+   <summary>Contents</summary>
+
+1. [Anatomy](#anatomy)
+1. [The entry script](#the-entry-script)
+1. [Application identity and state](#application-identity-and-state)
+1. [Pages](#pages)
+1. [Callbacks](#callbacks)
+1. [State and persistence](#state-and-persistence)
+1. [Live content](#live-content)
+1. [Input, commands, footer](#input-commands-footer)
+1. [Dialogs and messages](#dialogs-and-messages)
+1. [Themes](#themes)
+1. [Plugins in your app](#plugins-in-your-app)
+1. [Packaging and distribution](#packaging-and-distribution)
+1. [Testing](#testing)
+1. [Rules and pitfalls](#rules-and-pitfalls)
+
+</details>
+
 Technical reference for building, structuring, packaging and shipping an application on DABT. New to all of this? Start with the tutorial [Writing Your First App](../tutorials/writing-your-first-app.md); this page is the precise version. Function tables: [../api/](../api/). Tag reference: [markup.md](markup.md).
 
 Contents: [Anatomy](#anatomy) · [The entry script](#the-entry-script) · [Application identity and state](#application-identity-and-state) · [Pages](#pages) · [Callbacks](#callbacks) · [State and persistence](#state-and-persistence) · [Live content](#live-content) · [Input, commands, footer](#input-commands-footer) · [Dialogs and messages](#dialogs-and-messages) · [Themes](#themes) · [Plugins in your app](#plugins-in-your-app) · [Packaging](#packaging-and-distribution) · [Testing](#testing) · [Rules and pitfalls](#rules-and-pitfalls)
@@ -47,10 +70,11 @@ TUI_APP_TITLE="My App"; TUI_APP_DESC="What it does"; TUI_APP_ENTRY="myapp.sh"
 
 # 3. load the framework, then your own setup (optional), then run
 source "$TUI_ROOT/lib/tui.sh"
-tui.start "$APP_DIR/config/home.xml"
+tui.start_cached "$APP_DIR/config/home.xml"
 ```
 
-`tui.start FILE` = `tui.init` + `tui.load` + `tui.run` + guaranteed terminal restore (also on error or signal). `tui.start_cached FILE` additionally pre-warms the page cache for every sibling `*.xml` behind the logo/progress screen and serves later `tui.goto` calls from it - use it for apps with many pages. Use the pieces (`tui.init`, `tui.load FILE`, `tui.run`) only when you need code between them.
+`tui.start FILE` = `tui.init` + `tui.load` + `tui.run` + guaranteed terminal restore (also on error or signal). 
+`tui.start_cached FILE` additionally pre-warms the page cache for every sibling `*.xml` behind the logo/progress screen and serves later `tui.goto` calls from it - **we highly recommend to use tui.start_cached for applications of any size**. Use the pieces (`tui.init`, `tui.load FILE`, `tui.run`) only when you need code between them.
 
 Do custom setup (extra config, `tui.cmd.load commands.xml`, `_TUI_THEME_OVERLAY=...`, hooks) **after** `source` and **before** `tui.start`.
 
@@ -212,8 +236,11 @@ cat "$H/c/DABT/apps/myapp/tasks.txt"        # assert on the files the app wrote
 Assert on **state** (files, config) rather than on screen text. A terminal shorter than your layout needs (about 24 rows is a sensible minimum) clips panes: size weights so that `head`-style strips still have room for their rows at 24×80. Framework tests: `bats tests/`.
 
 ## Rules and pitfalls
+- **A cached start is almost always bettter than a non cached start**: 
+  Using tui.start_cached is almost always faster than just using tui.start,since the chaching skips the parsing of the xml files. The only time 
+  tui.start might be prefferable if you have a tui that dynamically changes 
+  the actual xml files on runtime. 
 
-- **No dependencies** beyond bash 5, POSIX utilities and `awk`. If you reach for another tool, reconsider.
 - **Private is private.** `_tui.*`, `_exec_*`, `_tr_*`, `_tui_input.*` and anything with a leading underscore in the framework may change between releases.
 - **Set `TUI_APP_NAME` before `source tui.sh`**, or your state lands in the default `dabt` folder and mixes with other apps.
 - **`tui.every` fires once immediately** - guard if the first call would be wrong.

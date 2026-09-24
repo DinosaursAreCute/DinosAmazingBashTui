@@ -7,6 +7,7 @@ Files live under `~/.config/DABT/` (`TUI_HOME`): `plugins/` (`TUI_PLUGINS_DIR`) 
 ## Plugins
 
 <!-- api: tui.plugin.scan tui.plugin.dir_add tui.plugin.add tui.plugin.install tui.plugin.remove tui.plugin.enable tui.plugin.disable tui.plugin.toggle tui.plugin.reload tui.plugin.startup tui.plugin.list tui.plugin.info tui.plugin.get tui.plugin.enabled tui.plugin.root tui.plugin.dir tui.plugin.files tui.plugin.stats tui.plugin.config tui.plugin.own -->
+
 | Function | Summary |
 |---|---|
 | [`tui.plugin.scan`](plugin/tui.plugin.scan.md) | Discovers plugins (`NAME.plugin.sh` files and `NAME/plugin.sh` folders) and registers them, disabled. |
@@ -73,11 +74,13 @@ Files live under `~/.config/DABT/` (`TUI_HOME`): `plugins/` (`TUI_PLUGINS_DIR`) 
 {% include_relative plugin/tui.plugin.own.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Hooks
 
 <!-- api: tui.hook.on tui.hook.off tui.hook.fire -->
+
 | Function | Summary |
 |---|---|
 | [`tui.hook.on`](plugin/tui.hook.on.md) | Registers `FN` to run when the framework fires `EVENT`. |
@@ -93,11 +96,13 @@ Files live under `~/.config/DABT/` (`TUI_HOME`): `plugins/` (`TUI_PLUGINS_DIR`) 
 {% include_relative plugin/tui.hook.fire.md %}
 
 </div>
+
 <!-- /api -->
 
 ## App metadata
 
 <!-- api: tui.app.meta_get tui.app.meta_set tui.app.dir -->
+
 | Function | Summary |
 |---|---|
 | [`tui.app.meta_get`](plugin/tui.app.meta_get.md) | Prints a value from the app's `app.meta` (no newline), or `DEFAULT`. |
@@ -113,4 +118,5 @@ Files live under `~/.config/DABT/` (`TUI_HOME`): `plugins/` (`TUI_PLUGINS_DIR`) 
 {% include_relative plugin/tui.app.dir.md %}
 
 </div>
+
 <!-- /api -->

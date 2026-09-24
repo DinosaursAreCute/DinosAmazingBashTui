@@ -16,6 +16,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 ## Widgets
 
 <!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.minsize tui.maxsize tui.pad tui.label_align tui.label_width tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
+
 | Function | Summary |
 |---|---|
 | [`tui.label`](widgets/tui.label.md) | Creates a static text widget. |
@@ -91,6 +92,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 {% include_relative widgets/tui.focus.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Richer widgets
@@ -98,6 +100,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`). Theme classes (all optional): `.list_sel .table_head .table_sel .progress .progress_fill .select .selection`.
 
 <!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change -->
+
 | Function | Summary |
 |---|---|
 | [`tui.password`](widgets/tui.password.md) | Creates a single-line input that shows `•` for each character. |
@@ -179,6 +182,7 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 {% include_relative widgets/tui.on_change.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Text editing
@@ -186,6 +190,7 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 For input, password and textarea widgets. Offsets are 0-based character positions in the whole text. `TUI_CLIPBOARD` holds the text of the last copy or cut inside a text widget; every copy is also sent to the terminal clipboard ([`tui.clipboard.copy`](input/tui.clipboard.copy.md)).
 
 <!-- api: tui.text.selection tui.text.select tui.text.select_all tui.text.cursor tui.text.set_cursor tui.text.insert tui.text.delete_selection tui.text.undo tui.text.redo tui.text.line_count tui.action.text_keys -->
+
 | Function | Summary |
 |---|---|
 | [`tui.text.selection`](widgets/tui.text.selection.md) | Prints the selected text of a text widget (nothing when nothing is selected). |
@@ -225,4 +230,5 @@ For input, password and textarea widgets. Offsets are 0-based character position
 {% include_relative widgets/tui.action.text_keys.md %}
 
 </div>
+
 <!-- /api -->

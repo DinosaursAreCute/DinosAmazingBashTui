@@ -9,6 +9,7 @@ Each function has its own page; the summary tables link to them, and the full en
 `tui.start` is the usual entry point. `tui.init` + `tui.run` are the manual form for apps that build their UI in code.
 
 <!-- api: tui.start tui.start_cached tui.init tui.run tui.stop tui.cleanup tui.require tui.tick.add tui.tick.remove tui.on_resize -->
+
 | Function | Summary |
 |---|---|
 | [`tui.start`](core/tui.start.md) | Runs a markup-driven app: validates the page, initializes the terminal, loads `FILE` and runs the main loop until the app quits. |
@@ -45,6 +46,7 @@ Each function has its own page; the summary tables link to them, and the full en
 {% include_relative core/tui.on_resize.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Layout (panes)
@@ -52,6 +54,7 @@ Each function has its own page; the summary tables link to them, and the full en
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
 <!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw -->
+
 | Function | Summary |
 |---|---|
 | [`tui.hsplit`](core/tui.hsplit.md) | Splits `PARENT` into side-by-side child panes. |
@@ -118,6 +121,7 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.redraw.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Tabs
@@ -125,6 +129,7 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 A tab group is a header pane with one button per tab and a content pane that the active tab's action fills. In markup: `<tabs>`, see [../guide/grid-layouts-and-tabs.md](../guide/grid-layouts-and-tabs.md).
 
 <!-- api: tui.tabs.add tui.tabs.compact tui.tabs.build tui.tabs.activate -->
+
 | Function | Summary |
 |---|---|
 | [`tui.tabs.add`](core/tui.tabs.add.md) | Registers one tab before the group is built. |
@@ -143,6 +148,7 @@ A tab group is a header pane with one button per tab and a content pane that the
 {% include_relative core/tui.tabs.activate.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Factory (runtime widgets)
@@ -150,6 +156,7 @@ A tab group is a header pane with one button per tab and a content pane that the
 Constructors for layouts whose shape is only known at runtime. Ids are generated and tracked per namespace, so one call tears everything down again.
 
 <!-- api: tui.factory.label tui.factory.button tui.factory.input tui.factory.checkbox tui.factory.grid tui.factory.clear -->
+
 | Function | Summary |
 |---|---|
 | [`tui.factory.label`](core/tui.factory.label.md) | Creates a label with a generated id, tracked under namespace `NS`. |
@@ -174,6 +181,7 @@ Constructors for layouts whose shape is only known at runtime. Ids are generated
 {% include_relative core/tui.factory.clear.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Content and output
@@ -181,6 +189,7 @@ Constructors for layouts whose shape is only known at runtime. Ids are generated
 Text content of leaf panes. Repaints are queued and coalesced, so several updates in one callback cost one frame.
 
 <!-- api: tui.output tui.output_append tui.output_clear tui.set_text -->
+
 | Function | Summary |
 |---|---|
 | [`tui.output`](core/tui.output.md) | Replaces the pane's content with text, or with stdin when no `TEXT` is given. |
@@ -199,11 +208,13 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 {% include_relative core/tui.set_text.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Process streaming (`tui.exec`)
 
 <!-- api: tui.exec tui.exec.cancel_pane -->
+
 | Function | Summary |
 |---|---|
 | [`tui.exec`](core/tui.exec.md) | Runs a shell command in a pseudo-terminal and streams its output into a pane while the UI stays responsive. |
@@ -216,6 +227,7 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 {% include_relative core/tui.exec.cancel_pane.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Live updates
@@ -223,6 +235,7 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 Timers, clocks, watches and the system samplers share one tick listener, cost no fork per update, and are cleared on page change and exit.
 
 <!-- api: tui.every tui.after tui.every.cancel tui.every.pause tui.every.resume tui.every.clear tui.every.list tui.clock tui.watch tui.watch.stop tui.watch.now tui.monitor tui.sys.cpu tui.sys.mem tui.sys.load tui.sys.uptime tui.hist.push tui.hist.get -->
+
 | Function | Summary |
 |---|---|
 | [`tui.every`](core/tui.every.md) | Calls `FN` repeatedly on a timer from the main loop. |
@@ -283,6 +296,7 @@ Timers, clocks, watches and the system samplers share one tick listener, cost no
 {% include_relative core/tui.hist.get.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Getters
@@ -290,6 +304,7 @@ Timers, clocks, watches and the system samplers share one tick listener, cost no
 Read-only. Pane getters return `1` for an unknown pane.
 
 <!-- api: tui.get.dimensions tui.get.terminal tui.get.position tui.get.rect tui.get.content_area tui.get.border tui.get.title tui.get.pad tui.get.split tui.get.children tui.get.parent tui.get.panes tui.get.lines tui.get.scroll tui.get.style tui.get.widgets tui.get.type tui.get.pane tui.get.action tui.get.checked tui.get.focused tui.get.hovered tui.get.pane_focus tui.get.page tui.get.pages tui.get.event tui.get.classes tui.get.class.style -->
+
 | Function | Summary |
 |---|---|
 | [`tui.get.dimensions`](core/tui.get.dimensions.md) | Prints the size of the terminal or of a pane. |
@@ -380,11 +395,13 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.get.class.style.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Logging and perf
 
 <!-- api: tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.file tui.perf.mean_render_ms -->
+
 | Function | Summary |
 |---|---|
 | [`tui.log`](core/tui.log.md) | Appends a line to the app's log file. stdout is the screen, so logs go to a file. |
@@ -412,6 +429,7 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.perf.mean_render_ms.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Event and result variables

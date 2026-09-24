@@ -7,6 +7,7 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 ## Input and bindings
 
 <!-- api: tui.bind tui.unbind tui.bind.reset tui.bind.list tui.bind.table tui.bind.defaults tui.defaults.off tui.defaults.on tui.defaults.list -->
+
 | Function | Summary |
 |---|---|
 | [`tui.bind`](input/tui.bind.md) | Binds a key or mouse event to a command. |
@@ -40,11 +41,13 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 {% include_relative input/tui.defaults.list.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Saved user bindings
 
 <!-- api: tui.bind.save tui.bind.load tui.bind.discard tui.bind.dirty tui.bind.saved_file -->
+
 | Function | Summary |
 |---|---|
 | [`tui.bind.save`](input/tui.bind.save.md) | Writes the user bindings (`--user`) to disk; they load automatically on the next start. |
@@ -66,11 +69,13 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 {% include_relative input/tui.bind.saved_file.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Kill switch, terminal mode, clipboard
 
 <!-- api: tui.keys.suspend tui.keys.suspend_key tui.keys.suspended tui.passthrough tui.passthrough.key tui.passthrough.active tui.clipboard.copy tui.clipboard.paste -->
+
 | Function | Summary |
 |---|---|
 | [`tui.keys.suspend`](input/tui.keys.suspend.md) | Kill switch: turns every keyboard binding off, user and default, and shows a warning box. Default: `toggle`. |
@@ -101,6 +106,7 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 {% include_relative input/tui.clipboard.paste.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Built-in actions
@@ -108,6 +114,7 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` or `tui.cmd.add`. All are bound by default and rebindable. More actions live with their modules: [`tui.action.text_keys`](widgets/tui.action.text_keys.md), [`tui.action.update`](apps/tui.action.update.md), [`tui.palette.open`](chrome/tui.palette.open.md).
 
 <!-- api: tui.action.quit tui.action.quit_now tui.action.focus_next tui.action.focus_prev tui.action.focus_dir tui.action.unfocus tui.action.activate tui.action.click tui.action.scroll tui.action.page tui.action.scroll_top tui.action.scroll_bottom tui.action.pane_next tui.action.pane_prev tui.action.pane_dir tui.action.focus_pane tui.action.scroll_or_pane tui.action.paste tui.action.goto tui.action.goto_default tui.action.back tui.action.reload_page tui.action.redraw -->
+
 | Function | Summary |
 |---|---|
 | [`tui.action.quit`](input/tui.action.quit.md) | Quits the app. Asks for confirmation first when the `confirm.quit` config key is `1`. |
@@ -183,4 +190,5 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 {% include_relative input/tui.action.redraw.md %}
 
 </div>
+
 <!-- /api -->

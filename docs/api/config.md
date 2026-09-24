@@ -20,6 +20,7 @@ Settings live in `~/.config/DABT/apps/<TUI_APP_NAME>/dabt.conf` as `key=value` l
 Functions return `0` unless stated.
 
 <!-- api: tui.config.get tui.config.set tui.config.unset tui.config.keys tui.config.load tui.config.save tui.config.apply -->
+
 | Function | Summary |
 |---|---|
 | [`tui.config.get`](config/tui.config.get.md) | Prints the saved value of a setting. |
@@ -47,4 +48,5 @@ Functions return `0` unless stated.
 {% include_relative config/tui.config.apply.md %}
 
 </div>
+
 <!-- /api -->

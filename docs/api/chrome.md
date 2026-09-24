@@ -9,6 +9,7 @@ Functions return `0` unless their entry says otherwise.
 The command bar (default `ctrl+p` or `:`) lists registered commands and runs one. DABT's own commands are registered the same way, from `share/defaults/commands.xml`.
 
 <!-- api: tui.cmd.add tui.cmd.remove tui.cmd.run tui.cmd.list tui.cmd.load tui.cmd.provider tui.palette.open tui.palette.close -->
+
 | Function | Summary |
 |---|---|
 | [`tui.cmd.add`](chrome/tui.cmd.add.md) | Registers a command in the command palette. |
@@ -39,6 +40,7 @@ The command bar (default `ctrl+p` or `:`) lists registered commands and runs one
 {% include_relative chrome/tui.palette.close.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Modal and overlay
@@ -46,6 +48,7 @@ The command bar (default `ctrl+p` or `:`) lists registered commands and runs one
 An overlay is a draw function called after every repaint, so it stays on top. A modal is an overlay that also captures all input.
 
 <!-- api: tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.close tui.modal.active tui.modal.redraw -->
+
 | Function | Summary |
 |---|---|
 | [`tui.overlay.add`](chrome/tui.overlay.add.md) | Registers a function that draws on top of the panes after every repaint. |
@@ -73,6 +76,7 @@ An overlay is a draw function called after every repaint, so it stays on top. A 
 {% include_relative chrome/tui.modal.redraw.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Dialogs and notifications
@@ -82,6 +86,7 @@ Dialogs never block: they return at once and call your function after the user a
 Common flags: `--title T`, `--width N`, `--ok LABEL`, `--yes LABEL`, `--no LABEL`, `--danger`, `--default yes|no`. Theme classes (all optional): `.dialog .dialog_title .dialog_btn .dialog_btn_sel .dialog_danger .dialog_dim .dialog_error` and `.toast .toast_success .toast_warn .toast_error`.
 
 <!-- api: tui.confirm tui.message tui.prompt tui.choose tui.view tui.dialog.close tui.dialog.active tui.notify tui.notify.clear tui.notify.count tui.notify.position tui.notify.seconds -->
+
 | Function | Summary |
 |---|---|
 | [`tui.confirm`](chrome/tui.confirm.md) | Shows a Yes/No dialog and returns immediately; the callback runs after the user answers. |
@@ -124,11 +129,13 @@ Common flags: `--title T`, `--width N`, `--ok LABEL`, `--yes LABEL`, `--no LABEL
 {% include_relative chrome/tui.notify.seconds.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Footer
 
 <!-- api: tui.footer.set tui.footer.show tui.footer.add tui.footer.hide -->
+
 | Function | Summary |
 |---|---|
 | [`tui.footer.set`](chrome/tui.footer.set.md) | Declares the footer bar, as `<footer/>` does. Records the items only; the page layout then leaves the last row free. |
@@ -147,4 +154,5 @@ Common flags: `--title T`, `--width N`, `--ok LABEL`, `--yes LABEL`, `--no LABEL
 {% include_relative chrome/tui.footer.hide.md %}
 
 </div>
+
 <!-- /api -->

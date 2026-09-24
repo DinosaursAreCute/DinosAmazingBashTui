@@ -63,11 +63,13 @@ summary() {
 block() { # MOD FN... -> the generated text between the markers
 	local mod="$1" fn
 	shift
-	printf '| Function | Summary |\n|---|---|\n'
+	# blank lines around everything: kramdown glues a table (or a <div>) to an HTML comment on the line
+	# right above it into one HTML block and prints the pipes as text
+	printf '\n| Function | Summary |\n|---|---|\n'
 	for fn; do printf '| [`%s`](%s/%s.md) | %s |\n' "$fn" "$mod" "$fn" "$(summary "$fn")"; done
 	printf '\n<div class="api-entries" data-pagefind-ignore="all" markdown="1">\n'
 	for fn; do printf '\n{%% include_relative %s/%s.md %%}\n' "$mod" "$fn"; done
-	printf '\n</div>\n'
+	printf '\n</div>\n\n'
 }
 
 for page in "$api"/*.md; do
@@ -90,7 +92,7 @@ for page in "$api"/*.md; do
 				[[ -n "${listed[$fn]:-}" ]] && fail "$fn is listed twice (${listed[$fn]} and $page)"
 				listed[$fn]="$page"
 			done
-			out+="$(block "$mod" "${fns[@]}")"$'\n'
+			out+="$(block "$mod" "${fns[@]}")"$'\n\n' # blank line before <!-- /api -->
 		elif [[ "$line" == '<!-- /api -->' ]]; then
 			((in_block)) || fail "$page: <!-- /api --> without an opening marker"
 			in_block=0

@@ -9,6 +9,7 @@ Apps rarely call these directly. `tui_sync.sh`, `tui_install.sh` and `tui_update
 An application is a folder with a `.dabt.metadata` file (`name`, `entry`, and optionally `version`, `title`, `description`, `author`, `own_dir`, `install_hook`, `uninstall_hook`, `min_dabt`, `max_dabt`).
 
 <!-- api: tui.apps.install tui.apps.update tui.apps.remove tui.apps.list tui.apps.info tui.apps.run tui.apps.meta_load tui.apps.compat tui.apps.cli -->
+
 | Function | Summary |
 |---|---|
 | [`tui.apps.install`](apps/tui.apps.install.md) | Installs a DABT application from a folder or a git URL (`URL#ref` for a branch or tag). `dabt app install` calls it. |
@@ -42,11 +43,13 @@ An application is a folder with a `.dabt.metadata` file (`name`, `entry`, and op
 {% include_relative apps/tui.apps.cli.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Installing DABT
 
 <!-- api: tui.install.defaults tui.install.detect tui.install.check_dir tui.install.run -->
+
 | Function | Summary |
 |---|---|
 | [`tui.install.defaults`](apps/tui.install.defaults.md) | Sets the default install locations: `TUI_INSTALL_PREFIX` (`~/.local/share/dabt`), `TUI_INSTALL_CONFIG` (`~/.config/DABT`), `TUI_INSTALL_BINDIR` (`~/.local/bin`). XDG variables are respected. |
@@ -65,6 +68,7 @@ An application is a folder with a `.dabt.metadata` file (`name`, `entry`, and op
 {% include_relative apps/tui.install.run.md %}
 
 </div>
+
 <!-- /api -->
 
 ## File sync
@@ -72,6 +76,7 @@ An application is a folder with a `.dabt.metadata` file (`name`, `entry`, and op
 Program files (`lib/ bin/ share/ docs/ examples/ VERSION ...`) are always replaced by the release. Config files (`share/defaults/**` → `CONFIG/defaults/`, `share/plugins/*` → `CONFIG/plugins/`) are compared three ways: the checksum DABT recorded when it last wrote the file, the file now, and the release. Files you changed are never overwritten silently.
 
 <!-- api: tui.sync.plan tui.sync.apply tui.sync.program_plan tui.sync.program_apply tui.sync.valid_source tui.sync.report tui.sync.resolve_ui -->
+
 | Function | Summary |
 |---|---|
 | [`tui.sync.plan`](apps/tui.sync.plan.md) | Compares the config files of a release (`share/defaults/**`, `share/plugins/*`) with the installed ones, using the checksums in `CONFIG/manifest` as the common base. |
@@ -99,11 +104,13 @@ Program files (`lib/ bin/ share/ docs/ examples/ VERSION ...`) are always replac
 {% include_relative apps/tui.sync.resolve_ui.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Updating DABT
 
 <!-- api: tui.update.check tui.update.download tui.update.local tui.update.plan tui.update.apply tui.update.cli tui.version.newer tui.action.update_check tui.action.update -->
+
 | Function | Summary |
 |---|---|
 | [`tui.update.check`](apps/tui.update.check.md) | Asks GitHub for the latest DABT version. |
@@ -137,11 +144,13 @@ Program files (`lib/ bin/ share/ docs/ examples/ VERSION ...`) are always replac
 {% include_relative apps/tui.action.update.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Security scan
 
 <!-- api: tui.scan.run tui.scan.run_spin tui.scan.print tui.scan.tools tui.scan.install tui.scan.cli -->
+
 | Function | Summary |
 |---|---|
 | [`tui.scan.run`](apps/tui.scan.run.md) | Security-scans a script or folder for obvious red flags: pipe-to-shell, reverse shells, `rm -rf /`, setuid, secrets, persistence. |
@@ -166,4 +175,5 @@ Program files (`lib/ bin/ share/ docs/ examples/ VERSION ...`) are always replac
 {% include_relative apps/tui.scan.cli.md %}
 
 </div>
+
 <!-- /api -->

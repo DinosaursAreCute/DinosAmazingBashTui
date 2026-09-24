@@ -7,6 +7,7 @@ Functions return `0` unless their entry says otherwise.
 ## Pages
 
 <!-- api: tui.load tui.goto tui.reset_ui tui.load_cached -->
+
 | Function | Summary |
 |---|---|
 | [`tui.load`](markup/tui.load.md) | Parses a markup page and builds its panes and widgets through `tui.*` calls. Nothing is drawn. |
@@ -25,6 +26,7 @@ Functions return `0` unless their entry says otherwise.
 {% include_relative markup/tui.load_cached.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Page cache
@@ -32,6 +34,7 @@ Functions return `0` unless their entry says otherwise.
 A loaded page is recorded as the list of `tui.*` calls it made and replayed on later visits, as long as the page and its includes keep their mtimes. Why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). Cache keys are absolute, normalized paths.
 
 <!-- api: tui.cache.valid tui.cache.record tui.cache.replay tui.cache.signature tui.cache.deps_of tui.cache.dump_dir tui.cache.load_dir tui.cache.disk_dir tui.cache.warm_with_spinner tui.cache.init tui.cache.cleanup -->
+
 | Function | Summary |
 |---|---|
 | [`tui.cache.valid`](markup/tui.cache.valid.md) | Returns `0` when `FILE` has a recorded page and neither it nor any of its includes changed since, else `1`. |
@@ -71,6 +74,7 @@ A loaded page is recorded as the list of `tui.*` calls it made and replayed on l
 {% include_relative markup/tui.cache.cleanup.md %}
 
 </div>
+
 <!-- /api -->
 
 ## Validation
@@ -80,6 +84,7 @@ A loaded page is recorded as the list of `tui.*` calls it made and replayed on l
 The default rules live in `lib/markup/tui_validate_rules.sh` and use the same registration functions an app can call to add its own.
 
 <!-- api: tui.validate.files tui.validate.page tui.validate.report tui.validate.log tui.validate.messages -->
+
 | Function | Summary |
 |---|---|
 | [`tui.validate.files`](markup/tui.validate.files.md) | Validates pages and their includes, replacing any earlier findings. |
@@ -101,11 +106,13 @@ The default rules live in `lib/markup/tui_validate_rules.sh` and use the same re
 {% include_relative markup/tui.validate.messages.md %}
 
 </div>
+
 <!-- /api -->
 
 ### Writing rules
 
 <!-- api: tui.validate.tag tui.validate.container tui.validate.widget tui.validate.self_closing tui.validate.require tui.validate.enum tui.validate.int tui.validate.conflict tui.validate.needs tui.validate.parent tui.validate.parent_split tui.validate.rule tui.validate.attr tui.validate.here tui.validate.error tui.validate.warn tui.validate.error_at tui.validate.warn_at -->
+
 | Function | Summary |
 |---|---|
 | [`tui.validate.tag`](markup/tui.validate.tag.md) | Declares tags the loader understands. Any other tag is reported as unknown. |
@@ -166,4 +173,5 @@ The default rules live in `lib/markup/tui_validate_rules.sh` and use the same re
 {% include_relative markup/tui.validate.warn_at.md %}
 
 </div>
+
 <!-- /api -->

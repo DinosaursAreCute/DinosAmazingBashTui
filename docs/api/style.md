@@ -9,6 +9,7 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 ## Styling and themes
 
 <!-- api: tui.load_theme tui.class tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.cache.theme_clear -->
+
 | Function | Summary |
 |---|---|
 | [`tui.load_theme`](style/tui.load_theme.md) | Loads a stylesheet into the class table. `<theme src="…"/>` calls it. |
@@ -51,11 +52,13 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 {% include_relative style/tui.cache.theme_clear.md %}
 
 </div>
+
 <!-- /api -->
 
 ## App-wide theme overlay
 
 <!-- api: tui.theme.set tui.theme.clear tui.theme.current tui.theme.reload -->
+
 | Function | Summary |
 |---|---|
 | [`tui.theme.set`](style/tui.theme.set.md) | Sets an app-wide stylesheet that is layered over every page's own theme, and reloads the current page. |
@@ -74,4 +77,5 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 {% include_relative style/tui.theme.reload.md %}
 
 </div>
+
 <!-- /api -->

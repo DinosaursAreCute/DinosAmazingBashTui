@@ -142,3 +142,7 @@ body.open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}.features{grid
 /* sidebar: highlights run flush to the divider; header images and the logo carry no outline */
 .nav a{margin-right:0;padding-right:16px}
 .doc h1 img,.doc h2 img,.doc h3 img,.doc img[alt="D.A.B.T"]{border:0;border-radius:0;background:none;box-shadow:none}
+/* API entry pages (docs/api/<module>/<fn>.md): the layout prints the h1 + breadcrumb, so the entry's own h3 (needed when it is included into its module page) is hidden */
+.crumb{font-size:14px;color:var(--mut);margin:0 0 6px}.crumb a{color:inherit}
+.api-entry>h3:first-of-type{display:none}
+.page-title code{font-size:.8em;border:0;background:none;padding:0}

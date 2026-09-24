@@ -8,10 +8,15 @@
   };
   d.getElementById('menu').onclick = function () { d.body.classList.toggle('open'); };
   var path = location.pathname.replace(/\/$/, '').replace(/\.html$/, '');
-  d.querySelectorAll('.nav a').forEach(function (a) {
-    var p = a.pathname.replace(/\/$/, '').replace(/\.html$/, '');
-    if (p === path) a.classList.add('active');
-  });
+  var hit = function (want) {
+    var found = false;
+    d.querySelectorAll('.nav a').forEach(function (a) {
+      var p = a.pathname.replace(/\/$/, '').replace(/\.html$/, '');
+      if (p === want) { a.classList.add('active'); found = true; }
+    });
+    return found;
+  };
+  if (!hit(path)) hit(path.replace(/\/[^\/]*$/, '')); // an API entry page (/api/core/tui.every) lights up its module (/api/core)
   d.querySelectorAll('.doc pre').forEach(function (pre) {
     if (pre.closest('.mermaid')) return;
     var b = d.createElement('button');

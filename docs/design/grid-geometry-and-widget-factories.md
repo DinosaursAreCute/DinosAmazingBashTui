@@ -8,9 +8,9 @@ time, doesn't compose. Every new layout need - a row of buttons, a
 tabbed panel, a list whose length depends on data the page can't see
 until it runs - either got hand-built from scratch or hand-built by
 copying the last hand-built thing and hoping the copy stayed faithful.
-`config/components.xml`'s toolbar is six sub-panes, individually
-declared, each holding exactly one button. `config/case_study.xml` and
-`config/docu.xml` each independently reinvented "a row of buttons that
+`share/demo/components.xml`'s toolbar is six sub-panes, individually
+declared, each holding exactly one button. `share/demo/case_study.xml` and
+`share/demo/docu.xml` each independently reinvented "a row of buttons that
 swap a content pane," diverging in the small ways two authors always
 diverge when neither is working from a shared abstraction. Multiplying a
 village of individually-tended plots was the entire method. This

@@ -1,9 +1,8 @@
-eval "_task_tgl_$i() { on_toggle $i \"\$1\"; }" # a checkbox action only receives the new value: one fn per task carries the index
-tui.factory.checkbox tk tasks "$i" "${t#*|}" "$([[ ${t%%|*} == 1 ]] && echo true || echo false)" "_task_tgl_$i"
 #!/usr/bin/env bash
 # home_callbacks.sh - the behaviour of home.xml. Only public tui.* calls.
 
 declare -ga TASKS=()                 # the app's state: one array, one task per element: "0|text" (open) or "1|text" (done)
+declare -gA TASK_OF=()               # checkbox id -> index into TASKS (one on_toggle serves every checkbox)
 TASKS_FILE="$TUI_APP_CONF/tasks.txt" # $TUI_APP_CONF = ~/.config/DABT/apps/tasks (yours to keep files in)
 
 _tasks_save() { printf '%s\n' "${TASKS[@]}" >"$TASKS_FILE"; }
@@ -12,10 +11,11 @@ _tasks_save() { printf '%s\n' "${TASKS[@]}" >"$TASKS_FILE"; }
 _tasks_show() {
 	local i t done_n=0
 	tui.factory.clear tk
+	TASK_OF=()
 	for i in "${!TASKS[@]}"; do
 		t="${TASKS[i]}"
-		eval "_task_tgl_$i() { on_toggle $i \"\$1\"; }" # a checkbox action only receives the new value: one fn per task carries the index
-		tui.factory.checkbox tk tasks "$i" "${t#*|}" "$([[ ${t%%|*} == 1 ]] && echo true || echo false)" "_task_tgl_$i"
+		tui.factory.checkbox tk tasks "$i" "${t#*|}" "$([[ ${t%%|*} == 1 ]] && echo true || echo false)" on_toggle
+		TASK_OF[$_TUI_FACTORY_LAST_ID]=$i
 		tui.class "$_TUI_FACTORY_LAST_ID" task
 		[[ ${t%%|*} == 1 ]] && ((done_n++))
 	done
@@ -36,8 +36,9 @@ tasks_visit() { # runs every time the page opens (on_visit=)
 	tui.focus inp_task
 }
 
-on_toggle() { # INDEX 0|1 (from _task_tgl_N)
-	TASKS[$1]="$2|${TASKS[$1]#*|}"
+on_toggle() { # ID VALUE - a checkbox action gets the checkbox id and its new value (0|1)
+	local i="${TASK_OF[$1]}"
+	TASKS[i]="$2|${TASKS[i]#*|}"
 	_tasks_save
 	_tasks_show
 	tui.relayout

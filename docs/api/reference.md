@@ -7,9 +7,10 @@ This page used to be one long flat table of every public function. It's been spl
 - **[Input](input.md)** — key/mouse bindings, built-in actions
 - **[Widgets](widgets.md)** — widget constructors, richer widgets & text editing
 - **[Chrome](chrome.md)** — command palette, modal/overlay, dialogs & toasts, footer
-- **[Markup](markup.md)** — pages & cache
+- **[Markup](markup.md)** — pages, cache & validation
 - **[Config](config.md)** — persisted settings
-- **[Plugins](plugin.md)** — plugins & hooks
+- **[Plugins](plugin.md)** — plugins & hooks, app metadata
+- **[Apps](apps.md)** — installing and running apps, updating DABT, security scan
 - **[Renderers](renderers.md)** and **[Terminal controls](terminal-controls.md)** — unchanged, standalone renderer/escape-sequence references
 
 Looking for one specific function? Use the **search** in the header (or press `/`) — it searches across every module page at once.

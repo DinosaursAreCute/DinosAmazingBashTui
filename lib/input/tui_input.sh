@@ -491,7 +491,7 @@ tui.action.activate() {
         select)   _tui_wx.select_open "$_TUI_FOCUS_ID" ;;
         input|password|textarea)
             local wid="$_TUI_FOCUS_ID" submit_fn="${_TUI_W_SUBMIT[$_TUI_FOCUS_ID]:-}"
-            if [[ -n "$submit_fn" ]]; then "$submit_fn" "$(tui.get "$wid")"
+            if [[ -n "$submit_fn" ]]; then "$submit_fn" "$wid" "${_TUI_W_VALUE[$wid]:-}"          # SUBMIT ID TEXT
             elif [[ -n "$faction" ]]; then "$faction" "$wid"; fi
             # Retain Input On Submit (tui.input.retain / retain_input_on_submit=): the cursor stays in the input.
             # The callback may have changed page or removed the widget: re-check first.

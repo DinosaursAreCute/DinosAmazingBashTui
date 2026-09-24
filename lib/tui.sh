@@ -162,10 +162,22 @@ _tui._notify_input() { [[ -n "$_TUI_ON_INPUT_EVENT" ]] && "$_TUI_ON_INPUT_EVENT"
 #  LOGGING
 # ═══════════════════════════════════════════════════════════════════════
 
+# tui.log MSG [LEVEL] - append to $TUI_LOG_DIR/<yyyy-mm-dd>_<TUI_APP_NAME>.log (stdout is the screen).
+# Fork-free once the dir exists; the file name follows the date, so a run past midnight rolls over.
+declare -g _TUI_LOG_DIR_OK=""
+tui.log.file() {
+	local d
+	printf -v d '%(%Y-%m-%d)T' -1
+	printf '%s\n' "$TUI_LOG_DIR/${d}_${TUI_APP_NAME}.log"
+}
 tui.log() {
-	local msg="$1"
-	local level="${2:-info}"
-	printf "[%s] [%s] %s\n" "$(date +%H:%M:%S)" "$level" "$msg" >>".tui_exec.log"
+	local ts
+	printf -v ts '%(%Y-%m-%d %H:%M:%S)T' -1
+	if [[ "$_TUI_LOG_DIR_OK" != "$TUI_LOG_DIR" ]]; then
+		[[ -d "$TUI_LOG_DIR" ]] || mkdir -p "$TUI_LOG_DIR" 2>/dev/null
+		_TUI_LOG_DIR_OK="$TUI_LOG_DIR"
+	fi
+	printf '[%s] [%s] %s\n' "${ts#* }" "${2:-info}" "$1" 2>/dev/null >>"$TUI_LOG_DIR/${ts%% *}_${TUI_APP_NAME}.log" || return 0 # never fail a caller
 }
 tui.log.debug() { tui.log "$1" "debug"; }
 tui.log.info() { tui.log "$1" "info"; }
@@ -295,8 +307,8 @@ _tui._split() {
 	local names="" weights=""
 
 	for spec in "$@"; do
-		local n="${spec%%:*}"
-		local w="${spec#*:}"
+		local n="${spec%%:*}" w=1
+		[[ "$spec" == *:* ]] && w="${spec#*:}"
 		names+="${names:+ }$n"
 		weights+="${weights:+ }$w"
 		_TUI_P_BORDER[$n]="single"
@@ -702,7 +714,8 @@ tui.checkbox() {
 }
 
 # tui.checkbox.toggle ID - flips a checkbox's value, redraws it, and calls
-# its action (if any) with the new value ("0"/"1"). The one place both
+# its action (if any) as ACTION ID VALUE (the id first, like every widget
+# callback, then the new value "0"/"1"). The one place both
 # activation paths (Enter on a focused checkbox, a mouse click on one)
 # funnel through, so they can't drift out of sync with each other.
 tui.checkbox.toggle() {
@@ -712,7 +725,7 @@ tui.checkbox.toggle() {
 	[[ "${_TUI_W_VALUE[$id]}" == "1" ]] && new="0"
 	tui.update "$id" "$new"
 	local action="${_TUI_W_ACTION[$id]:-}"
-	[[ -n "$action" ]] && "$action" "$new"
+	[[ -n "$action" ]] && "$action" "$id" "$new"
 }
 
 # ═══════════════════════════════════════════════════════════════════════

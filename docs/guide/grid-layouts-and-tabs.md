@@ -12,7 +12,7 @@ from the tag reference in `docs/guide/markup.md`.
 
 Before `split="grid"` existed, a row of N buttons meant declaring N
 separate sub-panes by hand, each with `weight="1"` and `border="none"`,
-one widget per pane - see `config/components.xml`'s toolbar for what that
+one widget per pane - see `share/demo/components.xml`'s toolbar for what that
 looks like at scale. `split="grid"` is sugar over exactly that same
 underlying mechanism (`tui.hsplit`/`tui.vsplit`), it just generates the
 sub-panes for you from a higher-level description.
@@ -134,7 +134,7 @@ appear, which is the loose-only case and needs no resolution at all.
 wiring: one button per tab (each in its own sub-pane, per the grid
 section above), a callback per button that calls `tui.output` on the
 shared content pane, and no persistent indication of which tab was last
-selected. `config/case_study.xml` and `config/docu.xml` both hand-rolled
+selected. `share/demo/case_study.xml` and `share/demo/docu.xml` both hand-rolled
 this identically before `<tabs>` existed.
 
 ### Declarative usage
@@ -197,9 +197,9 @@ framework. Concretely this means:
 **Use compact whenever the header pane is a thin strip** - a
 `weight="4"`-style sliver of a taller layout is usually 1-2 rows at
 ordinary terminal sizes, nowhere near the 3 a framed header needs.
-`config/docu.xml` and `config/case_study.xml` both use compact for
-exactly this reason; `config/tabs_demo.xml` demonstrates framed with a
-header pane sized generously enough to actually fit it. If you're not
+`share/demo/docu.xml` and `share/demo/case_study.xml` both use compact for
+exactly this reason; a framed header needs a header pane of at least
+3 rows. If you're not
 sure which your layout needs, compact is the safer default - it works at
 any header height framed does, but not vice versa.
 
@@ -241,7 +241,7 @@ on_docu_visit() {
 without building anything yet (`tui.tabs.build` needs the full set at
 once, since it lays the header out as a single grid). The shared `action`
 receiving the tab id as `$1` (§2.1) is what makes "one handler, N
-dynamically-created tabs" work - see `config/docu_callbacks.sh` for the
+dynamically-created tabs" work - see `share/demo/docu_callbacks.sh` for the
 complete version, including deriving a short label from each file's own
 heading instead of its filename.
 
@@ -281,7 +281,7 @@ removes every widget *and* pane a namespace ever created, resetting any
 grid parent back to a plain leaf pane - so calling `rebuild_item_grid`
 again with a different-length `my_items` produces a correctly
 differently-shaped grid, not a layout with the old cells still attached.
-`config/debug.xml`'s "Rebuild grid" button is a live example - each click
+`share/demo/debug.xml`'s "Rebuild grid" button is a live example - each click
 picks a new random item count and rebuilds from zero.
 
 **One thing to watch for:** `tui.factory.*` constructors deliberately
@@ -290,5 +290,5 @@ right after the call if you need it inline, rather than
 `id="$(tui.factory.button …)"`. In a TUI, stdout is the screen; capturing
 it is fine, but a call inside a loop that *isn't* wrapped in `$(...)`
 would otherwise write raw id text straight onto the terminal, outside any
-pane's clipping. This bit an early version of `config/debug_callbacks.sh`
+pane's clipping. This bit an early version of `share/demo/debug_callbacks.sh`
 itself - see the `CHANGELOG.md` entry if you want the full story.

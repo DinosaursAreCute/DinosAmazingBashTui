@@ -28,10 +28,31 @@ on_submit_user_form() {
     fi
     
     # 3. Apply updates
-    tui.update "btn_submit" "[ Saved ]"
+    tui.set_label "btn_submit" "[ Saved ]"     # a caption: tui.update only changes values
     tui.update "lbl_status" "Welcome, $username!"
 }
 
+```
+
+### What a callback receives
+
+The first argument is always the id of the widget that fired, so one function can serve several widgets:
+
+| Widget | Attribute | Called as |
+|---|---|---|
+| `<button>`, `<list>`, `<table>`, `<select>` | `action=` | `fn ID` |
+| `<checkbox>` | `action=` | `fn ID VALUE` (value `0`/`1`) |
+| `<input>`, `<password>`, `<textarea>` | `submit=` | `fn ID TEXT` |
+
+```bash
+# <input id="inp_name" ... submit="on_field"/>  <input id="inp_mail" ... submit="on_field"/>
+on_field() {    # ID TEXT
+    case "$1" in
+        inp_name) NAME="$2" ;;
+        inp_mail) MAIL="$2" ;;
+    esac
+    tui.update "$1" ""          # clear whichever input was submitted
+}
 ```
 
 ### Leveraging the Terminal Renderer Toolkit

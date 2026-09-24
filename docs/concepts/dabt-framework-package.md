@@ -33,7 +33,7 @@ The runtime profile is an **allowlist**, so a new dev-only folder can never leak
 
 | Path | Ships | Why |
 |---|---|---|
-| `bin/dabt`, `bin/DABT_demo.sh` | yes | the command and `dabt --demo` (`bin/test.sh` is a stub: no) |
+| `bin/dabt`, `bin/DABT_demo.sh` | yes | the command and `dabt --demo` |
 | `lib/` (incl. `lib/dapk/`) | yes | the framework, installer, updater, packaging |
 | `share/defaults/`, `share/plugins/` | yes | copied to the config home by the installer |
 | `share/demo/`, `share/tui.xsd` | yes | demo pages, markup schema |

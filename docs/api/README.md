@@ -1,6 +1,6 @@
 # Developer API
 
-The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic directory, the way a Javadoc package-summary page mirrors a Java package. Use the search in the header (or press `/`) to find a function by name across every page at once; it's pre-scoped to "This section" when you're already inside `api/`, with an "Everywhere" toggle to search the whole site. For how the pieces fit together see the [documentation index](../README.md).
+The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic directory, the way a Javadoc package-summary page mirrors a Java package. Every function also has a page of its own (`api/<module>/<function>`), linked from the summary table on its module page; the module page shows the same entries one after another. Use the search in the header (or press `/`) to find a function by name across every page at once; it's pre-scoped to "This section" when you're already inside `api/`, with an "Everywhere" toggle to search the whole site. For how the pieces fit together see the [documentation index](../README.md).
 
 | Module | Covers | Mirrors |
 |---|---|---|
@@ -9,20 +9,21 @@ The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic
 | **[Input](input.md)** | Key/mouse bindings, built-in actions | `lib/input/` |
 | **[Widgets](widgets.md)** | Widget constructors, richer widgets & text editing | `lib/widgets/` |
 | **[Chrome](chrome.md)** | Command palette, modal/overlay, dialogs & toasts, footer | `lib/chrome/` |
-| **[Markup](markup.md)** | Pages & cache | `lib/markup/` |
+| **[Markup](markup.md)** | Pages, cache & validation | `lib/markup/` |
 | **[Config](config.md)** | Persisted settings | `lib/config/` |
-| **[Plugins](plugin.md)** | Plugins & hooks | `lib/plugin/` |
+| **[Plugins](plugin.md)** | Plugins & hooks, app metadata | `lib/plugin/`, `lib/tui_home.sh` |
+| **[Apps](apps.md)** | Installing and running apps, updating DABT, file sync, security scan | `lib/apps/` |
 | **[Renderers](renderers.md)** | Standalone box/table/chart/banner renderers | `lib/terminal_renderer.sh` |
 | **[Terminal controls](terminal-controls.md)** | ~310 escape-sequence helpers (generated) | `lib/terminal_controls.sh` |
 | this page | Task-oriented tour with examples, below | |
 
-Rules of the road: call only public functions (`tui.*`, renderers, `cur.*`/`mode.*`/...); never `_tui.*`, `_exec_*`, `_tr_*` or any leading-underscore name. Callbacks are plain bash functions that receive the widget id (`action="on_save"` → `on_save btn_save`).
+Rules of the road: call only public functions (`tui.*`, renderers, `cur.*`/`mode.*`/...); never `_tui.*`, `_exec_*`, `_tr_*` or any leading-underscore name. Callbacks are plain bash functions whose first argument is the id of the widget that fired (`action="on_save"` → `on_save btn_save`). Checkboxes add the new value (`fn ID 0|1`), inputs the submitted text (`fn ID TEXT`), so one function can serve several widgets ([Widgets](widgets.md)).
 
 ## 1. Start an app
 
 ```bash
 #!/usr/bin/env bash
-TUI_APP_NAME=my_app                       # config namespace (~/.config/my_app/)
+TUI_APP_NAME=my_app                       # config + log folder (~/.config/DABT/apps/my_app/)
 source /path/to/lib/tui.sh
 tui.cmd.load "$APP/commands.xml"          # optional: your commands in the command bar
 tui.start "$APP/config/home.xml"          # init + load + run + cleanup
@@ -46,7 +47,7 @@ XML equivalents and the grid/tab details: [../guide/grid-layouts-and-tabs.md](..
 
 ```bash
 tui.label  lbl_name form 0 "Name"
-tui.input  inp_name form 1 "type here" "Name:" on_name_submit
+tui.input  inp_name form 1 "type here" "Name:" on_name_submit   # on_name_submit inp_name TEXT
 tui.checkbox chk_a form 2 "Enable" 1 on_toggle       # on_toggle chk_a 0|1
 tui.button btn_go  form 3 "[ Save ]" on_save
 
@@ -70,7 +71,7 @@ tui.select mode form 3 "Mode:" mode_changed; tui.select.set mode fast balanced c
 tui.progress job form 5 "Job:"; tui.progress.set job 40
 ```
 
-Key tables, mouse behaviour and the Markdown roadmap: [../guide/widgets.md](../guide/widgets.md). -> [Richer widgets](widgets.md#richer-widgets-and-text-editing).
+Key tables, mouse behaviour and the Markdown roadmap: [../guide/widgets.md](../guide/widgets.md). -> [Richer widgets](widgets.md#richer-widgets).
 
 ## 4. Put content in panes
 
@@ -177,12 +178,12 @@ Dialogs never block: they return at once and call your function afterwards, so a
 ```bash
 tui.goto "$APP/config/settings.xml"     # switch page (history kept)
 tui.action.back                         # previous page
-tui.config.set my.option on             # ~/.config/my_app/dabt.conf
+tui.config.set my.option on             # ~/.config/DABT/apps/my_app/dabt.conf
 tui.config.get my.option off            # with default
 tui.action.goto_default settings        # DABT's shipped Settings page (also in the palette)
 ```
 
-Pages are recorded and replayed from a cache keyed on file mtimes (page + includes); why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). → [Pages and cache](markup.md#pages-and-cache), [Config](config.md#persisted-config).
+Pages are recorded and replayed from a cache keyed on file mtimes (page + includes); why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). → [Pages and cache](markup.md#pages), [Config](config.md#persisted-config).
 
 ## 11. Plugins
 
@@ -193,7 +194,7 @@ tui.plugin.disable hello            # its commands, keys, hooks and timers are r
 tui.hook.on page my_page_hook       # react to every page switch
 ```
 
-A plugin file, where DABT keeps its files, hooks and the built-in terminal_shortcuts plugin: [../guide/plugins.md](../guide/plugins.md). -> [Plugins](plugin.md#plugins-and-hooks).
+A plugin file, where DABT keeps its files, hooks and the built-in terminal_shortcuts plugin: [../guide/plugins.md](../guide/plugins.md). -> [Plugins](plugin.md#plugins).
 
 ## 12. Renderers without the TUI
 

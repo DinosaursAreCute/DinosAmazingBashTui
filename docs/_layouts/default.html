@@ -1,10 +1,18 @@
 <!DOCTYPE html>
+{%- comment -%} An API entry page is docs/api/<module>/<fn>.md: one function, also pulled into its module page with include_relative. {%- endcomment -%}
+{%- assign dir_parts = page.dir | split: '/' -%}
+{%- assign doc_section = dir_parts[1] | default: '' -%}
+{%- if dir_parts.size == 3 and doc_section == 'api' -%}
+  {%- assign api_entry = page.name | remove: '.md' -%}
+  {%- assign api_module_url = page.dir | remove_last: '/' | append: '.html' -%}
+  {%- assign api_module = site.pages | where: 'url', api_module_url | first -%}
+{%- endif -%}
 <html lang="{{ site.lang | default: 'en' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>try{var t=localStorage.getItem('dabt-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}document.documentElement.dataset.baseurl="{{ site.baseurl }}";</script>
-  {% seo %}
+  {% if api_entry %}<title>{{ api_entry }} · {{ site.title }}</title>{% seo title=false %}{% else %}{% seo %}{% endif %}
   <link rel="icon" href="{{ '/assets/img/logo.png' | relative_url }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,9 +77,11 @@
       <div><b><svg class="ic" viewBox="0 0 6 6" aria-hidden="true" shape-rendering="crispEdges"><rect x="1" y="0" width="1" height="1" fill="var(--acc)"/><rect x="2" y="0" width="1" height="1" fill="var(--acc)"/><rect x="3" y="0" width="1" height="1" fill="var(--acc)"/><rect x="4" y="0" width="1" height="1" fill="var(--acc)"/><rect x="0" y="1" width="1" height="1" fill="var(--acc)"/><rect x="1" y="1" width="1" height="1" fill="var(--acc)"/><rect x="4" y="1" width="1" height="1" fill="var(--acc)"/><rect x="5" y="1" width="1" height="1" fill="var(--acc)"/><rect x="0" y="2" width="1" height="1" fill="var(--acc)"/><rect x="1" y="2" width="1" height="1" fill="var(--acc)"/><rect x="3" y="2" width="1" height="1" fill="var(--acc)"/><rect x="4" y="2" width="1" height="1" fill="var(--acc)"/><rect x="5" y="2" width="1" height="1" fill="var(--acc)"/><rect x="0" y="3" width="1" height="1" fill="var(--acc)"/><rect x="1" y="3" width="1" height="1" fill="var(--acc)"/><rect x="2" y="3" width="1" height="1" fill="var(--acc)"/><rect x="4" y="3" width="1" height="1" fill="var(--acc)"/><rect x="5" y="3" width="1" height="1" fill="var(--acc)"/><rect x="0" y="4" width="1" height="1" fill="var(--acc)"/><rect x="1" y="4" width="1" height="1" fill="var(--acc)"/><rect x="4" y="4" width="1" height="1" fill="var(--acc)"/><rect x="5" y="4" width="1" height="1" fill="var(--acc)"/><rect x="1" y="5" width="1" height="1" fill="var(--acc)"/><rect x="2" y="5" width="1" height="1" fill="var(--acc)"/><rect x="3" y="5" width="1" height="1" fill="var(--acc)"/><rect x="4" y="5" width="1" height="1" fill="var(--acc)"/></svg> Zero deps</b><span>Bash 5 + POSIX utils + awk. That's it.</span></div>
     </section>
     {% endif %}
-    {% assign doc_section = page.dir | remove: '/' %}
-    <article class="doc"{% if doc_section != '' %} data-pagefind-filter="section:{{ doc_section }}"{% endif %}>
-      {% if page.url != '/' and page.title %}<h1 class="page-title">{{ page.title }}</h1>{% endif %}
+    <article class="doc{% if api_entry %} api-entry{% endif %}"{% if doc_section != '' %} data-pagefind-filter="section:{{ doc_section }}"{% endif %}>
+      {% if api_entry %}
+      <nav class="crumb" aria-label="Breadcrumb"><a href="{{ '/api/' | relative_url }}">API</a> › {% if api_module %}<a href="{{ api_module.url | relative_url }}">{{ api_module.title | split: ':' | first }}</a>{% endif %}</nav>
+      <h1 class="page-title"><code>{{ api_entry }}</code></h1>
+      {% elsif page.url != '/' and page.title %}<h1 class="page-title">{{ page.title }}</h1>{% endif %}
       {{ content }}
     </article>
     <footer class="foot">

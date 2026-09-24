@@ -141,7 +141,7 @@ lab_default_keybinds() {
 
 # ── clipboard / input ──
 lab_copy() {
-	local t="$1"
+	local t="$2"
 	[[ -z "$t" ]] && {
 		_lab_log "nothing to copy"
 		return
@@ -150,10 +150,10 @@ lab_copy() {
 	_lab_log "tui.clipboard.copy (OSC 52): '${t:0:40}'"
 }
 lab_submit_keep() {
-	_lab_log "submitted '$1' - focus stayed (retain_input_on_submit)"
+	_lab_log "submitted '$2' - focus stayed (retain_input_on_submit)"
 	tui.set inp_keep ""
 }
-lab_submit_form() { _lab_log "submitted '$1' - focus left (retain_input_on_submit=false)"; }
+lab_submit_form() { _lab_log "submitted '$2' - focus left (retain_input_on_submit=false)"; }
 
 # ── dialogs and toasts (tui_dialog.sh) ───────────────────────────────────
 lab_dlg_yes() { _lab_log "confirm -> ${TUI_DIALOG_RESULT}: yes_fn ran"; }

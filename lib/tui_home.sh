@@ -12,6 +12,7 @@
 #           settings.conf                  the application's own settings (the demo's Settings page)
 #           app.meta                       metadata about the application (below)
 #           terminal_shortcuts.*           state of the terminal_shortcuts plugin (backups it needs to restore your terminal)
+#           logs/                          TUI_LOG_DIR: tui.log output, one file per day: <yyyy-mm-dd>_<TUI_APP_NAME>.log
 #
 # TUI_APP_NAME (default "dabt") must be set BEFORE tui.sh is sourced. app.meta is key=value, written by tui.init:
 #   name, title (TUI_APP_TITLE), description (TUI_APP_DESC), dabt_version, app_dir (where the pages live), entry,
@@ -59,6 +60,7 @@ declare -g TUI_INSTALLED=0
 [[ -f "$TUI_HOME/install.meta" ]] && TUI_INSTALLED=1
 declare -g TUI_APP_CONF="${TUI_APP_CONF:-$TUI_HOME/apps/$TUI_APP_NAME}"
 declare -g TUI_PLUGINS_DIR="${TUI_PLUGINS_DIR:-$TUI_HOME/plugins}"
+declare -g TUI_LOG_DIR="${TUI_LOG_DIR:-$TUI_APP_CONF/logs}" # tui.log writes <yyyy-mm-dd>_<TUI_APP_NAME>.log here
 # the defaults (keybinds, commands, theme, default pages): the config home's copy when installed, else the ones shipped in share/
 if [[ -z "${TUI_DEFAULTS_DIR:-}" ]]; then
 	if [[ -d "$TUI_HOME/defaults" ]]; then TUI_DEFAULTS_DIR="$TUI_HOME/defaults"; else TUI_DEFAULTS_DIR="$TUI_ROOT/share/defaults"; fi

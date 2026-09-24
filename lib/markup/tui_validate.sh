@@ -16,7 +16,7 @@
 #            TUI_V_WIDGET_PANE[id]=pane, TUI_V_WIDGET_PANE_AT[id]=loc   (loc = "file|line|col")
 #
 # Running: tui.validate.files PAGE...  (status 1 when any error was found), then tui.validate.report
-# (stderr-ready text) and tui.validate.log (into .tui_exec.log through tui.log).
+# (stderr-ready text) and tui.validate.log (into the app log through tui.log, see tui.log.file).
 
 # ── rule tables ─────────────────────────────────────────────────────────
 declare -gA _TV_TAGS=() _TV_CONTAINER=() _TV_WIDGET=() _TV_SELFCLOSE=()
@@ -365,7 +365,7 @@ tui.validate.report() {
 	printf '%d error(s), %d warning(s)\n' "$TUI_V_ERRORS" "$TUI_V_WARNINGS"
 }
 
-# tui.validate.log - every finding into the tui.log file (.tui_exec.log)
+# tui.validate.log - every finding into the tui.log file (tui.log.file)
 tui.validate.log() {
 	tui.validate.messages
 	local i
@@ -394,7 +394,7 @@ _tui_validate.gate() {
 	((TUI_V_ERRORS)) || return 0 # warnings are only logged
 	tui.validate.report >&2
 	if [[ "${TUI_IGNORE_INVALID_XML:-0}" == 1 ]]; then
-		_TV_NOTIFY="$TUI_V_ERRORS configuration error(s) ignored (--ignore-invalid-xml) - see .tui_exec.log|error"
+		_TV_NOTIFY="$TUI_V_ERRORS configuration error(s) ignored (--ignore-invalid-xml) - see $(tui.log.file)|error"
 		return 0
 	fi
 	printf 'start aborted: fix the configuration above, or run with --ignore-invalid-xml to start anyway\n' >&2

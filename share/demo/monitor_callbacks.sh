@@ -459,32 +459,32 @@ _mon_refresh_all() {
 # back on rebuilds it back in, then refreshes its content now that
 # tui.content_area for it reflects the new, correct geometry.
 on_monitor_toggle_cpu() {
-	_MON_ENABLED_CPU="$1"
+	_MON_ENABLED_CPU="$2"
 	_mon_rebuild_grid
 	((_MON_ENABLED_CPU)) && _mon_refresh_cpu
 	((_TUI_RUNNING)) && tui.render
 }
 on_monitor_toggle_mem() {
-	_MON_ENABLED_MEM="$1"
+	_MON_ENABLED_MEM="$2"
 	_mon_rebuild_grid
 	((_MON_ENABLED_MEM)) && _mon_refresh_mem
 	((_TUI_RUNNING)) && tui.render
 }
 on_monitor_toggle_load() {
-	_MON_ENABLED_LOAD="$1"
+	_MON_ENABLED_LOAD="$2"
 	_mon_rebuild_grid
 	((_MON_ENABLED_LOAD)) && _mon_refresh_load
 	((_TUI_RUNNING)) && tui.render
 }
 on_monitor_toggle_disk() {
-	_MON_ENABLED_DISK="$1"
+	_MON_ENABLED_DISK="$2"
 	_mon_rebuild_grid
 	((_MON_ENABLED_DISK)) && _mon_refresh_disk
 	((_TUI_RUNNING)) && tui.render
 }
 
 on_monitor_set_interval() {
-	local value="$1"
+	local value="$2"
 	if [[ -z "$value" ]] || ! [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
 		value=1
 	fi

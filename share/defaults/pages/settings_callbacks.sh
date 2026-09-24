@@ -42,7 +42,7 @@ dset_visit() {
 	_tui_input.sorted_ids seen
 	for g in "${_SIDS[@]}"; do
 		fn="_dset_grp_${g//[^A-Za-z0-9_]/_}"
-		eval "$fn() { dset_group_toggle '$g' \"\$1\"; }"
+		eval "$fn() { dset_group_toggle '$g' \"\$2\"; }" # a checkbox action gets ID VALUE
 		tui.factory.checkbox dset col_keys "$r" "$g" "$([[ -n "${_TUI_DEF_OFF[$g]:-}" ]] && echo false || echo true)" "$fn"
 		((r++))
 	done
@@ -80,20 +80,20 @@ dset_group_toggle() {
 }
 
 dset_retain() {
-	TUI_INPUT_RETAIN_ON_SUBMIT="$1"
-	tui.config.set input.retain "$1"
-	_dset_status "inputs keep focus after Enter: $([[ $1 == 1 ]] && echo yes || echo no)"
+	TUI_INPUT_RETAIN_ON_SUBMIT="$2"
+	tui.config.set input.retain "$2"
+	_dset_status "inputs keep focus after Enter: $([[ $2 == 1 ]] && echo yes || echo no)"
 }
 dset_coalesce() {
-	TUI_INPUT_COALESCE="$1"
-	tui.config.set input.coalesce "$1"
-	_dset_status "merge repeated scroll events: $([[ $1 == 1 ]] && echo yes || echo no)"
+	TUI_INPUT_COALESCE="$2"
+	tui.config.set input.coalesce "$2"
+	_dset_status "merge repeated scroll events: $([[ $2 == 1 ]] && echo yes || echo no)"
 }
 dset_goto_keybinds() { tui.action.goto_default keybinds; }
 dset_confirm_quit() {
-	tui.config.set confirm.quit "$1"
-	_dset_status "ask before quitting: $([[ $1 == 1 ]] && echo yes || echo no)"
-	tui.notify "Ask before quitting: $([[ $1 == 1 ]] && echo on || echo off)" info 2
+	tui.config.set confirm.quit "$2"
+	_dset_status "ask before quitting: $([[ $2 == 1 ]] && echo yes || echo no)"
+	tui.notify "Ask before quitting: $([[ $2 == 1 ]] && echo on || echo off)" info 2
 }
 
 _DSET_POS=(bottom-right bottom-center bottom-left top-right top-center top-left)
@@ -134,7 +134,7 @@ dset_ts_auto() {
 		tui.update chk_tsfree 0
 		return
 	fi
-	tui.plugin.config terminal_shortcuts auto_free "$1"
-	if [[ "$1" == 1 ]]; then tui.cmd.run ts.free; else tui.cmd.run ts.restore; fi
+	tui.plugin.config terminal_shortcuts auto_free "$2"
+	if [[ "$2" == 1 ]]; then tui.cmd.run ts.free; else tui.cmd.run ts.restore; fi
 }
 dset_tab_here() { :; }

@@ -33,8 +33,7 @@ to define its markup file. Use `tui.init` + `tui.load` + `tui.run` directly
 only if you need to run custom setup between those steps. Or run the bundled demo:
 
 ```bash
-bin/markup_demo.sh
-
+bash bin/DABT_demo.sh      # or: dabt --demo
 ```
 
 ## Format rules
@@ -54,7 +53,7 @@ bin/markup_demo.sh
 * `<input id="x" pane="p" row="N" label="…" placeholder="…" submit="fn" align="…" valign="…" min_width="N" max_width="N" label_align="left|center|right" label_width="N" class="…"/>`
 * `<button id="x" pane="p" row="N" text="…" action="fn" align="…" valign="…" min_width="N" max_width="N" class="…"/>`
 * `<button id="x" pane="p" row="N" text="…" page="other.xml"/>` – navigates to another page instead of calling a bash function.
-* `<checkbox id="x" pane="p" row="N" label="…" checked="true|false" action="fn" align="…" valign="…" min_width="N" max_width="N" class="…"/>` – a boolean toggle widget (`[x] Label` / `[ ] Label`), focusable like a button. `action` is called with the new value ("0"/"1") after every toggle, whether triggered by a click or by Enter while focused. `tui.get`/`tui.set`/`tui.update` work on it exactly as on any other widget.
+* `<checkbox id="x" pane="p" row="N" label="…" checked="true|false" action="fn" align="…" valign="…" min_width="N" max_width="N" class="…"/>` – a boolean toggle widget (`[x] Label` / `[ ] Label`), focusable like a button. `action` is called as `fn ID VALUE` (the checkbox id, then the new value "0"/"1") after every toggle, whether triggered by a click or by Enter while focused. `tui.get`/`tui.set`/`tui.update` work on it exactly as on any other widget.
 * `<tabs id="x" header_pane="p1" content_pane="p2"> <tab .../> … </tabs>` – documented separately below.
 
 ## Grid layout (`split="grid"`)
@@ -131,7 +130,7 @@ picks the tab that starts active; if none is marked, the first one does.
 `content_pane` via `tui.output` - nothing about its body changes, `<tabs>`
 only removes the button-wiring boilerplate around it. It's called with the
 tab's own id as `$1`, so one shared `action` can serve many tabs (see
-`config/docu_callbacks.sh`'s dynamic tabs below) - existing callbacks that
+`share/demo/docu_callbacks.sh`'s dynamic tabs below) - existing callbacks that
 take no arguments are unaffected, bash just ignores the extra one.
 
 **Two header styles**, set with `style="framed"` (default) or
@@ -165,7 +164,7 @@ on_docu_visit() {
 }
 ```
 
-See `config/docu_callbacks.sh` for the full version (it also derives a
+See `share/demo/docu_callbacks.sh` for the full version (it also derives a
 short label from each file's own heading rather than its filename).
 
 ## Running a callback once a page is fully loaded (`on_visit`)
@@ -243,7 +242,7 @@ top of its `<script>` file) to have every frame `tui.render` and friends
 flush get timestamped; `tui.perf.mean_render_ms SECONDS` then returns the
 mean render duration, in milliseconds, over the trailing window - useful
 for watching your own layout's cost live instead of guessing. See
-`config/debug.xml` / `config/debug_callbacks.sh` for a working example,
+`share/demo/debug.xml` / `share/demo/debug_callbacks.sh` for a working example,
 alongside a live tape of dispatched input events (set
 `_TUI_ON_INPUT_EVENT` to a function to receive one) and hover/focus state.
 

@@ -198,7 +198,7 @@ _tui_dialog.parse() {
 				_DLG_VALIDATE="$2"
 				shift
 				;;
-			--cancel)
+			--cancel | --close) # --close: tui.view's name for it
 				_DLG_ON_CANCEL="$2"
 				shift
 				;;

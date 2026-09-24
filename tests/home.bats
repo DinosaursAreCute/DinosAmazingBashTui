@@ -67,3 +67,27 @@ locate() { bash -c 'source "$REPO/lib/tui_home.sh"; echo "$TUI_HOME_SOURCE|$TUI_
 }
 
 @test "the tests never touch the source tree" { assert_repo_untouched; }
+
+@test "tui.log writes to apps/<app>/logs/<yyyy-mm-dd>_<app>.log, never to the current directory" {
+    mkdir -p "$XDG_CONFIG_HOME/DABT"
+    cd "$T"
+    run bash -c 'TUI_APP_NAME=logapp; source "$REPO/lib/tui.sh"; tui.log "hello" warn; tui.log.file'
+    [ "$status" -eq 0 ]
+    local f="$XDG_CONFIG_HOME/DABT/apps/logapp/logs/$(date +%F)_logapp.log"
+    [ "$output" = "$f" ]
+    grep -q '\[warn\] hello' "$f"
+    [ ! -e "$T/.tui_exec.log" ]
+}
+
+@test "tui.log without an app name uses dabt, and an unwritable log dir fails silently" {
+    mkdir -p "$XDG_CONFIG_HOME/DABT"
+    run bash -c 'unset TUI_APP_NAME; source "$REPO/lib/tui.sh"; basename "$(tui.log.file)"; TUI_LOG_DIR=/proc/nope; tui.log x; echo "rc=$?"'
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "$(date +%F)_dabt.log" ]
+    [ "${lines[1]}" = "rc=0" ]
+}
+
+@test "API docs: every public function has an entry page and the module pages are up to date" {
+    run bash "$REPO/tools/gen_api_docs.sh" --check
+    [ "$status" -eq 0 ]
+}

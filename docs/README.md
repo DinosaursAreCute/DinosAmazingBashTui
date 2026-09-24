@@ -61,6 +61,7 @@ flowchart TB
 | Terminal primitives | `terminal_controls.sh`, `colors.sh` | Cursor, erase, SGR, modes, mouse, OSC. Stateless one-liners that print escape sequences. |
 | State | `state.sh` | `tui.sh`'s global state (pane geometry, widget registries, background-exec instances) extracted into one file. |
 | Markup | `markup/tui_markup.sh` | Parses XML pages into `tui.*` calls. `tui.start FILE` = init + load + run + cleanup. `tui.goto` switches page. |
+| Validation | `markup/tui_validate.sh`, `markup/tui_validate_rules.sh` | Checks pages (and includes) before an app starts: file/line/col errors, rules registered as tables or functions. |
 | Style | `style/tui_style.sh` | `theme.css` (`.class`, `:focus`, `:hover`, `:border`, `:title`) resolved to fg/bg/mods per pane/widget. |
 | Core | `tui.sh` | Pane tree + layout engine (`hsplit`/`vsplit`/`grid`/`fixed`), widgets, focus, mouse routing, render (AWK "shader" viewports), main loop, `tui.exec`. |
 | Input | `input/tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`share/defaults/keybinds.xml`), paste, focus movement, user keybind persistence. |
@@ -104,7 +105,7 @@ One loop iteration reads input (`read -t`, keyboard + SGR mouse), decodes it int
 
 ```
 my_app/
-  bin/run.sh                 source tui.sh; TUI_APP_NAME=my_app; tui.start config/home.xml
+  bin/run.sh                 TUI_APP_NAME=my_app; source tui.sh; tui.start config/home.xml
   config/
     home.xml  other.xml      pages (HTML-like)
     _nav.xml                 shared fragment, <include src="_nav.xml"/>
@@ -144,4 +145,4 @@ Long-form explanations of the non-obvious performance decisions. Read them befor
 
 ## Debugging and tooling
 
-`tools/debug/` holds the profiling and screenshot tools (page-switch timings, per-call fork counts, full profile, PNG screenshots of every page and theme); see [../tools/debug/README.md](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/tools/debug/README.md). `.tui_exec.log` is the runtime debug log written by `tui.log*`.
+`tools/debug/` holds the profiling and screenshot tools (page-switch timings, per-call fork counts, full profile, PNG screenshots of every page and theme); see [../tools/debug/README.md](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/tools/debug/README.md). `tui.log*` writes the runtime log to `~/.config/DABT/apps/<app>/logs/<yyyy-mm-dd>_<app>.log` (`tui.log.file` prints the path).

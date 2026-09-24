@@ -14,12 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 
 * Markup validation engine `lib/markup/tui_validate.sh`: walks a page and its `<include>`s without forking per line, tracks file/line/col, collects findings as errors or warnings and reports them as `erroneous configuration in FILE line N col M: …`. Public API: `tui.validate.files`/`.page`/`.report`/`.log`. Rules are registered, not hard-coded: declarative tables (`tui.validate.tag`/`.container`/`.widget`/`.self_closing`/`.require`/`.enum`/`.int`/`.conflict`/`.needs`/`.parent`/`.parent_split`) plus custom `tui.validate.rule page|element|end FN`. A custom rule reads the `TUI_V_*` context and reports with `tui.validate.error`/`.warn`/`.error_at`.
-* Default rules in `lib/markup/tui_validate_rules.sh`. Panes inside grid cells are forbidden for now because the layout engine breaks on them. A `<pane>` without `split=` must be self-closing, since the loader closes the parent at its `</pane>`. Tags inside multi-line comments are reported because the loader still reads them. Warnings (only one of `grid_row`/`grid_col` given, several default tabs) are logged only.
+* Default rules in `lib/markup/tui_validate_rules.sh`. Panes inside grid cells are forbidden for now because the layout engine breaks on them. Tags inside multi-line comments are reported because the loader still reads them. Warnings (only one of `grid_row`/`grid_col` given, several default tabs) are logged only.
 * `tui.start` and `tui.start_cached` run `_tui_validate.gate` before `tui.init`. `tui.start_cached` checks every page it would warm and skips `<binds>`/`<cmds>` files. A clean run is remembered in `$TUI_HOME/cache/validated` (file mtimes, one `stat` call), so only the first start after a page changes pays the ~1s check. `TUI_VALIDATE=0` turns checking off. `TUI_IGNORE_INVALID_XML=1`, which `dabt --ignore-invalid-xml` sets, starts anyway and raises a persistent error notification.
 
 ### Fixed
 
 * Demo Monitor page: removed two labels (`lbl_mon_inst`, `lbl_mon_stamp`) that targeted a pane `header` the page never declares, so they never rendered. 
+
 
 ## [0.0.16] - 2026-09-23
 

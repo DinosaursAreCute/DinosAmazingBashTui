@@ -76,7 +76,7 @@ _tui_vrule.root() {
 }
 tui.validate.rule element _tui_vrule.root
 
-# pane nesting: children need a split parent, a split-less pane must be self-closing, grid cells are leaves
+# pane nesting: children need a split parent, grid cells are leaves (<pane …></pane> on two lines is fine)
 _tui_vrule.pane() {
 	[[ "$TUI_V_TAG" == pane ]] || return 0
 	local id="${_TV_A[id]:-?}"
@@ -85,9 +85,6 @@ _tui_vrule.pane() {
 	fi
 	if [[ "$TUI_V_PARENT_TAG" == pane && "$TUI_V_GRANDPARENT_SPLIT" == grid ]]; then
 		tui.validate.error "pane '$id' is inside grid cell '$TUI_V_PARENT_ID' - panes within grid cells are not allowed, a grid cell must be a leaf pane"
-	fi
-	if ((! TUI_V_SELFCLOSE)) && [[ -z "${_TV_A[split]:-}" ]]; then
-		tui.validate.error "pane '$id' has no split= but is not self-closing - its </pane> would close the parent pane instead; write <pane … /> or add split="
 	fi
 }
 tui.validate.rule element _tui_vrule.pane

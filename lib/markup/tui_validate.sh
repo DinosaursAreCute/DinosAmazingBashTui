@@ -196,6 +196,12 @@ _tui_validate.walk() {
 			[[ "$line" == *"-->"* ]] || incomment=1
 			continue
 		fi
+		if [[ "$line" == *"<!--"* ]]; then # trailing comment, dropped like the loader does: <pane … />  <!-- note -->
+			[[ "${line#*<!--}" == *"-->"* ]] || incomment=1
+			raw="${raw%%<!--*}"
+			line="${line%%<!--*}"
+			line="${line%"${line##*[![:space:]]}"}"
+		fi
 		[[ "$line" == \<[a-zA-Z_]* || "$line" == \</[a-zA-Z_]* ]] || continue # same tags the loader sees (no regex: it is recompiled per line)
 		tag="${line#<}" closing=0
 		[[ "$tag" == /* ]] && closing=1 tag="${tag#/}"

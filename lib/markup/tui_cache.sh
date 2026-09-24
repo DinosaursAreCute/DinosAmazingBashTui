@@ -509,7 +509,7 @@ tui.cache.warm_with_spinner() {
 				else _tcw_bar+=$'\e[38;5;238m░'; fi
 			done
 			printf '\e[%d;%dH\e[38;5;250mcaching sites \e[38;5;245m▕%s\e[38;5;245m▏ \e[38;5;250m%3d%%\e[0m' \
-				"$_tcw_bar_row" "$((_tcw_col0 - _tcw_bar_width / 2 + 2))" "$_tcw_bar" "$_tcw_pct"
+				"$_tcw_bar_row" "$((_tcw_col0 - _tcw_bar_width / 2))" "$_tcw_bar" "$_tcw_pct"
 		fi
 	done
 

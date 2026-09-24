@@ -285,6 +285,10 @@ tui.load() {
 		line="$(_markup_trim "$raw_line")"
 		[[ -z "$line" ]] && continue
 		[[ "$line" == \<!--* ]] && continue
+		if [[ "$line" == *"<!--"* ]]; then # trailing comment: <pane … />  <!-- note -->
+			line="${line%%<!--*}"
+			line="${line%"${line##*[![:space:]]}"}"
+		fi
 
 		closing=0
 		selfclose=0
@@ -425,7 +429,8 @@ tui.load() {
 				tui.pane_scroll "$id" "$scroll"
 				[[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 
-				if [[ -n "$split" && $selfclose -eq 0 ]]; then
+				# every open <pane> is pushed, split or not: a leaf written <pane …></pane> must close itself, not its parent
+				if ((selfclose == 0)); then
 					stack_id+=("$id")
 					stack_dir+=("$split")
 				fi

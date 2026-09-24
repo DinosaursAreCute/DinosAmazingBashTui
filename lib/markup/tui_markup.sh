@@ -786,10 +786,13 @@ tui.start() {
 		return 1
 	}
 
+	_tui_validate.gate "$file" || return 1
+
 	tui.init
 	if ! tui.load "$file"; then
 		_master_cleanup
 		return 1
 	fi
+	_tui_validate.notify
 	tui.run
 }

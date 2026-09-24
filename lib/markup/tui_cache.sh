@@ -551,6 +551,9 @@ tui.start_cached() {
 		pages+=("$f")
 	done < <(find "$TUI_DEFAULTS_DIR/pages" -maxdepth 1 -name '*.xml' 2>/dev/null | sort)
 
+	# every page is checked up front (all of them are reachable), before the terminal is taken over
+	_tui_validate.gate "${pages[@]}" || return 1
+
 	# Load whatever's already on disk from a previous run - load_dir
 	# itself drops anything whose page (or an include it pulled in) has
 	# since changed, so only genuinely-still-valid entries survive.
@@ -574,5 +577,6 @@ tui.start_cached() {
 		_master_cleanup
 		return 1
 	fi
+	_tui_validate.notify
 	tui.run
 }

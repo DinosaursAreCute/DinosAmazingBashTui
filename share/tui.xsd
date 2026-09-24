@@ -6,7 +6,9 @@
        Not schema-expressible: pane ids must be unique per page; a widget's pane must be a leaf; class names come
        from the loaded theme (.class, .class:focus/:hover/:border/:title/:checked/:unchecked). Not enforced at
        parse time (the loader is a lightweight bash regex parser) - this file
-       exists purely so editors can offer autocompletion/validation. -->
+       exists purely so editors can offer autocompletion/validation.
+       Roots: <tui> (a page), <binds> (keybind files), <cmds> (command palette files). <include> fragments with
+       several top-level tags (e.g. _nav.xml) are not well-formed XML and can't be validated on their own. -->
 
   <xs:simpleType name="alignType">
     <xs:restriction base="xs:string">
@@ -64,20 +66,44 @@
     </xs:restriction>
   </xs:simpleType>
 
-<xs:simpleType name="scroll">
+  <xs:simpleType name="scrollType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="none"/>
       <xs:enumeration value="v"/>
       <xs:enumeration value="h"/>
       <xs:enumeration value="both"/>
     </xs:restriction>
-</xs:simpleType>
+  </xs:simpleType>
 
   <xs:simpleType name="scopeType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="global"/>
     </xs:restriction>
   </xs:simpleType>
+
+  <!-- Everything a page may contain. The loader reads one tag per line with no parent tracking (widgets attach
+       via pane="…", not by nesting), so the same set is valid at <tui> level and inside any <pane>. -->
+  <xs:group name="pageContent">
+    <xs:choice>
+      <xs:element ref="script"/>
+      <xs:element ref="theme"/>
+      <xs:element ref="include"/>
+      <xs:element ref="pane"/>
+      <xs:element ref="tabs"/>
+      <xs:element ref="bind"/>
+      <xs:element ref="footer"/>
+      <xs:element ref="label"/>
+      <xs:element ref="button"/>
+      <xs:element ref="input"/>
+      <xs:element ref="password"/>
+      <xs:element ref="textarea"/>
+      <xs:element ref="checkbox"/>
+      <xs:element ref="list"/>
+      <xs:element ref="table"/>
+      <xs:element ref="select"/>
+      <xs:element ref="progress"/>
+    </xs:choice>
+  </xs:group>
 
   <xs:element name="footer">
     <xs:annotation><xs:documentation>One-row key-hint bar drawn on the last terminal row wherever it is declared. items = "KEY|Label[|WHEN_FN];..."; KEY may be "@tui.action.name" to show the key currently bound to that action.</xs:documentation></xs:annotation>
@@ -99,26 +125,43 @@
     </xs:complexType>
   </xs:element>
 
+  <!-- Keybind files: share/defaults/keybinds.xml (tui.bind.defaults, group= is the opt-out unit) and the user
+       file written by tui.bind.save. One <bind> per line. -->
+  <xs:element name="binds">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="bind" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Command palette files (tui.cmd.load, e.g. share/defaults/commands.xml). One <cmd> per line. -->
+  <xs:element name="cmds">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="cmd" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="cmd">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="title" type="xs:string" use="required"/>
+      <!-- function + args; several may be chained with ';' -->
+      <xs:attribute name="action" type="xs:string" use="required"/>
+      <xs:attribute name="group" type="xs:string"/>
+      <xs:attribute name="desc" type="xs:string"/>
+      <!-- function name: the command is listed only while it succeeds -->
+      <xs:attribute name="when" type="xs:string"/>
+      <xs:attribute name="key" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
   <xs:element name="tui">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element ref="script"/>
-        <xs:element ref="theme"/>
-        <xs:element ref="include"/>
-        <xs:element ref="pane"/>
-        <xs:element ref="label"/>
-        <xs:element ref="input"/>
-        <xs:element ref="button"/>
-        <xs:element ref="bind"/>
-        <xs:element ref="footer"/>
-        <xs:element ref="checkbox"/>
-        <xs:element ref="password"/>
-        <xs:element ref="textarea"/>
-        <xs:element ref="list"/>
-        <xs:element ref="table"/>
-        <xs:element ref="select"/>
-        <xs:element ref="progress"/>
-        <xs:element ref="tabs"/>
+        <xs:group ref="pageContent"/>
       </xs:choice>
       <xs:attribute name="on_visit" type="xs:string"/>
       <!-- comma/space separated default keybind groups to switch off for this page, e.g. "-quit,-scroll" -->
@@ -147,7 +190,7 @@
   <xs:element name="pane">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element ref="pane"/>
+        <xs:group ref="pageContent"/>
       </xs:choice>
       <xs:attribute name="id" type="xs:string" use="required"/>
       <xs:attribute name="split" type="splitType"/>
@@ -156,7 +199,7 @@
       <xs:attribute name="border" type="borderType"/>
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
-      <xs:attribute name="scroll" type="scroll"/>
+      <xs:attribute name="scroll" type="scrollType"/>
       <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
       <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>

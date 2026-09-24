@@ -28,6 +28,8 @@ source "${SCRIPT_DIR}/tui_home.sh"
 _tui_plugin.own() { :; } # replaced by tui_plugin.sh; modules sourced before it may already register things
 # shellcheck source=markup/tui_markup.sh
 source "${SCRIPT_DIR}/markup/tui_markup.sh"
+# shellcheck source=markup/tui_validate.sh
+source "${SCRIPT_DIR}/markup/tui_validate.sh"
 # shellcheck source=style/tui_style.sh
 source "${SCRIPT_DIR}/style/tui_style.sh"
 # shellcheck source=tui_api.sh

@@ -16,6 +16,8 @@ Options:
   -d, --details    installed version, locations and status
   -v, --version    print the version
       --demo       run the demo application
+      --ignore-invalid-xml   start an application even when its pages have configuration errors
+                             (they are logged to .tui_exec.log and shown as a notification)
 
 Commands:
   update [--check] [--path PATH] [--yes] [--dev] [--policy override|skip|new] [--force] [--no-scan]   update to the latest release, or from a local file/folder with --path (dabt update --help)
@@ -119,6 +121,12 @@ _details() {
     [[ -r "$TUI_HOME/install.meta" ]] && while IFS='=' read -r k v; do [[ -n "$k" && "$k" != \#* ]] && rows+=("meta $k: $v"); done < "$TUI_HOME/install.meta"
     kv "${rows[@]}"
 }
+
+# --ignore-invalid-xml may sit anywhere (dabt --demo --ignore-invalid-xml, dabt app run NAME --ignore-invalid-xml)
+_args=()
+for _a in "$@"; do [[ "$_a" == --ignore-invalid-xml ]] && export TUI_IGNORE_INVALID_XML=1 || _args+=("$_a"); done
+set -- "${_args[@]}"
+unset _args _a
 
 case "${1:-}" in
     "")                     _help ;;

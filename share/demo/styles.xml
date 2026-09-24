@@ -4,14 +4,14 @@
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
     <include src="_header.xml"/>
-  <pane id="root1" weight="90" split="h">
-    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
-    <pane id="main" split="v" weight="82" border="none">
-      <pane id="buttons_demo"  weight="34" title="Button classes - hover and click them (:hover / :focus states)" class="panel" hpad="1"/>
-      <pane id="swatches_demo" weight="38" title="Color swatches" class="panel" hpad="1"/>
-      <pane id="hint_demo"     weight="28" title="Try it" class="panel" hpad="1"/>
+    <pane id="root1" weight="90" split="h">
+      <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+      <pane id="main" split="v" weight="82" border="none">
+        <pane id="buttons_demo"  weight="34" title="Button classes - hover and click them (:hover / :focus states)" class="panel" hpad="1"/>
+        <pane id="swatches_demo" weight="38" title="Color swatches" class="panel" hpad="1"/>
+        <pane id="hint_demo"     weight="28" title="Try it" class="panel" hpad="1"/>
+      </pane>
     </pane>
-  </pane>
   </pane>
 
   <button id="btn_style_info"    pane="buttons_demo" row="0" text="[ Info    ]"  action="on_noop" class="info_button"    align="fill"/>

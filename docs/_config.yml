@@ -1,7 +1,7 @@
 title: D.A.B.T - Bash TUI Framework
 description: Pure bash TUI framework. Build multi-page terminal UIs with XML markup, CSS-like themes, mouse support and live process panes. No Python, Node or ncurses.
-url: https://dinosaursarecute.github.io
-baseurl: /DinosAmazingBashTui
+url: https://dinosamazingbashtui.duckdns.org
+baseurl: ""
 theme: jekyll-theme-primer
 logo: /assets/logo.png
 lang: en

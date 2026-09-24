@@ -258,7 +258,7 @@ Switch the whole app from Settings; themes live in `share/demo/themes/*.css`.
 <br/>
 <h2 id="documentation"><img src="assets/headers/documentation.svg" alt="Documentation" height="35"></h2>
 
-Browse the [documentation site](https://dinosaursarecute.github.io/DinosAmazingBashTui/) or start at **[docs/README.md](docs/README.md)** for the architecture overview and a map of everything below.
+Browse the [documentation site](https://dinosamazingbashtui.duckdns.org/) or start at **[docs/README.md](docs/README.md)** for the architecture overview and a map of everything below.
 
 | | |
 |---|---|

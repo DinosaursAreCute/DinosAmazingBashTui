@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### News
+#### _DevEx Initiative Update 1_
+
 
 - Logs moved out of the current directory: `tui.log` now writes to `~/.config/DABT/apps/<app>/logs/<yyyy-mm-dd>_<app>.log` (`dabt` when the app sets no name), one file per day. `.tui_exec.log` is no longer written.
 - The API reference has a page per function: signature, parameters, return value, notes on the pitfalls, and an example. Each module page lists them in a summary table and shows every entry in full.

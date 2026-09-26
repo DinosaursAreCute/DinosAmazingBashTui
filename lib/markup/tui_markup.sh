@@ -281,7 +281,8 @@ tui.load() {
 	local -a stack_id=() stack_dir=()
 	local raw_line line tag closing selfclose
 
-	while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+	# the markup comes in on fd 8, not stdin: <script> files sourced from this loop keep the terminal as stdin
+	while IFS= read -r -u 8 raw_line || [[ -n "$raw_line" ]]; do
 		line="$(_markup_trim "$raw_line")"
 		[[ -z "$line" ]] && continue
 		[[ "$line" == \<!--* ]] && continue
@@ -587,7 +588,7 @@ tui.load() {
 				_TUI_MARKUP_TAB_DEFAULT[$tabid]="$tabdefault"
 				;;
 		esac
-	done < <(_markup_expand "$file")
+	done 8< <(_markup_expand "$file")
 
 	local pid
 	for pid in "${!_TUI_MARKUP_TITLE[@]}"; do

@@ -555,7 +555,8 @@ fillrow() {
 # Get terminal size in characters → TERM_ROWS, TERM_COLS
 term.size() {
 	local _r _c
-	read -r _r _c < <(stty size 2>/dev/null || echo "24 80")
+	# /dev/tty first: stdin may be redirected (a pipe, a here-string) even though a terminal is attached
+	read -r _r _c < <(stty size 2>/dev/null </dev/tty || stty size 2>/dev/null || echo "24 80")
 	printf -v "${1:-TERM_ROWS}" '%s' "$_r"
 	printf -v "${2:-TERM_COLS}" '%s' "$_c"
 }

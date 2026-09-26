@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # settings_callbacks.sh - Settings page: every control does something real.
-#   theme      -> tui.theme.set: app-wide overlay from themes/*.css, survives page changes
+#   theme      -> tui.theme.set: the app-wide overlay, the same one the command bar (Theme: ...) and DABT's own
+#                 Settings page set; saved as config `theme`, so it applies from the next start on
 #   border/pad -> tui.pane_border / tui.pane_pad on the preview pane + tui.relayout
 #   font/text  -> banner preview and a live tui.clock in that font
 #   clock      -> starts/stops the tui.clock job
@@ -101,26 +102,49 @@ _st_labels() {
 	done
 }
 
-_st_theme_sync() { # returns 1 when it triggered a page reload
-	local want=""
-	[[ "${ST[theme]}" != default ]] && want="$(dirname "$(tui.get.page)")/themes/${ST[theme]}.css"
-	[[ "$(tui.theme.current)" == "$want" ]] && return 0
-	if [[ -z "$want" ]]; then tui.theme.clear; else tui.theme.set "$want"; fi
+# The overlay is the one source of truth: it may also have been set from the command bar or DABT's Settings page,
+# so the page shows what is active instead of forcing its own saved choice back (that fought the command bar and
+# reloaded the page from inside on_visit).
+_st_theme_current() {
+	local f
+	f="$(tui.theme.current)"
+	f="${f##*/}"
+	ST[theme]="${f%.css}"
+	[[ -n "${ST[theme]}" ]] || ST[theme]=default
+}
+# NAME -> the overlay file: the app's themes (TUI_THEMES_DIR) win over the ones shipped with DABT
+_st_theme_file() {
+	local d
+	for d in "${TUI_THEMES_DIR:-}" "$TUI_DEFAULTS_DIR/themes"; do
+		[[ -n "$d" && -r "$d/$1.css" ]] && {
+			printf '%s' "$d/$1.css"
+			return 0
+		}
+	done
 	return 1
 }
 
 settings_visit() {
 	_st_load
-	_st_theme_sync || return 0 # reload re-enters settings_visit with the theme applied
+	_st_theme_current
 	_st_labels
 	_st_frame
 	_st_content
 }
 
 on_theme_pick() {
-	ST[theme]="${1#btn_th_}"
-	_st_save
-	_st_theme_sync
+	local name="${1#btn_th_}" f
+	if [[ "$name" == default ]]; then
+		tui.config.unset theme
+		tui.theme.clear # reloads this page -> settings_visit shows the new state
+		return
+	fi
+	f="$(_st_theme_file "$name")" || {
+		tui.notify "No theme file for $name" error 4
+		return
+	}
+	tui.config.set theme "$f"
+	tui.theme.set "$f"
 }
 on_border_cycle() {
 	ST[border]="$(_st_next _ST_BORDERS "${ST[border]}")"
@@ -180,5 +204,6 @@ st_do_reset() {
 	rm -f "$_ST_FILE"
 	_st_defaults
 	_st_save
+	tui.config.unset theme
 	tui.theme.clear # reloads this page -> settings_visit picks up the defaults
 }

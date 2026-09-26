@@ -9,3 +9,4 @@ Rebuilds a page by replaying its recorded call log. Returns `1` when nothing is 
 **Notes**
 
 - Does not check whether the recording is still valid; call [`tui.cache.valid`](/api/markup/tui.cache.valid.html) first.
+- The replayed calls, including the page's `on_visit`, run with the caller's stdin. The log is read on another file descriptor.

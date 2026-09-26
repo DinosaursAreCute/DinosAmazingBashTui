@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+* Statistical renderers in `lib/terminal_renderer.sh` for decimal data, computed in one POSIX awk pass each: `scatter` (braille dots, several series, connected lines, x tick labels), `boxplot` (five-number summaries on a shared axis), `forest` (estimate with interval and a reference line), `heatmap` (diverging truecolor matrix) and `histogram` (one bin per column, ⅛-block bars, markers). Each has the usual printing and `_string` forms and is available from the CLI.
+
 ## [0.0.17] - 2026-09-24
 
 ### News
@@ -33,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+* Switching the theme from the command bar and then opening the demo's Settings page laid the page out at 80x24 and dropped the theme. Two causes: a cached page was replayed with its call log on stdin, so its `on_visit` (and any `tui.goto` from it) saw no terminal and `term.size` fell back to 24x80; and the demo Settings page forced its own saved theme back on every visit, reloading the page from inside `on_visit`. The replay and the markup parser now read on a separate fd, `term.size` asks `/dev/tty` first, and the demo Settings page shows the active overlay instead of overriding it.
+* The demo Settings page's theme buttons looked for `share/demo/themes/*.css`, which moved to `share/defaults/themes/`, so picking a theme changed nothing. They now use `TUI_THEMES_DIR`, then the shipped themes, and save the choice as config `theme` (the same key the command bar and DABT's Settings page use), so it also applies from the next start.
 * `tui.hsplit`/`tui.vsplit` with a child given without `:WEIGHT` (`tui.hsplit root nav main`) failed with a division by zero; the weight now defaults to 1 as documented.
 * `tui.view TITLE TEXT --close CMD` ignored `--close`; it is now accepted as the documented alias of `--cancel`.
 * Demo Monitor page: removed two labels (`lbl_mon_inst`, `lbl_mon_stamp`) that targeted a pane `header` the page never declares, so they never rendered. 

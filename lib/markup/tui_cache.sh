@@ -295,10 +295,12 @@ tui.cache.valid() {
 tui.cache.replay() {
 	local file="$1" cmd
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" ]] || return 1
-	while IFS= read -r cmd; do
+	# the call log comes in on fd 9, not stdin: the replayed calls (sourced callbacks, on_visit) must see the
+	# terminal on stdin - with the log there, `stty size` failed and a tui.goto from on_visit laid out at 80x24
+	while IFS= read -r -u 9 cmd; do
 		[[ -z "$cmd" ]] && continue
 		eval "$cmd"
-	done <<<"${_TUI_CACHE_PAGE[$file]}"
+	done 9<<<"${_TUI_CACHE_PAGE[$file]}"
 	return 0
 }
 

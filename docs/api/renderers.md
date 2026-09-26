@@ -23,6 +23,11 @@ Each renderer has a `_build` (fills `TR_RESULT`, private), a printing form and a
 | `gauge` | `VALUE [-m max] [-n min] [-l label] [-lw] [-w width] [-c COLOR]` | |
 | `sparkline` | `"v1 v2 ..." [-d delim] [-w] [-m] [-n] [-c COLOR]` | Resamples to `-w`. |
 | `linechart` | `"Series:v1,v2,..."... [-h rows] [-w plot_w] [-m] [-n] [-c COLORS]` | Resamples to `-w`. |
+| `scatter` | `"Name:x,y x,y ..."... [-h rows] [-w width] [-xn/-xm/-yn/-ym] [-c COLORS] [-line "2"] [-xt "a\|b\|c"] [-nolegend]` | Decimal x/y. Braille dots (2x4 per cell); a cell takes the colour of the last series drawn into it. `-line` joins a series' points; `-xt` spreads tick labels under the x axis. |
+| `boxplot` | `"Label:min,q1,med,q3,max[,n]"... [-w] [-lw] [-n] [-m] [-z ref] [-c COLORS]` | One shared axis, median marked `┃`, `-z` draws a dotted reference line. |
+| `forest` | `"Label:est,lo,hi"... [-w] [-lw] [-n] [-m] [-z ref] [-c COLOR] [-p decimals]` | Estimate ● with interval; rows whose interval excludes the reference (default `0`) are coloured, the rest dim. Empty estimate = `n/a`. |
+| `heatmap` | `"\|c1\|c2" "row\|v\|v"... [-cw cell_w] [-p decimals] [-m max_abs] [-lw] [-w width]` | Diverging truecolor background around 0; columns numbered to keep cells narrow; a value too wide for its cell drops the leading zero, `-w` shortens row labels to fit. |
+| `histogram` | `"v1 v2 ..." [-h rows] [-w] [-n] [-m] [-c COLOR] [-d delim] [-mk "val:name:COLOR,..."]` | One bin per column, ⅛-block tops, `▲` markers under the axis. |
 | `csv_hbar`, `csv_vbar`, `csv_linechart` | `FILE.csv [--header] [-d delim]` + the plain chart's flags | See `examples/csv-charts/`. |
 | `banner` | `"TEXT" [FONT] [SCALE]` | Fonts: `block5 seg3 box3 blk3 half2`; `banner --list` shows glyph sets. |
 | `tree` | `"root" "  child"...` | Two-space indent per level. |
@@ -30,6 +35,8 @@ Each renderer has a `_build` (fills `TR_RESULT`, private), a printing form and a
 | `badges` | `"pass:Build" "fail:Test"...` | Status tags. |
 | `list` | `[-n] [-s "▸"] "item"...` | Bullet or numbered. |
 | `quote` | `[-a "Author"] "text"` | Block quote. |
+
+**Decimal data:** `hbar`, `vbar`, `gauge`, `sparkline` and `linechart` use bash integer math. `scatter`, `boxplot`, `forest`, `heatmap` and `histogram` accept decimals and compute in one POSIX `awk` pass.
 
 **Colors:** `-c` takes names from `lib/colors.sh` (`RED`, `BRIGHT_CYAN`, `DIM_YELLOW`, ...), comma separated for several bars/series. `vbar`, `linechart` and `gauge` have sensible defaults.
 

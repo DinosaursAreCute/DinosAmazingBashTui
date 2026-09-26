@@ -15,7 +15,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 # ║                                                                          ║
 # ║  Commands: box, divider, alert, table, kv, hbar, gauge, sparkline,      ║
 # ║            vbar, linechart, csv_hbar, csv_vbar, csv_linechart, banner,   ║
-# ║            tree, columns, badges, list, quote                            ║
+# ║            tree, columns, badges, list, quote,                           ║
+# ║            scatter, boxplot, forest, heatmap, histogram (float data)     ║
 # ╚════════════════════════════════════════════════════════════════════════════╝
 
 # ===========================================================================
@@ -1588,6 +1589,555 @@ csv_linechart_string() {
 }
 
 # ===========================================================================
+#  6g. STATISTICAL CHARTS - float data, computed in awk
+# ===========================================================================
+#  The charts above use bash integer arithmetic. These take decimal values (estimates, confidence intervals,
+#  correlations, raw measurements) and do their math in one POSIX awk pass each.
+#    scatter   "Name:x,y x,y ..."...   braille dots (2x4 per cell), one colour per series, optional connected lines
+#    boxplot   "Label:min,q1,med,q3,max[,n]"...   five-number summaries on one shared axis
+#    forest    "Label:est,lo,hi"...     point estimate + interval per row, with a reference line (default 0)
+#    heatmap   "H|col1|col2" "row|v|v"...   matrix, diverging truecolor background (negative blue, positive red)
+#    histogram "v1 v2 ..."              one bin per column, 1/8-block bar tops, optional markers
+#  Shared flags: -w total width (default terminal width), -m/-n pin the value axis, -c colour name(s), -lw label width.
+
+# The 256 braille patterns U+2800..U+28FF, space separated (built once; awk indexes them by dot bitmask + 1).
+declare -g _TR_BRAILLE=""
+_tr_braille_init() {
+	[[ -n "$_TR_BRAILLE" ]] && return 0
+	local i hex ch
+	for ((i = 0; i < 256; i++)); do
+		printf -v hex '%04x' $((0x2800 + i))
+		printf -v ch '%b' "\\u$hex"
+		_TR_BRAILLE+="$ch "
+	done
+}
+
+# awk helpers shared by the charts below: number formatting that adapts to magnitude, clamping, padding.
+_TR_AWK_LIB='
+function fmt(v,   a) { if (v == "" || v != v + 0) return "n/a"; a = v < 0 ? -v : v
+	if (a >= 1000) return sprintf("%.0f", v); if (a >= 100) return sprintf("%.1f", v)
+	if (a >= 1) return sprintf("%.2f", v); return sprintf("%.3f", v) }
+function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v) }
+function rep(c, n,   s) { s = ""; while (n-- > 0) s = s c; return s }
+function padr(s, n) { return length(s) >= n ? substr(s, 1, n) : s rep(" ", n - length(s)) }
+function padl(s, n) { return length(s) >= n ? substr(s, 1, n) : rep(" ", n - length(s)) s }
+function isnum(v) { return v != "" && v == v + 0 }
+/^[[:space:]]*$/ { next }
+'
+
+# ── scatter ──────────────────────────────────────────────────────────────────
+#  Usage: scatter "Tests:1,110 2,114 3,98" "Median:1,105 3,107" [-h rows] [-w width] [-xn/-xm/-yn/-ym bound]
+#                 [-c "CYAN,YELLOW"] [-line "2"] [-xt "Jun|Jul|Aug"] [-nolegend]
+#  Every point is one braille dot, so a 60x15 chart shows a 120x60 grid. A cell takes the colour of the last series
+#  drawn into it: list the most important series last. -line takes 1-based series numbers drawn as connected lines.
+#  -xt spreads tick labels evenly under the x axis (the caller knows whether x is a date, an index, ...).
+_scatter_build() {
+	local height=12 width=0 xn="" xm="" yn="" ym="" color_arg="" lines="" xticks="" legend=1
+	local -a series=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-h)
+				height="$2"
+				shift 2
+				;;
+			-w)
+				width="$2"
+				shift 2
+				;;
+			-xn)
+				xn="$2"
+				shift 2
+				;;
+			-xm)
+				xm="$2"
+				shift 2
+				;;
+			-yn)
+				yn="$2"
+				shift 2
+				;;
+			-ym)
+				ym="$2"
+				shift 2
+				;;
+			-c)
+				color_arg="$2"
+				shift 2
+				;;
+			-line)
+				lines="$2"
+				shift 2
+				;;
+			-xt)
+				xticks="$2"
+				shift 2
+				;;
+			-nolegend)
+				legend=0
+				shift
+				;;
+			*)
+				series+=("$1")
+				shift
+				;;
+		esac
+	done
+	TR_RESULT=()
+	((${#series[@]})) || return 1
+	((width > 0)) || {
+		_tr_term_width_v
+		width=$_TRV
+	}
+	_tr_braille_init
+	_tr_colors_or_default "$color_arg"
+	local s i pt feed="" name
+	for ((s = 0; s < ${#series[@]}; s++)); do
+		name="${series[s]%%:*}"
+		_tr_resolve_color_v "${_TR_COLORS[s % ${#_TR_COLORS[@]}]}"
+		feed+="S	$((s + 1))	$name	$_TRV"$'\n'
+		for pt in ${series[s]#*:}; do feed+="P	$((s + 1))	${pt%%,*}	${pt#*,}"$'\n'; done
+	done
+	IFS=',' read -ra _tr_l <<<"$lines"
+	for i in "${_tr_l[@]}"; do feed+="L	$i"$'\n'; done
+	mapfile -t TR_RESULT < <(awk -F'\t' -v W="$width" -v H="$height" -v XN="$xn" -v XM="$xm" -v YN="$yn" -v YM="$ym" \
+		-v BR="$_TR_BRAILLE" -v XT="$xticks" -v LEG="$legend" -v RS_="$RESET" "$_TR_AWK_LIB"'
+	$1 == "S" { name[$2] = $3; col[$2] = $4; ns = $2; next }
+	$1 == "L" { isline[$2] = 1; next }
+	$1 == "P" { if (!isnum($3) || !isnum($4)) next; n++; ps[n] = $2; px[n] = $3 + 0; py[n] = $4 + 0
+		if (n == 1 || px[n] < ax0) ax0 = px[n]; if (n == 1 || px[n] > ax1) ax1 = px[n]
+		if (n == 1 || py[n] < ay0) ay0 = py[n]; if (n == 1 || py[n] > ay1) ay1 = py[n]; next }
+	function dot(gx, gy, s,   cx, cy) { if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) return
+		D[gx, gy] = 1; cx = int(gx / 2); cy = int(gy / 4); C[cy, cx] = s }
+	function seg(x0, y0, x1, y1, s,   dx, dy, st, k, t) { dx = x1 - x0; dy = y1 - y0
+		st = (dx < 0 ? -dx : dx); if ((dy < 0 ? -dy : dy) > st) st = (dy < 0 ? -dy : dy)
+		if (st == 0) { dot(x0, y0, s); return }
+		for (k = 0; k <= st; k++) { t = k / st; dot(int(x0 + dx * t + 0.5), int(y0 + dy * t + 0.5), s) } }
+	END {
+		if (n == 0) exit 1
+		split(BR, B, " ")
+		x0 = isnum(XN) ? XN + 0 : ax0; x1 = isnum(XM) ? XM + 0 : ax1
+		y0 = isnum(YN) ? YN + 0 : ay0; y1 = isnum(YM) ? YM + 0 : ay1
+		if (x1 == x0) x1 = x0 + 1; if (y1 == y0) y1 = y0 + 1
+		lw = length(fmt(y1)); if (length(fmt(y0)) > lw) lw = length(fmt(y0)); if (length(fmt((y0 + y1) / 2)) > lw) lw = length(fmt((y0 + y1) / 2))
+		PW = W - lw - 2; if (PW < 4) PW = 4; GW = PW * 2; GH = H * 4
+		for (i = 1; i <= n; i++) {
+			gx = int((px[i] - x0) / (x1 - x0) * (GW - 1) + 0.5); gy = int((y1 - py[i]) / (y1 - y0) * (GH - 1) + 0.5)
+			s = ps[i]
+			if (isline[s] && (s in lx)) seg(lx[s], ly[s], gx, gy, s); else dot(gx, gy, s)
+			lx[s] = gx; ly[s] = gy
+		}
+		mid = int((H - 1) / 2)
+		for (r = 0; r < H; r++) {
+			lab = r == 0 ? fmt(y1) : (r == H - 1 ? fmt(y0) : (r == mid ? fmt((y0 + y1) / 2) : ""))
+			line = padl(lab, lw) " \342\224\202"; cur = ""
+			for (c = 0; c < PW; c++) {
+				m = 0
+				if (D[2*c, 4*r])     m += 1;  if (D[2*c, 4*r+1])   m += 2;  if (D[2*c, 4*r+2]) m += 4
+				if (D[2*c+1, 4*r])   m += 8;  if (D[2*c+1, 4*r+1]) m += 16; if (D[2*c+1, 4*r+2]) m += 32
+				if (D[2*c, 4*r+3])   m += 64; if (D[2*c+1, 4*r+3]) m += 128
+				want = m ? col[C[r, c]] : ""
+				if (want != cur) { line = line (cur != "" ? RS_ : "") want; cur = want }
+				line = line (m ? B[m + 1] : " ")
+			}
+			if (cur != "") line = line RS_
+			print line
+		}
+		print rep(" ", lw) " \342\224\224" rep("\342\224\200", PW)
+		nt = split(XT, T, "|")
+		if (nt > 0) {
+			tl = rep(" ", PW)
+			for (k = 1; k <= nt; k++) {
+				p = nt == 1 ? 0 : int((k - 1) * (PW - 1) / (nt - 1)); lab = T[k]
+				if (k == nt && nt > 1) p = PW - length(lab); if (p < 0) p = 0
+				if (p < used) continue
+				tl = substr(tl, 1, p) lab substr(tl, p + length(lab) + 1); used = p + length(lab) + 1
+			}
+			print rep(" ", lw + 2) substr(tl, 1, PW)
+		}
+		if (LEG) { lg = ""; for (s = 1; s <= ns; s++) lg = lg (s > 1 ? "  " : "") col[s] "\342\227\217" RS_ " " name[s]; print rep(" ", lw + 2) lg }
+	}' <<<"$feed")
+	((${#TR_RESULT[@]}))
+}
+scatter() {
+	_scatter_build "$@" || return
+	_tr_print
+}
+scatter_string() {
+	_scatter_build "$@" || return
+	_tr_to_string
+}
+
+# ── boxplot ──────────────────────────────────────────────────────────────────
+#  Usage: boxplot "Keyboard A:92,110,118,125,141,481" "Keyboard B:70,95,104,112,130" [-w width] [-lw label_w]
+#                 [-n min] [-m max] [-c "CYAN,MAGENTA"] [-z ref]
+#  Row: label, ├── whisker ▐█box█│█▌ ──┤ (│ = median), then "median  n=N". One shared axis; -z draws a dotted
+#  reference line (e.g. the overall median).
+_boxplot_build() {
+	local width=0 lw=0 mn="" mx="" color_arg="" ref=""
+	local -a rows=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-w)
+				width="$2"
+				shift 2
+				;;
+			-lw)
+				lw="$2"
+				shift 2
+				;;
+			-n)
+				mn="$2"
+				shift 2
+				;;
+			-m)
+				mx="$2"
+				shift 2
+				;;
+			-c)
+				color_arg="$2"
+				shift 2
+				;;
+			-z)
+				ref="$2"
+				shift 2
+				;;
+			*)
+				rows+=("$1")
+				shift
+				;;
+		esac
+	done
+	TR_RESULT=()
+	((${#rows[@]})) || return 1
+	((width > 0)) || {
+		_tr_term_width_v
+		width=$_TRV
+	}
+	_tr_colors_or_default "$color_arg"
+	local i r feed=""
+	for ((i = 0; i < ${#rows[@]}; i++)); do
+		r="${rows[i]}"
+		_tr_resolve_color_v "${_TR_COLORS[i % ${#_TR_COLORS[@]}]}"
+		feed+="${r%:*}	${r##*:}	$_TRV"$'\n'
+	done
+	mapfile -t TR_RESULT < <(awk -F'\t' -v W="$width" -v LW="$lw" -v MN="$mn" -v MX="$mx" -v REF="$ref" -v RS_="$RESET" "$_TR_AWK_LIB"'
+	{ n++; lab[n] = $1; col[n] = $3; k = split($2, v, ","); for (j = 1; j <= 6; j++) q[n, j] = (j <= k ? v[j] : "")
+		if (!isnum(q[n, 1]) || !isnum(q[n, 5])) next
+		if (!init || q[n, 1] + 0 < lo) lo = q[n, 1] + 0; if (!init || q[n, 5] + 0 > hi) hi = q[n, 5] + 0; init = 1
+		if (length($1) > ml) ml = length($1) }
+	function pos(v) { return int(clamp((v - lo) / (hi - lo), 0, 1) * (PW - 1) + 0.5) + 1 }
+	END {
+		if (n == 0) exit 1
+		if (isnum(MN)) lo = MN + 0; if (isnum(MX)) hi = MX + 0; if (hi == lo) hi = lo + 1
+		L = LW > 0 ? LW : (ml > 24 ? 24 : ml); SW = 16; PW = W - L - SW - 2; if (PW < 10) PW = 10
+		rp = isnum(REF) ? pos(REF + 0) : 0
+		for (i = 1; i <= n; i++) {
+			for (c = 1; c <= PW; c++) ch[c] = (c == rp ? "\342\224\206" : " ")
+			if (isnum(q[i, 1]) && isnum(q[i, 5])) {
+				a = pos(q[i, 1]); b = pos(q[i, 2]); m = pos(q[i, 3]); d = pos(q[i, 4]); e = pos(q[i, 5])
+				for (c = a; c <= e; c++) ch[c] = "\342\224\200"
+				for (c = b; c <= d; c++) ch[c] = "\342\226\210"
+				ch[a] = "\342\224\234"; ch[e] = "\342\224\244"
+				body = ""; for (c = 1; c <= PW; c++) body = body (c == m ? RS_ "\033[1;97m\342\224\203" RS_ col[i] : ch[c])
+				tail = sprintf(" %8s n=%s", fmt(q[i, 3]), q[i, 6] == "" ? "?" : q[i, 6])
+			} else { body = ""; for (c = 1; c <= PW; c++) body = body ch[c]; tail = "  (no data)" }
+			print padr(lab[i], L) " " col[i] body RS_ tail
+		}
+		ax = rep("\342\224\200", PW); print rep(" ", L) " " ax
+		l0 = fmt(lo); l1 = fmt(hi); lm = fmt((lo + hi) / 2); midp = int((PW - length(lm)) / 2)
+		t = padr(l0, midp) lm; t = padr(t, PW - length(l1)) l1
+		print rep(" ", L) " " t
+	}' <<<"$feed")
+	((${#TR_RESULT[@]}))
+}
+boxplot() {
+	_boxplot_build "$@" || return
+	_tr_print
+}
+boxplot_string() {
+	_boxplot_build "$@" || return
+	_tr_to_string
+}
+
+# ── forest ───────────────────────────────────────────────────────────────────
+#  Usage: forest "Keyboard B:-6.2,-9.8,-2.7" "Layout C:1.3,-0.8,3.3" [-w width] [-lw label_w] [-n min] [-m max]
+#                [-z ref] [-c COLOR] [-p decimals]
+#  A forest / dot-and-whisker plot: ● at the estimate, ─ over the interval, a dotted │ at the reference value
+#  (default 0). Rows whose interval excludes the reference are drawn in the colour (default YELLOW), the others
+#  dim. An empty or non-numeric estimate shows "n/a". The value column prints "est [lo, hi]".
+_forest_build() {
+	local width=0 lw=0 mn="" mx="" ref=0 color="YELLOW" dec=""
+	local -a rows=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-w)
+				width="$2"
+				shift 2
+				;;
+			-lw)
+				lw="$2"
+				shift 2
+				;;
+			-n)
+				mn="$2"
+				shift 2
+				;;
+			-m)
+				mx="$2"
+				shift 2
+				;;
+			-z)
+				ref="$2"
+				shift 2
+				;;
+			-c)
+				color="$2"
+				shift 2
+				;;
+			-p)
+				dec="$2"
+				shift 2
+				;;
+			*)
+				rows+=("$1")
+				shift
+				;;
+		esac
+	done
+	TR_RESULT=()
+	((${#rows[@]})) || return 1
+	((width > 0)) || {
+		_tr_term_width_v
+		width=$_TRV
+	}
+	_tr_resolve_color_v "$color"
+	local hi_col="$_TRV" r feed=""
+	for r in "${rows[@]}"; do feed+="${r%:*}	${r##*:}"$'\n'; done
+	mapfile -t TR_RESULT < <(awk -F'\t' -v W="$width" -v LW="$lw" -v MN="$mn" -v MX="$mx" -v REF="$ref" -v HC="$hi_col" \
+		-v DIM="${DIM:-\033[2m}" -v DEC="$dec" -v RS_="$RESET" "$_TR_AWK_LIB"'
+	function f(v) { return DEC == "" ? fmt(v) : (isnum(v) ? sprintf("%." DEC "f", v) : "n/a") }
+	{ n++; lab[n] = $1; split($2, v, ","); e[n] = v[1]; a[n] = v[2]; b[n] = v[3]; if (length($1) > ml) ml = length($1)
+		for (j = 1; j <= 3; j++) if (isnum(v[j])) { if (!init || v[j] + 0 < lo) lo = v[j] + 0; if (!init || v[j] + 0 > hi) hi = v[j] + 0; init = 1 }
+		t = isnum(v[1]) ? f(v[1]) (isnum(v[2]) ? " [" f(v[2]) ", " f(v[3]) "]" : "") : "n/a"; txt[n] = t; if (length(t) > tl) tl = length(t) }
+	function pos(v) { return int(clamp((v - lo) / (hi - lo), 0, 1) * (PW - 1) + 0.5) + 1 }
+	END {
+		if (n == 0) exit 1
+		if (!init) { lo = REF - 1; hi = REF + 1 }
+		if (REF + 0 < lo) lo = REF + 0; if (REF + 0 > hi) hi = REF + 0
+		if (isnum(MN)) lo = MN + 0; if (isnum(MX)) hi = MX + 0; if (hi == lo) { lo -= 1; hi += 1 }
+		L = LW > 0 ? LW : (ml > 24 ? 24 : ml); PW = W - L - tl - 3; if (PW < 10) PW = 10
+		rp = pos(REF + 0)
+		for (i = 1; i <= n; i++) {
+			for (c = 1; c <= PW; c++) ch[c] = (c == rp ? "\342\224\206" : " ")
+			sig = 0
+			if (isnum(e[i])) {
+				if (isnum(a[i]) && isnum(b[i])) { p = pos(a[i]); q = pos(b[i]); for (c = p; c <= q; c++) ch[c] = "\342\224\200"
+					ch[p] = "\342\224\234"; ch[q] = "\342\224\244"; sig = (a[i] > REF || b[i] < REF) }
+				ch[pos(e[i])] = "\342\227\217"
+			}
+			body = ""; for (c = 1; c <= PW; c++) body = body ch[c]
+			print padr(lab[i], L) " " (sig ? HC : DIM) body RS_ " " padl(txt[i], tl)
+		}
+		print rep(" ", L) " " rep("\342\224\200", PW)
+		l0 = f(lo); l1 = f(hi); lr = f(REF); t = rep(" ", PW)
+		t = l0 substr(t, length(l0) + 1); t = substr(t, 1, PW - length(l1)) l1
+		rq = rp - int(length(lr) / 2); if (rq > length(l0) + 1 && rq + length(lr) < PW - length(l1)) t = substr(t, 1, rq - 1) lr substr(t, rq + length(lr))
+		print rep(" ", L) " " t
+	}' <<<"$feed")
+	((${#TR_RESULT[@]}))
+}
+forest() {
+	_forest_build "$@" || return
+	_tr_print
+}
+forest_string() {
+	_forest_build "$@" || return
+	_tr_to_string
+}
+
+# ── heatmap ──────────────────────────────────────────────────────────────────
+#  Usage: heatmap "|wpm|acc|raw" "wpm|1|0.1|0.7" "acc|0.1|1|-0.2" [-cw cell_width] [-p decimals] [-m max_abs] [-lw label_w]
+#                 [-w width]
+#  First argument is the header (its first cell is ignored). Columns are numbered in the header and the number is
+#  repeated in front of each row label, so long names never squeeze the cells. Background: diverging scale around 0
+#  (blue negative, red positive) scaled to -m (default: largest |value|); needs a truecolor terminal. A value wider
+#  than its cell loses its leading zero (-0.6 → -.6); -w shortens the row labels so the matrix fits that width.
+_heatmap_build() {
+	local cw=5 dec=2 mx="" lw=0 width=0
+	local -a rows=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-w)
+				width="$2"
+				shift 2
+				;;
+			-cw)
+				cw="$2"
+				shift 2
+				;;
+			-p)
+				dec="$2"
+				shift 2
+				;;
+			-m)
+				mx="$2"
+				shift 2
+				;;
+			-lw)
+				lw="$2"
+				shift 2
+				;;
+			*)
+				rows+=("$1")
+				shift
+				;;
+		esac
+	done
+	TR_RESULT=()
+	((${#rows[@]} > 1)) || return 1
+	mapfile -t TR_RESULT < <(printf '%s\n' "${rows[@]}" | awk -F'|' -v CW="$cw" -v DEC="$dec" -v MX="$mx" -v LW="$lw" -v W="$width" \
+		-v RS_="$RESET" "$_TR_AWK_LIB"'
+	NR == 1 { nc = NF - 1; next }
+	{ nr++; lab[nr] = $1; if (length($1) > ml) ml = length($1)
+		for (j = 2; j <= NF; j++) { v[nr, j - 1] = $j; if (isnum($j)) { a = $j < 0 ? -$j : $j; if (a > amax) amax = a } } }
+	function bg(x,   t, r, g, b) { t = clamp(x / S, -1, 1)
+		if (t >= 0) { r = 45 + 170 * t; g = 45 + 10 * t; b = 50 - 10 * t } else { t = -t; r = 45 - 10 * t; g = 45 + 65 * t; b = 50 + 170 * t }
+		return sprintf("\\033[48;2;%d;%d;%dm", r, g, b) }
+	END {
+		if (nr == 0) exit 1
+		S = isnum(MX) ? MX + 0 : (amax > 0 ? amax : 1)
+		L = (LW > 0 ? LW : ml) + 4
+		if (W > 0 && L + nc * CW > W) L = W - nc * CW; if (L < 6) L = 6
+		h = rep(" ", L)
+		for (j = 1; j <= nc; j++) h = h padl(j, CW)
+		print h
+		for (i = 1; i <= nr; i++) {
+			line = padl(i, 2) " " padr(lab[i], L - 3)
+			for (j = 1; j <= nc; j++) {
+				x = v[i, j]
+				if (isnum(x)) { t = x < 0 ? -x / S : x / S; txt = sprintf("%." DEC "f", x)
+					if (length(txt) >= CW) sub(/^-?0\./, (x < 0 ? "-." : "."), txt)
+					line = line bg(x) (t > 0.45 ? "\\033[97m" : "\\033[37m") padl(txt, CW) RS_ }
+				else line = line padl("\302\267", CW)
+			}
+			print line
+		}
+		print rep(" ", L) sprintf("scale: %s \342\200\246 %s", fmt(-S), fmt(S))
+	}')
+	((${#TR_RESULT[@]}))
+}
+heatmap() {
+	_heatmap_build "$@" || return
+	_tr_print
+}
+heatmap_string() {
+	_heatmap_build "$@" || return
+	_tr_to_string
+}
+
+# ── histogram ────────────────────────────────────────────────────────────────
+#  Usage: histogram "112.5 98 131.2 ..." [-h rows] [-w width] [-n min] [-m max] [-c COLOR] [-d delim]
+#                   [-mk "115.9:median:YELLOW,132:p90:RED"]
+#  One bin per plot column (so the bin count follows -w); bar tops use 1/8 blocks. -mk puts a coloured ▲ under the
+#  axis at each marker value and lists the markers below. Values outside -n/-m are ignored.
+_histogram_build() {
+	local height=8 width=0 mn="" mx="" color="CYAN" delim=" " markers="" data=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-h)
+				height="$2"
+				shift 2
+				;;
+			-w)
+				width="$2"
+				shift 2
+				;;
+			-n)
+				mn="$2"
+				shift 2
+				;;
+			-m)
+				mx="$2"
+				shift 2
+				;;
+			-c)
+				color="$2"
+				shift 2
+				;;
+			-d)
+				delim="$2"
+				shift 2
+				;;
+			-mk)
+				markers="$2"
+				shift 2
+				;;
+			*)
+				data+="$1$delim"
+				shift
+				;;
+		esac
+	done
+	TR_RESULT=()
+	[[ -n "${data//[$delim]/}" ]] || return 1
+	((width > 0)) || {
+		_tr_term_width_v
+		width=$_TRV
+	}
+	_tr_resolve_color_v "$color"
+	local bar_col="$_TRV" feed="" mk name val mcol
+	IFS=',' read -ra _tr_mk <<<"$markers"
+	for mk in "${_tr_mk[@]}"; do
+		IFS=':' read -r val name mcol <<<"$mk"
+		_tr_resolve_color_v "${mcol:-YELLOW}"
+		feed+="M	$val	$name	$_TRV"$'\n'
+	done
+	feed+="V	${data//"$delim"/$'\t'}"$'\n'
+	mapfile -t TR_RESULT < <(awk -F'\t' -v W="$width" -v H="$height" -v MN="$mn" -v MX="$mx" -v BC="$bar_col" \
+		-v RS_="$RESET" "$_TR_AWK_LIB"'
+	$1 == "M" { nm++; mv[nm] = $2; mn_[nm] = $3; mc[nm] = $4; next }
+	$1 == "V" { for (j = 2; j <= NF; j++) if (isnum($j)) { n++; x[n] = $j + 0; if (n == 1 || x[n] < lo) lo = x[n]; if (n == 1 || x[n] > hi) hi = x[n] } }
+	END {
+		if (n == 0) exit 1
+		if (isnum(MN)) lo = MN + 0; if (isnum(MX)) hi = MX + 0; if (hi == lo) hi = lo + 1
+		cmax = 0; lw = 0
+		PW = W - 8; if (PW < 10) PW = 10
+		for (i = 1; i <= n; i++) { if (x[i] < lo || x[i] > hi) continue; b = int((x[i] - lo) / (hi - lo) * PW); if (b >= PW) b = PW - 1; cnt[b]++; if (cnt[b] > cmax) cmax = cnt[b] }
+		lw = length(cmax ""); PW = W - lw - 2; if (PW < 10) PW = 10
+		delete cnt; cmax = 0
+		for (i = 1; i <= n; i++) { if (x[i] < lo || x[i] > hi) continue; b = int((x[i] - lo) / (hi - lo) * PW); if (b >= PW) b = PW - 1; cnt[b]++; if (cnt[b] > cmax) cmax = cnt[b] }
+		split("\342\226\201 \342\226\202 \342\226\203 \342\226\204 \342\226\205 \342\226\206 \342\226\207 \342\226\210", E, " ")
+		for (r = H; r >= 1; r--) {
+			line = padl(r == H ? cmax : (r == 1 ? "0" : ""), lw) " \342\224\202" BC
+			for (c = 0; c < PW; c++) {
+				e8 = cnt[c] / cmax * H * 8 - (r - 1) * 8
+				line = line (e8 >= 8 ? E[8] : (e8 >= 1 ? E[int(e8)] : (r == 1 && cnt[c] > 0 ? E[1] : " ")))
+			}
+			print line RS_
+		}
+		print rep(" ", lw) " \342\224\224" rep("\342\224\200", PW)
+		if (nm) { ml = rep(" ", PW); leg = ""
+			for (k = 1; k <= nm; k++) { if (!isnum(mv[k])) continue; p = int(clamp((mv[k] - lo) / (hi - lo), 0, 1) * (PW - 1))
+				mk[p] = mc[k]; leg = leg (leg == "" ? "" : "   ") mc[k] "\342\226\262" RS_ " " mn_[k] " " fmt(mv[k]) }
+			line = rep(" ", lw + 2); for (c = 0; c < PW; c++) line = line ((c in mk) ? mk[c] "\342\226\262" RS_ : " ")
+			print line }
+		l0 = fmt(lo); l1 = fmt(hi); lm = fmt((lo + hi) / 2)
+		t = padr(l0, int((PW - length(lm)) / 2)) lm; t = padr(t, PW - length(l1)) l1
+		print rep(" ", lw + 2) t
+		if (nm) print rep(" ", lw + 2) leg
+	}' <<<"$feed")
+	((${#TR_RESULT[@]}))
+}
+histogram() {
+	_histogram_build "$@" || return
+	_tr_print
+}
+histogram_string() {
+	_histogram_build "$@" || return
+	_tr_to_string
+}
+
+# ===========================================================================
 #  7. BANNER - big block-letter text (fonts: block5, seg3, box3, blk3, half2; optional scale)
 # ===========================================================================
 #  Usage: banner "HELLO" [FONT] [SCALE]   (FONT defaults to $TR_BANNER_FONT, else block5)
@@ -2370,6 +2920,11 @@ Commands:
   csv_hbar      <file.csv> [--header] [-d delim] [-m max] [-n min] [-w width] [-lw label_width] [-c "C,.."]
   csv_vbar      <file.csv> [--header] [-h rows] [-m max] [-n min] [-tw total_width] [-cw col_width] [-c "C,.."]
   csv_linechart <file.csv> [-h rows] [-w plot_width] [-m max] [-n min] [-c "C,.."]
+  scatter   "Name:x,y x,y .." ... [-h rows] [-w width] [-xn/-xm/-yn/-ym bound] [-c "C,.."] [-line "2"] [-xt "a|b|c"] [-nolegend]
+  boxplot   "Label:min,q1,med,q3,max[,n]" ... [-w width] [-lw label_width] [-n min] [-m max] [-z ref] [-c "C,.."]
+  forest    "Label:est,lo,hi" ... [-w width] [-lw label_width] [-n min] [-m max] [-z ref] [-c COLOR] [-p decimals]
+  heatmap   "|c1|c2" "row|v|v" ... [-cw cell_width] [-p decimals] [-m max_abs] [-lw label_width] [-w width]
+  histogram "v1 v2 .." [-h rows] [-w width] [-n min] [-m max] [-c COLOR] [-d delim] [-mk "val:name:COLOR,.."]
   banner    "TEXT" [FONT] [SCALE]             Big letters; FONT: block5 seg3 box3 blk3 half2
   banner    --list                            Every character set in every font (tables)
   tree      "root" "  child" ...             Tree hierarchy
@@ -2419,7 +2974,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 
 	# Map to function
 	case "$cmd" in
-		box | divider | alert | table | kv | hbar | vbar | gauge | sparkline | linechart | csv_hbar | csv_vbar | csv_linechart | banner | tree | columns | badges | list | quote)
+		box | divider | alert | table | kv | hbar | vbar | gauge | sparkline | linechart | csv_hbar | csv_vbar | csv_linechart | scatter | boxplot | forest | heatmap | histogram | banner | tree | columns | badges | list | quote)
 			if ((string_mode)); then
 				"${cmd}_string" "${args[@]}"
 			else

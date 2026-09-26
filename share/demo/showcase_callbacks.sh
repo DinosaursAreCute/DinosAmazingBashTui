@@ -457,7 +457,7 @@ sc_theme_pick() {
 		grep -v "^theme=" "$f" 2>/dev/null
 		echo "theme=$t"
 	} >"$f.tmp" && mv "$f.tmp" "$f"
-	if [[ "$t" == default ]]; then tui.theme.clear; else tui.theme.set "$(dirname "$(tui.get.page)")/themes/$t.css"; fi
+	if [[ "$t" == default ]]; then tui.theme.clear; else tui.theme.set "$(dirname "$(tui.get.page)")/../defaults/themes/$t.css"; fi
 }
 
 # Fit page: change the output pane's own padding/border and watch every renderer re-fit.

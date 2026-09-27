@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.18] - 2026-09-27
+
 ### News
 #### _DevEx Initiative Update 1.5: Themes for everyone_
 - With update we improved how you can add themes to dabt and use your own in other applications. 

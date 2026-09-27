@@ -245,15 +245,27 @@ Default theme, generated with `tools/debug/screenshot_all.sh`.
 <br/>
 <h3 id="themes"><img src="assets/headers/themes.svg" alt="Themes" height="35"></h3>
 
-Switch the whole app from Settings; themes live in `share/demo/themes/*.css`.
+Switch the whole app from Settings or the command palette; the shipped themes live in `share/defaults/themes/*.css`, and any `.css` dropped in there shows up in both.
 
 | Default | Ocean | Forest |
 |:---:|:---:|:---:|
-| <img src="screenshots/default/styles.png" alt="default" width="260"> | <img src="screenshots/ocean/styles.png" alt="ocean" width="260"> | <img src="screenshots/forest/styles.png" alt="forest" width="260"> |
+| <img src="screenshots/default/components_theme.png" alt="default" width="260"> | <img src="screenshots/ocean/components_theme.png" alt="ocean" width="260"> | <img src="screenshots/forest/components_theme.png" alt="forest" width="260"> |
 
-| Sunset | Light |
+| Sunset | Light | Fallout |
+|:---:|:---:|:---:|
+| <img src="screenshots/sunset/components_theme.png" alt="sunset" width="260"> | <img src="screenshots/light/components_theme.png" alt="light" width="260"> | <img src="screenshots/fallout/components_theme.png" alt="fallout" width="260"> |
+
+| Neovim | Monkeytype | Hello Kitty |
+|:---:|:---:|:---:|
+| <img src="screenshots/neovim/components_theme.png" alt="neovim" width="260"> | <img src="screenshots/monkeytype/components_theme.png" alt="monkeytype" width="260"> | <img src="screenshots/hello_kitty/components_theme.png" alt="hello_kitty" width="260"> |
+
+| Solarized Dark | Solarized Light | Gruvbox |
+|:---:|:---:|:---:|
+| <img src="screenshots/solarized_dark/components_theme.png" alt="solarized_dark" width="260"> | <img src="screenshots/solarized_light/components_theme.png" alt="solarized_light" width="260"> | <img src="screenshots/gruvbox/components_theme.png" alt="gruvbox" width="260"> |
+
+| Dracula | Nord |
 |:---:|:---:|
-| <img src="screenshots/sunset/styles.png" alt="sunset" width="260"> | <img src="screenshots/light/styles.png" alt="light" width="260"> |
+| <img src="screenshots/dracula/components_theme.png" alt="dracula" width="260"> | <img src="screenshots/nord/components_theme.png" alt="nord" width="260"> |
 <br/>
 <br/>
 <h2 id="documentation"><img src="assets/headers/documentation.svg" alt="Documentation" height="35"></h2>

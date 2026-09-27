@@ -52,7 +52,7 @@ One row: `Label  [ value ▾ ]`. Enter, space, Down or a click opens a picker (a
 
 ## Theming
 
-`.selection` (selected text), `.list_sel`, `.table_sel`, `.table_head`, `.progress`, `.progress_fill`, plus the usual `class=` / `:focus` / `:hover` on the widget itself. All have built-in fallbacks.
+`.selection` (selected text), `.list_sel`, `.table_sel`, `.table_head`, `.progress`, `.progress_fill`, `.field_label` (the label in front of an input, password, select or progress bar; `.field_label:focus` while that widget has focus; it sets the text colour and mods, the background comes from the pane unless the class sets one - without the class the label uses the pane's colours in bold), plus the usual `class=` / `:focus` / `:hover` on the widget itself. All have built-in fallbacks.
 
 ## Roadmap
 

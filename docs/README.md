@@ -123,7 +123,7 @@ my_app/
 | `TUI_APP_NAME` | `dabt` | The application's id (set BEFORE sourcing `tui.sh`): its files live in `~/.config/DABT/apps/$TUI_APP_NAME/` (`dabt.conf`, `keybinds.xml`, `settings.conf`, `app.meta`). |
 | `TUI_HOME` | `~/.config/DABT` | DABT's home. Plugins you install go in `$TUI_HOME/plugins` (`TUI_PLUGINS_DIR`). |
 | `TUI_DEFAULTS_DIR` | `share/defaults` | Where default keybinds, commands, theme and shipped pages are read from. |
-| `TUI_THEMES_DIR` | `<app dir>/themes` | Themes offered by Settings and the palette (falls back to the shipped `share/defaults/themes`; the palette always lists those too). |
+| `TUI_THEMES_DIR` | `<app dir>/themes` | The app's own themes. Settings and the palette offer these together with every `*.css` in DABT's installed themes directory (`tui.theme.list`); an app theme with the same name wins. |
 | `TUI_USER_KEYBINDS` | `$TUI_APP_CONF/keybinds.xml` | Saved user keybinds file. |
 | `TUI_CONFIG_FILE` | `$TUI_APP_CONF/dabt.conf` | Persisted framework settings. |
 | `TUI_FOOTER_DEFAULT` | quit, command bar, back | Default `<footer/>` items. |

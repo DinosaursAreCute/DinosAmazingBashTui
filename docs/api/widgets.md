@@ -97,7 +97,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 ## Richer widgets
 
-Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`). Theme classes (all optional): `.list_sel .table_head .table_sel .progress .progress_fill .select .selection`.
+Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`). Theme classes (all optional): `.list_sel .table_head .table_sel .progress .progress_fill .select .selection .field_label .field_label:focus`.
 
 <!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change -->
 

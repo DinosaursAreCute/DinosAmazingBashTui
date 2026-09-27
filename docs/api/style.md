@@ -57,7 +57,7 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 
 ## App-wide theme overlay
 
-<!-- api: tui.theme.set tui.theme.clear tui.theme.current tui.theme.reload -->
+<!-- api: tui.theme.set tui.theme.clear tui.theme.current tui.theme.reload tui.theme.list tui.theme.pick -->
 
 | Function | Summary |
 |---|---|
@@ -65,6 +65,8 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 | [`tui.theme.clear`](style/tui.theme.clear.md) | Removes the app-wide stylesheet and reloads the current page. |
 | [`tui.theme.current`](style/tui.theme.current.md) | Prints the path of the app-wide stylesheet (empty when none). |
 | [`tui.theme.reload`](style/tui.theme.reload.md) | Reloads the current page, keeping focus and cursor when the focused widget still exists. |
+| [`tui.theme.list`](style/tui.theme.list.md) | Prints every selectable theme overlay as `NAME<TAB>FILE`, one per line, sorted by name. |
+| [`tui.theme.pick`](style/tui.theme.pick.md) | Applies the theme `NAME` from [`tui.theme.list`](/api/style/tui.theme.list.html) to every page and remembers it for the next start. Without `NAME` it removes the overlay (page default). |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -75,6 +77,10 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 {% include_relative style/tui.theme.current.md %}
 
 {% include_relative style/tui.theme.reload.md %}
+
+{% include_relative style/tui.theme.list.md %}
+
+{% include_relative style/tui.theme.pick.md %}
 
 </div>
 

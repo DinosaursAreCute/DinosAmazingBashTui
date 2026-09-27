@@ -323,23 +323,21 @@ _tui_cmd.provide_pages() {
 }
 
 
-# selectable theme overlays: every *.css in the shipped $TUI_DEFAULTS_DIR/themes, plus the app's TUI_THEMES_DIR
-# (default: <app dir>/themes); an app theme with the same name wins
+# selectable theme overlays: exactly what tui.theme.list prints (every *.css in DABT's installed themes
+# directory plus the app's TUI_THEMES_DIR). Picking one also remembers it, like the Settings page does.
 _tui_cmd.provide_themes() {
-    local appdir="${TUI_THEMES_DIR:-${_TUI_APP_DIR:-${_TUI_MARKUP_FILE%/*}}/themes}" dir f name cur mark
-    local -A files=()
-    for dir in "$TUI_DEFAULTS_DIR/themes" "$appdir"; do
-        [[ -d "$dir" ]] || continue
-        for f in "$dir"/*.css; do [[ -e "$f" ]] && files[${f##*/}]="$f"; done
-    done
-    (( ${#files[@]} )) || return 0
+    local name f cur mark title n=0
     cur="${_TUI_THEME_OVERLAY:-}"
-    tui.cmd.add theme:default "Theme: page default" "tui.theme.clear" --group Themes --desc "Remove the theme overlay"
-    for f in "${files[@]}"; do
-        name="${f##*/}"; name="${name%.css}"
+    while IFS=$'\t' read -r name f; do
+        [[ -n "$name" && "$name" != *' '* ]] || continue          # a command can't pass an argument with spaces
         mark=""; [[ "$cur" == "$f" ]] && mark="  (active)"
-        tui.cmd.add "theme:$name" "Theme: ${name^}$mark" "tui.theme.set $f" --group Themes --desc "Apply $name to every page"
-    done
+        title="${name//_/ }"
+        tui.cmd.add "theme:$name" "Theme: ${title^}$mark" "tui.theme.pick $name" --group Themes --desc "Apply $name to every page"
+        ((n++))
+    done < <(tui.theme.list)
+    (( n )) || return 0
+    mark=""; [[ -z "$cur" ]] && mark="  (active)"
+    tui.cmd.add theme:default "Theme: page default$mark" "tui.theme.pick" --group Themes --desc "Remove the theme overlay"
 }
 
 # jump keyboard focus to a named pane

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """screenshots.py - PNG screenshot of every DABT demo page under every theme (headless, no terminal needed).
   tools/debug/screenshots.py [-o OUTDIR] [-r ROWSxCOLS] [-t THEME,...] [-p PAGE|PAGE@TAB|PAGE@*,...] [--settle SEC] [-j JOBS] [--font PATH] [--size PX]
+Themes: "default" plus every share/defaults/themes/*.css (and share/demo/themes/*.css if present) unless -t is given.
 Runs screenshot_driver.sh once per theme (frames are dumped via tui.render), then rasterises the ANSI frame with a
 small built-in VT emulator + Pillow. Output: OUTDIR/<ROWSxCOLS>/<theme>/<page>.png (-r takes a comma list, default 45x150,70x280) (default OUTDIR: tools/debug/screenshots/).
 Each shot waits --settle seconds (default 0.5) with timers polled, so clocks/jobs have content. Live content (tui.exec, timers) is not running headless, so those panes show their initial state.
@@ -11,6 +12,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGES = os.path.normpath(os.path.join(HERE, '..', '..', 'share', 'demo'))
+THEMES = os.path.normpath(os.path.join(HERE, '..', '..', 'share', 'defaults', 'themes'))   # every theme DABT ships
+
+def all_themes():
+    # "default" (no overlay) + every *.css DABT ships, plus the demo's own themes/ if it has one (same name: listed once)
+    names = {os.path.basename(f)[:-4] for d in (THEMES, os.path.join(PAGES, 'themes')) for f in glob.glob(d + '/*.css')}
+    return ['default'] + sorted(names)
 DEF_FG, DEF_BG = (192, 202, 245), (26, 27, 38)
 BASE16 = [(0,0,0),(205,49,49),(13,188,121),(229,229,16),(36,114,200),(188,63,188),(17,168,205),(229,229,229),
           (102,102,102),(241,76,76),(35,209,139),(245,245,67),(59,142,234),(214,112,214),(41,184,219),(255,255,255)]
@@ -96,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('-o', default=os.path.join(HERE, 'screenshots'))
     ap.add_argument('-r', default='45x150,70x280'); ap.add_argument('-t'); ap.add_argument('-p')
     ap.add_argument('--settle', default='0.5'); ap.add_argument('-j', type=int, default=os.cpu_count() or 4, help='parallel jobs (default: CPU count)'); ap.add_argument('--font'); ap.add_argument('--size', type=int, default=16); a = ap.parse_args()
-    themes = a.t.split(',') if a.t else ['default'] + sorted(os.path.basename(f)[:-4] for f in glob.glob(PAGES + '/themes/*.css'))
+    themes = a.t.split(',') if a.t else all_themes()
     extra = ['case_study@tab_tbl', 'docu@*']          # tabs worth their own shot (tab pages of components/debug are real pages already)
     pages = a.p.split(',') if a.p else extra + sorted(os.path.basename(f)[:-4] for f in glob.glob(PAGES + '/*.xml')
                                                if not os.path.basename(f).startswith('_') and os.path.basename(f) != 'commands.xml')

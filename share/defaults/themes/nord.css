@@ -1,0 +1,135 @@
+/* themes/nord.css - DABT theme overlay: Nord (Arctic Ice Studio).
+ * Covers every class of share/defaults/theme.css plus a few extras apps can use
+ * (.field / .field_input sunken text box, .neutral_button, .nav_button / .nav_active view switcher).
+ * header-font: half2
+ *   ^ a hint for apps that draw a banner (block5 seg3 box3 blk3 half2, or "plain"); DABT itself ignores it.
+ * Selected on the Settings page or from the command palette (Themes). */
+
+.panel { fg: #d8dee9; bg: #2e3440; }
+.panel:border { fg: #4c566a; }
+.panel:title { fg: #88c0d0; mods: bold; }
+.panel:focus { fg: #d8dee9; bg: #394551; }
+.panes { fg: #d8dee9; bg: #2e3440; }
+.list { fg: #d8dee9; bg: #2e3440; }
+.footer { fg: #4c566a; bg: #3b4252; }
+.footer_key { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.footer_label { fg: #d8dee9; bg: #3b4252; }
+.muted_label { fg: #4c566a; bg: #2e3440; }
+
+/* sunken text box: .field is its pane (border lights up while typing), .field_input the textarea in it */
+.field { fg: #d8dee9; bg: #1e222a; }
+.field:border { fg: #616773; }
+.field:title { fg: #4c566a; }
+.field:focus { fg: #88c0d0; bg: #1e222a; }
+.field_input { fg: #d8dee9; bg: #1e222a; }
+.field_input:hover { fg: #d8dee9; bg: #1e222a; }
+.field_input:focus { fg: #d8dee9; bg: #1e222a; }
+
+/* neutral button (Save/Discard with nothing to save): a quiet raised chip in the panel's colours */
+.neutral_button { fg: #d8dee9; bg: #464c58; }
+.neutral_button:hover { fg: #d8dee9; bg: #575d69; }
+.neutral_button:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+
+/* header view switcher: nav_active = the page you are on, nav_button = the other one */
+.nav_button { fg: #4c566a; bg: #3b4252; }
+.nav_button:hover { fg: #d8dee9; bg: #3b4252; }
+.nav_button:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.nav_active { fg: #88c0d0; bg: #3b4252; mods: bold underline; }
+.nav_active:hover { fg: #88c0d0; bg: #3b4252; mods: bold underline; }
+.nav_active:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+
+/* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
+.field_label { fg: #88c0d0; mods: bold; }
+.field_label:focus { fg: #88c0d0; mods: bold; }
+
+/* sidebar / navigation (framework pages and the demo) */
+.sidebar { fg: #d8dee9; bg: #3b4252; }
+.sidebar:border { fg: #4c566a; }
+.sidebar:title { fg: #88c0d0; mods: bold; }
+.sidebar:focus { fg: #d8dee9; mods: bold; }
+.nav_link { fg: #d8dee9; bg: #3b4252; }
+.nav_link:hover { fg: #d8dee9; bg: #535969; }
+.nav_link:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.nav_divider { fg: #4c566a; bg: #3b4252; mods: bold; }
+.brand { fg: #88c0d0; mods: bold; }
+.clock { fg: #88c0d0; bg: #3b4252; mods: bold; }
+.hdr_name { fg: #88c0d0; bg: #3b4252; mods: bold; }
+.test { fg: #d8dee9; bg: #3b4252; }
+
+/* <tabs> headers */
+.tab_header { fg: #d8dee9; bg: #3c424e; }
+.tab_header:hover { fg: #d8dee9; bg: #4d535e; }
+.tab_header:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.tab_header_compact { fg: #4c566a; bg: #3b4252; }
+.tab_header_compact:hover { fg: #d8dee9; bg: #535969; }
+.tab_header_compact:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+
+/* checkboxes, progress bars */
+.check { fg: #4c566a; }
+.check:checked { fg: #a3be8c; mods: bold; }
+.check:unchecked { fg: #4c566a; }
+.progress { fg: #4c566a; bg: #2e3440; }
+.progress_fill { fg: #88c0d0; bg: #2e3440; }
+
+/* on-screen keyboard keys (demo) */
+.key { fg: #d8dee9; bg: #464c58; }
+.key:border { fg: #4c566a; }
+.key_hot { fg: #2e3440; bg: #ebcb8b; }
+.key_hot:border { fg: #ebcb8b; }
+.key_dim { fg: #4c566a; bg: #383e4a; }
+.key_dim:border { fg: #404859; }
+
+/* colour swatches (demo) and the fifth button colour */
+.swatch_red { fg: #eceff4; bg: #bf616a; }
+.swatch_green { fg: #2e3440; bg: #a3be8c; }
+.swatch_blue { fg: #2e3440; bg: #81a1c1; }
+.swatch_yellow { fg: #2e3440; bg: #ebcb8b; }
+.swatch_magenta { fg: #2e3440; bg: #88c0d0; }
+.swatch_cyan { fg: #2e3440; bg: #88c0d0; }
+.sc_purple { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.sc_purple:hover { fg: #2e3440; bg: #729dac; mods: bold; }
+.sc_purple:focus { fg: #2e3440; bg: #b2d6e0; mods: bold underline; }
+
+/* header: the banner pane and its title */
+.hdr { fg: #88c0d0; bg: #3b4252; mods: bold; }
+.hdr:border { fg: #4c566a; }
+.hdr:title { fg: #88c0d0; mods: bold; }
+.hdr_title { fg: #88c0d0; bg: #3b4252; mods: bold; }
+.hdr_tag { fg: #4c566a; bg: #3b4252; }
+
+.success_button { fg: #2e3440; bg: #a3be8c; mods: bold; }
+.success_button:hover { fg: #2e3440; bg: #869c79; mods: bold; }
+.success_button:focus { fg: #2e3440; bg: #c3d5b4; mods: bold underline; }
+.danger_button { fg: #eceff4; bg: #bf616a; mods: bold; }
+.danger_button:hover { fg: #eceff4; bg: #9b5660; mods: bold; }
+.danger_button:focus { fg: #eceff4; bg: #d5989e; mods: bold underline; }
+.info_button { fg: #2e3440; bg: #81a1c1; mods: bold; }
+.info_button:hover { fg: #2e3440; bg: #6c86a1; mods: bold; }
+.info_button:focus { fg: #2e3440; bg: #adc2d7; mods: bold underline; }
+.warning_button { fg: #2e3440; bg: #ebcb8b; mods: bold; }
+.warning_button:hover { fg: #2e3440; bg: #bca578; mods: bold; }
+.warning_button:focus { fg: #2e3440; bg: #f2ddb4; mods: bold underline; }
+
+.selection { fg: #2e3440; bg: #688f9e; }
+.list_sel { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.table_sel { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.table_head { fg: #88c0d0; bg: #2e3440; mods: bold underline; }
+.select { fg: #d8dee9; bg: #3b4252; }
+
+.palette { fg: #d8dee9; bg: #3b4252; }
+.palette_input { fg: #d8dee9; bg: #3b4252; mods: bold; }
+.palette_sel { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.palette_dim { fg: #4c566a; bg: #3b4252; }
+
+.dialog { fg: #d8dee9; bg: #3b4252; }
+.dialog_title { fg: #88c0d0; bg: #3b4252; mods: bold; }
+.dialog_btn { fg: #d8dee9; bg: #535969; }
+.dialog_btn_sel { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.dialog_danger { fg: #eceff4; bg: #bf616a; mods: bold; }
+.dialog_dim { fg: #4c566a; bg: #3b4252; }
+.dialog_error { fg: #bf616a; bg: #3b4252; mods: bold; }
+
+.toast { fg: #2e3440; bg: #81a1c1; }
+.toast_success { fg: #2e3440; bg: #a3be8c; }
+.toast_warn { fg: #2e3440; bg: #ebcb8b; }
+.toast_error { fg: #eceff4; bg: #bf616a; mods: bold; }

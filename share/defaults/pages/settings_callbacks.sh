@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # settings_callbacks.sh - DABT default Settings page. Only public tui.* calls.
 
-declare -gA _DSET_THEME=() # theme button id -> overlay file ("" = page default)
+declare -gA _DSET_THEME=() # theme button id -> theme name from tui.theme.list ("" = page default)
 
 _dset_status() { tui.update lbl_h2 "$1"; }
 
 dset_visit() {
 	tui.factory.clear dset
 	_DSET_THEME=()
-	local dir="${TUI_THEMES_DIR:-}" f name row=2 cur mark id # the app sets TUI_THEMES_DIR (tui.start does when <app dir>/themes exists)
+	local f name row=2 cur mark id
 	cur="${_TUI_THEME_OVERLAY:-}"
 
-	# theme buttons: "page default" + every *.css found
+	# theme buttons: "page default" + every theme tui.theme.list finds (DABT's themes directory + the app's)
 	mark="  "
 	[[ -z "$cur" ]] && mark="● "
 	tui.factory.button dset col_theme 1 "${mark}Page default" dset_theme_pick
@@ -19,21 +19,18 @@ dset_visit() {
 	_DSET_THEME[$id]=""
 	tui.class "$id" nav_link
 	tui.align "$id" left
-	if [[ -d "$dir" ]]; then
-		for f in "$dir"/*.css; do
-			[[ -e "$f" ]] || continue
-			name="${f##*/}"
-			name="${name%.css}"
-			mark="  "
-			[[ "$cur" == "$f" ]] && mark="● "
-			tui.factory.button dset col_theme "$row" "${mark}${name^}" dset_theme_pick
-			id="$_TUI_FACTORY_LAST_ID"
-			_DSET_THEME[$id]="$f"
-			tui.class "$id" nav_link
-			tui.align "$id" left
-			((row++))
-		done
-	fi
+	while IFS=$'\t' read -r name f; do
+		[[ -n "$name" ]] || continue
+		mark="  "
+		[[ "$cur" == "$f" ]] && mark="● "
+		f="${name//_/ }" # hello_kitty -> Hello kitty
+		tui.factory.button dset col_theme "$row" "${mark}${f^}" dset_theme_pick
+		id="$_TUI_FACTORY_LAST_ID"
+		_DSET_THEME[$id]="$name"
+		tui.class "$id" nav_link
+		tui.align "$id" left
+		((row++))
+	done < <(tui.theme.list)
 
 	# one checkbox per default keybind group
 	local -A seen=()
@@ -60,15 +57,9 @@ dset_visit() {
 }
 
 dset_theme_pick() {
-	local f="${_DSET_THEME[$1]-}"
-	if [[ -z "$f" ]]; then
-		tui.config.unset theme
-		tui.theme.clear
-	else
-		tui.config.set theme "$f"
-		tui.theme.set "$f"
-	fi                                                                            # both reload this page: dset_visit redraws the marks
-	tui.notify "Theme: ${f:+$(basename "$f" .css)}${f:-page default}" success 2.5 # the toast outlives the reload
+	local name="${_DSET_THEME[$1]-}"
+	tui.theme.pick "$name"                                # applies, remembers and reloads this page: dset_visit redraws the marks
+	tui.notify "Theme: ${name:-page default}" success 2.5 # the toast outlives the reload
 }
 
 dset_group_toggle() {

@@ -1009,6 +1009,11 @@ tui.factory.clear() {
 tui.get() { printf '%s' "${_TUI_W_VALUE[$1]:-}"; }
 tui.set() { _TUI_W_VALUE[$1]="$2"; }
 tui.update() {
+	if [[ -z "$1" || -z "${_TUI_W_TYPE[$1]:-}" ]]; then
+		tui.notify "Cannot update widget '$1': it does not exist." error
+		return 1
+	fi
+
 	_TUI_W_VALUE[$1]="$2"
 	_tui._draw_widget "$1"
 }

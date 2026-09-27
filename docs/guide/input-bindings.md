@@ -136,8 +136,8 @@ and once per loop, so a repaint underneath never leaves one half covered). See `
 
 ## Pages that ship with DABT (Settings and Keybinds)
 Every app gets two ready-made pages through the palette: **DABT: Settings** and **DABT: Keybinds** (files in
-`share/defaults/pages/`). Settings switches the theme overlay (every `*.css` in `TUI_THEMES_DIR`, which `tui.start` sets
-to `<app dir>/themes` when it exists), turns default keybind groups on/off, and sets input behaviour; all of it applies
+`share/defaults/pages/`). Settings switches the theme overlay (every theme `tui.theme.list` finds: each `*.css` in DABT's installed
+themes directory plus the app's `TUI_THEMES_DIR`), turns default keybind groups on/off, and sets input behaviour; all of it applies
 at once and is saved with `tui.config` (`~/.config/<TUI_APP_NAME>/dabt.conf`, applied by `tui.init`). Keybinds lists every
 binding and edits/saves your own. Both have a Back button (`tui.action.back`, key `alt+backspace`).
 

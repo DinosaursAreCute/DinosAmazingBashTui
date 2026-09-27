@@ -635,6 +635,8 @@ tui.pane_size() {
 #                        tui.goto) and reload the current page so it takes effect
 #  tui.theme.clear       drop the overlay and reload
 #  tui.theme.current     print the overlay path (empty = page defaults)
+#  tui.theme.list        print every selectable overlay as NAME<TAB>FILE, sorted by name
+#  tui.theme.pick [NAME] apply overlay NAME and remember it (config key theme); no NAME = page default
 tui.theme.set() {
 	_TUI_THEME_OVERLAY="$1"
 	tui.theme.reload
@@ -645,6 +647,40 @@ tui.theme.clear() {
 }
 tui.theme.current() { printf '%s\n' "${_TUI_THEME_OVERLAY:-}"; }
 tui.theme.reload() { [[ -n "${_TUI_MARKUP_FILE:-}" ]] && tui.goto "$_TUI_MARKUP_FILE"; }
+
+# Every *.css in DABT's installed themes directory ($TUI_DEFAULTS_DIR/themes), plus the app's own
+# TUI_THEMES_DIR (tui.start sets it to <app dir>/themes when that exists); an app theme with the same
+# name wins. The Settings page and the command palette both list exactly this.
+tui.theme.list() {
+	local dir f name
+	local -A files=()
+	for dir in "${TUI_DEFAULTS_DIR:-}/themes" "${TUI_THEMES_DIR:-}"; do
+		[[ -n "$dir" && -d "$dir" ]] || continue
+		for f in "$dir"/*.css; do
+			[[ -e "$f" ]] || continue
+			name="${f##*/}"
+			files[${name%.css}]="$f"
+		done
+	done
+	((${#files[@]})) || return 0
+	for name in "${!files[@]}"; do printf '%s\t%s\n' "$name" "${files[$name]}"; done | sort
+}
+
+tui.theme.pick() {
+	local want="${1:-}" name f
+	if [[ -z "$want" ]]; then
+		tui.config.unset theme
+		tui.theme.clear
+		return 0
+	fi
+	while IFS=$'\t' read -r name f; do
+		[[ "$name" == "$want" ]] || continue
+		tui.config.set theme "$f"
+		tui.theme.set "$f"
+		return 0
+	done < <(tui.theme.list)
+	return 1
+}
 
 # tui.relayout [PANE] - repaint after tui.pane_border / tui.pane_pad / split changes.
 #   PANE (a leaf): only that pane is cleared and redrawn - no full-screen clear,

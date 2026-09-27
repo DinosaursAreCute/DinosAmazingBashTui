@@ -476,8 +476,8 @@ _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
         (( lbox < 1 )) && lbox=1
         lshown="${prefix:0:$lbox}"
         _tui._align_pad_v "${_TUI_W_LABEL_ALIGN[$id]:-left}" "${#lshown}" "$lbox"; lpad=$_R
-        style.bold
-        printf '%*s%s%*s' "$lpad" "" "$lshown" "$(( lbox - lpad - ${#lshown} ))" ""
+        _tui_wx.label_sgr "$focused" "$pane_key"   # .field_label theme class (tui_widgets.sh)
+        printf '%s%*s%s%*s' "$_LSGR" "$lpad" "" "$lshown" "$(( lbox - lpad - ${#lshown} ))" ""
         style.reset
         plen=$lbox
     fi

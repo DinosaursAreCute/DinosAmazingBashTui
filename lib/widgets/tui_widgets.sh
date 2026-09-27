@@ -24,6 +24,7 @@
 # Keys: list/table  up down pgup pgdn home end (at the first/last row up/down fall through so focus can leave), Enter.
 #       select      Enter / space / down open the picker.        Mouse: click selects, double-click activates, wheel scrolls.
 # Theme classes (all optional): .list_sel .table_head .table_sel .progress .progress_fill .select .selection
+#   .field_label (+ :focus) - the label in front of an input, password, select or progress bar
 
 declare -gA _TUI_W_ROWSPAN=() _WXSEL=() _WXTOP=() _WXCOLS=() _WXH=() _WXPCT=() _WXF=()
 declare -g _WX_TARGET="" _WX_CLICK_T=0 _WX_CLICK_ID="" _WX_CLICK_I=-1
@@ -409,14 +410,33 @@ _tui_wx.draw() {
 	esac
 }
 
+# _tui_wx.label_sgr FOCUSED PANE_KEY -> _LSGR : style of a widget label (input, password, select, progress).
+#   Theme class .field_label (.field_label:focus while the widget has focus) sets fg / mods; whatever it leaves
+#   out comes from the pane the widget sits in (bg always, unless the class sets one), so the label never shows
+#   a different background than its pane. No class: the pane's colours in bold.
+_tui_wx.label_sgr() {
+	local focused="$1" pk="$2" fg bg mods
+	fg="${_TUI_STYLE_FG[$pk]:-}" bg="${_TUI_STYLE_BG[$pk]:-}" mods="bold"
+	if [[ -n "${_TUI_CLASS_FG[field_label]:-}${_TUI_CLASS_BG[field_label]:-}${_TUI_CLASS_MOD[field_label]:-}" ]]; then
+		if ((focused)); then tui.class.style field_label focus; else tui.class.style field_label; fi
+		[[ -n "$TUI_FG" ]] && fg="$TUI_FG"
+		[[ -n "$TUI_BG" ]] && bg="$TUI_BG"
+		mods="$TUI_MODS"
+	fi
+	if _tui._sgr_from "$fg" "$bg" "$mods"; then _LSGR="$_SGR"; else
+		_tui._style_v "$pk"
+		_LSGR="$_SGR"$'\e[1m'
+	fi
+}
+
 _tui_wx.draw_select() {
 	local id="$1" sr="$2" sc="$3" sw="$4" focused="$5" sk="$6" pk="$7"
 	local label="${_TUI_W_LABEL[$id]:-}" v="${_TUI_W_VALUE[$id]:-}" lw=0 line
 	[[ -z "$v" ]] && v="(none)"
 	[[ -n "$label" ]] && {
 		lw=$((${#label} + 1))
-		style.bold
-		printf '%s ' "$label"
+		_tui_wx.label_sgr "$focused" "$pk"
+		printf '%s%s ' "$_LSGR" "$label"
 		style.reset
 	}
 	_tui._apply_style "$sk" "$pk"
@@ -435,7 +455,9 @@ _tui_wx.draw_progress() {
 	((pct > 100)) && pct=100
 	[[ -n "$label" ]] && {
 		lw=$((${#label} + 1))
-		printf '%s ' "$label"
+		_tui_wx.label_sgr 0 "$pk"
+		printf '%s%s ' "$_LSGR" "$label"
+		style.reset
 	}
 	bw=$((sw - lw - 5))
 	((bw < 3)) && bw=3

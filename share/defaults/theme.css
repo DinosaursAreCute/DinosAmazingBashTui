@@ -298,3 +298,7 @@
 .table_head    { fg: #9fb0c9; mods: bold underline; }
 .progress      { fg: #4a5068; }
 .progress_fill { fg: #33cc66; }
+
+/* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
+.field_label       { fg: #c9d6e3; mods: bold; }
+.field_label:focus { fg: #61afef; mods: bold; }

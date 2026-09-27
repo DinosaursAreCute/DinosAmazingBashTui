@@ -1,0 +1,135 @@
+/* themes/gruvbox.css - DABT theme overlay: gruvbox dark.
+ * Covers every class of share/defaults/theme.css plus a few extras apps can use
+ * (.field / .field_input sunken text box, .neutral_button, .nav_button / .nav_active view switcher).
+ * header-font: blk3
+ *   ^ a hint for apps that draw a banner (block5 seg3 box3 blk3 half2, or "plain"); DABT itself ignores it.
+ * Selected on the Settings page or from the command palette (Themes). */
+
+.panel { fg: #ebdbb2; bg: #282828; }
+.panel:border { fg: #665c54; }
+.panel:title { fg: #fabd2f; mods: bold; }
+.panel:focus { fg: #ebdbb2; bg: #423326; }
+.panes { fg: #ebdbb2; bg: #282828; }
+.list { fg: #ebdbb2; bg: #282828; }
+.footer { fg: #928374; bg: #3c3836; }
+.footer_key { fg: #282828; bg: #fe8019; mods: bold; }
+.footer_label { fg: #ebdbb2; bg: #3c3836; }
+.muted_label { fg: #928374; bg: #282828; }
+
+/* sunken text box: .field is its pane (border lights up while typing), .field_input the textarea in it */
+.field { fg: #ebdbb2; bg: #1a1a1a; }
+.field:border { fg: #625e51; }
+.field:title { fg: #928374; }
+.field:focus { fg: #fe8019; bg: #1a1a1a; }
+.field_input { fg: #ebdbb2; bg: #1a1a1a; }
+.field_input:hover { fg: #ebdbb2; bg: #1a1a1a; }
+.field_input:focus { fg: #ebdbb2; bg: #1a1a1a; }
+
+/* neutral button (Save/Discard with nothing to save): a quiet raised chip in the panel's colours */
+.neutral_button { fg: #ebdbb2; bg: #43413b; }
+.neutral_button:hover { fg: #ebdbb2; bg: #575349; }
+.neutral_button:focus { fg: #282828; bg: #fe8019; mods: bold; }
+
+/* header view switcher: nav_active = the page you are on, nav_button = the other one */
+.nav_button { fg: #928374; bg: #3c3836; }
+.nav_button:hover { fg: #ebdbb2; bg: #3c3836; }
+.nav_button:focus { fg: #282828; bg: #fe8019; mods: bold; }
+.nav_active { fg: #fe8019; bg: #3c3836; mods: bold underline; }
+.nav_active:hover { fg: #fe8019; bg: #3c3836; mods: bold underline; }
+.nav_active:focus { fg: #282828; bg: #fe8019; mods: bold; }
+
+/* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
+.field_label { fg: #fabd2f; mods: bold; }
+.field_label:focus { fg: #fe8019; mods: bold; }
+
+/* sidebar / navigation (framework pages and the demo) */
+.sidebar { fg: #ebdbb2; bg: #3c3836; }
+.sidebar:border { fg: #665c54; }
+.sidebar:title { fg: #fabd2f; mods: bold; }
+.sidebar:focus { fg: #ebdbb2; mods: bold; }
+.nav_link { fg: #ebdbb2; bg: #3c3836; }
+.nav_link:hover { fg: #ebdbb2; bg: #565049; }
+.nav_link:focus { fg: #282828; bg: #fe8019; mods: bold; }
+.nav_divider { fg: #928374; bg: #3c3836; mods: bold; }
+.brand { fg: #fabd2f; mods: bold; }
+.clock { fg: #fe8019; bg: #3c3836; mods: bold; }
+.hdr_name { fg: #fe8019; bg: #3c3836; mods: bold; }
+.test { fg: #ebdbb2; bg: #3c3836; }
+
+/* <tabs> headers */
+.tab_header { fg: #ebdbb2; bg: #383633; }
+.tab_header:hover { fg: #ebdbb2; bg: #4b4841; }
+.tab_header:focus { fg: #282828; bg: #fe8019; mods: bold; }
+.tab_header_compact { fg: #928374; bg: #3c3836; }
+.tab_header_compact:hover { fg: #ebdbb2; bg: #565049; }
+.tab_header_compact:focus { fg: #282828; bg: #fe8019; mods: bold; }
+
+/* checkboxes, progress bars */
+.check { fg: #928374; }
+.check:checked { fg: #b8bb26; mods: bold; }
+.check:unchecked { fg: #928374; }
+.progress { fg: #928374; bg: #282828; }
+.progress_fill { fg: #fe8019; bg: #282828; }
+
+/* on-screen keyboard keys (demo) */
+.key { fg: #ebdbb2; bg: #43413b; }
+.key:border { fg: #928374; }
+.key_hot { fg: #282828; bg: #fabd2f; }
+.key_hot:border { fg: #fabd2f; }
+.key_dim { fg: #928374; bg: #343330; }
+.key_dim:border { fg: #685f56; }
+
+/* colour swatches (demo) and the fifth button colour */
+.swatch_red { fg: #282828; bg: #fb4934; }
+.swatch_green { fg: #282828; bg: #b8bb26; }
+.swatch_blue { fg: #282828; bg: #83a598; }
+.swatch_yellow { fg: #282828; bg: #fabd2f; }
+.swatch_magenta { fg: #282828; bg: #fabd2f; }
+.swatch_cyan { fg: #282828; bg: #fe8019; }
+.sc_purple { fg: #282828; bg: #fabd2f; mods: bold; }
+.sc_purple:hover { fg: #282828; bg: #c6982d; mods: bold; }
+.sc_purple:focus { fg: #282828; bg: #fcd478; mods: bold underline; }
+
+/* header: the banner pane and its title */
+.hdr { fg: #fabd2f; bg: #3c3836; mods: bold; }
+.hdr:border { fg: #665c54; }
+.hdr:title { fg: #fabd2f; mods: bold; }
+.hdr_title { fg: #fabd2f; bg: #3c3836; mods: bold; }
+.hdr_tag { fg: #928374; bg: #3c3836; }
+
+.success_button { fg: #282828; bg: #b8bb26; mods: bold; }
+.success_button:hover { fg: #282828; bg: #949626; mods: bold; }
+.success_button:focus { fg: #282828; bg: #d1d372; mods: bold underline; }
+.danger_button { fg: #282828; bg: #fb4934; mods: bold; }
+.danger_button:hover { fg: #282828; bg: #c64131; mods: bold; }
+.danger_button:focus { fg: #282828; bg: #fc897b; mods: bold underline; }
+.info_button { fg: #282828; bg: #83a598; mods: bold; }
+.info_button:hover { fg: #282828; bg: #6c867c; mods: bold; }
+.info_button:focus { fg: #282828; bg: #aec4bc; mods: bold underline; }
+.warning_button { fg: #282828; bg: #fabd2f; mods: bold; }
+.warning_button:hover { fg: #282828; bg: #c6982d; mods: bold; }
+.warning_button:focus { fg: #282828; bg: #fcd478; mods: bold underline; }
+
+.selection { fg: #282828; bg: #b3611e; }
+.list_sel { fg: #282828; bg: #fe8019; mods: bold; }
+.table_sel { fg: #282828; bg: #fe8019; mods: bold; }
+.table_head { fg: #fabd2f; bg: #282828; mods: bold underline; }
+.select { fg: #ebdbb2; bg: #3c3836; }
+
+.palette { fg: #ebdbb2; bg: #3c3836; }
+.palette_input { fg: #ebdbb2; bg: #3c3836; mods: bold; }
+.palette_sel { fg: #282828; bg: #fe8019; mods: bold; }
+.palette_dim { fg: #928374; bg: #3c3836; }
+
+.dialog { fg: #ebdbb2; bg: #3c3836; }
+.dialog_title { fg: #fabd2f; bg: #3c3836; mods: bold; }
+.dialog_btn { fg: #ebdbb2; bg: #565049; }
+.dialog_btn_sel { fg: #282828; bg: #fe8019; mods: bold; }
+.dialog_danger { fg: #282828; bg: #fb4934; mods: bold; }
+.dialog_dim { fg: #928374; bg: #3c3836; }
+.dialog_error { fg: #fb4934; bg: #3c3836; mods: bold; }
+
+.toast { fg: #282828; bg: #83a598; }
+.toast_success { fg: #282828; bg: #b8bb26; }
+.toast_warn { fg: #282828; bg: #fabd2f; }
+.toast_error { fg: #282828; bg: #fb4934; mods: bold; }

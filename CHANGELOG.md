@@ -6,9 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+#### _DevEx Initiative Update 1.5: Themes for everyone_
+- With update we improved how you can add themes to dabt and use your own in other applications. 
+We also fixed some minor incosistencies in how themes are loaded. Stay tuned we plan to improve css validation soon. We also plan to add better tooling for creating css files easily. (hint: automatic constrast color generation etc.)
+- Fourteen themes ship with DABT now: nine new ones (Fallout, Neovim, Monkeytype, Hello Kitty, Solarized Dark and Light, Gruvbox, Dracula, Nord) next to Default, Ocean, Forest, Sunset and Light. Every app can use them without copying anything.
+- Settings and the command palette always offer the same list: every theme in DABT's themes folder plus the app's own. Drop a `.css` file into either folder and it shows up in both. A theme picked in the palette is now remembered for the next start, like one picked in Settings.
+- Form labels (the text in front of inputs, dropdowns and progress bars) follow the theme instead of showing the terminal's own background.
+- New statistical charts for decimal data: scatter plots, box plots, forest plots, heatmaps and histograms.
+
 ### Added
 
+* Nine new themes in `share/defaults/themes/`, available to every app from Settings and the command palette: `fallout`, `neovim`, `monkeytype`, `hello_kitty`, `solarized_dark`, `solarized_light`, `gruvbox`, `dracula`, `nord`. Each covers every class of the default theme plus `.field` / `.field_input` (a sunken text box), `.neutral_button` and `.nav_button` / `.nav_active` (a view switcher), and names a `header-font:` banner font hint in its comment header. Also added: `.hdr:border` / `.hdr:title`, so bordered header panes follow the theme.
+* `tui.theme.list` (every selectable theme as `NAME<TAB>FILE`) and `tui.theme.pick [NAME]` (apply and remember a theme, no `NAME` = page default).
+* Theme class `.field_label` (and `.field_label:focus`) for the label in front of an input, password, select or progress bar. The label's background always comes from its pane unless the class sets one, and without the class the label uses its pane's colours in bold instead of the terminal's default colours. Added to the default theme and the shipped themes.
 * Statistical renderers in `lib/terminal_renderer.sh` for decimal data, computed in one POSIX awk pass each: `scatter` (braille dots, several series, connected lines, x tick labels), `boxplot` (five-number summaries on a shared axis), `forest` (estimate with interval and a reference line), `heatmap` (diverging truecolor matrix) and `histogram` (one bin per column, ⅛-block bars, markers). Each has the usual printing and `_string` forms and is available from the CLI.
+
+### Changed
+
+* `tools/debug/screenshots.py` takes screenshots under every shipped theme (`share/defaults/themes/*.css`, plus the demo's own `themes/` if present); `screenshot_driver.sh` finds the theme file in either place. The README's theme showcase shows all 14 themes on the Components > Theme colors page.
+* The Settings page and the command palette now list the same themes: every `*.css` in DABT's installed themes directory plus the app's own `TUI_THEMES_DIR`. Before, Settings showed only the app's `themes/` folder when the app had one. Picking a theme in the palette now also remembers it for the next start, like Settings.
+* Theme names are shown with spaces instead of underscores in Settings and the palette (`hello_kitty` -> "Hello kitty"); the palette marks "page default" as active when no theme is set.
+* `tui.update` on a widget id that doesn't exist shows an error notification and returns `1` instead of writing a value for it.
+
+### Fixed
+
+* `tui.update` with an empty widget id no longer fails with `bad array subscript`.
+* Palette theme commands broke when the theme's path contained spaces; they now pass the theme name (`tui.theme.pick NAME`).
+* Input, password, select and progress-bar labels were drawn with the terminal's default colours, so they showed a different background inside a styled pane.
+* `tools/debug/screenshots.py` looked for themes in `share/demo/themes/`, which no longer exists, and only produced `default` screenshots.
 
 ## [0.0.17] - 2026-09-24
 

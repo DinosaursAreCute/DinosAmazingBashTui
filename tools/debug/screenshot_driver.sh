@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # screenshot_driver.sh THEME ROWSxCOLS OUTDIR PAGES_DIR PAGE... - headless: visit each page under THEME, dump the raw frame to OUTDIR/PAGE.ans
-# Used by screenshots.py (which turns the .ans dumps into PNGs). THEME = "default" or a name from PAGES_DIR/themes/*.css
+# Used by screenshots.py (which turns the .ans dumps into PNGs). THEME = "default" or a theme name: PAGES_DIR/themes/THEME.css
+# when the demo has one, else the shipped share/defaults/themes/THEME.css (the repo's, never the installed copy)
 ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
 DIR="$ROOT/lib"
 theme="$1" size="$2" out="$3" pdir="$4"
@@ -28,7 +29,15 @@ _TUI_P_W[root]=$COLS
 _tui._root_h
 _TUI_P_ROW[root]=1
 _TUI_P_COL[root]=1
-[[ "$theme" != default ]] && tui.theme.set "$pdir/themes/$theme.css" >/dev/null 2>&1
+if [[ "$theme" != default ]]; then
+	tfile="$pdir/themes/$theme.css"
+	[[ -r "$tfile" ]] || tfile="$ROOT/share/defaults/themes/$theme.css"
+	[[ -r "$tfile" ]] || {
+		echo "screenshot_driver: no theme '$theme'" >&2
+		exit 1
+	}
+	tui.theme.set "$tfile" >/dev/null 2>&1
+fi
 SETTLE="${SETTLE:-0.5}"
 # settle: let timers / clocks / tui.every jobs run for SETTLE seconds (headless has no main loop, so poll the tick listeners by hand)
 _settle() {

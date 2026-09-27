@@ -236,3 +236,7 @@
   bg: #c4b5fd;
   mods: bold;
 }
+
+/* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
+.field_label       { fg: #fb923c; mods: bold; }
+.field_label:focus { fg: #fb923c; mods: bold underline; }

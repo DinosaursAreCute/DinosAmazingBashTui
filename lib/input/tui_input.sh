@@ -373,6 +373,7 @@ _tui_input.run() {
 # --pass. rc 0 = something ran.
 declare -g TUI_LAST_BIND_ERROR=""
 _tui_input.dispatch() {
+    _tui_perf.begin dispatch
     local name="$1" id i handled=1 typing=0
     if [[ -n "$_TUI_FOCUS_ID" ]] && _tui_wx.consumes "$_TUI_FOCUS_ID" "$name"; then
         typing=1                                     # the focused text widget / list wants this key: binds on it are skipped
@@ -401,6 +402,7 @@ _tui_input.dispatch() {
                 [[ -n "${_TUI_BIND_PASS[$id]:-}" ]] || break ;;
         esac
     done
+    _tui_perf.end dispatch
     return $handled
 }
 

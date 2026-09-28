@@ -33,6 +33,7 @@ tui.footer.set() {
 tui.footer.show() {
 	tui.footer.set "$1"
 	if ((_TUI_RUNNING)); then
+		_tui._root_w
 		_tui._root_h
 		tui.relayout
 	fi
@@ -43,6 +44,7 @@ tui.footer.hide() {
 	_TUI_FOOTER_ON=0
 	tui.overlay.remove _tui_footer.draw
 	if ((_TUI_RUNNING)); then
+		_tui._root_w
 		_tui._root_h
 		tui.relayout
 	fi
@@ -57,6 +59,16 @@ _tui_footer.reset() {
 
 # the outermost pane leaves the last row to the footer
 _tui._root_h() { _TUI_P_H[root]=$((_TUI_ROWS - _TUI_FOOTER_ON)); }
+
+# root's own width, from the live terminal - never from a cached snapshot.
+# _TUI_P_W (like every other _TUI_P_* array) is inside tui.cache.record's
+# snapshot regex, so a cache-hit replay's `_tui_cache_restore` blindly
+# overwrites _TUI_P_W[root] with whatever width was live when the page was
+# *recorded* - stale the moment the app runs at a different terminal size
+# than that. _tui._root_h already self-heals height the same way (from
+# _TUI_ROWS, not the restored value); this is its width counterpart, called
+# alongside it everywhere root's own size needs to be current, not cached.
+_tui._root_w() { _TUI_P_W[root]=$_TUI_COLS; }
 
 _tui_footer.build() {
 	local k spec key label when item plain=0 seg s_bar s_key s_lbl out="" w=$_TUI_COLS
@@ -86,6 +98,7 @@ _tui_footer.build() {
 	_TUI_FOOTER_STR="${s_bar}${out}${pad}"$'\e[0m'
 }
 
+# overlay DRAWFN: appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
 _tui_footer.draw() {
 	((_TUI_FOOTER_ON)) || return 0
 	local stamp="$_TUI_BIND_GEN:$_TUI_COLS:${#_TUI_PAGE_HISTORY[@]}:$_TUI_FOOTER_ITEMS"
@@ -93,5 +106,5 @@ _tui_footer.draw() {
 		_TUI_FOOTER_STAMP="$stamp"
 		_tui_footer.build
 	fi
-	printf '\e7\e[?7l\e[%d;1H%s\e[K\e[?7h\e8' "$_TUI_ROWS" "$_TUI_FOOTER_STR"
+	_tui.emit_printf '\e7\e[?7l\e[%d;1H%s\e[K\e[?7h\e8' "$_TUI_ROWS" "$_TUI_FOOTER_STR"
 }

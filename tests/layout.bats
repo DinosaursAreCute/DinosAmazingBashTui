@@ -52,3 +52,83 @@ split() { bash -c 'source "$REPO/lib/tui.sh"; _TUI_P_ROW[root]=1 _TUI_P_COL[root
     [ "$status" -eq 0 ]
     [ "$output" = "overlay=forest.css st=forest size=39x140" ]      # 40 rows minus the footer row
 }
+
+@test "cache: parallel warm-up (tui.cache.warm_with_spinner) and a serial tui.cache.record produce byte-identical snapshots" {
+    mkdir -p "$T/app"
+    printf '<tui><pane id="root" split="v"><pane id="a" weight="1"/><pane id="b" weight="2"/></pane></tui>' >"$T/app/p1.xml"
+    printf '<tui><pane id="root" split="h"><pane id="x" weight="1"/></pane></tui>' >"$T/app/p2.xml"
+    run bash -c 'source "$REPO/lib/tui.sh"; term.size() { printf -v "$1" 24; printf -v "$2" 80; }
+        tui.init
+        tui.reset_ui
+        tui.cache.record "$T/app/p1.xml"
+        serial="${_TUI_CACHE_PAGE[$T/app/p1.xml]}"
+
+        _TUI_CACHE_PAGE=(); _TUI_CACHE_SIG=(); _TUI_CACHE_SCRIPTS=(); _TUI_CACHE_ON_VISIT=(); _TUI_CACHE_GOTOS=()
+        TUI_CACHE_WORKERS=2 tui.cache.warm_with_spinner "$T/app/p1.xml" "$T/app/p2.xml" >/dev/null 2>&1
+        parallel="${_TUI_CACHE_PAGE[$T/app/p1.xml]}"
+
+        if [[ "$serial" == "$parallel" ]]; then echo IDENTICAL; else echo "DIFF"; fi
+        tui.cache.valid "$T/app/p2.xml" && echo P2_VALID
+        _master_cleanup 2>/dev/null; true' 3>&-
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"IDENTICAL"* ]]
+    [[ "$output" == *"P2_VALID"* ]]
+}
+
+@test "cache: tui.start_cached's staleness gate treats an already-recorded page as not stale" {
+    mkdir -p "$T/app"
+    printf '<tui><pane id="root"/></tui>' >"$T/app/p1.xml"
+    run bash -c 'source "$REPO/lib/tui.sh"; term.size() { printf -v "$1" 24; printf -v "$2" 80; }
+        tui.init
+        tui.reset_ui
+        tui.cache.record "$T/app/p1.xml"
+        if tui.cache.valid "$T/app/p1.xml"; then echo ALREADY_WARM; fi
+        _master_cleanup 2>/dev/null; true'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ALREADY_WARM"* ]]
+}
+
+@test "cache: an atomic worker write never leaves a partial .snap behind" {
+    mkdir -p "$T/app"
+    printf '<tui><pane id="root"/></tui>' >"$T/app/p1.xml"
+    run bash -c 'source "$REPO/lib/tui.sh"; term.size() { printf -v "$1" 24; printf -v "$2" 80; }
+        tui.init
+        tui.reset_ui
+        tui.cache.record "$T/app/p1.xml"
+        d="$T/snapdir"; mkdir -p "$d"
+        tui.cache.encode "$T/app/p1.xml" >"$d/p1.snap.tmp.1234"
+        # a crashed worker never runs the rename: the .tmp file is not the final name
+        [[ -f "$d/p1.snap.tmp.1234" && ! -e "$d/p1.snap" ]] && echo NO_PARTIAL_SNAP
+        mv -f "$d/p1.snap.tmp.1234" "$d/p1.snap"
+        [[ -f "$d/p1.snap" && ! -e "$d/p1.snap.tmp.1234" ]] && echo ATOMIC_RENAME_OK
+        _master_cleanup 2>/dev/null; true'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"NO_PARTIAL_SNAP"* ]]
+    [[ "$output" == *"ATOMIC_RENAME_OK"* ]]
+}
+
+@test "cache: switching pages via a warm cache never shrinks root to half the terminal" {
+    mkdir -p "$T/app"
+    printf '<tui><pane id="root" split="h"><pane id="a" weight="1"/><pane id="b" weight="1"/></pane></tui>' >"$T/app/p1.xml"
+    printf '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>' >"$T/app/p2.xml"
+    run bash -c 'source "$REPO/lib/tui.sh"; term.size() { printf -v "$1" 40; printf -v "$2" 140; }
+        tui.init
+        tui.reset_ui
+        tui.cache.record "$T/app/p1.xml"
+        tui.cache.record "$T/app/p2.xml"
+        # reboot: a fresh process loading only from an already-warm cache (tui.cache.valid, no rebuild)
+        for i in 1 2 3; do
+            tui.reset_ui
+            tui.load_cached "$T/app/p1.xml" >/dev/null
+            echo "w1=${_TUI_P_W[root]}"
+            tui.reset_ui
+            tui.load_cached "$T/app/p2.xml" >/dev/null
+            echo "w2=${_TUI_P_W[root]}"
+        done
+        _master_cleanup 2>/dev/null; true'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"w1=140"* ]]
+    [[ "$output" == *"w2=140"* ]]
+    [[ "$output" != *"w1=70"* ]]
+    [[ "$output" != *"w2=70"* ]]
+}

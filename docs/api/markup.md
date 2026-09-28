@@ -6,11 +6,12 @@ Functions return `0` unless their entry says otherwise.
 
 ## Pages
 
-<!-- api: tui.load tui.goto tui.reset_ui tui.load_cached -->
+<!-- api: tui.load tui.parse.file tui.goto tui.reset_ui tui.load_cached -->
 
 | Function | Summary |
 |---|---|
 | [`tui.load`](markup/tui.load.md) | Parses a markup page and builds its panes and widgets through `tui.*` calls. Nothing is drawn. |
+| [`tui.parse.file`](markup/tui.parse.file.md) | Tokenizes `FILE` (and every `<include src="…">` it pulls in) into the node store (`lib/markup/tui_node.sh`): resets the node store, then parses. Sets `_P_ROOT` to the synthetic "document" node whose children are the file's top-level tags. Parse errors are appended to `_P_ERRORS`, not printed. |
 | [`tui.goto`](markup/tui.goto.md) | Switches to another page: clears the current UI, loads `FILE` (from the page cache when valid) and repaints in one frame. |
 | [`tui.reset_ui`](markup/tui.reset_ui.md) | Clears the whole UI and leaves an empty full-screen `root` pane. [`tui.goto`](/api/markup/tui.goto.html) calls it. |
 | [`tui.load_cached`](markup/tui.load_cached.md) | Like [`tui.load`](/api/markup/tui.load.html), but replays the page from its recorded call log when it is cached and unchanged, and records it otherwise. |
@@ -18,6 +19,8 @@ Functions return `0` unless their entry says otherwise.
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
 {% include_relative markup/tui.load.md %}
+
+{% include_relative markup/tui.parse.file.md %}
 
 {% include_relative markup/tui.goto.md %}
 
@@ -33,7 +36,7 @@ Functions return `0` unless their entry says otherwise.
 
 A loaded page is recorded as the list of `tui.*` calls it made and replayed on later visits, as long as the page and its includes keep their mtimes. Why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). Cache keys are absolute, normalized paths.
 
-<!-- api: tui.cache.valid tui.cache.record tui.cache.replay tui.cache.signature tui.cache.deps_of tui.cache.dump_dir tui.cache.load_dir tui.cache.disk_dir tui.cache.warm_with_spinner tui.cache.init tui.cache.cleanup -->
+<!-- api: tui.cache.valid tui.cache.record tui.cache.replay tui.cache.signature tui.cache.deps_of tui.cache.dump_dir tui.cache.load_dir tui.cache.disk_dir tui.cache.fname tui.cache.encode tui.cache.decode tui.cache.warm_with_spinner tui.cache.cleanup -->
 
 | Function | Summary |
 |---|---|
@@ -45,8 +48,10 @@ A loaded page is recorded as the list of `tui.*` calls it made and replayed on l
 | [`tui.cache.dump_dir`](markup/tui.cache.dump_dir.md) | Writes every recorded page to `DIR`, three files per page (`.key`, `.cache`, `.sig`). |
 | [`tui.cache.load_dir`](markup/tui.cache.load_dir.md) | Reads pages written by [`tui.cache.dump_dir`](/api/markup/tui.cache.dump_dir.html) and drops every entry that is no longer valid. |
 | [`tui.cache.disk_dir`](markup/tui.cache.disk_dir.md) | Prints the folder of the persistent page cache, `$TUI_HOME/cache/pages`, without a newline. |
+| [`tui.cache.fname`](markup/tui.cache.fname.md) | The filesystem-safe encoding of a cache key: every `/` becomes `_`. Used to name the files `tui.cache.dump_dir`/`tui.cache.warm_with_spinner`'s worker pool write per page. |
+| [`tui.cache.encode`](markup/tui.cache.encode.md) | Everything `tui.cache.record` captured for `FILE` (its signature, its built-state snapshot, the scripts it sourced, its `on_visit` function and its nav-button definitions), packed into one blob a parallel warm-up worker can write to a single file. Pair with `tui.cache.decode` to load it back in another process. |
+| [`tui.cache.decode`](markup/tui.cache.decode.md) | Installs `BLOB` (from `tui.cache.encode`) as `FILE`'s entry in this process's own cache maps (`_TUI_CACHE_SIG`, `_TUI_CACHE_PAGE`, `_TUI_CACHE_SCRIPTS`, `_TUI_CACHE_ON_VISIT`, `_TUI_CACHE_GOTOS`). Does not check `tui.cache.valid`; callers that read a `.snap` file back from disk should check it themselves. |
 | [`tui.cache.warm_with_spinner`](markup/tui.cache.warm_with_spinner.md) | Records pages into the cache in a background worker while showing the D.A.B.T logo and a progress bar. |
-| [`tui.cache.init`](markup/tui.cache.init.md) | Wraps the builder functions so page loads can be recorded. Called once when `tui.sh` is sourced; never call it again. |
 | [`tui.cache.cleanup`](markup/tui.cache.cleanup.md) | Removes the temporary stylesheet stamp folder. Called on exit. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
@@ -67,9 +72,13 @@ A loaded page is recorded as the list of `tui.*` calls it made and replayed on l
 
 {% include_relative markup/tui.cache.disk_dir.md %}
 
-{% include_relative markup/tui.cache.warm_with_spinner.md %}
+{% include_relative markup/tui.cache.fname.md %}
 
-{% include_relative markup/tui.cache.init.md %}
+{% include_relative markup/tui.cache.encode.md %}
+
+{% include_relative markup/tui.cache.decode.md %}
+
+{% include_relative markup/tui.cache.warm_with_spinner.md %}
 
 {% include_relative markup/tui.cache.cleanup.md %}
 

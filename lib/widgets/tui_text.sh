@@ -465,7 +465,7 @@ _tui_text.paint_v() {
         _PV="${w:0:cur}"$'\e[7m'"${w:cur:1}"$'\e[27m'"${base}${w:cur+1:fw-cur-1}"
     else _PV="${w:0:fw}"; fi
 }
-_tui_text.paint() { _tui_text.paint_v "$@"; printf '%s' "$_PV"; }
+_tui_text.paint() { _tui_text.paint_v "$@"; _tui.emit "$_PV"; }
 
 # single-line input / password
 _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
@@ -477,14 +477,14 @@ _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
         lshown="${prefix:0:$lbox}"
         _tui._align_pad_v "${_TUI_W_LABEL_ALIGN[$id]:-left}" "${#lshown}" "$lbox"; lpad=$_R
         _tui_wx.label_sgr "$focused" "$pane_key"   # .field_label theme class (tui_widgets.sh)
-        printf '%s%*s%s%*s' "$_LSGR" "$lpad" "" "$lshown" "$(( lbox - lpad - ${#lshown} ))" ""
-        style.reset
+        _tui.emit_printf '%s%*s%s%*s' "$_LSGR" "$lpad" "" "$lshown" "$(( lbox - lpad - ${#lshown} ))" ""
+        _tui.emit_reset
         plen=$lbox
     fi
     fw=$(( sw - plen )); (( fw < 2 )) && fw=2
     local shown="$value"
     [[ "${_TUI_W_TYPE[$id]}" == password ]] && shown="${value//?/•}"
-    _tui._apply_style "$style_key" "$pane_key"
+    _tui.emit_style "$style_key" "$pane_key"
     _TXG_R[$id]=$sr; _TXG_C[$id]=$(( sc + plen )); _TXG_W[$id]=$fw; _TXG_H[$id]=1
     if (( focused )); then
         _tui_text.norm "$id"
@@ -496,18 +496,18 @@ _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
         _tui._style_v "$style_key" "$pane_key"; local base="$_SGR"$'\e[4m'
         local a=-1 b=-1 cc=$(( c - s ))
         if _tui_text.sel "$id"; then a=$(( _SA - s )); b=$(( _SB - s )); (( a < 0 )) && a=0; (( b > fw )) && b=$fw; fi
-        style.underline
+        _tui.emit_sgr 4
         _tui_text.paint "${shown:s:fw}" "$a" "$b" "$cc" "$fw" "$base"
     else
-        [[ -z "${_TUI_STYLE_FG[$style_key]:-}" ]] && style.dim
+        [[ -z "${_TUI_STYLE_FG[$style_key]:-}" ]] && _tui.emit_sgr 2
         _TXS[$id]=0
         local t="${shown:-$placeholder}" pad
         t="${t:0:fw}"
         _tui._widget_align_v "$id"; _tui._align_pad_v "$_R" "${#t}" "$fw"; pad=$_R
-        printf '%*s' "$pad" ""
-        _tui_text.padc "$t" "$(( fw - pad ))"; printf '%s' "$_PADC"
+        _tui.emit_printf '%*s' "$pad" ""
+        _tui_text.padc "$t" "$(( fw - pad ))"; _tui.emit "$_PADC"
     fi
-    style.reset
+    _tui.emit_reset
 }
 
 # multi-line textarea: fills its rows, scrolls, highlights the selection, shows the cursor
@@ -538,13 +538,13 @@ _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
         if (( i + 1 < lc )); then VL+=("${v:_TXLS[i]:_TXLS[i+1]-1-_TXLS[i]}"); else VL+=("${v:_TXLS[i]}"); fi
     done
 
-    _tui._apply_style "$style_key" "$pane_key"
+    _tui.emit_style "$style_key" "$pane_key"
     _tui._style_v "$style_key" "$pane_key"; local base="$_SGR"
     local sa=-1 sb=-1 hasel=0
     _tui_text.sel "$id" && { hasel=1; sa=$_SA; sb=$_SB; }
     local placeholder="${_TUI_W_PH[$id]:-}"
     for (( i = 0; i < sh; i++ )); do
-        cur.goto $(( sr + i )) "$sc"
+        _tui.emit_goto $(( sr + i )) "$sc"
         if (( i < ${#VL[@]} )); then
             local t="${VL[i]}" ls=${VS[i]} le a=-1 b=-1 cc=-1
             le=$(( ls + ${#t} ))
@@ -557,18 +557,18 @@ _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
             (( focused )) || { a=-1; cc=-1; }
             _tui_text.paint "${t:left:fw}" "$a" "$b" "$cc" "$fw" "$base"
         elif (( i == 0 && ${#v} == 0 && ! focused )) && [[ -n "$placeholder" ]]; then
-            style.dim; _tui_text.padc "$placeholder" "$fw"; printf '%s' "$_PADC"; style.reset; _tui._apply_style "$style_key" "$pane_key"
+            _tui.emit_sgr 2; _tui_text.padc "$placeholder" "$fw"; _tui.emit "$_PADC"; _tui.emit_reset; _tui.emit_style "$style_key" "$pane_key"
         else
-            printf '%*s' "$fw" ""
+            _tui.emit_printf '%*s' "$fw" ""
         fi
         # scroll indicator in the last column
         if (( lc > sh && sw > fw )); then
             local thumb=$(( top * (sh - 1) / (lc - sh > 0 ? lc - sh : 1) ))
-            cur.goto $(( sr + i )) $(( sc + fw ))
-            (( i == thumb )) && printf '▐' || printf ' '
+            _tui.emit_goto $(( sr + i )) $(( sc + fw ))
+            (( i == thumb )) && _tui.emit '▐' || _tui.emit ' '
         fi
     done
-    style.reset
+    _tui.emit_reset
 }
 
 

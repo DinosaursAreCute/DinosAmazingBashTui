@@ -400,7 +400,7 @@ Read-only. Pane getters return `1` for an unknown pane.
 
 ## Logging and perf
 
-<!-- api: tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.file tui.perf.mean_render_ms -->
+<!-- api: tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.file tui.perf.mean_render_ms tui.perf.report tui.perf.reset -->
 
 | Function | Summary |
 |---|---|
@@ -411,6 +411,8 @@ Read-only. Pane getters return `1` for an unknown pane.
 | [`tui.log.error`](core/tui.log.error.md) | Same as `tui.log MSG error`. See [`tui.log`](/api/core/tui.log.html). |
 | [`tui.log.file`](core/tui.log.file.md) | Prints the path [`tui.log`](/api/core/tui.log.html) writes to today. |
 | [`tui.perf.mean_render_ms`](core/tui.perf.mean_render_ms.md) | Prints the mean frame render time in milliseconds over the last `SECONDS`. |
+| [`tui.perf.report`](core/tui.perf.report.md) | Prints one line per tracked span (`span<TAB>name<TAB>mean_us<TAB>p95_us<TAB>count`) and one line per counter (`counter<TAB>name<TAB>total`). |
+| [`tui.perf.reset`](core/tui.perf.reset.md) | Clears every tracked span and counter. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -427,6 +429,32 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.log.file.md %}
 
 {% include_relative core/tui.perf.mean_render_ms.md %}
+
+{% include_relative core/tui.perf.report.md %}
+
+{% include_relative core/tui.perf.reset.md %}
+
+</div>
+
+<!-- /api -->
+
+## Registry
+
+<!-- api: tui.register tui.registered tui.register.style_contract -->
+
+| Function | Summary |
+|---|---|
+| [`tui.register`](core/tui.register.md) | Registers one or more handlers `FN` for `NAME` under `KIND`. |
+| [`tui.registered`](core/tui.registered.md) | Looks up `NAME`'s handlers under `KIND` into `$_TUI_REGISTERED` (space-joined, registration order). |
+| [`tui.register.style_contract`](core/tui.register.style_contract.md) | Registers `NAME`'s style contract (registry kind `style`): the pseudo-states it can enter and the framework classes it draws with, e.g. `"states:hover focus"` `"classes:.list_sel"`. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.register.md %}
+
+{% include_relative core/tui.registered.md %}
+
+{% include_relative core/tui.register.style_contract.md %}
 
 </div>
 

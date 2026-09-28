@@ -257,6 +257,7 @@ _tui_cmd.pad() {
     _PADS="$s$sp"
 }
 
+# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
 _tui_cmd.palette_draw() {
     tui.modal.active palette || return 0
     local w=72 h n=${#_PAL_IDS[@]} r i idx id line hint title room desc foot bar hz
@@ -304,7 +305,7 @@ _tui_cmd.palette_draw() {
     _tui_cmd.pad " $foot" "$(( inner - ${#cnt} - 1 ))"
     out+=$'\e['"$(( _PAL_BY + _PAL_ROWS + 3 ));${x}H${_PAL_SGR_DIM}│${_PADS}${cnt} │"
     out+=$'\e['"$(( _PAL_BY + _PAL_ROWS + 4 ));${x}H${_PAL_SGR_BOX}└${hz}┘"$'\e[0m\e8'
-    printf '%s' "$out"
+    _TUI_FRAME+="$out"
 }
 
 # ── default providers (state-dependent commands, registered through the same API) ──

@@ -508,9 +508,10 @@ _tui_dialog.draw_view() {
 	_tui_dialog.pad " ↑↓ scroll   esc close   ${_DLG_TOP}-$((_DLG_TOP + rows)) of $n" "$inner"
 	out+=$'\e['"$((y + rows + 1));${x}H${_DLG_SGR_DIM}│${_PADS}│"
 	out+=$'\e['"$((y + rows + 2));${x}H${_DLG_SGR_BOX}└${hz}┘"$'\e[0m\e8'
-	printf '%s' "$out"
+	_TUI_FRAME+="$out"
 }
 
+# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
 _tui_dialog.draw() {
 	tui.modal.active dialog || return 0
 	[[ "$_DLG_KIND" == view ]] && {
@@ -662,7 +663,7 @@ _tui_dialog.draw() {
 		out+=$'\e['"$((y + 1 + i));${x}H${_DLG_SGR_BOX}│${body[i]}${_DLG_SGR_BOX}│"
 	done
 	out+=$'\e['"$((y + h - 1));${x}H${_DLG_SGR_BOX}└${hz}┘"$'\e[0m\e8'
-	printf '%s' "$out"
+	_TUI_FRAME+="$out"
 }
 
 # ── toasts ───────────────────────────────────────────────────────────────
@@ -783,6 +784,7 @@ _tui_dialog.reset() {
 	done
 }
 
+# overlay DRAWFN: appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
 _tui_dialog.toast_draw() {
 	local n=${#_TST_ID[@]}
 	((n)) || return 0
@@ -839,5 +841,5 @@ _tui_dialog.toast_draw() {
 		if ((atbottom)); then y=$((top - 1)); else y=$((top + h)); fi
 	done
 	out+=$'\e[0m\e8'
-	printf '%s' "$out"
+	_TUI_FRAME+="$out"
 }

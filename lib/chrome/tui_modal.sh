@@ -34,10 +34,17 @@ tui.overlay.remove() {
 }
 _TUI_FLUSH_GEN=0
 _TUI_OVL_GEN=0
+# _tui_overlay.draw_all - standalone (see _tui._render_output in lib/tui.sh for the
+# save/reset/build/flush/restore shape): overlays draw independently of a page's base
+# render (their own trigger, after tui.render already flushed once), so this owns its
+# own frame and its own synchronized flush rather than folding into tui.render's.
 _tui_overlay.draw_all() {
 	_TUI_OVL_GEN=$_TUI_FLUSH_GEN
-	local f
+	local f _oda_saved="$_TUI_FRAME"
+	_TUI_FRAME=""
 	for f in "${_TUI_OVERLAY_FNS[@]}"; do "$f"; done
+	_tui._flush "$_TUI_FRAME"
+	_TUI_FRAME="$_oda_saved"
 }
 
 tui.modal.active() { [[ -n "$_TUI_MODAL" && (-z "${1:-}" || "$_TUI_MODAL" == "$1") ]]; }
@@ -77,7 +84,8 @@ _tui_modal.reset() {
 	_TUI_MODAL_MOUSEFN=""
 }
 
-# tui.overlay.box ROW COL WIDTH SGR TITLE LINE... - draws a framed box in place (for overlay/modal DRAWFNs).
+# tui.overlay.box ROW COL WIDTH SGR TITLE LINE... - appends a framed box to _TUI_FRAME (for overlay/modal
+# DRAWFNs, always called from _tui_overlay.draw_all's build/flush cycle - never prints directly).
 #   SGR: the colours as SGR parameters, e.g. "1;97;44".  LINEs are cut/padded to the inner width. No state kept.
 tui.overlay.box() {
 	local row="$1" col="$2" w="$3" sgr="$4" title="$5"
@@ -96,5 +104,5 @@ tui.overlay.box() {
 	done
 	((r++))
 	out+=$'\e['"${r};${col}H└${hz}┘"$'\e[0m\e8'
-	printf '%s' "$out"
+	_TUI_FRAME+="$out"
 }

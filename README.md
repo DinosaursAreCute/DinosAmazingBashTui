@@ -305,7 +305,7 @@ lib/                                   the framework - shared/public files at th
 ├── input/tui_input.sh                 keys and mouse
 ├── widgets/                           tui_text.sh, tui_widgets.sh - text editing, list/table/select/...
 ├── chrome/                            tui_modal.sh, tui_dialog.sh, tui_cmd.sh, tui_footer.sh - overlays, palette, footer
-├── markup/                            tui_markup.sh, tui_cache.sh - XML pages, page cache
+├── markup/                            tui_parse.sh, tui_build.sh, tui_node.sh, tui_markup.sh, tui_cache.sh - XML pages, page cache
 ├── config/tui_config.sh               app settings
 ├── plugin/tui_plugin.sh               plugins and hooks
 ├── apps/                              tui_apps.sh, tui_install.sh, tui_sync.sh, tui_update.sh, tui_scan.sh - app lifecycle

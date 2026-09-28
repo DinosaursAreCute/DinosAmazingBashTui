@@ -398,8 +398,9 @@ _tui_wx.wheel() { # DIRECTION N
 
 # ── drawing ──────────────────────────────────────────────────────────────
 
-# _tui_wx.draw ID TYPE SR SC SW SH FOCUSED HOVERED STYLE_KEY PANE_KEY   (called by _tui._draw_widget)
-_tui_wx.draw() {
+# _tui_wx.draw_buf ID TYPE SR SC SW SH FOCUSED HOVERED STYLE_KEY PANE_KEY - appends
+# to _TUI_FRAME (called by _tui._draw_widget_buf; no caller outside the render path).
+_tui_wx.draw_buf() {
 	local id="$1" type="$2" sr="$3" sc="$4" sw="$5" sh="$6" focused="$7" hovered="$8" sk="$9" pk="${10}"
 	case "$type" in
 		input | password) _tui_text.draw_line "$id" "$sr" "$sc" "$sw" "$focused" "$sk" "$pk" ;;
@@ -436,16 +437,16 @@ _tui_wx.draw_select() {
 	[[ -n "$label" ]] && {
 		lw=$((${#label} + 1))
 		_tui_wx.label_sgr "$focused" "$pk"
-		printf '%s%s ' "$_LSGR" "$label"
-		style.reset
+		_tui.emit_printf '%s%s ' "$_LSGR" "$label"
+		_tui.emit_reset
 	}
-	_tui._apply_style "$sk" "$pk"
-	((focused)) && style.reverse || { [[ -z "${_TUI_STYLE_FG[$sk]:-}" ]] && style.dim; }
+	_tui.emit_style "$sk" "$pk"
+	((focused)) && _tui.emit_sgr 7 || { [[ -z "${_TUI_STYLE_FG[$sk]:-}" ]] && _tui.emit_sgr 2; }
 	local fw=$((sw - lw))
 	line="[ ${v} ▾ ]"
 	_tui_text.padc "$line" "$fw"
-	printf '%s' "$_PADC"
-	style.reset
+	_tui.emit "$_PADC"
+	_tui.emit_reset
 }
 
 _tui_wx.draw_progress() {
@@ -456,8 +457,8 @@ _tui_wx.draw_progress() {
 	[[ -n "$label" ]] && {
 		lw=$((${#label} + 1))
 		_tui_wx.label_sgr 0 "$pk"
-		printf '%s%s ' "$_LSGR" "$label"
-		style.reset
+		_tui.emit_printf '%s%s ' "$_LSGR" "$label"
+		_tui.emit_reset
 	}
 	bw=$((sw - lw - 5))
 	((bw < 3)) && bw=3
@@ -469,7 +470,7 @@ _tui_wx.draw_progress() {
 	local fs es
 	printf -v fs '%*s' "$fill" ''
 	printf -v es '%*s' "$((bw - fill))" ''
-	printf '%s%s%s%s%s %3d%%' "$f" "${fs// /█}" "$e" "${es// /░}" $'\e[0m' "$pct"
+	_tui.emit_printf '%s%s%s%s%s %3d%%' "$f" "${fs// /█}" "$e" "${es// /░}" $'\e[0m' "$pct"
 }
 
 # list / table rows
@@ -514,7 +515,7 @@ _tui_wx.draw_rows() {
 		done
 	fi
 
-	_tui._apply_style "$sk" "$pk"
+	_tui.emit_style "$sk" "$pk"
 	_tui._style_v "$sk" "$pk"
 	local base="$_SGR"
 	local cls=list_sel
@@ -523,7 +524,7 @@ _tui_wx.draw_rows() {
 	local selsgr="${TUI_SGR:-$'\e[0;97;48;2;62;92;138m'}"
 	local rowi=0
 	if ((hdr)); then
-		cur.goto "$sr" "$sc"
+		_tui.emit_goto "$sr" "$sc"
 		tui.class.sgr table_head
 		local hs="${TUI_SGR:-$'\e[1;4m'}"
 		IFS='|' read -ra cells <<<"${_WXCOLS[$id]}"
@@ -534,11 +535,11 @@ _tui_wx.draw_rows() {
 		done
 		_tui_text.padc "$line" "$fw"
 		line="$_PADC"
-		printf '%s%s%s%s' "$hs" "$line" $'\e[0m' "$base"
+		_tui.emit_printf '%s%s%s%s' "$hs" "$line" $'\e[0m' "$base"
 		rowi=1
 	fi
 	for ((i = 0; i < rows; i++)); do
-		cur.goto $((sr + rowi + i)) "$sc"
+		_tui.emit_goto $((sr + rowi + i)) "$sc"
 		idx=$((top + i))
 		if ((idx < n)); then
 			if ((hdr)); then
@@ -553,17 +554,17 @@ _tui_wx.draw_rows() {
 			line="$_PADC"
 			if ((idx == sel)); then
 				if ((focused)); then
-					printf '%s%s%s%s' "$selsgr" "$line" $'\e[0m' "$base"
-				else printf '%s%s%s%s' $'\e[7m' "$line" $'\e[27m' "$base"; fi
-			else printf '%s' "$line"; fi
-		else printf '%*s' "$fw" ""; fi
+					_tui.emit_printf '%s%s%s%s' "$selsgr" "$line" $'\e[0m' "$base"
+				else _tui.emit_printf '%s%s%s%s' $'\e[7m' "$line" $'\e[27m' "$base"; fi
+			else _tui.emit_printf '%s' "$line"; fi
+		else _tui.emit_printf '%*s' "$fw" ""; fi
 		if ((sw > fw)); then # scroll indicator
 			local thumb=$((top * (rows - 1) / (n - rows > 0 ? n - rows : 1)))
-			cur.goto $((sr + rowi + i)) $((sc + fw))
-			((i == thumb)) && printf '▐' || printf ' '
+			_tui.emit_goto $((sr + rowi + i)) $((sc + fw))
+			((i == thumb)) && _tui.emit '▐' || _tui.emit ' '
 		fi
 	done
-	style.reset
+	_tui.emit_reset
 }
 
 # page reset / factory clear: drop widget-only state

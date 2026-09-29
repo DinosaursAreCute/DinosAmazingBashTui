@@ -35,12 +35,17 @@ declare -gA _TUI_CACHE_SIG=()      # resolved page path -> "dep=mtime dep=mtime 
 declare -gA _TUI_CACHE_SCRIPTS=()  # resolved page path -> space-joined <script src> paths, re-sourced on every replay
 declare -gA _TUI_CACHE_ON_VISIT=() # resolved page path -> on_visit function name, rerun on every replay
 declare -gA _TUI_CACHE_GOTOS=()    # resolved page path -> newline-joined "_tui_cache_define_goto ..." calls
+declare -gA _TUI_CACHE_THEME=()    # resolved page path -> its <theme src> file, reloaded on every replay
+declare -gA _TUI_CACHE_CLASSES=()  # resolved page path -> newline-joined "id\tclass" pairs, re-applied on every replay
 
-# Populated by _tui_cache_source/_tui_cache_define_goto below while
-# tui.cache.record's tui.load runs, then captured into the maps above -
-# scratch, not meant to be read outside that one call.
+# Populated by _tui_cache_source/_tui_cache_define_goto/_tui_cache_theme/
+# _tui_cache_class below while tui.cache.record's tui.load runs, then
+# captured into the maps above - scratch, not meant to be read outside that
+# one call.
 declare -ga _TUI_CACHE_REC_SCRIPTS=()
 declare -ga _TUI_CACHE_REC_GOTOS=()
+declare -g _TUI_CACHE_REC_THEME=""
+declare -ga _TUI_CACHE_REC_CLASSES=()
 
 # Node names a fresh page's build actually touches (exactly tui.reset_ui's
 # own reset list, plus lib/widgets/tui_widgets.sh's _tui_wx.reset list) -
@@ -112,6 +117,7 @@ _tui_cache_theme_stamp() { # FILE -> sets _TS to a fresh stamp path (creates the
 _tui.theme_load_file() {
 	local file="$1" cls fg bg mods out=""
 	if [[ -n "${_TUI_THEME_MEMO[$file]+x}" && ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; then
+		tui.log.debug "_tui.theme_load_file: memo HIT for $file, re-applying from memory"
 		# fd 7, not stdin: tui.load_theme runs mid-build (from a <theme> tag
 		# handler); keep fd 0 free for the tty the same way tui.cache.replay's
 		# fd-9 goto/on_visit loop does.
@@ -124,6 +130,7 @@ _tui.theme_load_file() {
 		return 0
 	fi
 
+	tui.log.debug "_tui.theme_load_file: memo MISS for $file, parsing from disk"
 	_tui.theme_parse "$file" || return 1
 	_tui.theme_commit
 	for cls in "${_TP_ORDER[@]}"; do
@@ -160,6 +167,38 @@ _tui_cache_source() {
 	_TUI_CACHE_REC_SCRIPTS+=("$1")
 	# shellcheck disable=SC1090
 	source "$1"
+}
+
+# Stands in for tui_build.sh's <theme src> handler's tui.load_theme call.
+# Recording just the resolved file isn't enough to skip on a cache hit: the
+# app-wide overlay (tui.theme.set/tui.theme.pick, _TUI_THEME_OVERLAY in
+# tui_style.sh) is re-applied on top of it INSIDE tui.load_theme, live, every
+# time it runs - a page built once under one overlay would otherwise stay
+# frozen on it forever, since tui.cache.replay skips the whole build (and
+# thus this call) on every later hit. Re-running it on replay costs nothing:
+# _tui.theme_load_file below memoizes the parse per file+mtime, so this is a
+# handful of array re-assignments, not a re-parse.
+_tui_cache_theme() {
+	_TUI_CACHE_REC_THEME="$1"
+	tui.log.debug "_tui_cache_theme: recording <theme src>=$1 for replay"
+	tui.load_theme "$1"
+}
+
+# Stands in for every build-time "tui.class ID CLASS" call (tui_build.sh's
+# pane/widget/button/label/key tag handlers, tui_widgets.sh's own). tui.class
+# resolves CLASS against the (by-then current) _TUI_CLASS_* table and bakes
+# the result into _TUI_STYLE_*[ID_state] - the table tui.sh's draw code
+# actually reads. _TUI_STYLE_* matches _TUI_CACHE_STATE_REGEX, so it's part
+# of the page snapshot: a cache HIT restores it as it was at record time and
+# never calls tui.class again, so a theme switch that only refreshes
+# _TUI_CLASS_* (see _tui_cache_theme above) never reaches an already-cached
+# page's actual widget colors. Recording every (id, class) pair here lets
+# tui.cache.replay re-run tui.class for each one after the theme reload, the
+# same "dynamic bits replay individually" pattern as scripts/gotos/on_visit.
+_tui_cache_class() {
+	local id="$1" cls="$2"
+	[[ -n "$cls" ]] && _TUI_CACHE_REC_CLASSES+=("$(printf '%s\t%s' "$id" "$cls")")
+	tui.class "$id" "$cls"
 }
 
 # Runs a page's on_visit, if it has one - the function body itself runs
@@ -249,13 +288,19 @@ tui.cache.deps_of() {
 # <include> it pulled in.
 tui.cache.record() {
 	local file="$1"
+	tui.log.debug "tui.cache.record: building $file fresh (cache miss)"
 	_TUI_CACHE_REC_SCRIPTS=()
 	_TUI_CACHE_REC_GOTOS=()
+	_TUI_CACHE_REC_THEME=""
+	_TUI_CACHE_REC_CLASSES=()
 	tui.load "$file" || return 1 # a worker (1.4) checks this: no snapshot, page falls back to an uncached load
 	_TUI_CACHE_PAGE["$file"]="$(_tui_cache_snapshot)"
 	_TUI_CACHE_SCRIPTS["$file"]="${_TUI_CACHE_REC_SCRIPTS[*]}"
 	_TUI_CACHE_ON_VISIT["$file"]="${_TUI_BUILD_ON_VISIT:-}"
 	_TUI_CACHE_GOTOS["$file"]="$(printf '%s\n' "${_TUI_CACHE_REC_GOTOS[@]}")"
+	_TUI_CACHE_THEME["$file"]="$_TUI_CACHE_REC_THEME"
+	_TUI_CACHE_CLASSES["$file"]="$(printf '%s\n' "${_TUI_CACHE_REC_CLASSES[@]}")"
+	tui.log.debug "tui.cache.record: recorded theme=${_TUI_CACHE_REC_THEME:-<none>} classes=${#_TUI_CACHE_REC_CLASSES[@]} for $file"
 
 	local -a deps=()
 	tui.cache.deps_of "$file" deps
@@ -290,7 +335,31 @@ tui.cache.valid() {
 tui.cache.replay() {
 	local file="$1" rec
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" ]] || return 1
+	tui.log.debug "tui.cache.replay: replaying $file from snapshot (cache hit)"
 	_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
+	# Re-applies the page's <theme> plus whatever app-wide overlay is
+	# currently set (tui.load_theme itself layers _TUI_THEME_OVERLAY on top,
+	# see tui_style.sh) - skipped by the restore above since the whole build
+	# is skipped on a hit; see _tui_cache_theme's comment for why this must
+	# run on every replay, not just at record time.
+	#
+	if [[ -n "${_TUI_CACHE_THEME[$file]:-}" ]]; then
+		tui.log.debug "tui.cache.replay: re-applying theme ${_TUI_CACHE_THEME[$file]} for $file"
+		tui.load_theme "${_TUI_CACHE_THEME[$file]}"
+	else
+		tui.log.debug "tui.cache.replay: no recorded theme for $file, nothing to re-apply"
+	fi
+	# Re-bakes every widget/pane's _TUI_STYLE_* entry from the now-current
+	# _TUI_CLASS_* table (see _tui_cache_class's comment) - the theme reload
+	# above only refreshes the class table itself; without this, a switched
+	# theme never reaches an already-cached page's actual rendered colors.
+	local _rc_id _rc_cls
+	# fd 6, not stdin: kept free for the tty on the same principle as this
+	# file's other stdin-bound while-read loops (fd 7/8/9 above).
+	while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
+		[[ -z "$_rc_id" ]] && continue
+		tui.class "$_rc_id" "$_rc_cls"
+	done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
 	# _TUI_OVERLAY_FNS (lib/chrome/tui_modal.sh) isn't page state, so it isn't in the
 	# snapshot: tui.reset_ui's _tui_footer.reset always removes _tui_footer.draw from it,
 	# and restoring _TUI_FOOTER_ON=1 alone wouldn't re-add it without this.
@@ -326,7 +395,10 @@ tui.load_cached() {
 	_TUI_MARKUP_DIR="$dir"
 	_TUI_MARKUP_FILE="$resolved"
 
-	if tui.cache.valid "$resolved" && tui.cache.replay "$resolved"; then
+	local _lc_valid=no
+	tui.cache.valid "$resolved" && _lc_valid=yes
+	tui.log.debug "tui.load_cached: $resolved valid=$_lc_valid overlay=${_TUI_THEME_OVERLAY:-<none>}"
+	if [[ "$_lc_valid" == yes ]] && tui.cache.replay "$resolved"; then
 		_tui_perf.count cache_hit
 		return 0
 	fi
@@ -354,6 +426,8 @@ tui.cache.dump_dir() {
 		printf '%s' "${_TUI_CACHE_SCRIPTS[$key]:-}" >"$dir/${fname}.scripts"
 		printf '%s' "${_TUI_CACHE_ON_VISIT[$key]:-}" >"$dir/${fname}.onvisit"
 		printf '%s' "${_TUI_CACHE_GOTOS[$key]:-}" >"$dir/${fname}.gotos"
+		printf '%s' "${_TUI_CACHE_THEME[$key]:-}" >"$dir/${fname}.theme"
+		printf '%s' "${_TUI_CACHE_CLASSES[$key]:-}" >"$dir/${fname}.classes"
 	done
 }
 
@@ -373,9 +447,12 @@ tui.cache.load_dir() {
 		_TUI_CACHE_SCRIPTS["$key"]="$([[ -f "${f%.key}.scripts" ]] && cat "${f%.key}.scripts")"
 		_TUI_CACHE_ON_VISIT["$key"]="$([[ -f "${f%.key}.onvisit" ]] && cat "${f%.key}.onvisit")"
 		_TUI_CACHE_GOTOS["$key"]="$([[ -f "${f%.key}.gotos" ]] && cat "${f%.key}.gotos")"
+		_TUI_CACHE_THEME["$key"]="$([[ -f "${f%.key}.theme" ]] && cat "${f%.key}.theme")"
+		_TUI_CACHE_CLASSES["$key"]="$([[ -f "${f%.key}.classes" ]] && cat "${f%.key}.classes")"
 		tui.cache.valid "$key" || {
 			unset '_TUI_CACHE_PAGE[$key]' '_TUI_CACHE_SIG[$key]' '_TUI_CACHE_SCRIPTS[$key]' \
-				'_TUI_CACHE_ON_VISIT[$key]' '_TUI_CACHE_GOTOS[$key]'
+				'_TUI_CACHE_ON_VISIT[$key]' '_TUI_CACHE_GOTOS[$key]' '_TUI_CACHE_THEME[$key]' \
+				'_TUI_CACHE_CLASSES[$key]'
 		}
 	done
 }
@@ -398,12 +475,14 @@ tui.cache.fname() { printf '%s' "${1//\//_}"; }
 # tui.cache.dump_dir's five, for stage 1.4's per-page worker pool.
 tui.cache.encode() {
 	local file="$1" sep=$'\x1e'
-	printf '%s%s%s%s%s%s%s%s%s' \
+	printf '%s%s%s%s%s%s%s%s%s%s%s%s%s' \
 		"${_TUI_CACHE_SIG[$file]:-}" "$sep" \
 		"${_TUI_CACHE_PAGE[$file]:-}" "$sep" \
 		"${_TUI_CACHE_SCRIPTS[$file]:-}" "$sep" \
 		"${_TUI_CACHE_ON_VISIT[$file]:-}" "$sep" \
-		"${_TUI_CACHE_GOTOS[$file]:-}"
+		"${_TUI_CACHE_GOTOS[$file]:-}" "$sep" \
+		"${_TUI_CACHE_THEME[$file]:-}" "$sep" \
+		"${_TUI_CACHE_CLASSES[$file]:-}"
 }
 
 # tui.cache.decode FILE BLOB - installs BLOB (from tui.cache.encode) as
@@ -420,6 +499,8 @@ tui.cache.decode() {
 	_TUI_CACHE_SCRIPTS[$file]="${parts[2]:-}"
 	_TUI_CACHE_ON_VISIT[$file]="${parts[3]:-}"
 	_TUI_CACHE_GOTOS[$file]="${parts[4]:-}"
+	_TUI_CACHE_THEME[$file]="${parts[5]:-}"
+	_TUI_CACHE_CLASSES[$file]="${parts[6]:-}"
 }
 
 _tui_cache_now_us() { printf '%s' "${EPOCHREALTIME//[^0-9]/}"; }
@@ -451,6 +532,7 @@ tui.cache.warm_with_spinner() {
 	# memo above) BEFORE any worker forks, so every worker inherits an
 	# already-populated _TUI_THEME_MEMO through fork copy-on-write memory
 	# instead of re-parsing the same CSS once per page.
+	tui.log.debug "tui.cache.warm_with_spinner: pre-parsing shared theme deps for ${#_tcw_pages[@]} page(s) in parent"
 	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css" >/dev/null 2>&1
 	local _tcw_dp _tcw_dtheme
 	for _tcw_dp in "${_tcw_pages[@]}"; do

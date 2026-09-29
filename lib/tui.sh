@@ -21,10 +21,14 @@ SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" # the lib/ fold
 source "${SCRIPT_DIR}/state.sh"
 # shellcheck source=perf.sh
 source "${SCRIPT_DIR}/perf.sh"
+# shellcheck source=layout/tui_layout.sh
+source "${SCRIPT_DIR}/layout/tui_layout.sh"
 # shellcheck source=terminal_controls.sh
 source "${SCRIPT_DIR}/terminal_controls.sh"
 # shellcheck source=render/tui_emit.sh
 source "${SCRIPT_DIR}/render/tui_emit.sh"
+# shellcheck source=render/tui_canvas.sh
+source "${SCRIPT_DIR}/render/tui_canvas.sh"
 # shellcheck source=colors.sh
 source "${SCRIPT_DIR}/colors.sh"
 # shellcheck source=tui_home.sh
@@ -339,6 +343,7 @@ _tui._split() {
 	_TUI_P_DIR[$parent]="$dir"
 	_TUI_P_CHILDREN[$parent]="$names"
 	_TUI_P_WEIGHTS[$parent]="$weights"
+	_tui.layout_bump
 
 	_tui._layout "$parent"
 
@@ -378,6 +383,7 @@ tui.fixed() {
 	_TUI_P_WEIGHTS[$parent]=""
 	_TUI_P_CELLW[$parent]="$sw"
 	_TUI_P_CELLH[$parent]="$sh"
+	_tui.layout_bump
 
 	_tui._layout "$parent"
 
@@ -531,6 +537,17 @@ _tui._layout_r() {
 	local dir="${_TUI_P_DIR[$p]:-}"
 	[[ -z "$dir" ]] && return
 
+	# Memoization (2A): a pane's whole subtree is safe to skip when its own
+	# (row,col,h,w) match the last pass AND nothing layout-relevant has
+	# mutated ANYWHERE since (the global _TUI_LY_GEN counter - see
+	# lib/layout/tui_layout.sh's header comment). Coarser than per-subtree
+	# dirty tracking but never stale: any split/gap/pad/border/max_* change,
+	# or a cache-replay boundary (_tui_cache_relayout), bumps it. This is
+	# what closes tools/bench/run.sh's resize_relayout back within G3 after
+	# routing every split through the fr/clamp engine (2A) made the first
+	# pass alone ~1.7x slower than the old inline arithmetic.
+	_tui.layout_cache_hit "$p" "${_TUI_P_ROW[$p]} ${_TUI_P_COL[$p]} ${_TUI_P_H[$p]} ${_TUI_P_W[$p]}" && return
+
 	# A parent's own border and vpad/hpad shrink the area its children
 	# share; _tui._inset drops both when the parent is too small for them.
 	_tui._inset "$p"
@@ -544,36 +561,88 @@ _tui._layout_r() {
 		return
 	fi
 
-	local -a ch wt
+	local -a ch spec
 	read -ra ch <<<"${_TUI_P_CHILDREN[$p]}"
-	read -ra wt <<<"${_TUI_P_WEIGHTS[$p]}"
+	read -ra spec <<<"${_TUI_P_WEIGHTS[$p]}"
+	local last=$((${#ch[@]} - 1))
+	local gap=${_TUI_P_GAP[$p]:-0} avail
+	[[ "$dir" == "h" ]] && avail=$pw || avail=$ph
 
-	local total=0
-	for w in "${wt[@]}"; do ((total += w)); done
+	# fast=1 while every child so far is a plain integer weight with no
+	# max_width/max_height and gap=0 - today's overwhelmingly common case
+	# (plain weight= splits). This first pass touches no _LY_* globals at
+	# all, only local vars - tools/bench/run.sh's resize_relayout caught a
+	# ~2.6x regression from unconditionally marshalling every split's specs
+	# into _tui.layout_arrange's arrays even for this trivial case; a second
+	# pass below builds those arrays and calls it, but only when this one
+	# actually finds something the fast arithmetic can't handle (a unit
+	# token, a max_width/max_height, or a gap).
+	local i name s fast=1 total=0
+	((gap != 0)) && fast=0
+	if ((fast)); then
+		for ((i = 0; i <= last; i++)); do
+			name="${ch[$i]}"
+			s="${spec[$i]:-1}"
+			if [[ -n "$s" && "$s" != *[!0-9]* ]] &&
+				{ [[ "$dir" == "h" ]] && [[ -z "${_TUI_P_MAXW[$name]:-}" ]] || [[ "$dir" != "h" && -z "${_TUI_P_MAXH[$name]:-}" ]]; }; then
+				((total += s))
+			else
+				fast=0
+				break
+			fi
+		done
+	fi
 
-	local i offset=0 last=$((${#ch[@]} - 1))
+	local -a sizes=()
+	if ((fast)); then
+		((total == 0)) && total=$((last + 1))
+		local off=0
+		for ((i = 0; i <= last; i++)); do
+			s="${spec[$i]:-1}"
+			if ((i == last)); then
+				sizes[i]=$((avail - off))
+			else
+				sizes[i]=$((avail * s / total))
+				((off += sizes[i]))
+			fi
+		done
+	else
+		# Per-child spec (plain weight, or a 2A unit token: N%, Nfr, auto,
+		# fill, clamp(...)) plus its legacy max_width/max_height, now
+		# correctly redistributed to siblings when it clamps (the old inline
+		# loop just dropped the freed space). Legacy min_width/min_height
+		# stay advisory-only (the "too small" warning) - real min
+		# enforcement is opt-in via a clamp(...) spec itself, see
+		# _tui.layout_arrange's own doc comment.
+		_LY_SPECS=() _LY_MINS=() _LY_MAXS=()
+		for ((i = 0; i <= last; i++)); do
+			name="${ch[$i]}"
+			_LY_SPECS[i]="${spec[$i]:-1}"
+			_LY_MINS[i]=""
+			[[ "$dir" == "h" ]] && _LY_MAXS[i]="${_TUI_P_MAXW[$name]:-}" || _LY_MAXS[i]="${_TUI_P_MAXH[$name]:-}"
+		done
+		_tui.layout_arrange "$avail" "$gap"
+		sizes=("${_LY_SIZES[@]}") # local snapshot: recursing below overwrites the shared _LY_* globals
+	fi
+
+	local offset=0 size
 	for ((i = 0; i <= last; i++)); do
-		local name="${ch[$i]}" w="${wt[$i]}"
+		name="${ch[$i]}"
+		size=${sizes[$i]:-0}
 
 		if [[ "$dir" == "h" ]]; then
-			local cw=$((pw * w / total))
-			((i == last)) && cw=$((pw - offset))
-			[[ -n "${_TUI_P_MAXW[$name]:-}" ]] && ((cw > _TUI_P_MAXW[$name])) && cw=${_TUI_P_MAXW[$name]}
 			_TUI_P_ROW[$name]=$pr
 			_TUI_P_COL[$name]=$((pc + offset))
 			_TUI_P_H[$name]=$ph
-			_TUI_P_W[$name]=$cw
-			((offset += cw))
+			_TUI_P_W[$name]=$size
 		else
-			local ch_h=$((ph * w / total))
-			((i == last)) && ch_h=$((ph - offset))
-			[[ -n "${_TUI_P_MAXH[$name]:-}" ]] && ((ch_h > _TUI_P_MAXH[$name])) && ch_h=${_TUI_P_MAXH[$name]}
 			_TUI_P_ROW[$name]=$((pr + offset))
 			_TUI_P_COL[$name]=$pc
-			_TUI_P_H[$name]=$ch_h
+			_TUI_P_H[$name]=$size
 			_TUI_P_W[$name]=$pw
-			((offset += ch_h))
 		fi
+		((offset += size))
+		((i < last)) && ((offset += gap))
 
 		[[ -n "${_TUI_P_CHILDREN[$name]:-}" ]] && _tui._layout_r "$name"
 	done
@@ -583,6 +652,7 @@ tui.pane_title() { _TUI_P_TITLE[$1]="$2"; }
 tui.pane_border() {
 	_TUI_P_BORDER[$1]="$2"
 	_TUI_P_BORDER_EXPL[$1]=1
+	_tui.layout_bump # border changes _tui._inset, which shifts every child's rect
 }
 # tui.pane_pad ID HPAD VPAD - blank cols/rows on each side. Parent panes:
 # gap between the frame and the children. Leaf panes: shrinks the area
@@ -590,10 +660,16 @@ tui.pane_border() {
 tui.pane_pad() {
 	[[ -n "$2" ]] && _TUI_P_HPAD[$1]="$2"
 	[[ -n "$3" ]] && _TUI_P_VPAD[$1]="$3"
+	_tui.layout_bump
 }
 tui.pad() {
 	[[ -n "$2" ]] && _TUI_W_HPAD[$1]="$2"
 	[[ -n "$3" ]] && _TUI_W_VPAD[$1]="$3"
+}
+# tui.pane_gap ID GAP - cells left blank between ID's children on its split axis (2A).
+tui.pane_gap() {
+	[[ -n "$2" ]] && _TUI_P_GAP[$1]="$2"
+	_tui.layout_bump
 }
 
 # _tui._eff_border ID - sets _TB to the border style actually drawn.
@@ -663,6 +739,7 @@ tui.pane_minsize() {
 tui.pane_maxsize() {
 	[[ -n "$2" ]] && _TUI_P_MAXW[$1]="$2"
 	[[ -n "$3" ]] && _TUI_P_MAXH[$1]="$3"
+	_tui.layout_bump # unlike min_*, max_* feeds real arrange math (fast-path check + _LY_MAXS)
 }
 
 tui.pane_scroll() {
@@ -840,7 +917,7 @@ tui.tabs.build() {
 		_TUI_TAB_GROUP[$tid]="$tabs_id"
 		tui.button "$tid" "${header_pane}_${tid}_cell" 0 "${_TUI_TAB_TEXT[$tid]:-$tid}" _tui._tab_activate
 		tui.align "$tid" fill
-		tui.class "$tid" "$cell_class"
+		_tui_cache_class "$tid" "$cell_class"
 		[[ "${_TUI_TAB_DEFAULT[$tid]:-}" == "true" ]] && default_tab="$tid"
 	done
 	[[ -z "$default_tab" ]] && default_tab="${tab_ids[0]}"
@@ -1011,6 +1088,8 @@ tui.factory.clear() {
 			unset '_TUI_W_TYPE[$id]' '_TUI_W_PANE[$id]' '_TUI_W_ROW[$id]' '_TUI_W_LABEL[$id]' \
 				'_TUI_W_VALUE[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
 				'_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
+				'_TUI_W_MINH[$id]' '_TUI_W_MAXH[$id]' '_TUI_W_EXPAND[$id]' \
+				'_TUI_W_WIDTH[$id]' '_TUI_W_HEIGHT[$id]' \
 				'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]'
 			_tui_wx.forget "$id"
 			unset '_TUI_P_ROW[$id]' '_TUI_P_COL[$id]' '_TUI_P_H[$id]' '_TUI_P_W[$id]' \
@@ -1052,8 +1131,25 @@ tui.on_action() { _TUI_W_ACTION[$1]="$2"; }
 tui.on_submit() { _TUI_W_SUBMIT[$1]="$2"; }
 tui.align() { [[ -n "$2" ]] && _TUI_W_ALIGN[$1]="$2"; }
 tui.valign() { [[ -n "$2" ]] && _TUI_W_VALIGN[$1]="$2"; }
-tui.minsize() { [[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"; }
-tui.maxsize() { [[ -n "$2" ]] && _TUI_W_MAXW[$1]="$2"; }
+tui.minsize() {
+	[[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"
+	[[ -n "$3" ]] && _TUI_W_MINH[$1]="$3"
+}
+tui.maxsize() {
+	[[ -n "$2" ]] && _TUI_W_MAXW[$1]="$2"
+	[[ -n "$3" ]] && _TUI_W_MAXH[$1]="$3"
+}
+# tui.expand ID x|y|both - which dims _tui._widget_pos fills to the pane's content area (2A: the
+# generic replacement for the old hardcoded textarea/list/table row-span case; see
+# docs/api/widgets/tui.expand.md). list/table/textarea default to "y"; call this to override (e.g.
+# opt a textarea back out to a fixed row count). "x" is currently a no-op (width already fills by
+# default) - accepted for forward compatibility, per the doc.
+tui.expand() { _TUI_W_EXPAND[$1]="$2"; }
+# tui.width/tui.height ID SPEC - an explicit 2A unit-token size (cells, %, clamp(...); auto/fill/fr
+# resolve to the widget's default fill size) for _tui._widget_pos, resolved through the same
+# _tui.layout_resolve panes use. Applied before min_*/max_* clamp further.
+tui.width() { [[ -n "$2" ]] && _TUI_W_WIDTH[$1]="$2"; }
+tui.height() { [[ -n "$2" ]] && _TUI_W_HEIGHT[$1]="$2"; }
 tui.label_align() { [[ -n "$2" ]] && _TUI_W_LABEL_ALIGN[$1]="$2"; }
 tui.label_width() { [[ -n "$2" ]] && _TUI_W_LABEL_WIDTH[$1]="$2"; }
 
@@ -1263,6 +1359,17 @@ _tui._widget_pos() {
 	_WSW=$((pw - 2 * _IH - 2 * whp))
 	((_WSW < 1)) && _WSW=1
 	((content_h < 1)) && content_h=1
+	_WSW_AVAIL=$_WSW # true available width, captured before width=/max_width= shrink it (the min_width= advisory reads this)
+
+	# width= (2A): an explicit unit-token size (cells, %, clamp(...); auto/fill/
+	# fr all resolve to the default fill width computed above) overrides the
+	# default before min_width=/max_width= clamp it further.
+	local width_spec="${_TUI_W_WIDTH[$1]:-}"
+	if [[ -n "$width_spec" ]]; then
+		_tui.layout_resolve "$width_spec" "$_WSW"
+		_WSW=$_LY_R
+		((_WSW < 1)) && _WSW=1
+	fi
 
 	_tui._widget_valign_v "$1"
 	case "$_R" in
@@ -1271,20 +1378,33 @@ _tui._widget_pos() {
 		*) _WSR=$((content_top + wrow)) ;;
 	esac
 
-	_WSH=1 # rows the widget occupies (textarea / list / table span several)
-	case "${_TUI_W_TYPE[$1]:-}" in
-		textarea | list | table)
-			_WSR=$((content_top + wrow))
-			_WSH=${_TUI_W_ROWSPAN[$1]:-0}
-			local avail=$((content_top + content_h - _WSR))
-			((_WSH <= 0 || _WSH > avail)) && _WSH=$avail
-			((_WSH < 1)) && _WSH=1
-			;;
-	esac
+	_WSH=1 # rows the widget occupies (expand=y widgets span several - see tui.expand)
+	local expand="${_TUI_W_EXPAND[$1]:-}"
+	local avail_h=1
+	if [[ "$expand" == y || "$expand" == both ]]; then
+		_WSR=$((content_top + wrow))
+		avail_h=$((content_top + content_h - _WSR))
+		((avail_h < 1)) && avail_h=1
+		_WSH=${_TUI_W_ROWSPAN[$1]:-0}
+		((_WSH <= 0 || _WSH > avail_h)) && _WSH=$avail_h
+		((_WSH < 1)) && _WSH=1
+	fi
+	# height= (2A): same idea as width= above, resolved against the fill
+	# height expand=y would use (1 row when there's no expand, since that's
+	# the only "available" a non-expanding widget ever had).
+	local height_spec="${_TUI_W_HEIGHT[$1]:-}"
+	if [[ -n "$height_spec" ]]; then
+		_tui.layout_resolve "$height_spec" "$avail_h"
+		_WSH=$_LY_R
+		((_WSH < 1)) && _WSH=1
+	fi
+	local maxh="${_TUI_W_MAXH[$1]:-}" minh="${_TUI_W_MINH[$1]:-}"
+	if [[ -n "$maxh" ]] && ((_WSH > maxh)); then _WSH=$maxh; fi
+	if [[ -n "$minh" ]] && ((_WSH < minh)); then _WSH=$minh; fi
 
-	_WSW_AVAIL=$_WSW
-	local maxw="${_TUI_W_MAXW[$1]:-}"
+	local maxw="${_TUI_W_MAXW[$1]:-}" minw="${_TUI_W_MINW[$1]:-}"
 	if [[ -n "$maxw" ]] && ((_WSW > maxw)); then _WSW=$maxw; fi
+	if [[ -n "$minw" ]] && ((_WSW < minw)); then _WSW=$minw; fi
 	((_WSW < 1)) && _WSW=1
 }
 
@@ -1449,12 +1569,8 @@ _tui._draw_pane_buf() {
 		return
 	fi
 
-	local tl tr bl br hz vt
-	case "$border" in
-		double) tl="╔" tr="╗" bl="╚" br="╝" hz="═" vt="║" ;;
-		heavy) tl="┏" tr="┓" bl="┗" br="┛" hz="━" vt="┃" ;;
-		*) tl="┌" tr="┐" bl="└" br="┘" hz="─" vt="│" ;;
-	esac
+	_tui_canvas.glyphs "$border"
+	local tl=$_TC_TL tr=$_TC_TR bl=$_TC_BL br=$_TC_BR hz=$_TC_HZ vt=$_TC_VT
 
 	local inner=$((w - 2))
 	((inner < 1)) && inner=1
@@ -1535,12 +1651,8 @@ _tui._draw_pane_border_buf() {
 	[[ "$border" == "none" ]] && return
 	_tui._pane_too_small "$id" && return
 
-	local tl tr bl br hz vt
-	case "$border" in
-		double) tl="╔" tr="╗" bl="╚" br="╝" hz="═" vt="║" ;;
-		heavy) tl="┏" tr="┓" bl="┗" br="┛" hz="━" vt="┃" ;;
-		*) tl="┌" tr="┐" bl="└" br="┘" hz="─" vt="│" ;;
-	esac
+	_tui_canvas.glyphs "$border"
+	local tl=$_TC_TL tr=$_TC_TR bl=$_TC_BL br=$_TC_BR hz=$_TC_HZ vt=$_TC_VT
 
 	local inner=$((w - 2))
 	((inner < 1)) && inner=1

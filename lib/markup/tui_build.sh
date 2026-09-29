@@ -118,7 +118,7 @@ _tui_build.tag.theme() {
 	[[ -z "$tsrc" ]] && return 0
 	tresolved="$tsrc"
 	[[ "$tresolved" != /* ]] && tresolved="${_TUI_MARKUP_DIR}/${tsrc}"
-	tui.load_theme "$tresolved"
+	_tui_cache_theme "$tresolved"
 }
 
 tui.register tag tui _tui_build.tag.tui
@@ -141,7 +141,7 @@ _tui_build.tag.pane() {
 	fi
 
 	local split weight title border align valign minw minh maxw maxh class scroll strictfit
-	local rows cols fit roww colw sizew sizeh hpad vpad
+	local rows cols fit roww colw sizew sizeh hpad vpad gap
 	_tui_build.attrv "$node" split split
 	_tui_build.attrv "$node" weight weight
 	_tui_build.attrv "$node" title title
@@ -164,6 +164,7 @@ _tui_build.tag.pane() {
 	_tui_build.attrv "$node" size_h sizeh
 	_tui_build.attrv "$node" hpad hpad
 	_tui_build.attrv "$node" vpad vpad
+	_tui_build.attrv "$node" gap gap
 
 	[[ -n "$title" ]] && _TUI_BUILD_TITLE[$id]="$title"
 	[[ -n "$border" ]] && _TUI_BUILD_BORDER[$id]="$border"
@@ -172,7 +173,8 @@ _tui_build.tag.pane() {
 	tui.pane_minsize "$id" "$minw" "$minh"
 	tui.pane_maxsize "$id" "$maxw" "$maxh"
 	tui.pane_pad "$id" "$hpad" "$vpad"
-	tui.class "$id" "$class"
+	tui.pane_gap "$id" "$gap"
+	_tui_cache_class "$id" "$class"
 	tui.pane_scroll "$id" "$scroll"
 	[[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 
@@ -196,9 +198,19 @@ _tui_build.tag.pane() {
 					_tui_build.attrv "$k" newline cnl
 					pending="${pending:+$pending }${cid}:${cspan:-1}:${cnl:+1}"
 				else
-					local cw
-					_tui_build.attrv "$k" weight cw
-					pending="${pending:+$pending }${cid}:${cw:-1}"
+					# Size spec for this child on the split's own axis: an explicit
+					# width= (h split) / height= (v split) wins - a 2A unit token
+					# (N%, Nfr, auto, fill, clamp(...)) - else the legacy weight=
+					# (plain integer, "maps to fr" per the plan: _tui.layout_arrange
+					# treats a bare integer exactly like an "Nfr" token).
+					local cw cweight
+					_tui_build.attrv "$k" weight cweight
+					if [[ "$split" == "v" ]]; then
+						_tui_build.attrv "$k" height cw
+					else
+						_tui_build.attrv "$k" width cw
+					fi
+					pending="${pending:+$pending }${cid}:${cw:-${cweight:-1}}"
 				fi
 				;;
 			*)
@@ -350,8 +362,17 @@ _tui_build.tag.label() {
 	tui.valign "$lid" "$lvalign"
 	tui.minsize "$lid" "$lminw"
 	tui.maxsize "$lid" "$lmaxw"
-	tui.class "$lid" "$lclass"
-	tui.pad "$lid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	local lwidth lheight lpadding
+	lwidth="$(_tui_build.attr "$node" width)"
+	lheight="$(_tui_build.attr "$node" height)"
+	lpadding="$(_tui_build.attr "$node" padding)"
+	[[ -n "$lwidth" ]] && tui.width "$lid" "$lwidth"
+	[[ -n "$lheight" ]] && tui.height "$lid" "$lheight"
+	_tui_cache_class "$lid" "$lclass"
+	local lhpad lvpad
+	lhpad="$(_tui_build.attr "$node" hpad)"
+	lvpad="$(_tui_build.attr "$node" vpad)"
+	tui.pad "$lid" "${lhpad:-$lpadding}" "${lvpad:-$lpadding}"
 }
 tui.register tag label _tui_build.tag.label
 
@@ -368,20 +389,34 @@ _tui_build.tag.input() {
 	ilalign="$(_tui_build.attr "$node" label_align)"
 	ilwidth="$(_tui_build.attr "$node" label_width)"
 	iclass="$(_tui_build.attr "$node" class)"
+	local iminh imaxh iexpand
+	iminh="$(_tui_build.attr "$node" min_height)"
+	imaxh="$(_tui_build.attr "$node" max_height)"
+	iexpand="$(_tui_build.attr "$node" expand)"
 	tui.input "$iid" "$ipane" "$irow" "$(_tui_build.attr "$node" placeholder)" \
 		"$(_tui_build.attr "$node" label)" "$(_tui_build.attr "$node" submit)"
 	tui.align "$iid" "$ialign"
 	tui.valign "$iid" "$ivalign"
-	tui.minsize "$iid" "$iminw"
-	tui.maxsize "$iid" "$imaxw"
+	tui.minsize "$iid" "$iminw" "$iminh"
+	tui.maxsize "$iid" "$imaxw" "$imaxh"
+	[[ -n "$iexpand" ]] && tui.expand "$iid" "$iexpand"
+	local iwidth iheight ipadding
+	iwidth="$(_tui_build.attr "$node" width)"
+	iheight="$(_tui_build.attr "$node" height)"
+	ipadding="$(_tui_build.attr "$node" padding)"
+	[[ -n "$iwidth" ]] && tui.width "$iid" "$iwidth"
+	[[ -n "$iheight" ]] && tui.height "$iid" "$iheight"
 	tui.label_align "$iid" "$ilalign"
 	tui.label_width "$iid" "$ilwidth"
 	local iretain
 	iretain="$(_tui_build.attr "$node" retain_input_on_submit)"
 	[[ -n "$iretain" ]] && tui.input.retain "$iid" "$iretain"
 	[[ "$(_tui_build.attr "$node" sticky)" == true ]] && tui.input.sticky "$iid"
-	tui.class "$iid" "$iclass"
-	tui.pad "$iid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	_tui_cache_class "$iid" "$iclass"
+	local ihpad ivpad
+	ihpad="$(_tui_build.attr "$node" hpad)"
+	ivpad="$(_tui_build.attr "$node" vpad)"
+	tui.pad "$iid" "${ihpad:-$ipadding}" "${ivpad:-$ipadding}"
 }
 tui.register tag input _tui_build.tag.input
 
@@ -399,6 +434,10 @@ _tui_build.tag.button() {
 	bminw="$(_tui_build.attr "$node" min_width)"
 	bmaxw="$(_tui_build.attr "$node" max_width)"
 	bclass="$(_tui_build.attr "$node" class)"
+	local bminh bmaxh bexpand
+	bminh="$(_tui_build.attr "$node" min_height)"
+	bmaxh="$(_tui_build.attr "$node" max_height)"
+	bexpand="$(_tui_build.attr "$node" expand)"
 
 	if [[ -n "$bpage" && -z "$baction" ]]; then
 		local fn="_tui_goto_${bid//[^A-Za-z0-9_]/_}"
@@ -409,10 +448,20 @@ _tui_build.tag.button() {
 	tui.button "$bid" "$bpane" "$brow" "$btext" "$baction"
 	tui.align "$bid" "$balign"
 	tui.valign "$bid" "$bvalign"
-	tui.minsize "$bid" "$bminw"
-	tui.maxsize "$bid" "$bmaxw"
-	tui.class "$bid" "$bclass"
-	tui.pad "$bid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	tui.minsize "$bid" "$bminw" "$bminh"
+	tui.maxsize "$bid" "$bmaxw" "$bmaxh"
+	[[ -n "$bexpand" ]] && tui.expand "$bid" "$bexpand"
+	local bwidth bheight bpadding
+	bwidth="$(_tui_build.attr "$node" width)"
+	bheight="$(_tui_build.attr "$node" height)"
+	bpadding="$(_tui_build.attr "$node" padding)"
+	[[ -n "$bwidth" ]] && tui.width "$bid" "$bwidth"
+	[[ -n "$bheight" ]] && tui.height "$bid" "$bheight"
+	_tui_cache_class "$bid" "$bclass"
+	local bhpad bvpad
+	bhpad="$(_tui_build.attr "$node" hpad)"
+	bvpad="$(_tui_build.attr "$node" vpad)"
+	tui.pad "$bid" "${bhpad:-$bpadding}" "${bvpad:-$bpadding}"
 }
 tui.register tag button _tui_build.tag.button
 
@@ -430,14 +479,28 @@ _tui_build.tag.checkbox() {
 	kminw="$(_tui_build.attr "$node" min_width)"
 	kmaxw="$(_tui_build.attr "$node" max_width)"
 	kclass="$(_tui_build.attr "$node" class)"
+	local kminh kmaxh kexpand
+	kminh="$(_tui_build.attr "$node" min_height)"
+	kmaxh="$(_tui_build.attr "$node" max_height)"
+	kexpand="$(_tui_build.attr "$node" expand)"
 
 	tui.checkbox "$kid" "$kpane" "$krow" "$klabel" "$kchecked" "$kaction"
 	tui.align "$kid" "$kalign"
 	tui.valign "$kid" "$kvalign"
-	tui.minsize "$kid" "$kminw"
-	tui.maxsize "$kid" "$kmaxw"
-	tui.class "$kid" "$kclass"
-	tui.pad "$kid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	tui.minsize "$kid" "$kminw" "$kminh"
+	tui.maxsize "$kid" "$kmaxw" "$kmaxh"
+	[[ -n "$kexpand" ]] && tui.expand "$kid" "$kexpand"
+	local kwidth kheight kpadding
+	kwidth="$(_tui_build.attr "$node" width)"
+	kheight="$(_tui_build.attr "$node" height)"
+	kpadding="$(_tui_build.attr "$node" padding)"
+	[[ -n "$kwidth" ]] && tui.width "$kid" "$kwidth"
+	[[ -n "$kheight" ]] && tui.height "$kid" "$kheight"
+	_tui_cache_class "$kid" "$kclass"
+	local khpad kvpad
+	khpad="$(_tui_build.attr "$node" hpad)"
+	kvpad="$(_tui_build.attr "$node" vpad)"
+	tui.pad "$kid" "${khpad:-$kpadding}" "${kvpad:-$kpadding}"
 }
 tui.register tag checkbox _tui_build.tag.checkbox
 

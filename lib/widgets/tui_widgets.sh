@@ -58,6 +58,7 @@ tui.textarea() {
 	_TUI_W_PH[$1]="${4:-}"
 	_TUI_W_ROWSPAN[$1]="${5:-0}"
 	_TUI_W_SUBMIT[$1]="${6:-}"
+	_TUI_W_EXPAND[$1]=y
 }
 tui.list() {
 	_tui_wx.new "$1" list "$2" "$3" 1 || return 1
@@ -65,6 +66,7 @@ tui.list() {
 	_TUI_W_ROWSPAN[$1]="${5:-0}"
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
+	_TUI_W_EXPAND[$1]=y
 	_tui_wx.arr "$1"
 	_WXA=()
 }
@@ -75,6 +77,7 @@ tui.table() {
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
 	_WXCOLS[$1]=""
+	_TUI_W_EXPAND[$1]=y
 	_tui_wx.arr "$1"
 	_WXA=()
 }
@@ -658,8 +661,18 @@ _markup_wx() {
 	[[ -n "$oc" ]] && tui.on_change "$id" "$oc"
 	tui.align "$id" "$(_markup_attr "$line" align)"
 	tui.valign "$id" "$(_markup_attr "$line" valign)"
-	tui.minsize "$id" "$(_markup_attr "$line" min_width)"
-	tui.maxsize "$id" "$(_markup_attr "$line" max_width)"
-	tui.class "$id" "$(_markup_attr "$line" class)"
-	tui.pad "$id" "$(_markup_attr "$line" hpad)" "$(_markup_attr "$line" vpad)"
+	tui.minsize "$id" "$(_markup_attr "$line" min_width)" "$(_markup_attr "$line" min_height)"
+	tui.maxsize "$id" "$(_markup_attr "$line" max_width)" "$(_markup_attr "$line" max_height)"
+	local wx_expand wx_width wx_height wx_padding wx_hpad wx_vpad
+	wx_expand="$(_markup_attr "$line" expand)"
+	wx_width="$(_markup_attr "$line" width)"
+	wx_height="$(_markup_attr "$line" height)"
+	wx_padding="$(_markup_attr "$line" padding)"
+	wx_hpad="$(_markup_attr "$line" hpad)"
+	wx_vpad="$(_markup_attr "$line" vpad)"
+	[[ -n "$wx_expand" ]] && tui.expand "$id" "$wx_expand"
+	[[ -n "$wx_width" ]] && tui.width "$id" "$wx_width"
+	[[ -n "$wx_height" ]] && tui.height "$id" "$wx_height"
+	_tui_cache_class "$id" "$(_markup_attr "$line" class)"
+	tui.pad "$id" "${wx_hpad:-$wx_padding}" "${wx_vpad:-$wx_padding}"
 }

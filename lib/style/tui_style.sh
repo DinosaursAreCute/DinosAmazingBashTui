@@ -32,6 +32,7 @@ declare -g _TUI_THEME_OVERLAY=""
 tui.style() {
 	local id="$1" fg="$2" bg="$3" mods="$4" state="${5:-normal}"
 	local key="${id}_${state}"
+	tui.log.debug "tui.style: baking $key -> fg=${fg:-<unset>} bg=${bg:-<unset>} mods=${mods:-<unset>}"
 	[[ -n "$fg" ]] && _TUI_STYLE_FG[$key]="$fg"
 	[[ -n "$bg" ]] && _TUI_STYLE_BG[$key]="$bg"
 	[[ -n "$mods" ]] && _TUI_STYLE_MOD[$key]="$mods"
@@ -99,6 +100,7 @@ _tui.theme_parse() {
 
 _tui.theme_commit() {
 	local cls
+	tui.log.debug "_tui.theme_commit: committing ${#_TP_ORDER[@]} class(es) into _TUI_CLASS_*"
 	for cls in "${_TP_ORDER[@]}"; do
 		[[ -n "${_TP_FG[$cls]:-}" ]] && _TUI_CLASS_FG[$cls]="${_TP_FG[$cls]}"
 		[[ -n "${_TP_BG[$cls]:-}" ]] && _TUI_CLASS_BG[$cls]="${_TP_BG[$cls]}"
@@ -117,6 +119,7 @@ _tui.theme_check() {
 }
 
 _tui.theme_load_file() {
+	tui.log.debug "_tui.theme_load_file: parsing $1 (unmemoized base version)"
 	_tui.theme_parse "$1" || return 1
 	_tui.theme_commit
 	_tui.theme_check "$1"
@@ -124,7 +127,9 @@ _tui.theme_load_file() {
 
 tui.load_theme() {
 	local file="$1"
+	tui.log.debug "tui.load_theme: file=$file overlay=${_TUI_THEME_OVERLAY:-<none>}"
 	[[ -r "$file" ]] || {
+		tui.log.warn "tui.load_theme: cannot read '$file'"
 		echo "tui.load_theme: cannot read '$file'" >&2
 		return 1
 	}
@@ -133,6 +138,7 @@ tui.load_theme() {
 	# A user-selected overlay (tui.theme.set) is re-applied on top of every
 	# page stylesheet so it stays in force across page changes.
 	if [[ -n "${_TUI_THEME_OVERLAY:-}" && "$file" != "$_TUI_THEME_OVERLAY" ]]; then
+		tui.log.debug "tui.load_theme: re-applying overlay $_TUI_THEME_OVERLAY on top of $file"
 		tui.load_theme "$_TUI_THEME_OVERLAY"
 	fi
 }
@@ -207,6 +213,7 @@ _tui._find_theme_collisions() {
 tui.class() {
 	local id="$1" cls="$2"
 	[[ -z "$cls" ]] && return
+	tui.log.debug "tui.class: baking id=$id from class=$cls (bakes _TUI_STYLE_* at build time - not re-run on a cache replay)"
 
 	local state suffix
 	for state in normal focus border title hover checked unchecked; do

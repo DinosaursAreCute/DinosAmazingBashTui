@@ -32,7 +32,7 @@
 
   <input id="inp_feat_a" pane="input_demo" row="0" label="Name:" label_width="12" label_align="right" placeholder="right-aligned label"/>
   <input id="inp_feat_b" pane="input_demo" row="1" label="Bio:"  label_width="12" label_align="left"  placeholder="left-aligned label"/>
-  <label id="lbl_template" pane="input_demo" row="3" text="${terminal_renderer.sh divider -s 'runtime ${} template'}"/>
+  <label id="lbl_template" pane="input_demo" row="3" text="${terminal_renderer.sh divider -s 'made with runtime template'}"/>
 
   <label id="lbl_pad1" pane="pad_demo" row="0" text="hpad/vpad move the content"/>
   <label id="lbl_pad2" pane="pad_demo" row="1" text="away from the frame."/>

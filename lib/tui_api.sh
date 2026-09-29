@@ -638,15 +638,20 @@ tui.pane_size() {
 #  tui.theme.list        print every selectable overlay as NAME<TAB>FILE, sorted by name
 #  tui.theme.pick [NAME] apply overlay NAME and remember it (config key theme); no NAME = page default
 tui.theme.set() {
+	tui.log.debug "tui.theme.set: overlay -> $1"
 	_TUI_THEME_OVERLAY="$1"
 	tui.theme.reload
 }
 tui.theme.clear() {
+	tui.log.debug "tui.theme.clear: overlay -> <none>"
 	_TUI_THEME_OVERLAY=""
 	tui.theme.reload
 }
 tui.theme.current() { printf '%s\n' "${_TUI_THEME_OVERLAY:-}"; }
-tui.theme.reload() { [[ -n "${_TUI_MARKUP_FILE:-}" ]] && tui.goto "$_TUI_MARKUP_FILE"; }
+tui.theme.reload() {
+	tui.log.debug "tui.theme.reload: goto ${_TUI_MARKUP_FILE:-<none>} (via tui.load_cached - may replay from cache)"
+	[[ -n "${_TUI_MARKUP_FILE:-}" ]] && tui.goto "$_TUI_MARKUP_FILE"
+}
 
 # Every *.css in DABT's installed themes directory ($TUI_DEFAULTS_DIR/themes), plus the app's own
 # TUI_THEMES_DIR (tui.start sets it to <app dir>/themes when that exists); an app theme with the same
@@ -668,6 +673,7 @@ tui.theme.list() {
 
 tui.theme.pick() {
 	local want="${1:-}" name f
+	tui.log.debug "tui.theme.pick: name=${want:-<default>}"
 	if [[ -z "$want" ]]; then
 		tui.config.unset theme
 		tui.theme.clear
@@ -675,10 +681,12 @@ tui.theme.pick() {
 	fi
 	while IFS=$'\t' read -r name f; do
 		[[ "$name" == "$want" ]] || continue
+		tui.log.debug "tui.theme.pick: resolved $want -> $f, persisting to config"
 		tui.config.set theme "$f"
 		tui.theme.set "$f"
 		return 0
 	done < <(tui.theme.list)
+	tui.log.warn "tui.theme.pick: no theme named '$want'"
 	return 1
 }
 

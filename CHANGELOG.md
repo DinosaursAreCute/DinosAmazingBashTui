@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.19] - 2026-09-30
+
 ### Added
 
 * Internal test runner (`tools/t.sh`) and stage-gate checker (`tools/gate.sh`), plus headless frame rendering (`tools/frame.sh`) and golden-frame regression checks (`tools/t_golden.sh`) — markup-v2 stage 0 groundwork.

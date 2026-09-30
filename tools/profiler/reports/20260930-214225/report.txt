@@ -1,0 +1,222 @@
+ ◆ DABT PROFILE  97241c5 devex/devex175 · dirty                                   scenario nav · 150×45 · 3 rounds · 52s · 2026-09-30 21:42
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─────────────────────────╮
+│ PAGE SWITCH             │
+│ 281 ms                  │
+│ ███████████████████████ │
+│ budget 100 ms           │
+╰─────────────────────────╯
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Page switch, first visit      33     227 ms     445 ms  ██████████████░░░░  ▄▆▂▂▄█▁▅▄▂      7  48.6 KB                                 │
+│ ● Page switch, revisit          33     281 ms     446 ms  ██████████████████  ▄▇▃▅▄█▁██▅      8  49.0 KB                                 │
+│ ● Page switch by key (alt+2)     3     367 ms     371 ms  ██████████████████  █▁▃             5  98.5 KB                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ no trace data (run without --no-trace)                                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 3 total ╮
+│  CRIT  Page switch, revisit is over budget                                                                                               │
+│        Page switch, revisit takes 281 ms (budget 100 ms, 2.8×).                                                                          │
+│  CRIT  Page switch by key (alt+2) is over budget                                                                                         │
+│        Page switch by key (alt+2) takes 367 ms (budget 100 ms, 3.7×).                                                                    │
+│  WARN  Page switch, first visit is over budget                                                                                           │
+│        Page switch, first visit takes 227 ms (budget 150 ms, 1.5×).                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VS PREVIOUS RUN ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ against 97241c5 (2026-09-30 21:30)                                                                                                       │
+│ Page switch, first visit               260 ms →     227 ms  -13%                                                                         │
+│ Page switch, revisit                   264 ms →     281 ms  +6%                                                                          │
+│ Page switch by key (alt+2)            39.1 ms →     367 ms  +838%                                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ nav.revisit · scrolling                     443 ms    405 ms       7   80.0 KB                                                           │
+│ nav.first · scrolling                       442 ms    404 ms       7   80.0 KB                                                           │
+│ nav.revisit · components                    405 ms    365 ms       9  102.6 KB                                                           │
+│ nav.revisit · docs                          394 ms    361 ms       8   67.8 KB                                                           │
+│ nav.first · docs                            384 ms    347 ms       8   67.8 KB                                                           │
+│ nav.first · components                      379 ms    352 ms       9  102.6 KB                                                           │
+│ nav.key · alt+2                             367 ms    334 ms       5   98.5 KB                                                           │
+│ nav.revisit · monitor                       313 ms    275 ms       7   56.8 KB                                                           │
+│ nav.first · monitor                         299 ms    265 ms       7   56.8 KB                                                           │
+│ nav.revisit · settings                      261 ms    196 ms       8   47.1 KB                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Who draws the frames ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ frames per action, grouped by the functions that flush them (innermost caller first)                                                     │
+│ Page switch, first visit  7.3 frames per action                                                                                          │
+│                2      360 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             1.12     6.5 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1    40.2 KB  tui.render ‹ tui.goto ‹ _tui_goto_btn_* ‹ tui.action.click                                                  │
+│                1     3.7 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      504 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ _tui_goto_btn_*                                             │
+│                1      337 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│ Page switch, revisit  7.3 frames per action                                                                                              │
+│             1.91      349 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             1.21     6.6 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1    40.2 KB  tui.render ‹ tui.goto ‹ _tui_goto_btn_* ‹ tui.action.click                                                  │
+│                1     3.7 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      513 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ _tui_goto_btn_*                                             │
+│                1      337 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│ Page switch by key (alt+2)  5 frames per action                                                                                          │
+│                1    45.1 KB  tui.render ‹ tui.goto ‹ tui.action.goto ‹ _tui_input.run                                                    │
+│                1    44.2 KB  tui.render ‹ _sc_controls ‹ _showcase_set_status ‹ show_all                                                 │
+│                1     8.2 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1      513 B  _tui_overlay.draw_all ‹ tui.render ‹ _sc_controls ‹ _showcase_set_status                                    │
+│                1      513 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ tui.action.goto                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where each page's time goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Page switch, first visit                                                                                                                 │
+│ page               done     queue     click      goto      load  on_visit    render     after        KB                                  │
+│ scrolling        442 ms   13.7 ms    392 ms    370 ms   74.8 ms   23.4 ms   55.1 ms   36.9 ms        80                                  │
+│ docs             384 ms   12.5 ms    338 ms    316 ms    228 ms    171 ms   82.3 ms   33.1 ms        68                                  │
+│ components       379 ms   3.18 ms    345 ms    321 ms    223 ms    161 ms    197 ms   31.2 ms       103                                  │
+│ monitor          299 ms   8.98 ms    247 ms    224 ms    147 ms   91.1 ms   71.5 ms   42.8 ms        57                                  │
+│ settings         222 ms   7.27 ms    179 ms    155 ms   86.3 ms   34.5 ms   64.0 ms   35.4 ms        45                                  │
+│ widgets          221 ms   10.1 ms    172 ms    149 ms   81.9 ms   29.4 ms   62.1 ms   38.0 ms        48                                  │
+│ terminal         214 ms   11.6 ms    158 ms    137 ms   79.1 ms     46 µs   52.3 ms   44.4 ms        50                                  │
+│ layout           185 ms   15.4 ms    136 ms    113 ms   54.7 ms     47 µs   53.3 ms   33.3 ms        40                                  │
+│ home             162 ms   6.73 ms    129 ms    106 ms   49.4 ms     46 µs   51.3 ms   26.3 ms        42                                  │
+│ case_study       162 ms   10.8 ms    122 ms    101 ms   50.8 ms     46 µs   45.2 ms   29.0 ms        49                                  │
+│                                                                                                                                          │
+│ Page switch, revisit                                                                                                                     │
+│ page               done     queue     click      goto      load  on_visit    render     after        KB                                  │
+│ scrolling        443 ms   10.2 ms    392 ms    371 ms   75.8 ms   23.2 ms   55.0 ms   40.5 ms        80                                  │
+│ components       405 ms   16.0 ms    358 ms    332 ms    232 ms    168 ms    198 ms   31.9 ms       103                                  │
+│ docs             394 ms   8.80 ms    352 ms    331 ms    244 ms    183 ms   82.8 ms   33.1 ms        68                                  │
+│ monitor          313 ms   13.1 ms    257 ms    234 ms    157 ms   96.6 ms   71.9 ms   42.9 ms        57                                  │
+│ settings         261 ms   11.2 ms    187 ms    162 ms   92.9 ms   37.5 ms   63.9 ms   62.5 ms        47                                  │
+│ widgets          226 ms   13.2 ms    174 ms    150 ms   83.5 ms   29.8 ms   61.0 ms   38.5 ms        48                                  │
+│ terminal         204 ms   8.19 ms    152 ms    130 ms   71.8 ms     46 µs   52.4 ms   43.9 ms        50                                  │
+│ layout           176 ms   11.7 ms    137 ms    114 ms   55.5 ms     48 µs   53.3 ms   27.2 ms        40                                  │
+│ home             171 ms   14.3 ms    131 ms    109 ms   51.9 ms     47 µs   51.7 ms   26.3 ms        42                                  │
+│ case_study       168 ms   13.7 ms    124 ms    103 ms   52.0 ms     47 µs   45.8 ms   30.3 ms        49                                  │
+│                                                                                                                                          │
+│ nested: click contains goto, goto contains load and render, load contains on_visit (page code), after = done - queue - click             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Timeline of one page switch ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Page switch, revisit · home  done 171 ms                                                                                                 │
+│      14.6    121 ms  _tui._handle_mouse                    ···█████████████████████████████                                              │
+│      16.8     88 µs    _tui._flush                         ····█                                                                         │
+│      26.2   0.23 ms    _tui._flush                         ······█                                                                       │
+│      26.5    109 ms    tui.goto                            ······██████████████████████████                                              │
+│      31.6   51.6 ms      tui.load_cached                   ·······████████████                                                           │
+│      42.1   40.9 ms        tui.cache.replay                ··········█████████                                                           │
+│      83.2   51.7 ms      tui.render                        ····················████████████                                              │
+│     129.6   1.26 ms        _tui._flush                     ·······························█                                              │
+│     131.0   3.85 ms        _tui_overlay.draw_all           ·······························█                                              │
+│     149.4   2.97 ms  _tui._handle_mouse                    ···································█                                          │
+│     151.9     90 µs    _tui._flush                         ····································█                                         │
+│     152.9     78 µs  _tui._flush                           ····································█                                         │
+│     163.5   2.58 ms  _tui._flush_pending_render            ·······································█                                      │
+│     165.8   0.16 ms    _tui._flush                         ·······································█                                      │
+│     166.2     77 µs  _tui._flush                           ·······································█                                      │
+│                                                                                                                                          │
+│ Page switch, revisit · scrolling  done 443 ms                                                                                            │
+│      10.2    387 ms  _tui._handle_mouse                    ██████████████████████████████████                                            │
+│      15.1     97 µs    _tui._flush                         ·█                                                                            │
+│      16.9     87 µs    _tui._flush                         ·█                                                                            │
+│      26.3   0.24 ms    _tui._flush                         ··█                                                                           │
+│      26.6    371 ms    tui.goto                            ··█████████████████████████████████                                           │
+│     265.9   75.9 ms      tui.load_cached                   ·······················██████                                                 │
+│     276.5   65.2 ms        tui.cache.replay                ························█████                                                 │
+│     318.4   23.2 ms          _tui_cache_run_on_visit       ····························██                                                │
+│     341.8   55.3 ms      tui.render                        ······························████                                            │
+│     390.7   1.99 ms        _tui._flush                     ···································█                                          │
+│     392.9   4.22 ms        _tui_overlay.draw_all           ···································█                                          │
+│     411.2   4.46 ms  _tui._handle_mouse                    ····································█                                         │
+│     415.2     92 µs    _tui._flush                         ·····································█                                        │
+│     416.3     80 µs  _tui._flush                           ·····································█                                        │
+│     432.9   12.8 ms  _tui._flush_pending_render            ······································█                                       │
+│     444.9   0.71 ms    _tui._flush                         ·······································█                                      │
+│     446.0     79 µs  _tui._flush                           ·······································█                                      │
+│                                                                                                                                          │
+│ Page switch, revisit · components  done 405 ms                                                                                           │
+│      16.0    349 ms  _tui._handle_mouse                    ·██████████████████████████████████                                           │
+│      18.7     87 µs    _tui._flush                         ·█                                                                            │
+│      21.4     90 µs    _tui._flush                         ··█                                                                           │
+│      31.8   0.24 ms    _tui._flush                         ···█                                                                          │
+│      32.1    332 ms    tui.goto                            ···████████████████████████████████                                           │
+│      37.3    232 ms      tui.load_cached                   ···██████████████████████                                                     │
+│      47.1    222 ms        tui.cache.replay                ····█████████████████████                                                     │
+│     101.6    168 ms          _tui_cache_run_on_visit       ··········████████████████                                                    │
+│     107.6    105 ms            tui.render                  ··········██████████                                                          │
+│     206.1   1.87 ms              _tui._flush               ····················█                                                         │
+│     208.2   4.41 ms              _tui_overlay.draw_all     ····················█                                                         │
+│     269.5   94.8 ms      tui.render                        ··························█████████                                           │
+│     360.4   2.14 ms        _tui._flush                     ···································█                                          │
+│     362.8   1.47 ms        _tui_overlay.draw_all           ···································█                                          │
+│     377.9   8.83 ms  _tui._handle_mouse                    ·····································█                                        │
+│     386.3     91 µs    _tui._flush                         ······································█                                       │
+│     387.4     80 µs  _tui._flush                           ······································█                                       │
+│     398.2   7.15 ms  _tui._flush_pending_render            ·······································█                                      │
+│     404.8   0.52 ms    _tui._flush                         ·······································█                                      │
+│     405.7     77 µs  _tui._flush                           ·······································█                                      │
+│                                                                                                                                          │
+│ start (ms after the key was sent), duration, function; indentation = nesting; flushes are frames written                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where wall time goes (probes) ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action inside each probed function (nested: goto contains load_cached and render)                                            │
+│ Page switch, first visit  227 ms                                                                                                         │
+│       213 ms  _tui._handle_mouse                                                                                                         │
+│       190 ms  tui.goto                                                                                                                   │
+│       102 ms  tui.load_cached                                                                                                            │
+│      91.5 ms  tui.cache.replay                                                                                                           │
+│      71.5 ms  tui.render                                                                                                                 │
+│      46.3 ms  _tui_cache_run_on_visit                                                                                                    │
+│ Page switch, revisit  281 ms                                                                                                             │
+│       217 ms  _tui._handle_mouse                                                                                                         │
+│       194 ms  tui.goto                                                                                                                   │
+│       106 ms  tui.load_cached                                                                                                            │
+│      94.7 ms  tui.cache.replay                                                                                                           │
+│      71.7 ms  tui.render                                                                                                                 │
+│      48.5 ms  _tui_cache_run_on_visit                                                                                                    │
+│ Page switch by key (alt+2)  367 ms                                                                                                       │
+│       327 ms  _tui_input.key_event                                                                                                       │
+│       326 ms  tui.goto                                                                                                                   │
+│       228 ms  tui.load_cached                                                                                                            │
+│       217 ms  tui.cache.replay                                                                                                           │
+│       194 ms  tui.render                                                                                                                 │
+│       163 ms  _tui_cache_run_on_visit                                                                                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where pane drawing goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn                                          │
+│ Page switch, first visit  11.6 ms in pane drawing                                                                                        │
+│      3.40 ms    x1.1  nav                                                                                                                │
+│      3.13 ms    x1.1  root                                                                                                               │
+│      0.92 ms    x1.1  dabt_hdr_title                                                                                                     │
+│      0.90 ms    x1.1  dabt_hdr_clock                                                                                                     │
+│      0.61 ms    x0.2  welcome                                                                                                            │
+│ Page switch, revisit  11.6 ms in pane drawing                                                                                            │
+│      3.42 ms    x1.1  nav                                                                                                                │
+│      3.15 ms    x1.1  root                                                                                                               │
+│      0.93 ms    x1.1  dabt_hdr_title                                                                                                     │
+│      0.90 ms    x1.1  dabt_hdr_clock                                                                                                     │
+│      0.62 ms    x0.2  welcome                                                                                                            │
+│ Page switch by key (alt+2)  49.8 ms in pane drawing                                                                                      │
+│      6.18 ms    x2.0  main                                                                                                               │
+│      5.82 ms    x2.0  root                                                                                                               │
+│      5.70 ms    x2.0  nav                                                                                                                │
+│      5.31 ms    x2.0  output                                                                                                             │
+│      5.22 ms    x2.0  controls                                                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.25 to match untraced busy time (processes and forks are real).

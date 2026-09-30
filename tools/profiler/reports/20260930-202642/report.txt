@@ -1,0 +1,168 @@
+ ◆ DABT PROFILE  292add2 devex/devex175 · dirty                                scenario input · 150×45 · 4 rounds · 104s · 2026-09-30 20:26
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─────────────────────────╮ ╭─────────────────────────╮
+│ HOVER FEEDBACK          │ │ FOCUS FEEDBACK          │
+│ 9.63 ms                 │ │ 2.79 ms                 │
+│ ███▋░░░░░░░░░░░░░░░░░░░ │ │ ▋░░░░░░░░░░░░░░░░░░░░░░ │
+│ budget 30.0 ms          │ │ budget 50.0 ms          │
+╰─────────────────────────╯ ╰─────────────────────────╯
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Focus next (Tab)              40    2.79 ms    60.6 ms  █░░░░░░░░┃░░░░░░░░  ▁█▁▁██▁▁▁█      2    225 B                                 │
+│ ● Focus previous (Shift+Tab)    20    2.47 ms    59.8 ms  ░░░░░░░░░┃░░░░░░░░  ▁▁▁▁▁▁█▁▁▁      2    232 B                                 │
+│ ● Mouse hover                   96    9.63 ms    12.4 ms  ███░░░░░░┃░░░░░░░░  █▇▁▇▇▁▇█▆▇      0      0 B                                 │
+│ ● Mouse click                   20    11.4 ms    18.4 ms  █░░░░░░░░┃░░░░░░░░  ▇▁▁█▁▇▄▁█▁      2    662 B                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ all interactions combined                                                                                                                │
+│ ██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████       │
+│ ■ Layout 29%  ■ Widgets 24%  ■ Flush 13%  ■ Render 12%  ■ Style 8%  ■ Focus & hover 4%  ■ Core 3%  ■ Subprocesses 2%  ■ Input 2%         │
+│                                                                                                                                          │
+│ ms per action                   Layout  Widget   Flush  Render   Style   Focus    Core   Procs   Input    total                          │
+│ Focus next (Tab)                   0.6     0.5     0.4     0.7     0.2     0.2     0.3       ·     0.3  3.40 ms                          │
+│ Focus previous (Shift+Tab)         0.3     0.2     0.4     0.7     0.2     0.2     0.2       ·     0.3  2.75 ms                          │
+│ Mouse hover                        3.6     4.9       ·     0.2       ·     0.8     0.2       ·     0.1  9.88 ms                          │
+│ Mouse click                       14.2    10.3     7.9     6.0     4.5     1.5     1.4     1.6     0.7  49.4 ms                          │
+│ cell colour = share of that row · times calibrated to untraced speed (shell ×0.24)                                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ who hands work to whom (time passed down the call stack, ms per pass of all interactions)                                                │
+│      Main loop ━▶ Page cache     ██████████████████████████ 65.4 ms                                                                      │
+│     Page cache ━▶ Main loop      ██████████████████████████ 65.4 ms                                                                      │
+│      Main loop ━▶ Input          ████████████████████████▉░ 62.6 ms                                                                      │
+│          Input ━▶ Focus & hover  ████████████▍░░░░░░░░░░░░░ 31.4 ms                                                                      │
+│          Input ━▶ App code       ███████████░░░░░░░░░░░░░░░ 27.8 ms                                                                      │
+│       App code ━▶ Render         █████████▊░░░░░░░░░░░░░░░░ 24.7 ms                                                                      │
+│  Focus & hover ━▶ Widgets        ████████▉░░░░░░░░░░░░░░░░░ 22.6 ms                                                                      │
+│         Render ━▶ Flush          █████▍░░░░░░░░░░░░░░░░░░░░ 13.7 ms                                                                      │
+│        Widgets ━▶ Layout         ███▉░░░░░░░░░░░░░░░░░░░░░░ 9.82 ms                                                                      │
+│         Render ━▶ Layout         ███░░░░░░░░░░░░░░░░░░░░░░░ 7.75 ms                                                                      │
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+│ Mouse hover                    _tui._handle_mouse › _tui._hit_test › _tui._widget_pos › _tui._inset › _tui._eff_border 9.36 ms           │
+│ Focus next (Tab)               _tui_input.key_event › _tui_input.dispatch › _tui_input.run › tui.action.focus_next › _tui._focus_next 2… │
+│ Mouse click                    _tui._handle_mouse › _tui_input.mouse_event › _tui_input.dispatch › _tui_input.run › tui.action.click 48… │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 4 total ╮
+│  CRIT  Input handling spawns processes on 1 interaction types                                                                            │
+│        Hover, focus and click should be fork-free (a fork costs ~1 ms, an awk ~4 ms). Mouse click: 1.0 forks + 0.2 programs.             │
+│        ↳ show_badges (showcase_callbacks.sh:239)                                                                                         │
+│  INFO  _tui.emit runs 306× per mouse click action                                                                                        │
+│        1.5 ms self time per action. Check for a loop that should be batched or cached.                                                   │
+│        ↳ _tui.emit (tui_emit.sh)                                                                                                         │
+│  INFO  Layout is where interaction time goes (29%)                                                                                       │
+│        pane/widget geometry.                                                                                                             │
+│  GOOD  4 interaction types are within budget                                                                                             │
+│        Focus next (Tab), Focus previous (Shift+Tab), Mouse hover, Mouse click                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Flame · all interactions (top-down, from the first fork in the call chain) ─────────────────────────────────────────────────────────────╮
+│ tui.run                                                                                                                                  │
+│ _tui._handle_mouse                                                                                                       _tui_inp…_tui.… │
+│ _tui_input.mouse_event                                             _tui._hit_test                                        _tui_inp…_tui.… │
+│ _tui_input.dispatch                                                _tui._widget_pos                                      _tui_in…        │
+│ _tui_input.run                                                     _tui._inset                                           tui…tui…        │
+│ tui.action.click                                                   _tui…                                                 _tu…_tu…        │
+│ show_badges                                                                                                              tui…tui…        │
+│ _showcase_set_status                                                                                                                     │
+│ _sc_controls                                                                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Hot functions ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ function                               self     total   calls  per call  layer         self share                                        │
+│ _tui._widget_pos                    15.1 ms   25.4 ms     121   0.12 ms  Widgets       ██████████████████                                │
+│ _tui._inset                         7.78 ms   11.2 ms     136     57 µs  Layout        █████████▎░░░░░░░░                                │
+│ _tui._pane_content_need             4.54 ms   4.54 ms       8   0.57 ms  Layout        █████▍░░░░░░░░░░░░                                │
+│ _tui._eff_border                    3.81 ms   3.81 ms     153     25 µs  Layout        ████▌░░░░░░░░░░░░░                                │
+│ _tui.emit_ring                      3.60 ms   5.86 ms    87.0     41 µs  Flush         ████▎░░░░░░░░░░░░░                                │
+│ _tui._sgr_from                      2.81 ms   2.81 ms     134     21 µs  Style         ███▎░░░░░░░░░░░░░░                                │
+│ _tui._draw_widget_buf               2.29 ms   9.73 ms    15.5   0.15 ms  Render        ██▋░░░░░░░░░░░░░░░                                │
+│ _tui._draw_pane_buf                 2.28 ms   13.6 ms       6   0.38 ms  Render        ██▋░░░░░░░░░░░░░░░                                │
+│ _tui._hit_test                      2.14 ms   24.7 ms     3.1   0.69 ms  Focus & hover ██▌░░░░░░░░░░░░░░░                                │
+│ _tui._vslice                        2.07 ms   2.07 ms    19.3   0.11 ms  Core          ██▍░░░░░░░░░░░░░░░                                │
+│ _tui._style_v                       2.01 ms   2.99 ms    46.7     43 µs  Style         ██▍░░░░░░░░░░░░░░░                                │
+│ _tui.emit                           1.75 ms   1.75 ms     306      6 µs  Flush         ██░░░░░░░░░░░░░░░░                                │
+│ _tui.emit_goto                      1.59 ms   1.59 ms     101     16 µs  Flush         █▉░░░░░░░░░░░░░░░░                                │
+│ _tui._render_output_buf             1.53 ms   4.29 ms     3.3   0.46 ms  Render        █▊░░░░░░░░░░░░░░░░                                │
+│ ⟨fork⟩                              1.00 ms   1.00 ms       –         –  Subprocesses  █▏░░░░░░░░░░░░░░░░                                │
+│ _tui.emit_reset                     0.87 ms   0.87 ms     130      7 µs  Flush         █░░░░░░░░░░░░░░░░░                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Hot source lines ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ tui.sh:1285                  2.17 ms    ×602  [[ "${_TUI_W_PANE[$wid]:-}" == "$id" ]] || continue                                        │
+│ tui_emit.sh:27               1.75 ms    ×306  _TUI_FRAME+="$*"                                                                           │
+│ tui.sh:1284                  1.27 ms    ×308  for wid in "${_TUI_W_ORDER[@]}"; do                                                        │
+│ tui.sh:1410                  0.94 ms    ×121  ((_WSW < 1)) && _WSW=1                                                                     │
+│ tui_emit.sh:36               0.87 ms    ×130  _tui.emit_reset() { _TUI_FRAME+=$'\e[0m'; }                                                │
+│ tui.sh:702                   0.85 ms    ×136  _tui._eff_border "$id"                                                                     │
+│ tui.sh:1462                  0.84 ms    ×133  return 0                                                                                   │
+│ tui.sh:2270                  0.82 ms    ×109  _tui._widget_pos "$wid"                                                                    │
+│ tui.sh:1386                  0.76 ms    ×242  if [[ "$expand" == y || "$expand" == both ]]; then                                         │
+│ tui.sh:1459                  0.74 ms    ×134  local mk="$1|$2|$3"                                                                        │
+│ tui.sh:685                   0.73 ms    ×175  [[ "$b" == "none" ]] && return                                                             │
+│ tui.sh:722                   0.71 ms    ×136  _IH=$((bh + hp))                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Call graph: heaviest edges ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ main                              ▶ tui.start_cached                    65.4 ms                                                          │
+│ tui.start_cached                  ▶ tui.run                             65.4 ms                                                          │
+│ tui.run                           ▶ _tui._handle_mouse                  58.3 ms                                                          │
+│ _tui_input.dispatch               ▶ _tui_input.run                      35.3 ms                                                          │
+│ _tui._handle_mouse                ▶ _tui_input.mouse_event              32.2 ms                                                          │
+│ _tui_input.mouse_event            ▶ _tui_input.dispatch                 31.9 ms                                                          │
+│ _tui_input.run                    ▶ tui.action.click                    31.4 ms                                                          │
+│ tui.action.click                  ▶ show_badges                         27.8 ms                                                          │
+│ show_badges                       ▶ _showcase_set_status                25.9 ms                                                          │
+│ _showcase_set_status              ▶ _sc_controls                        25.7 ms                                                          │
+│ _sc_controls                      ▶ tui.render                          24.7 ms                                                          │
+│ _tui._handle_mouse                ▶ _tui._hit_test                      24.7 ms                                                          │
+│ _tui._hit_test                    ▶ _tui._widget_pos                    22.6 ms                                                          │
+│ tui.render                        ▶ _tui._draw_pane_buf                 13.6 ms                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Subprocesses ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ external programs  (per pass of every interaction)                                                                                       │
+│ program        runs      time  spawned by                                                                                                │
+│ awk             0.2   0.55 ms  _tui._calc_bounds                                                                                         │
+│                                                                                                                                          │
+│ subshell fork sites                                                                                                                      │
+│ site                                                forks  scenarios                                                                     │
+│ show_badges (showcase_callbacks.sh:239)               0.6  click                                                                         │
+│ _tui._calc_bounds (tui.sh:2214)                       0.4  click                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ click · 75,11                               210 ms    155 ms       6   51.7 KB                                                           │
+│ click · 90,16                              51.9 ms   24.3 ms     3.5     662 B                                                           │
+│ click · 105,21                             28.4 ms   26.9 ms       1    2.6 KB                                                           │
+│ click · 60,6                               23.1 ms   21.7 ms       2     245 B                                                           │
+│ click · 120,26                             20.1 ms   18.7 ms       0       0 B                                                           │
+│ hover.move · 31,22                         12.0 ms   10.4 ms       1     118 B                                                           │
+│ hover.move · 43,10                         12.0 ms   10.4 ms       1     118 B                                                           │
+│ hover.move · 106,34                        11.8 ms   9.69 ms       0       0 B                                                           │
+│ hover.move · 6,4                           11.7 ms   10.2 ms       1     129 B                                                           │
+│ hover.move · 282,34                        11.6 ms   9.67 ms       0       0 B                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Calibration check ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ untraced probe time vs rescaled trace time, same function, same scenario (ms per action)                                                 │
+│ mean error 3%  bias -3%  over 5 functions ≥ 2 ms                                                                                         │
+│ scenario          function                                real     trace    error                                                        │
+│ click             _tui._handle_mouse                   48.5 ms   48.0 ms      -1%                                                        │
+│ click             tui.render                           24.9 ms   24.7 ms      -1%                                                        │
+│ hover.move        _tui._handle_mouse                   9.75 ms   9.36 ms      -4%                                                        │
+│ focus.next        _tui_input.key_event                 3.24 ms   2.03 ms     -37%                                                        │
+│ focus.prev        _tui_input.key_event                 2.67 ms   2.26 ms     -15%                                                        │
+│ click             _tui._flush                          1.17 ms     94 µs     -92%                                                        │
+│ click             _tui._flush_pending_render           0.89 ms   1.35 ms     +51%                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.24 to match untraced busy time (processes and forks are real).

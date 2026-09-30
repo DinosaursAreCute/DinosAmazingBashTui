@@ -1,0 +1,180 @@
+ ◆ DABT PROFILE  8274c7f devex/devex175 · dirty                                 scenario theme · 150×45 · 3 rounds · 67s · 2026-09-30 20:08
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Theme switch, first use       15     390 ms     568 ms  ██████████████░░░░  ▆▆▆▄█▆▁▆█▅      7  46.0 KB                                 │
+│ ● Theme switch, repeat          15    20.0 ms     146 ms  █░░░░░░░░┃░░░░░░░░  ▁▁▅▁█▁▁▁▁▃      1    290 B                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ all interactions combined                                                                                                                │
+│ ██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████       │
+│ ■ Style 30%  ■ Subprocesses 21%  ■ Flush 12%  ■ Layout 11%  ■ Render 9%  ■ Widgets 5%  ■ Logging & perf 3%  ■ Page cache 3%  ■ Main loo… │
+│                                                                                                                                          │
+│ ms per action                    Style   Procs   Flush  Layout  Render  Widget Logging   Cache    Loop    total                          │
+│ Theme switch, first use           80.1    49.7    32.4    27.8    24.6    12.1     8.1     7.6     7.3   258 ms                          │
+│ Theme switch, repeat               0.2     5.6     0.1     0.9     0.4     1.2       ·       ·     0.1  8.81 ms                          │
+│ cell colour = share of that row · times calibrated to untraced speed (shell ×0.32)                                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ who hands work to whom (time passed down the call stack, ms per pass of all interactions)                                                │
+│      Main loop ━▶ Page cache     ██████████████████████████ 266 ms                                                                       │
+│     Page cache ━▶ Main loop      ██████████████████████████ 266 ms                                                                       │
+│      Main loop ━▶ Input          ██████████████████████▊░░░ 233 ms                                                                       │
+│          Input ━▶ App code       ████████████████████▋░░░░░ 212 ms                                                                       │
+│       App code ━▶ Style          ████████████████████▏░░░░░ 207 ms                                                                       │
+│          Style ━▶ Core           ████████████████████▏░░░░░ 207 ms                                                                       │
+│           Core ━▶ Render         ██████████▎░░░░░░░░░░░░░░░ 105 ms                                                                       │
+│           Core ━▶ Page cache     █████████▊░░░░░░░░░░░░░░░░ 101 ms                                                                       │
+│     Page cache ━▶ Style          ███████▌░░░░░░░░░░░░░░░░░░ 77.1 ms                                                                      │
+│         Render ━▶ Flush          ██████▉░░░░░░░░░░░░░░░░░░░ 71.1 ms                                                                      │
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 7 total ╮
+│  WARN  Theme switch, first use: 25 forks + 12 external programs per action (~27 ms in programs)                                          │
+│        Processes spawned while switching pages or resizing; each one is wall-clock the user waits for.                                   │
+│        ↳ _tui._render_output_buf (tui.sh:3201)                                                                                           │
+│  WARN  `awk` is the most expensive external program (6 runs, 17 ms per scenario pass)                                                    │
+│        Runs spawned from _tui._render_output_buf; scenarios: theme.again, theme.first.                                                   │
+│        ↳ _tui._render_output_buf                                                                                                         │
+│  WARN  Theme switch, first use is over budget                                                                                            │
+│        Theme switch, first use takes 390 ms (budget 250 ms, 1.6×). 31% of it runs in Style.                                              │
+│        ↳ _tui._handle_mouse › _tui_input.mouse_event › _tui_input.dispatch › _tui_input.run › tui.action.click › on_theme_pick           │
+│  WARN  21% of interaction time is forks and external programs                                                                            │
+│        Bash builtins and parameter expansion do the same jobs without a process.                                                         │
+│  WARN  Logging and perf counters take 3% of interaction time                                                                             │
+│        tui.log / _tui_perf.* are called on hot paths even with logging and tracking off; guard them at the call site or make them        │
+│        a single `(( ))` test.                                                                                                            │
+│        ↳ tui.log                                                                                                                         │
+│  INFO  Style is where interaction time goes (30%)                                                                                        │
+│        CSS classes, themes, SGR.                                                                                                         │
+│  GOOD  1 interaction types are within budget                                                                                             │
+│        Theme switch, repeat                                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Flame · all interactions (top-down, from the first fork in the call chain) ─────────────────────────────────────────────────────────────╮
+│ tui.run                                                                                                                                  │
+│ _tui._handle_mouse                                                                                                     _tui._flush_pend… │
+│ _tui_input.mouse_event                                                                                                 _tui._render_out… │
+│ _tui_input.dispatch                                                                                                    ⟨awk⟩    _tui…    │
+│ _tui_input.run                                                                                                                  ⟨for…    │
+│ tui.action.click                                                                                                                         │
+│ on_theme_pick                                                                                               tui.f…                       │
+│ tui.theme.set                                                                                               _tui…                        │
+│ tui.theme.reload                                                                                            _tui…                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Hot functions ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ function                               self     total   calls  per call  layer         self share                                        │
+│ _tui._sgr_from                      31.8 ms   31.8 ms     458     69 µs  Style         ██████████████████                                │
+│ ⟨fork⟩                              24.6 ms   24.6 ms       –         –  Subprocesses  █████████████▉░░░░                                │
+│ ⟨awk⟩                               17.3 ms   17.3 ms       –         –  Subprocesses  █████████▊░░░░░░░░                                │
+│ _tui.emit_ring                      13.4 ms   34.3 ms     285     47 µs  Flush         ███████▌░░░░░░░░░░                                │
+│ _tui.theme_parse                    12.8 ms   17.1 ms     195     66 µs  Style         ███████▎░░░░░░░░░░                                │
+│ _tui._widget_pos                    9.47 ms   15.8 ms    67.6   0.14 ms  Widgets       █████▎░░░░░░░░░░░░                                │
+│ _tui._draw_widget_buf               8.86 ms   42.8 ms    40.0   0.22 ms  Render        █████░░░░░░░░░░░░░                                │
+│ _tui._style_v                       8.56 ms   20.4 ms     166     52 µs  Style         ████▊░░░░░░░░░░░░░                                │
+│ _tui._inset                         8.36 ms   11.9 ms     122     68 µs  Layout        ████▋░░░░░░░░░░░░░                                │
+│ _tui._pane_content_need             8.07 ms   8.07 ms    13.6   0.59 ms  Layout        ████▌░░░░░░░░░░░░░                                │
+│ _tui._draw_pane_buf                 8.01 ms   64.1 ms     7.2   1.11 ms  Render        ████▌░░░░░░░░░░░░░                                │
+│ _tui._find_theme_collisions         7.93 ms   9.36 ms     0.8   9.92 ms  Style         ████▍░░░░░░░░░░░░░                                │
+│ tui.class                           7.28 ms   18.5 ms    32.0   0.23 ms  Style         ████▏░░░░░░░░░░░░░                                │
+│ tui.log                             6.70 ms   6.70 ms     130     51 µs  Logging & perf███▊░░░░░░░░░░░░░░                                │
+│ _tui.emit                           6.53 ms   6.53 ms     984      7 µs  Flush         ███▋░░░░░░░░░░░░░░                                │
+│ tui.tick.add                        5.87 ms   5.88 ms     2.4   2.45 ms  Main loop     ███▎░░░░░░░░░░░░░░                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Hot source lines ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ tui.sh:3201                  19.3 ms   ×24.0  ) ⟨program⟩                                                                                │
+│ perf.sh:44                   9.48 ms    ×105  ((_TUI_PERF_TRACKING)) || return 0 ⟨fork⟩                                                  │
+│ tui_emit.sh:27               6.53 ms    ×984  _TUI_FRAME+="$*"                                                                           │
+│ tui.sh:156                   5.83 ms    ×3.2  [[ "$existing" == "$fn" ]] && return                                                       │
+│ tui_cache.sh:232             4.92 ms    ×2.4  stat -c '%Y' "$1" 2>/dev/null || stat -f '%m' "$1" 2>/dev/null || printf '0' ⟨program⟩     │
+│ settings_callbacks.sh:100    4.57 ms      ×8  for t in default ocean forest sunset light; do ⟨fork⟩                                      │
+│ tui.sh:1477                  4.32 ms    ×916  [[ -n "$codes" ]] && _SGR=$'\e['"${codes%;}m"                                              │
+│ tui.sh:1285                  3.30 ms    ×792  [[ "${_TUI_W_PANE[$wid]:-}" == "$id" ]] || continue                                        │
+│ tui.sh:1455                  3.25 ms    ×458  local fg="$1" bg="$2" mods="$3" m codes="" hx code                                         │
+│ tui_emit.sh:36               3.21 ms    ×445  _tui.emit_reset() { _TUI_FRAME+=$'\e[0m'; }                                                │
+│ tui.sh:1478                  3.20 ms    ×458  return 0                                                                                   │
+│ tui.sh:1459                  2.92 ms    ×452  hx="${fg#\#}"                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Call graph: heaviest edges ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ main                              ▶ tui.start_cached                     266 ms                                                          │
+│ tui.start_cached                  ▶ tui.run                              266 ms                                                          │
+│ tui.run                           ▶ _tui._handle_mouse                   233 ms                                                          │
+│ _tui._handle_mouse                ▶ _tui_input.mouse_event               225 ms                                                          │
+│ _tui_input.mouse_event            ▶ _tui_input.dispatch                  224 ms                                                          │
+│ _tui_input.dispatch               ▶ _tui_input.run                       224 ms                                                          │
+│ _tui_input.run                    ▶ tui.action.click                     224 ms                                                          │
+│ tui.action.click                  ▶ on_theme_pick                        211 ms                                                          │
+│ on_theme_pick                     ▶ tui.theme.set                        207 ms                                                          │
+│ tui.theme.set                     ▶ tui.theme.reload                     207 ms                                                          │
+│ tui.theme.reload                  ▶ tui.goto                             207 ms                                                          │
+│ tui.goto                          ▶ tui.render                           103 ms                                                          │
+│ tui.goto                          ▶ tui.load_cached                      101 ms                                                          │
+│ tui.load_cached                   ▶ tui.cache.replay                    93.8 ms                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Subprocesses ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ external programs  (per pass of every interaction)                                                                                       │
+│ program        runs      time  spawned by                                                                                                │
+│ awk               6   17.3 ms  _tui._render_output_buf                                                                                   │
+│ stat            2.4   4.92 ms  _tui_cache_mtime                                                                                          │
+│ tput            0.8   1.76 ms  _tr_term_width_v                                                                                          │
+│ basename        0.8   1.66 ms  _st_dump                                                                                                  │
+│ mv              0.8   1.40 ms  tui.config.save                                                                                           │
+│ stty            0.8   1.35 ms  term.size                                                                                                 │
+│ mkdir           0.8   1.25 ms  tui.config.save                                                                                           │
+│ sed             0.8   0.97 ms  _st_dump                                                                                                  │
+│                                                                                                                                          │
+│ subshell fork sites                                                                                                                      │
+│ site                                                forks  scenarios                                                                     │
+│ _tui._render_output_buf (tui.sh:3201)                12.0  theme.first, theme.again                                                      │
+│ _st_labels (settings_callbacks.sh:101)                  4  theme.first                                                                   │
+│ _st_dump (settings_callbacks.sh:58)                     4  theme.first                                                                   │
+│ tui.cache.valid (tui_cache.sh:325)                    2.4  theme.first                                                                   │
+│ _st_content (settings_callbacks.sh:76)                1.6  theme.first                                                                   │
+│ on_theme_pick (settings_callbacks.sh:142)             0.8  theme.first                                                                   │
+│ term.size (terminal_controls.sh:567)                  0.8  theme.first                                                                   │
+│ _st_theme_current (settings_callbacks.sh:110)         0.8  theme.first                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ theme.first · light                         399 ms    320 ms       7   47.0 KB                                                           │
+│ theme.first · sunset                        395 ms    317 ms       7   46.0 KB                                                           │
+│ theme.first · forest                        389 ms    312 ms       7   46.0 KB                                                           │
+│ theme.first · ocean                         386 ms    310 ms       7   45.8 KB                                                           │
+│ theme.first · default                       101 ms   36.1 ms       5    6.8 KB                                                           │
+│ theme.again · light                        84.5 ms   16.7 ms       2    2.1 KB                                                           │
+│ theme.again · default                      30.3 ms   14.3 ms       1     147 B                                                           │
+│ theme.again · sunset                       19.4 ms   4.54 ms       1     293 B                                                           │
+│ theme.again · forest                       18.9 ms   4.13 ms       1     290 B                                                           │
+│ theme.again · ocean                        18.0 ms   3.71 ms       1     277 B                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Calibration check ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ untraced probe time vs rescaled trace time, same function, same scenario (ms per action)                                                 │
+│ mean error 9%  bias -3%  over 9 functions ≥ 2 ms                                                                                         │
+│ scenario          function                                real     trace    error                                                        │
+│ theme.first       _tui._handle_mouse                    240 ms    231 ms      -4%                                                        │
+│ theme.first       tui.goto                              216 ms    207 ms      -4%                                                        │
+│ theme.first       tui.load_cached                       117 ms    101 ms     -14%                                                        │
+│ theme.first       tui.render                           95.1 ms    103 ms      +8%                                                        │
+│ theme.first       _tui._flush_pending_render           18.1 ms   27.0 ms     +50%                                                        │
+│ theme.again       _tui._handle_mouse                   6.43 ms   2.84 ms     -56%                                                        │
+│ theme.first       _tui_overlay.draw_all                3.43 ms   3.01 ms     -12%                                                        │
+│ theme.first       _tui._flush                          2.83 ms   0.29 ms     -90%                                                        │
+│ theme.again       _tui._flush_pending_render           2.38 ms   5.97 ms    +151%                                                        │
+│ theme.again       _tui._flush                          1.11 ms     13 µs     -99%                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.32 to match untraced busy time (processes and forks are real).

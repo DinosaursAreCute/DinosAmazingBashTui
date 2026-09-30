@@ -249,16 +249,49 @@ tui.init() {
 	tui.hook.fire init
 }
 
-_kill_process_tree() {
-	local pid=$1
-	local children
-	children=$(pgrep -P "$pid" 2>/dev/null)
-	for child in $children; do
-		_kill_process_tree "$child"
+# _tui_proc_running PID - rc 0 while PID is alive and not a zombie (a child we have not wait()ed for still answers
+# `kill -0`). /proc where there is one, `kill -0` elsewhere.
+_tui_proc_running() {
+	local line st
+	if [[ -r "/proc/$1/stat" ]]; then
+		read -r line <"/proc/$1/stat" 2>/dev/null || return 1
+		st="${line##*) }"
+		[[ "${st:0:1}" != Z ]]
+	else
+		kill -0 "$1" 2>/dev/null
+	fi
+}
+
+# _tui_proc_tree PID - appends PID's descendants, deepest first, then PID itself, to _TUI_PTREE
+_tui_proc_tree() {
+	local child kids=""
+	# /proc/PID/task/PID/children where the kernel has it (no fork); pgrep scans all of /proc, ~25 ms here
+	if [[ -r "/proc/$1/task/$1/children" ]]; then
+		read -r kids <"/proc/$1/task/$1/children" 2>/dev/null
+	else
+		kids="$(pgrep -P "$1" 2>/dev/null)"
+	fi
+	for child in $kids; do
+		_tui_proc_tree "$child"
 	done
-	kill -TERM "$pid" 2>/dev/null
-	sleep 0.05
-	kill -KILL "$pid" 2>/dev/null
+	_TUI_PTREE+=("$1")
+}
+
+# SIGTERM the whole tree (children first), wait once for all of it for up to 50 ms polled every 5 ms, then SIGKILL
+# whatever is still running. It used to sleep a full 50 ms after every process: 150 ms for a three-level tree.
+_kill_process_tree() {
+	local -a _TUI_PTREE=()
+	local p i left
+	_tui_proc_tree "$1"
+	for p in "${_TUI_PTREE[@]}"; do kill -TERM "$p" 2>/dev/null; done
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		left=0
+		for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && left=1 && break; done
+		((left)) || return 0
+		read -rt 0.005 <> <(:)
+	done
+	for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && kill -KILL "$p" 2>/dev/null; done
+	return 0
 }
 
 # Kills one instance's process (if still alive) and closes its fifo fd.
@@ -700,7 +733,19 @@ _tui._eff_border() {
 # inset 0 border cols; leaves with no frame keep the legacy 1-col margin.
 _tui._inset() {
 	local id="$1" bv bh
-	_tui._eff_border "$id"
+	# _tui._eff_border inlined (one call fewer on every widget position and pane rect); keep the two in step
+	local h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0} m
+	_TB="${_TUI_P_BORDER[$id]:-single}"
+	if [[ "$_TB" != none ]]; then
+		if [[ -n "${_TUI_P_CHILDREN[$id]:-}" ]]; then
+			if [[ -z "${_TUI_P_BORDER_EXPL[$id]:-}" ]] ||
+				((h - 2 - 2 * ${_TUI_P_VPAD[$id]:-0} < 3 || w - 4 - 2 * ${_TUI_P_HPAD[$id]:-0} < 5)); then
+				_TB=none
+			fi
+		elif ((h < 3 || w < 5)); then
+			_TB=none
+		fi
+	fi
 	if [[ "$_TB" != "none" ]]; then
 		bv=1
 		bh=2
@@ -712,7 +757,6 @@ _tui._inset() {
 		bh=1
 	fi
 	local vp=${_TUI_P_VPAD[$id]:-0} hp=${_TUI_P_HPAD[$id]:-0}
-	local h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0} m
 	m=$(((h - 1) / 2 - bv))
 	((m < 0)) && m=0
 	((vp > m)) && vp=$m
@@ -1274,6 +1318,24 @@ declare -g _TUI_CONTENT_NEED_H=0
 # A container pane (has children) or one with scroll enabled is exempt:
 # a container's own children enforce their own fit, and a scrollable
 # pane's whole purpose is holding content taller/wider than its viewport.
+# One pass over every widget into per-pane maxima, for _tui._pane_content_need while _TUI_CN_ON=1 (tui.render's
+# up-front refresh): the per-pane scan of all widgets made a full render cost panes x widgets.
+declare -gA _TUI_CN_ROW=() _TUI_CN_LEN=()
+declare -gi _TUI_CN_ON=0 _TUI_FIT_FRESH=0 # _TUI_FIT_FRESH: tui.render has just refreshed every leaf's content fit
+_tui._content_need_index() {
+	_TUI_CN_ROW=()
+	_TUI_CN_LEN=()
+	local wid p row txt
+	for wid in "${_TUI_W_ORDER[@]}"; do
+		p="${_TUI_W_PANE[$wid]:-}"
+		[[ -n "$p" ]] || continue
+		row=${_TUI_W_ROW[$wid]:-0}
+		((row > ${_TUI_CN_ROW[$p]:--1})) && _TUI_CN_ROW[$p]=$row
+		case "${_TUI_W_TYPE[$wid]:-}" in textarea | list | table | progress) txt="${_TUI_W_LABEL[$wid]:-}" ;; *) txt="${_TUI_W_LABEL[$wid]:-${_TUI_W_VALUE[$wid]:-}}" ;; esac
+		((${#txt} > ${_TUI_CN_LEN[$p]:-0})) && _TUI_CN_LEN[$p]=${#txt}
+	done
+}
+
 _tui._pane_content_need() {
 	local id="$1"
 	_TUI_CONTENT_NEED_W=0
@@ -1282,13 +1344,18 @@ _tui._pane_content_need() {
 	[[ "${_TUI_P_SCROLL[$id]:-none}" != "none" ]] && return
 
 	local wid maxrow=-1 maxlen=0 row txt
-	for wid in "${_TUI_W_ORDER[@]}"; do
-		[[ "${_TUI_W_PANE[$wid]:-}" == "$id" ]] || continue
-		row=${_TUI_W_ROW[$wid]:-0}
-		((row > maxrow)) && maxrow=$row
-		case "${_TUI_W_TYPE[$wid]:-}" in textarea | list | table | progress) txt="${_TUI_W_LABEL[$wid]:-}" ;; *) txt="${_TUI_W_LABEL[$wid]:-${_TUI_W_VALUE[$wid]:-}}" ;; esac
-		((${#txt} > maxlen)) && maxlen=${#txt}
-	done
+	if ((_TUI_CN_ON)); then
+		maxrow=${_TUI_CN_ROW[$id]:--1}
+		maxlen=${_TUI_CN_LEN[$id]:-0}
+	else
+		for wid in "${_TUI_W_ORDER[@]}"; do
+			[[ "${_TUI_W_PANE[$wid]:-}" == "$id" ]] || continue
+			row=${_TUI_W_ROW[$wid]:-0}
+			((row > maxrow)) && maxrow=$row
+			case "${_TUI_W_TYPE[$wid]:-}" in textarea | list | table | progress) txt="${_TUI_W_LABEL[$wid]:-}" ;; *) txt="${_TUI_W_LABEL[$wid]:-${_TUI_W_VALUE[$wid]:-}}" ;; esac
+			((${#txt} > maxlen)) && maxlen=${#txt}
+		done
+	fi
 	((maxrow >= 0)) && _TUI_CONTENT_NEED_H=$((maxrow + 1))
 	((maxlen > _TUI_CONTENT_NEED_W)) && _TUI_CONTENT_NEED_W=$maxlen
 
@@ -1347,6 +1414,10 @@ _tui._pane_too_small() {
 	return 1
 }
 
+# While _TUI_WP_REUSE=1 (set only around loops that touch no geometry: tui.render's widget pass, _tui._hit_test)
+# consecutive widgets of one pane share that pane's inset instead of recomputing it per widget.
+declare -gi _TUI_WP_REUSE=0 _TUI_WP_IV=0 _TUI_WP_IH=0
+declare -g _TUI_WP_LAST=""
 _tui._widget_pos() {
 	local pane="${_TUI_W_PANE[$1]}"
 	local wrow="${_TUI_W_ROW[$1]}"
@@ -1355,7 +1426,12 @@ _tui._widget_pos() {
 	local content_top content_h
 	local whp=${_TUI_W_HPAD[$1]:-0} wvp=${_TUI_W_VPAD[$1]:-0}
 
-	_tui._inset "$pane"
+	if ((_TUI_WP_REUSE)) && [[ "$_TUI_WP_LAST" == "$pane" ]]; then
+		_IV=$_TUI_WP_IV _IH=$_TUI_WP_IH
+	else
+		_tui._inset "$pane"
+		_TUI_WP_LAST="$pane" _TUI_WP_IV=$_IV _TUI_WP_IH=$_IH
+	fi
 	content_top=$((pr + _IV + wvp))
 	content_h=$((ph - 2 * _IV - 2 * wvp))
 	_WSC=$((pc + _IH + whp))
@@ -1574,7 +1650,8 @@ _tui._draw_pane_buf() {
 	local border=$_TB
 	local title="${_TUI_P_TITLE[$id]:-}"
 
-	_tui._refresh_content_fit "$id"
+	# tui.render refreshed every leaf up front; containers (nothing to scan) still refresh here
+	if ((! _TUI_FIT_FRESH)) || [[ -n "${_TUI_P_CHILDREN[$id]:-}" ]]; then _tui._refresh_content_fit "$id"; fi
 	if _tui._pane_too_small "$id"; then
 		_tui._draw_size_warning "$r" "$c" "$h" "$w" "${_TUI_P_EFFECTIVE_MINW[$id]:-0}" "${_TUI_P_EFFECTIVE_MINH[$id]:-0}"
 		return
@@ -1996,6 +2073,7 @@ tui.perf.mean_render_ms() {
 }
 
 tui.render() {
+	((_TUI_DEFER_RENDER)) && return 0
 	_tui_perf.begin render
 	_tui_perf.count full_renders
 	# Refresh every leaf pane's content-fit cache up front: _tui._draw_pane_buf
@@ -2006,9 +2084,13 @@ tui.render() {
 	# widget loop below) needs every pane's effective min already known, not
 	# just the ones with room to draw.
 	local pane
+	_tui._content_need_index
+	_TUI_CN_ON=1
 	for pane in "${_TUI_P_ALL[@]}"; do
 		[[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]] && _tui._refresh_content_fit "$pane"
 	done
+	_TUI_CN_ON=0
+	_TUI_FIT_FRESH=1 # _tui._draw_pane_buf below need not refresh a leaf again
 
 	_TUI_FRAME=""
 	for pane in "${_TUI_P_ALL[@]}"; do
@@ -2019,9 +2101,13 @@ tui.render() {
 			_tui._draw_pane_buf "$pane"
 		fi
 	done
+	_TUI_FIT_FRESH=0
+	_TUI_WP_LAST=""
+	_TUI_WP_REUSE=1
 	for wid in "${_TUI_W_ORDER[@]}"; do
 		_tui._draw_widget_buf "$wid"
 	done
+	_TUI_WP_REUSE=0
 	for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
 		[[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output_buf "$_oid"
 	done
@@ -2271,14 +2357,18 @@ _tui._focus_prev() {
 _tui._hit_test() {
 	local mx="$1" my="$2"
 	_HIT=""
+	_TUI_WP_LAST=""
+	_TUI_WP_REUSE=1
 	for wid in "${_TUI_W_ORDER[@]}"; do
 		[[ "${_TUI_W_TYPE[$wid]}" == "label" ]] && continue
 		_tui._widget_pos "$wid"
 		if ((my >= _WSR && my < _WSR + _WSH && mx >= _WSC && mx < _WSC + _WSW)); then
 			_HIT="$wid"
+			_TUI_WP_REUSE=0
 			return 0
 		fi
 	done
+	_TUI_WP_REUSE=0
 	return 1
 }
 

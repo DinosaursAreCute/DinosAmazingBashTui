@@ -99,6 +99,7 @@ declare -g _TUI_HOVERED_WIDGET=""
 declare -gA _TUI_PANE_CONTENT=()   # pane id -> 1 when it holds tui.output content (MUST be associative: pane ids are names)
 declare -gA _TUI_PENDING_OUTPUT=() # pane id -> content awaiting re-render
 declare -g _TUI_RENDER_TIMEOUT=-1
+declare -gi _TUI_DEFER_RENDER=0 # 1 while tui.goto loads a page: tui.goto renders once afterwards, so tui.render calls made by on_visit code are skipped
 
 # ═══════════════════════════════════════════════════════════════════════
 #  BACKGROUND EXECUTION (tui.exec instance registries)

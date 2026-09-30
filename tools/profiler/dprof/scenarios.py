@@ -19,7 +19,7 @@ GROUP_INFO = {
     "startup.warm": ("Warm start", "startup", 1000),
     "nav.first": ("Page switch, first visit", "nav", 150),
     "nav.revisit": ("Page switch, revisit", "nav", 100),
-    "nav.key": ("Page switch by key (alt+2)", "nav", 100),
+    "nav.key": ("Page switch by key (alt+N)", "nav", 100),
     "focus.next": ("Focus next (Tab)", "input", 50),
     "focus.prev": ("Focus previous (Shift+Tab)", "input", 50),
     "hover.move": ("Mouse hover", "input", 30),
@@ -114,6 +114,8 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                 add(Step(group, "home", "click_text", "Home", quiet=0.15))
         if want("nav.key"):
             add(Step("nav.key", "alt+2", "key", ESC + b"2", quiet=0.15, timeout=1.0))  # bound in _nav.xml: must navigate
+            # a light page next to the heavy one: compare each with clicking the same page (nav.first/nav.revisit details)
+            add(Step("nav.key", "alt+7", "key", ESC + b"7", quiet=0.15, timeout=1.0))
     if want("focus.next", "focus.prev", "hover.move", "click"):
         add(_setup("Components"))
         for i in range(6 if quick else 10):

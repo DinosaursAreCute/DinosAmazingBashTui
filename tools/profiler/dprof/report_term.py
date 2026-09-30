@@ -329,7 +329,7 @@ def page_block(rep, W):
     """Per page: done time and where it went. Columns are NESTED wall-clock spans (median over rounds), not additive."""
     lines = []
     for g in rep["latency"]:
-        if g["id"] not in ("nav.first", "nav.revisit"):
+        if g["id"] not in ("nav.first", "nav.revisit", "nav.key"):
             continue
         rows = [d for d in g.get("details", []) if d.get("spans")]
         if not rows:

@@ -201,7 +201,7 @@ _tui_cache_theme() {
 # same "dynamic bits replay individually" pattern as scripts/gotos/on_visit.
 _tui_cache_class() {
 	local id="$1" cls="$2"
-	[[ -n "$cls" ]] && _TUI_CACHE_REC_CLASSES+=("$(printf '%s\t%s' "$id" "$cls")")
+	[[ -n "$cls" ]] && _TUI_CACHE_REC_CLASSES+=("$id"$'\t'"$cls")
 	tui.class "$id" "$cls"
 }
 
@@ -227,7 +227,18 @@ _tui_cache_define_goto() {
 	local def
 	printf -v def '%s() { tui.goto %q; }' "$fn" "$page" # printf -v: no command-substitution fork per nav button
 	eval "$def"
-	_TUI_CACHE_REC_GOTOS+=("$(printf '_tui_cache_define_goto %q %q %q' "$fn" "$page" "$title")")
+	local rec
+	printf -v rec '_tui_cache_define_goto %q %q %q' "$fn" "$page" "$title"
+	_TUI_CACHE_REC_GOTOS+=("$rec")
+}
+
+# _tui_cache_dir FILE -> _CANON: FILE's absolute directory (no fork: was `$(cd "$(dirname FILE)" && pwd)`); rc 1 if it is missing
+_tui_cache_dir() {
+	local d=.
+	[[ "$1" == */* ]] && d="${1%/*}"
+	[[ -n "$d" ]] || d=/
+	[[ -d "$d" ]] || return 1
+	_tui_path_canon "$d"
 }
 
 # File mtime, GNU or BSD stat, 0 if the file's gone - used purely as a
@@ -267,9 +278,19 @@ _tui_cache_stat_many() {
 # string covering every given file, sorted so the same file set always
 # produces the same string regardless of iteration order.
 tui.cache.signature() {
-	local f sig=""
+	local f sig="" i j t
+	local -a sorted=("$@")
 	_tui_cache_stat_many "$@"
-	for f in $(printf '%s\n' "$@" | sort); do
+	# insertion sort in bash: a handful of paths, and `printf | sort` was two forks per page
+	for ((i = 1; i < ${#sorted[@]}; i++)); do
+		t="${sorted[i]}"
+		for ((j = i - 1; j >= 0; j--)); do
+			[[ "${sorted[j]}" > "$t" ]] || break
+			sorted[j + 1]="${sorted[j]}"
+		done
+		sorted[j + 1]="$t"
+	done
+	for f in "${sorted[@]}"; do
 		sig+="${f}=${_TUI_CACHE_MTIME[$f]:-0};"
 	done
 	printf '%s' "$sig"
@@ -290,14 +311,16 @@ tui.cache.deps_of() {
 	local file="$1" _deps_arrname="$2"
 	local -n _deps="$_deps_arrname"
 	local key
-	key="$(cd "$(dirname "$file")" 2>/dev/null && pwd)/$(basename "$file")" || return
+	_tui_cache_dir "$file" || return
+	key="${_CANON%/}/${file##*/}"
 	local d
 	for d in "${_deps[@]}"; do [[ "$d" == "$key" ]] && return; done
 	[[ -r "$key" ]] || return
 	_deps+=("$key")
 
 	local dir line src resolved
-	dir="$(dirname "$key")"
+	dir="${key%/*}"
+	dir="${dir:-/}"
 	# fd 8, not stdin: the loop body recurses into tui.cache.deps_of, which
 	# can be reached from the same cache/build chain a <script>'s top-level
 	# code runs in - keep fd 0 free for the tty like every other stdin-bound
@@ -319,7 +342,7 @@ tui.cache.deps_of() {
 # hit, see tui.cache.replay), plus a signature covering FILE and every
 # <include> it pulled in.
 tui.cache.record() {
-	local file="$1"
+	local file="$1" _rec_join
 	tui.log.debug "tui.cache.record: building $file fresh (cache miss)"
 	_TUI_CACHE_REC_SCRIPTS=()
 	_TUI_CACHE_REC_GOTOS=()
@@ -330,9 +353,13 @@ tui.cache.record() {
 	_TUI_CACHE_PAGE["$file"]="$(_tui_cache_snapshot)"
 	_TUI_CACHE_SCRIPTS["$file"]="${_TUI_CACHE_REC_SCRIPTS[*]}"
 	_TUI_CACHE_ON_VISIT["$file"]="${_TUI_BUILD_ON_VISIT:-}"
-	_TUI_CACHE_GOTOS["$file"]="$(printf '%s\n' "${_TUI_CACHE_REC_GOTOS[@]}")"
+	printf -v _rec_join '%s\n' "${_TUI_CACHE_REC_GOTOS[@]}"
+	while [[ "$_rec_join" == *$'\n' ]]; do _rec_join="${_rec_join%$'\n'}"; done # what "$(printf ...)" gave
+	_TUI_CACHE_GOTOS["$file"]="$_rec_join"
 	_TUI_CACHE_THEME["$file"]="$_TUI_CACHE_REC_THEME"
-	_TUI_CACHE_CLASSES["$file"]="$(printf '%s\n' "${_TUI_CACHE_REC_CLASSES[@]}")"
+	printf -v _rec_join '%s\n' "${_TUI_CACHE_REC_CLASSES[@]}"
+	while [[ "$_rec_join" == *$'\n' ]]; do _rec_join="${_rec_join%$'\n'}"; done
+	_TUI_CACHE_CLASSES["$file"]="$_rec_join"
 	tui.log.debug "tui.cache.record: recorded theme=${_TUI_CACHE_REC_THEME:-<none>} classes=${#_TUI_CACHE_REC_CLASSES[@]} for $file"
 
 	local -a deps=()
@@ -612,7 +639,7 @@ tui.cache.warm_with_spinner() {
 	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css" >/dev/null 2>&1
 	local _tcw_dp _tcw_dtheme
 	for _tcw_dp in "${_tcw_pages[@]}"; do
-		_tcw_dtheme="$(dirname "$_tcw_dp")/theme.css"
+		if [[ "$_tcw_dp" == */* ]]; then _tcw_dtheme="${_tcw_dp%/*}/theme.css"; else _tcw_dtheme="./theme.css"; fi
 		[[ -r "$_tcw_dtheme" ]] && tui.load_theme "$_tcw_dtheme" >/dev/null 2>&1
 	done
 
@@ -724,7 +751,7 @@ tui.cache.warm_with_spinner() {
 
 	local _tcw_start_us _tcw_last_progress_us _tcw_now
 	local _tcw_current=0 _tcw_done=0 _tcw_line2
-	_tcw_start_us=$(_tui_cache_now_us)
+	_tcw_start_us=${EPOCHREALTIME//[^0-9]/}
 	_tcw_last_progress_us=$_tcw_start_us
 	local _tcw_last_cycle_us=$_tcw_start_us
 
@@ -737,21 +764,21 @@ tui.cache.warm_with_spinner() {
 				"DONE "*)
 					((_tcw_current++))
 					((_tcw_running--))
-					_tcw_last_progress_us=$(_tui_cache_now_us)
+					_tcw_last_progress_us=${EPOCHREALTIME//[^0-9]/}
 					_tcw_launch_more
 					;;
 				"FAILED "*)
 					_tcw_failed+=("${_tcw_line2#FAILED }")
 					((_tcw_current++))
 					((_tcw_running--))
-					_tcw_last_progress_us=$(_tui_cache_now_us)
+					_tcw_last_progress_us=${EPOCHREALTIME//[^0-9]/}
 					_tcw_launch_more
 					;;
 			esac
 		fi
 		((_tcw_current >= _tcw_total)) && _tcw_done=1
 		((_tcw_done)) && break
-		_tcw_now=$(_tui_cache_now_us)
+		_tcw_now=${EPOCHREALTIME//[^0-9]/}
 		if ((_tcw_now - _tcw_last_cycle_us >= _tcw_cycle_us)); then
 			_tcw_last_cycle_us=$_tcw_now
 			_tcw_offset=$(((_tcw_offset + 1) % 4))
@@ -813,7 +840,7 @@ tui.start_cached() {
 	}
 
 	local dir
-	dir="$(cd "$(dirname "$file")" && pwd)"
+	_tui_cache_dir "$file" && dir="$_CANON" || dir=""
 	_TUI_APP_DIR="$dir"
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$dir/themes" ]] && TUI_THEMES_DIR="$dir/themes"
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$TUI_DEFAULTS_DIR/themes" ]] && TUI_THEMES_DIR="$TUI_DEFAULTS_DIR/themes"

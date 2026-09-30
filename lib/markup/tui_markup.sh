@@ -85,6 +85,21 @@ _markup_attr() {
 	fi
 }
 
+# _markup_attrv LINE NAME VAR - _markup_attr into VAR (a nameref), no `$(...)` fork.
+_markup_attrv() {
+	local -n _mav_out="$3"
+	_mav_out=""
+	if [[ "$1" =~ $2[[:space:]]*=[[:space:]]*\"([^\"]*)\" ]]; then
+		_mav_out="${BASH_REMATCH[1]}"
+		[[ "$_mav_out" == *"&"* ]] && {
+			_mav_out="${_mav_out//&lt;/<}"
+			_mav_out="${_mav_out//&gt;/>}"
+			_mav_out="${_mav_out//&quot;/\"}"
+			_mav_out="${_mav_out//&amp;/\&}"
+		} # XML entities
+	fi
+}
+
 # tui.load FILE - parse a markup file and build panes/widgets via tui.* calls.
 tui.load() {
 	local file="$1"
@@ -281,7 +296,12 @@ tui.goto() {
 	# One synchronized frame: the terminal never shows the cleared, half-built page.
 	((_TUI_RUNNING)) && mode.sync_start
 	tui.reset_ui
+	# on_visit code often ends with tui.render (layout changes); the render below covers it, so skip those.
+	# A goto made from inside an on_visit leaves the decision to the outermost goto.
+	local _gt_defer=$_TUI_DEFER_RENDER
+	_TUI_DEFER_RENDER=1
 	tui.load_cached "$resolved"
+	_TUI_DEFER_RENDER=$_gt_defer
 	if [[ -n "$keep_id" && -n "${_TUI_W_TYPE[$keep_id]:-}" ]]; then
 		local i
 		for ((i = 0; i < ${#_TUI_FOCUSABLE[@]}; i++)); do

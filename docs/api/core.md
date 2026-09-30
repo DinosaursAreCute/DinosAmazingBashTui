@@ -53,7 +53,7 @@ Each function has its own page; the summary tables link to them, and the full en
 
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
-<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw -->
+<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw -->
 
 | Function | Summary |
 |---|---|
@@ -64,6 +64,7 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 | [`tui.pane_title`](core/tui.pane_title.md) | Sets the title drawn in the pane's top border. |
 | [`tui.pane_border`](core/tui.pane_border.md) | Sets the border style of a pane. |
 | [`tui.pane_pad`](core/tui.pane_pad.md) | Sets blank columns (`HPAD`) and rows (`VPAD`) on each side inside the pane. |
+| [`tui.pane_gap`](core/tui.pane_gap.md) | Gets or sets the gap between children of a split pane. |
 | [`tui.pane_align`](core/tui.pane_align.md) | Sets the default horizontal alignment for widgets in the pane. |
 | [`tui.pane_valign`](core/tui.pane_valign.md) | Sets the default vertical anchor for widgets in the pane. Default: `top`. |
 | [`tui.pane_minsize`](core/tui.pane_minsize.md) | Sets the smallest size at which the pane shows its content. Below it, the pane shows a `min space = WxH` notice instead. |
@@ -93,6 +94,8 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.pane_border.md %}
 
 {% include_relative core/tui.pane_pad.md %}
+
+{% include_relative core/tui.pane_gap.md %}
 
 {% include_relative core/tui.pane_align.md %}
 

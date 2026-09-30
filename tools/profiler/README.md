@@ -63,3 +63,7 @@ Output: `reports/<timestamp>/{report.json,report.html,report.txt}`, `reports/lat
 - Clicks avoid the nav column (its last row is Quit). An app that exits early is reported as a warning.
 - xtrace makes bash roughly 3x slower; the calibration corrects the totals but not the relative cost of
   individual lines (cheap builtins are inflated more than forks).
+
+## Documentation site page
+
+`site_export.py` turns saved reports into the interactive page `docs/design/performance-explorer.html` (template in `site/explorer.template.html`, colours from the site's CSS variables so it follows the DABT brand and the light/dark toggle). The revisions and the report each one uses are listed at the top of the script; add a line there after a new optimisation and run `python3 tools/profiler/site_export.py`. Reports live in the git-ignored `reports/` folder, so the page is regenerated on a machine that has them and the result committed.

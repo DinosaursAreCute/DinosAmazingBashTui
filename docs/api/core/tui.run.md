@@ -10,7 +10,7 @@ Runs the main loop (input, dispatch, render, ticks) until [`tui.stop`](/api/core
 
 - Fires the `ready` hook once, before the first frame.
 - Installs `INT`/`TERM` traps (clean up and exit 1) and a `WINCH` trap for resizes.
-- Polls input every 0.05 s while tick listeners exist, else every 0.2 s (`TUI_INPUT_POLL_TIMEOUT`, `TUI_INPUT_IDLE_TIMEOUT`).
+- Polls input every 0.05 s while tick listeners exist, else every 0.2 s (`TUI_INPUT_POLL_TIMEOUT`, `TUI_INPUT_IDLE_TIMEOUT`); polls with shorter `TUI_INPUT_SETTLE_TIMEOUT` (0.01 s) while a pane render is queued.
 - Restores the terminal before it returns, so code after `tui.run` prints to the normal screen.
 
 **Example**

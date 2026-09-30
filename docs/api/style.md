@@ -8,7 +8,7 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 
 ## Styling and themes
 
-<!-- api: tui.load_theme tui.class tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.cache.theme_clear -->
+<!-- api: tui.load_theme tui.class tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.paint.reset tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.cache.theme_clear -->
 
 | Function | Summary |
 |---|---|
@@ -19,6 +19,7 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 | [`tui.class.ansi`](style/tui.class.ansi.md) | Prints the ANSI escape prefix of a theme class, without a widget. |
 | [`tui.paint`](style/tui.paint.md) | Prints `TEXT` in the style of a widget or pane, followed by a reset. No newline. |
 | [`tui.class.paint`](style/tui.class.paint.md) | Prints `TEXT` in the style of a theme class, followed by a reset. No newline. |
+| [`tui.paint.reset`](style/tui.paint.reset.md) | Clears the rendering cache, forcing a full redraw on the next flush. |
 | [`tui.style.sgr`](style/tui.style.sgr.md) | Resolves the style of a widget or pane into variables, without a subshell. |
 | [`tui.class.style`](style/tui.class.style.md) | Resolves a theme class into variables, without a subshell. Sets `TUI_FG`, `TUI_BG`, `TUI_MODS`. |
 | [`tui.class.sgr`](style/tui.class.sgr.md) | Resolves a theme class into an escape prefix, without a subshell. |
@@ -40,6 +41,8 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 {% include_relative style/tui.paint.md %}
 
 {% include_relative style/tui.class.paint.md %}
+
+{% include_relative style/tui.paint.reset.md %}
 
 {% include_relative style/tui.style.sgr.md %}
 

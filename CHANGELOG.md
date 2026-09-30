@@ -6,7 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-## [0.0.19] - 2026-09-30
 
 ### Added
 
@@ -14,32 +13,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Perf instrumentation (`lib/perf.sh`): spans and counters around parse, build, layout, render, flush and input dispatch, `tui.perf.report`, and `tools/bench/` with a committed baseline.
 * Registry primitive (`lib/tui_registry.sh`) for tag/widget/layout/validator/pseudo/expr/hook/style handlers, including style contracts for every existing widget and chrome element, with plugin-scoped unregistration.
 * Struct-of-arrays node store (`lib/markup/tui_node.sh`) with dump/load round-trip support. Not yet wired into the engine.
-
-### Changed
-
-* `tui.render` and every draw path (panes, widgets, dialogs, command palette, modals, footer) now build into a single frame buffer and flush once per frame, instead of nested command substitutions and direct `printf` calls. Removes the long-standing "state lost in subshell" workaround in `tui.render`.
-
-### Fixed
-
-* A frame-buffer append pattern (self-referencing `printf -v`) degraded quadratically on chrome-heavy pages, causing multi-second stalls when switching pages; replaced with native string append.
-
-### Added
-
 * Fork-free markup tokenizer (`lib/markup/tui_parse.sh`) that scans a page and its `<include>`s once into the node store: multi-line tags, both quote styles, entities, comments anywhere, and file/line tracking for error messages — markup-v2 stage 1.
 * Tag-registry build (`lib/markup/tui_build.sh`): every tag dispatches to a handler registered under the `tag` registry kind instead of a hard-coded `case`. Nested widgets (a widget's pane/row inferred from its position in the tree) and helper tags `<row>`, `<col>`, `<group>`, `<spacer/>`, `<divider/>` (aliases for `<pane>` plus one attribute) — legacy `pane=`/`row=` still work.
 * Page-load snapshot cache (`lib/markup/tui_cache.sh`): a cache hit restores the whole built engine state with one `declare -p` snapshot + `source`-style eval, instead of replaying a recorded call log line by line. `<script>`, `<button page="…">` nav handlers and `on_visit` stay live, rerun on every hit.
 * Parallel cache warm-up: one background worker per stale page, pooled up to `min(nproc, TUI_CACHE_WORKERS)`, each writing its page's snapshot atomically (`tmp.$BASHPID` + `mv`). The splash progress bar tracks pages completed, not elapsed time; a worker that fails falls back to an uncached load for just its page.
 
+
 ### Changed
 
+* `tui.render` and every draw path (panes, widgets, dialogs, command palette, modals, footer) now build into a single frame buffer and flush once per frame, instead of nested command substitutions and direct `printf` calls. Removes the long-standing "state lost in subshell" workaround in `tui.render`.
 * `lib/markup/tui_markup.sh` shrinks to a façade (`tui.load`/`tui.goto`/`tui.start`, `tui.reset_ui`, the path canonicalizer): parsing and building now live in `tui_parse.sh`/`tui_build.sh`.
 * Cold and warm page loads are faster: the tokenizer beats the old per-line parse, and the snapshot cache beats the old recorded-call-log replay (see `tools/bench/baseline.txt`).
 
+
 ### Fixed
+
+* A frame-buffer append pattern (self-referencing `printf -v`) degraded quadratically on chrome-heavy pages, causing multi-second stalls when switching pages; replaced with native string append.
 
 * A cache-hit replay restored `_TUI_P_W[root]`/`_TUI_P_H[root]` from the snapshot along with every other pane, silently reverting the root pane to whatever terminal size was active when its cache was warmed — running the app at a different size than the one that warmed the cache (including the very first launch, right after the splash) showed panes at roughly half width with "min space" warnings. `_tui._root_w` (mirroring the existing `_tui._root_h`) now re-derives root's own width from the live terminal on every relayout, cache hit or not.
 * A resize (WINCH) caught anywhere between `tui.init` and `tui.run`'s first render — e.g. behind a slow cache warm-up — used to have no handler yet, or be discarded by an unconditional flag reset, leaving the first frame laid out at a stale size with nothing to correct it. The WINCH trap now installs in `tui.init`, and a pending resize is applied before the first render instead of dropped.
 * Several `tui_cache.sh` internals that read a `declare -p` dump or a markup file through a `while read` loop bound to stdin now use a dedicated fd, keeping fd 0 free for the terminal — the same fix already in place for the cached-page replay loop, applied consistently.
+
 
 ## [0.0.18] - 2026-09-27
 

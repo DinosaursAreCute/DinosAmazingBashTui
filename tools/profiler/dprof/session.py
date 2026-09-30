@@ -31,6 +31,7 @@ WRAP = [
     ("_tui_validate.gate", "w"), ("tui.cache.load_dir", "w"), ("tui.cache.warm_with_spinner", "w"),
     ("tui.cache.dump_dir", "w"), ("tui.init", "w"), ("tui.load_cached", "w"),
     ("_tui_validate.notify", "w"), ("tui.run", "s"),
+    ("tui.cache.replay", "s"), ("_tui_cache_run_on_visit", "s"), ("_tui._draw_pane_buf", "n"),
 ]
 WORK_FNS = {n for n, k in WRAP if k in "wpa"}
 WRAPPED = {n for n, _ in WRAP}
@@ -62,10 +63,21 @@ def us_to_s(us):
 
 
 class Event:
-    __slots__ = ("kind", "name", "t0", "t1", "arg")
+    __slots__ = ("kind", "name", "t0", "t1", "arg", "chain")
 
-    def __init__(self, kind, name, t0, t1=0.0, arg=0):
-        self.kind, self.name, self.t0, self.t1, self.arg = kind, name, t0, t1, arg
+    def __init__(self, kind, name, t0, t1=0.0, arg=0, chain=""):
+        self.kind, self.name, self.t0, self.t1, self.arg, self.chain = kind, name, t0, t1, arg, chain
+
+
+def _pane_costs(evs):
+    """{pane id: [draws, wall ms]} for the _tui._draw_pane_buf spans inside one action."""
+    out = {}
+    for e in evs:
+        if e.kind == "E" and e.name == "_tui._draw_pane_buf" and e.chain:
+            o = out.setdefault(e.chain, [0, 0.0])
+            o[0] += 1
+            o[1] += (e.t1 - e.t0) * 1000
+    return out
 
 
 class Session:
@@ -258,6 +270,8 @@ class Session:
             elif p[0] == "E":
                 t0, t1 = int(p[2]), int(p[3])
                 ev = Event("E", p[1], us_to_s(t0), us_to_s(t1), int(p[4]) if p[4].lstrip("-").isdigit() else 0)
+                if len(p) > 6:
+                    ev.chain = p[6]   # _tui._flush: callers, innermost first, joined by '<'; n-kind spans: first argument
                 if p[1] == "shim_start" and self.main_pid is None:
                     self.main_pid = p[5]
                 main = self._is_main(p[5])
@@ -339,6 +353,10 @@ class Session:
             "busy_ms": busy * 1000,
             "frames": len(inside),
             "bytes": sum(f.arg for f in inside),
+            "timeline": [(e.name, (e.t0 - t_send) * 1000, (e.t1 - e.t0) * 1000) for e in evs
+                         if e.kind == "E" and e.name in WRAPPED and e.name != "_tui._draw_pane_buf"][:120],
+            "frame_src": [(f.chain, f.arg) for f in inside],
+            "panes": _pane_costs(evs),
             "spans": spans,   # real wall ms per wrapped function: ground truth for the calibration check
         }
 
@@ -355,7 +373,7 @@ class Session:
             self.pump(payload)
             fl = [e for e in self.events[mark:] if e.kind == "E" and e.name == "_tui._flush"]
             dt = now() - t_send
-            res.update(idle_s=dt, frames=len(fl), bytes=sum(f.arg for f in fl), settle_ms=dt * 1000,
+            res.update(idle_s=dt, frames=len(fl), bytes=sum(f.arg for f in fl), frame_src=[(f.chain, f.arg) for f in fl], settle_ms=dt * 1000,
                        busy_ms=sum((f.t1 - f.t0) for f in fl) * 1000, queue_ms=0.0, paint_ms=None)
         else:
             if kind == "click_text":

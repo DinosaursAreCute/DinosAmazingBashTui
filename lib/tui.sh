@@ -89,8 +89,9 @@ source "${SCRIPT_DIR}/markup/tui_cache.sh"
 # input event. Lower = more responsive to a live tui.exec tick, higher =
 # less idle CPU. Two knobs because a live tick function (a running
 # tui.exec process) wants to be polled more eagerly than a fully idle UI.
-declare -g TUI_INPUT_POLL_TIMEOUT=0.05 # used while _TUI_TICK_FN is set
-declare -g TUI_INPUT_IDLE_TIMEOUT=0.2  # used otherwise
+declare -g TUI_INPUT_POLL_TIMEOUT=0.05   # used while _TUI_TICK_FN is set
+declare -g TUI_INPUT_IDLE_TIMEOUT=0.2    # used otherwise
+declare -g TUI_INPUT_SETTLE_TIMEOUT=0.01 # used instead while a pane render is queued: how long the input must stay quiet before it is flushed
 
 # How long to wait for each subsequent byte while assembling an escape
 # sequence that's already begun (arrow keys, SGR mouse reports, …).
@@ -3351,6 +3352,9 @@ tui.run() {
 		if [[ -n "${_TUI_TICK_FN:-}" ]] || ((${#_TUI_TICK_LISTENERS[@]} > 0)); then
 			poll_timeout="$TUI_INPUT_POLL_TIMEOUT"
 		fi
+		# A queued pane render (tui.output, scroll batching) is flushed once the input goes quiet; waiting the
+		# full poll timeout for that made every scroll step and page load ~50 ms slower than its work.
+		((${#_TUI_PENDING_OUTPUT[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
 		((_TUI_PASSTHROUGH)) && poll_timeout="$TUI_INPUT_IDLE_TIMEOUT" # frozen: nothing to tick
 
 		_tui._next_byte char "$poll_timeout" && got_char=1

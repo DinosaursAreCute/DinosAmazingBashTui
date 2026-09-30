@@ -553,6 +553,14 @@ _tui_build.tag.bind() {
 	[[ "$bpass" == true ]] && bflags+=(--pass)
 	[[ "$balways" == true ]] && bflags+=(--always)
 	[[ -n "$bdesc" ]] && bflags+=(--desc "$bdesc")
+	# A cache replay skips tag dispatch, so the bind is recorded with the page's other replayed calls
+	# (see _tui_cache_define_goto); without it a cached page has none of its <bind>s.
+	local _rec="tui.bind" _q _a
+	for _a in "$bkey" "$bact" "${bflags[@]}"; do
+		printf -v _q '%q' "$_a"
+		_rec+=" $_q"
+	done
+	_TUI_CACHE_REC_GOTOS+=("$_rec")
 	tui.bind "$bkey" "$bact" "${bflags[@]}"
 }
 tui.register tag bind _tui_build.tag.bind

@@ -297,6 +297,103 @@ def slowest(rep, W, n=10):
     return lines
 
 
+def frame_block(rep, W):
+    lines = [c("frames per action, grouped by the functions that flush them (innermost caller first)", "dim")]
+    for g in rep["latency"]:
+        rows = g.get("frame_src") or []
+        if not rows or g["id"] in ("shutdown",) or g["id"].startswith("startup"):
+            continue
+        tot = sum(x["frames"] for x in rows)
+        if tot < 0.5:
+            continue
+        lines.append(c(f"{g['title']}  ", "white", bold=True) + c(f"{fmt_num(tot)} frames per action", "dim"))
+        for x in rows[:6]:
+            lines.append("  " + pad(c(fmt_num(x["frames"]), "yellow", bold=True), 14, "r") + "  "
+                         + pad(c(fmt_bytes(x["bytes"]), "dim"), 9, "r") + "  " + x["chain"].replace(" < ", " ‹ ")[: max(20, W - 30)])
+    return lines
+
+
+def span_block(rep, W):
+    lines = [c("wall ms per action inside each probed function (nested: goto contains load_cached and render)", "dim")]
+    for g in rep["latency"]:
+        rows = g.get("spans") or []
+        if not rows or g["id"].startswith("startup") or g["id"] in ("shutdown", "idle"):
+            continue
+        lines.append(c(f"{g['title']}  ", "white", bold=True) + c(f"{fmt_ms(g['settle']['med']) if g.get('settle') else ''}", "dim"))
+        for x in rows[:6]:
+            lines.append("  " + pad(c(fmt_ms(x["ms"]), "yellow", bold=True), 10, "r") + "  " + x["func"])
+    return lines
+
+
+def page_block(rep, W):
+    """Per page: done time and where it went. Columns are NESTED wall-clock spans (median over rounds), not additive."""
+    lines = []
+    for g in rep["latency"]:
+        if g["id"] not in ("nav.first", "nav.revisit"):
+            continue
+        rows = [d for d in g.get("details", []) if d.get("spans")]
+        if not rows:
+            continue
+        lines.append(c(g["title"], "white", bold=True))
+        lines.append(pad(c("page", "dim"), 13) + "".join(pad(c(h, "dim"), 10, "r") for h in ("done", "queue", "click", "goto", "load", "on_visit", "render", "after", "KB")))
+        for d in sorted(rows, key=lambda d: -(d.get("settle") or 0)):
+            sp = d["spans"]
+            g_ = lambda k: sp.get(k) or 0
+            done, q, click = d.get("settle") or 0, d.get("queue") or 0, g_("_tui._handle_mouse")
+            lines.append(pad(d["detail"], 13) + pad(c(fmt_ms(done), "white", bold=True), 10, "r") + pad(c(fmt_ms(q), "dim"), 10, "r")
+                         + pad(c(fmt_ms(click), "dim"), 10, "r") + pad(c(fmt_ms(g_("tui.goto")), "dim"), 10, "r")
+                         + pad(c(fmt_ms(g_("tui.load_cached")), "dim"), 10, "r") + pad(c(fmt_ms(g_("_tui_cache_run_on_visit")), "yellow"), 10, "r")
+                         + pad(c(fmt_ms(g_("tui.render")), "dim"), 10, "r") + pad(c(fmt_ms(max(done - q - click, 0)), "dim"), 10, "r")
+                         + pad(c(f"{(d.get('bytes') or 0) / 1024:.0f}", "dim"), 10, "r"))
+        lines.append("")
+    if lines:
+        lines.append(c("nested: click contains goto, goto contains load and render, load contains on_visit (page code), after = done - queue - click", "dim"))
+    return lines
+
+
+def timeline_block(rep, W):
+    """One real page switch from click to last work, every probed span in start order, indented by nesting."""
+    lines = []
+    for gid, page in (("nav.revisit", "home"), ("nav.revisit", "scrolling"), ("nav.revisit", "components")):
+        g = next((g for g in rep["latency"] if g["id"] == gid), None)
+        d = next((d for d in (g or {}).get("details", []) if d["detail"] == page and d.get("timeline")), None)
+        if not d:
+            continue
+        lines.append(c(f"{g['title']} · {page}", "white", bold=True) + c(f"  done {fmt_ms(d['settle'])}", "dim"))
+        span_w = max((s + du for _, s, du in d["timeline"]), default=1) or 1
+        stack = []
+        for name, s, du in sorted(d["timeline"], key=lambda e: (e[1], -e[2])):
+            while stack and s >= stack[-1] - 1e-6:
+                stack.pop()
+            depth = len(stack)
+            stack.append(s + du)
+            if du < 0.5 and depth > 1:
+                continue
+            x0 = int(s / span_w * 40)
+            wbar = max(1, int(du / span_w * 40))
+            lines.append(pad(c(f"{s:7.1f}", "dim"), 9, "r") + pad(c(fmt_ms(du), "yellow"), 10, "r") + "  "
+                         + pad("  " * min(depth, 6) + name, 38) + c("·" * x0 + "█" * wbar, "teal"))
+        lines.append("")
+    if lines:
+        lines.append(c("start (ms after the key was sent), duration, function; indentation = nesting; flushes are frames written", "dim"))
+    return lines
+
+
+def pane_block(rep, W):
+    lines = [c("wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn", "dim")]
+    for g in rep["latency"]:
+        rows = g.get("panes") or []
+        if not rows or g["id"].startswith("startup") or g["id"] == "shutdown":
+            continue
+        tot = sum(x["ms"] for x in rows)
+        if tot < 3:
+            continue
+        lines.append(c(f"{g['title']}  ", "white", bold=True) + c(f"{fmt_ms(tot)} in pane drawing", "dim"))
+        for x in rows[:5]:
+            lines.append("  " + pad(c(fmt_ms(x["ms"]), "yellow", bold=True), 10, "r") + "  " + pad(c(f"x{x['draws']:.1f}", "dim"), 6, "r") + "  " + x["pane"])
+    return lines
+
+
 def icicle(tree, files, W, depth=9):
     while len(tree["c"]) == 1 or (tree["c"] and tree["c"][0]["v"] > 0.97 * tree["v"]):   # shared prefix adds nothing
         tree = tree["c"][0]
@@ -399,6 +496,11 @@ def render(rep, W=None, deep=True):
         ("Call graph: heaviest edges", call_graph(rep, W - 4), "dim"),
         ("Subprocesses", subprocs(rep, W - 4), "dim"),
         ("Slowest individual actions", slowest(rep, W - 4), "dim"),
+        ("Who draws the frames", frame_block(rep, W - 4), "dim"),
+        ("Where each page's time goes", page_block(rep, W - 4), "dim"),
+        ("Timeline of one page switch", timeline_block(rep, W - 4), "dim"),
+        ("Where wall time goes (probes)", span_block(rep, W - 4), "dim"),
+        ("Where pane drawing goes", pane_block(rep, W - 4), "dim"),
         ("Calibration check", calibration_block(rep, W - 4), "dim"),
     ]
     for title, lines, col in sections:

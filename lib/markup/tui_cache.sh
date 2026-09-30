@@ -37,6 +37,10 @@ declare -gA _TUI_CACHE_ON_VISIT=() # resolved page path -> on_visit function nam
 declare -gA _TUI_CACHE_GOTOS=()    # resolved page path -> newline-joined "_tui_cache_define_goto ..." calls
 declare -gA _TUI_CACHE_THEME=()    # resolved page path -> its <theme src> file, reloaded on every replay
 declare -gA _TUI_CACHE_CLASSES=()  # resolved page path -> newline-joined "id\tclass" pairs, re-applied on every replay
+# Theme overlay the page's baked _TUI_STYLE_* were built under. The _TUI_STYLE_ prefix puts it in the page
+# snapshot (see _TUI_CACHE_STATE_REGEX), so a replay reads back the record-time value: equal to the current
+# overlay means the restored styles are already current and the per-widget tui.class re-bake can be skipped.
+declare -g _TUI_STYLE_SIG=""
 
 # Populated by _tui_cache_source/_tui_cache_define_goto/_tui_cache_theme/
 # _tui_cache_class below while tui.cache.record's tui.load runs, then
@@ -232,13 +236,41 @@ _tui_cache_mtime() {
 	stat -c '%Y' "$1" 2>/dev/null || stat -f '%m' "$1" 2>/dev/null || printf '0'
 }
 
+# _tui_cache_slurp FILE - _SLURP = FILE's contents without trailing newlines (what "$(<FILE)" or "$(cat FILE)"
+# gives), empty if FILE is missing. A builtin read: the command substitutions it replaces were 8 forks per cached page.
+declare -g _SLURP=""
+_tui_cache_slurp() {
+	_SLURP=""
+	[[ -f "$1" ]] || return 0
+	IFS= read -r -d '' _SLURP <"$1" || true
+	while [[ "$_SLURP" == *$'\n' ]]; do _SLURP="${_SLURP%$'\n'}"; done
+}
+
+# _tui_cache_stat_many PATH... - mtimes of all PATHs in ONE stat call, into _TUI_CACHE_MTIME[path] (0 = gone).
+# One fork for any number of files: a page check used to fork once per dependency, a start-up ~120 times.
+declare -gA _TUI_CACHE_MTIME=()
+# 1 while _TUI_CACHE_MTIME holds a just-taken snapshot that tui.cache.valid may trust instead of stat-ing again:
+# set by tui.cache.load_dir, cleared by tui.cache.start_cached once its start-up check is done.
+declare -g _TUI_CACHE_MTIME_FRESH=0
+_tui_cache_stat_many() {
+	(($#)) || return 0
+	local out line path
+	out="$(stat -c '%Y %n' -- "$@" 2>/dev/null)" || true
+	[[ -n "$out" ]] || out="$(stat -f '%m %N' -- "$@" 2>/dev/null)" || true
+	for path in "$@"; do _TUI_CACHE_MTIME[$path]=0; done
+	while IFS= read -r line; do
+		[[ -n "$line" ]] && _TUI_CACHE_MTIME[${line#* }]="${line%% *}"
+	done <<<"$out"
+}
+
 # tui.cache.signature FILE... - a deterministic "path=mtime;path=mtime;..."
 # string covering every given file, sorted so the same file set always
 # produces the same string regardless of iteration order.
 tui.cache.signature() {
 	local f sig=""
+	_tui_cache_stat_many "$@"
 	for f in $(printf '%s\n' "$@" | sort); do
-		sig+="${f}=$(_tui_cache_mtime "$f");"
+		sig+="${f}=${_TUI_CACHE_MTIME[$f]:-0};"
 	done
 	printf '%s' "$sig"
 }
@@ -294,6 +326,7 @@ tui.cache.record() {
 	_TUI_CACHE_REC_THEME=""
 	_TUI_CACHE_REC_CLASSES=()
 	tui.load "$file" || return 1 # a worker (1.4) checks this: no snapshot, page falls back to an uncached load
+	_TUI_STYLE_SIG="${_TUI_THEME_OVERLAY:-}"
 	_TUI_CACHE_PAGE["$file"]="$(_tui_cache_snapshot)"
 	_TUI_CACHE_SCRIPTS["$file"]="${_TUI_CACHE_REC_SCRIPTS[*]}"
 	_TUI_CACHE_ON_VISIT["$file"]="${_TUI_BUILD_ON_VISIT:-}"
@@ -315,14 +348,28 @@ tui.cache.valid() {
 	local file="$1"
 	local sig="${_TUI_CACHE_SIG[$file]:-}"
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" && -n "$sig" ]] || return 1
-	local -a parts
+	local -a parts paths=() wants=()
 	IFS=';' read -ra parts <<<"$sig"
-	local pair path want_mtime
+	local pair i
 	for pair in "${parts[@]}"; do
 		[[ -z "$pair" ]] && continue
-		path="${pair%=*}"
-		want_mtime="${pair##*=}"
-		[[ "$want_mtime" == "$(_tui_cache_mtime "$path")" ]] || return 1
+		paths+=("${pair%=*}")
+		wants+=("${pair##*=}")
+	done
+	((${#paths[@]})) || return 0
+	# one stat for every dependency (none at all while a fresh prefetch covers them)
+	if ((_TUI_CACHE_MTIME_FRESH)); then
+		for i in "${!paths[@]}"; do
+			[[ -n "${_TUI_CACHE_MTIME[${paths[i]}]+x}" ]] || {
+				_tui_cache_stat_many "${paths[@]}"
+				break
+			}
+		done
+	else
+		_tui_cache_stat_many "${paths[@]}"
+	fi
+	for i in "${!paths[@]}"; do
+		[[ "${wants[i]}" == "${_TUI_CACHE_MTIME[${paths[i]}]:-0}" ]] || return 1
 	done
 	return 0
 }
@@ -336,6 +383,7 @@ tui.cache.replay() {
 	local file="$1" rec
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" ]] || return 1
 	tui.log.debug "tui.cache.replay: replaying $file from snapshot (cache hit)"
+	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
 	_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
 	# Re-applies the page's <theme> plus whatever app-wide overlay is
 	# currently set (tui.load_theme itself layers _TUI_THEME_OVERLAY on top,
@@ -353,13 +401,18 @@ tui.cache.replay() {
 	# _TUI_CLASS_* table (see _tui_cache_class's comment) - the theme reload
 	# above only refreshes the class table itself; without this, a switched
 	# theme never reaches an already-cached page's actual rendered colors.
-	local _rc_id _rc_cls
-	# fd 6, not stdin: kept free for the tty on the same principle as this
-	# file's other stdin-bound while-read loops (fd 7/8/9 above).
-	while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
-		[[ -z "$_rc_id" ]] && continue
-		tui.class "$_rc_id" "$_rc_cls"
-	done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
+	# Skipped when the snapshot was baked under the overlay that is active now: the restored _TUI_STYLE_*
+	# already are what this loop would produce (an overlay file edited in place is not noticed until the
+	# page is recorded again).
+	if [[ "$_TUI_STYLE_SIG" != "${_TUI_THEME_OVERLAY:-}" ]]; then
+		local _rc_id _rc_cls
+		# fd 6, not stdin: kept free for the tty on the same principle as this
+		# file's other stdin-bound while-read loops (fd 7/8/9 above).
+		while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
+			[[ -z "$_rc_id" ]] && continue
+			tui.class "$_rc_id" "$_rc_cls"
+		done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
+	fi
 	# _TUI_OVERLAY_FNS (lib/chrome/tui_modal.sh) isn't page state, so it isn't in the
 	# snapshot: tui.reset_ui's _tui_footer.reset always removes _tui_footer.draw from it,
 	# and restoring _TUI_FOOTER_ON=1 alone wouldn't re-add it without this.
@@ -438,17 +491,40 @@ tui.cache.dump_dir() {
 # separate check needed.
 tui.cache.load_dir() {
 	local dir="$1" f key
+	local -a keys=() deps=()
 	[[ -d "$dir" ]] || return 0
 	for f in "$dir"/*.key; do
 		[[ -e "$f" ]] || continue
-		key="$(<"$f")"
-		_TUI_CACHE_PAGE["$key"]="$(<"${f%.key}.cache")"
-		_TUI_CACHE_SIG["$key"]="$([[ -f "${f%.key}.sig" ]] && cat "${f%.key}.sig")"
-		_TUI_CACHE_SCRIPTS["$key"]="$([[ -f "${f%.key}.scripts" ]] && cat "${f%.key}.scripts")"
-		_TUI_CACHE_ON_VISIT["$key"]="$([[ -f "${f%.key}.onvisit" ]] && cat "${f%.key}.onvisit")"
-		_TUI_CACHE_GOTOS["$key"]="$([[ -f "${f%.key}.gotos" ]] && cat "${f%.key}.gotos")"
-		_TUI_CACHE_THEME["$key"]="$([[ -f "${f%.key}.theme" ]] && cat "${f%.key}.theme")"
-		_TUI_CACHE_CLASSES["$key"]="$([[ -f "${f%.key}.classes" ]] && cat "${f%.key}.classes")"
+		_tui_cache_slurp "$f"
+		key="$_SLURP"
+		_tui_cache_slurp "${f%.key}.cache"
+		_TUI_CACHE_PAGE["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.sig"
+		_TUI_CACHE_SIG["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.scripts"
+		_TUI_CACHE_SCRIPTS["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.onvisit"
+		_TUI_CACHE_ON_VISIT["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.gotos"
+		_TUI_CACHE_GOTOS["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.theme"
+		_TUI_CACHE_THEME["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.classes"
+		_TUI_CACHE_CLASSES["$key"]="$_SLURP"
+		keys+=("$key")
+	done
+	((${#keys[@]})) || return 0
+	# every dependency of every cached page in one stat call; tui.cache.valid reads the result until
+	# start_cached clears _TUI_CACHE_MTIME_FRESH (a live edit is caught by the per-switch check, which stats again)
+	local -a parts
+	local pair
+	for key in "${keys[@]}"; do
+		IFS=';' read -ra parts <<<"${_TUI_CACHE_SIG[$key]:-}"
+		for pair in "${parts[@]}"; do [[ -n "$pair" ]] && deps+=("${pair%=*}"); done
+	done
+	_tui_cache_stat_many "${deps[@]}"
+	_TUI_CACHE_MTIME_FRESH=1
+	for key in "${keys[@]}"; do
 		tui.cache.valid "$key" || {
 			unset '_TUI_CACHE_PAGE[$key]' '_TUI_CACHE_SIG[$key]' '_TUI_CACHE_SCRIPTS[$key]' \
 				'_TUI_CACHE_ON_VISIT[$key]' '_TUI_CACHE_GOTOS[$key]' '_TUI_CACHE_THEME[$key]' \
@@ -743,11 +819,11 @@ tui.start_cached() {
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$TUI_DEFAULTS_DIR/themes" ]] && TUI_THEMES_DIR="$TUI_DEFAULTS_DIR/themes"
 	local -a pages=()
 	while IFS= read -r f; do
-		[[ "$(basename "$f")" == _* ]] && continue
+		[[ "${f##*/}" == _* ]] && continue
 		pages+=("$f")
 	done < <(find "$dir" -maxdepth 1 -name '*.xml' | sort)
 	while IFS= read -r f; do
-		[[ "$(basename "$f")" == _* ]] && continue
+		[[ "${f##*/}" == _* ]] && continue
 		pages+=("$f")
 	done < <(find "$TUI_DEFAULTS_DIR/pages" -maxdepth 1 -name '*.xml' 2>/dev/null | sort)
 
@@ -767,6 +843,7 @@ tui.start_cached() {
 	for p in "${pages[@]}"; do
 		tui.cache.valid "$p" || stale+=("$p")
 	done
+	_TUI_CACHE_MTIME_FRESH=0
 	if ((${#stale[@]} > 0)); then
 		tui.cache.warm_with_spinner "${stale[@]}"
 		tui.cache.dump_dir "$disk_dir"

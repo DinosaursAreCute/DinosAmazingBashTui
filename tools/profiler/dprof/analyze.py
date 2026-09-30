@@ -148,6 +148,9 @@ def latency_groups(rounds):
         for m in ("paint_ms", "settle_ms", "busy_ms", "queue_ms", "cpu_ms", "frames", "bytes"):
             g[m[:-3] if m.endswith("_ms") else m] = stats([a.get(m) for a in acts])
         g["samples"] = [a.get("settle_ms") for a in acts if a.get("settle_ms") is not None]
+        g["frame_src"] = frame_sources(acts)
+        g["panes"] = pane_costs(acts)
+        g["spans"] = span_costs(acts)
         # the number the rating uses: what the user waits for in this kind of interaction
         metric = "settle" if kind in ("nav", "resize", "shutdown", "startup") else "paint"
         if g.get(metric) is None or g[metric]["n"] < max(1, len(acts) // 4):
@@ -170,6 +173,48 @@ def latency_groups(rounds):
     return groups
 
 
+def frame_sources(acts, depth=4):
+    """Who flushes the frames of one action: callers of _tui._flush (nearest `depth` frames), as frames and
+    bytes per action, most frames first. The chain reads innermost caller first."""
+    tot = {}
+    for a in acts:
+        for chain, nbytes in a.get("frame_src") or []:
+            parts = [("_tui_goto_btn_*" if f.startswith("_tui_goto_btn_") else f) for f in chain.split("<") if not f.startswith("__prof")]
+            key = " < ".join(parts[:depth]) or "?"
+            e = tot.setdefault(key, [0, 0])
+            e[0] += 1
+            e[1] += nbytes
+    n = max(len(acts), 1)
+    rows = [{"chain": k, "frames": v[0] / n, "bytes": v[1] / n} for k, v in tot.items()]
+    return sorted(rows, key=lambda r: (-r["frames"], -r["bytes"]))[:8]
+
+
+def span_costs(acts):
+    """Wall ms per action of each wrapped function (probe-measured, untraced), largest first."""
+    tot = {}
+    for a in acts:
+        for fn, ms in (a.get("spans") or {}).items():
+            tot[fn] = tot.get(fn, 0.0) + ms
+    k = max(len(acts), 1)
+    return sorted(({"func": f, "ms": v / k} for f, v in tot.items() if v / k >= 1.0), key=lambda r: -r["ms"])[:12]
+
+
+def pane_costs(acts):
+    """Per pane: draws and wall ms per action, most expensive first (probe-measured, untraced)."""
+    tot = {}
+    for a in acts:
+        for pane, (n, ms) in (a.get("panes") or {}).items():
+            e = tot.setdefault(pane, [0, 0.0])
+            e[0] += n
+            e[1] += ms
+    k = max(len(acts), 1)
+    rows = [{"pane": p, "draws": v[0] / k, "ms": v[1] / k} for p, v in tot.items()]
+    return sorted(rows, key=lambda r: -r["ms"])[:10]
+
+
+PAGE_SPANS = ("_tui._handle_mouse", "tui.goto", "tui.load_cached", "tui.cache.replay", "_tui_cache_run_on_visit", "tui.render")
+
+
 def _details(acts):
     by = {}
     for a in acts:
@@ -179,7 +224,11 @@ def _details(acts):
         out.append({"detail": d, "settle": med([x.get("settle_ms") for x in xs if x.get("settle_ms") is not None]),
                     "busy": med([x.get("busy_ms") for x in xs if x.get("busy_ms") is not None]),
                     "frames": med([x.get("frames") for x in xs if x.get("frames") is not None]),
-                    "bytes": med([x.get("bytes") for x in xs if x.get("bytes") is not None])})
+                    "queue": med([x.get("queue_ms") for x in xs if x.get("queue_ms") is not None]),
+                    "bytes": med([x.get("bytes") for x in xs if x.get("bytes") is not None]),
+                    "timeline": next((x.get("timeline") for x in xs if x.get("timeline")), None),
+                    "spans": {fn: med([(x.get("spans") or {}).get(fn) for x in xs if (x.get("spans") or {}).get(fn) is not None])
+                              for fn in PAGE_SPANS}})
     return out
 
 

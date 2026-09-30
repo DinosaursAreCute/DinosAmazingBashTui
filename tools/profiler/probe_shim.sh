@@ -21,7 +21,7 @@ source "$PROF_REPO/lib/tui.sh"
 printf 'E|libload|%s|%s|0|%s\n' "$__prof_lib_t0" "${EPOCHREALTIME//[!0-9]/}" "$BASHPID" >&8
 
 # __prof_wrap NAME KIND - renames NAME to __prof_orig_NAME and installs the reporting wrapper.
-# kinds: w work, s span only, f one flushed frame, p work only while output is pending,
+# kinds: w work, s span only, n span that also reports its first argument, f one flushed frame, p work only while output is pending,
 #        a work unless called straight from the main loop (idle ticks are not user work)
 __prof_wrap() {
 	local fn="$1" kind="$2" body guard=""
@@ -30,7 +30,11 @@ __prof_wrap() {
 	eval "__prof_orig_${body}"
 	case "$kind" in
 		f)
-			eval "$fn() { local __pt=\${EPOCHREALTIME//[!0-9]/}; __prof_orig_$fn \"\$@\"; printf 'E|%s|%s|%s|%s|%s\n' '$fn' \$__pt \${EPOCHREALTIME//[!0-9]/} \${#1} \$BASHPID >&8; }"
+			eval "$fn() { local __pt=\${EPOCHREALTIME//[!0-9]/} __pc=\"\${FUNCNAME[*]:1:8}\"; __prof_orig_$fn \"\$@\"; printf 'E|%s|%s|%s|%s|%s|%s\n' '$fn' \$__pt \${EPOCHREALTIME//[!0-9]/} \${#1} \$BASHPID \"\${__pc// /<}\" >&8; }"
+			return
+			;;
+		n)
+			eval "$fn() { local __pt=\${EPOCHREALTIME//[!0-9]/} __pa=\"\${1//[|<]/_}\" __prc; __prof_orig_$fn \"\$@\"; __prc=\$?; printf 'E|%s|%s|%s|%s|%s|%s\n' '$fn' \$__pt \${EPOCHREALTIME//[!0-9]/} 0 \$BASHPID \"\$__pa\" >&8; return \$__prc; }"
 			return
 			;;
 		p) guard='if ((${#_TUI_PENDING_OUTPUT[@]} == 0)); then __prof_orig_'"$fn"' "$@"; return $?; fi;' ;;

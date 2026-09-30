@@ -6,5 +6,31 @@
     d.textContent = c.textContent;
     c.parentElement.replaceWith(d);
   });
-  mermaid.initialize({ startOnLoad: true, theme: (document.documentElement.dataset.theme==="light"||(!document.documentElement.dataset.theme&&matchMedia("(prefers-color-scheme: light)").matches))?"default":"dark" });
+  var cs = getComputedStyle(document.documentElement);
+  var v = function (n) { return cs.getPropertyValue(n).trim(); };
+  // mermaid's colour parser takes plain hex, not color-mix(): blend two hex colours here
+  var mix = function (a, b) {
+    var p = function (h) { h = h.replace("#", ""); return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); };
+    var x = p(a), y = p(b);
+    return "#" + x.map(function (c, i) { return ("0" + Math.round((c + y[i]) / 2).toString(16)).slice(-2); }).join("");
+  };
+  var light = document.documentElement.dataset.theme === "light" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: light)").matches);
+  // charts in the DABT brand colours (pink, blue, yellow, coral), following the site theme
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: light ? "default" : "dark",
+    themeVariables: {
+      xyChart: {
+        backgroundColor: "transparent", titleColor: v("--fg"),
+        xAxisLabelColor: v("--mut"), xAxisTitleColor: v("--mut"), xAxisTickColor: v("--line"), xAxisLineColor: v("--line"),
+        yAxisLabelColor: v("--mut"), yAxisTitleColor: v("--mut"), yAxisTickColor: v("--line"), yAxisLineColor: v("--line"),
+        plotColorPalette: [v("--acc"), v("--acc2"), v("--c3"), v("--c4")].join(",")
+      },
+      pie1: v("--acc"), pie2: v("--acc2"), pie3: v("--c3"), pie4: v("--c4"),
+      pie5: mix(v("--acc"), v("--acc2")), pie6: mix(v("--acc2"), v("--c3")),
+      pie7: v("--mut"),
+      pieTitleTextColor: v("--fg"), pieSectionTextColor: light ? "#ffffff" : "#0b0f14", pieLegendTextColor: v("--fg"),
+      pieStrokeColor: v("--bg"), pieOuterStrokeColor: v("--line"), pieStrokeWidth: "2px"
+    }
+  });
 </script>

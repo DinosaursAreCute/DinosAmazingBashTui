@@ -1,0 +1,650 @@
+---
+title: Performance explorer
+description: Interactive view of the D.A.B.T performance work, from the first profiler run to the latest deep run.
+---
+<style>
+.doc{max-width:1180px}
+.px{--gap:18px;font-family:var(--sans)}
+.px *{box-sizing:border-box}
+.px h1{font-size:40px;margin:.1em 0 .25em}
+.px h2{font-size:23px;margin:2.4em 0 .4em;padding-bottom:.3em;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px}
+.px h2 small{font:500 12.5px var(--mono);color:var(--mut);letter-spacing:.04em}
+.px p.note{color:var(--mut);font-size:14px;margin:.2em 0 1em;max-width:70em}
+.px-hero .lead{margin:0 0 18px;max-width:46em;text-align:left}
+.px-hero .eyebrow{margin-bottom:6px}
+.px-bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin:18px 0 6px;padding:12px 14px;background:var(--card);border:1px solid var(--line);box-shadow:5px 5px 0 var(--acc2)}
+.px-bar label{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.px select,.px input[type=search]{background:var(--bg2);color:var(--fg);border:1px solid var(--line);padding:6px 9px;font:500 13.5px var(--sans);border-radius:0;max-width:100%}
+.px select:focus,.px input:focus,.px button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.px button{background:var(--bg2);color:var(--fg);border:1px solid var(--line);padding:6px 11px;font:600 13px var(--sans);cursor:pointer;border-radius:0}
+.px button:hover{border-color:var(--acc)}
+.px button[aria-pressed=true]{background:color-mix(in srgb,var(--acc) 16%,var(--bg2));border-color:var(--acc);color:var(--acc)}
+.px .sp{flex:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:var(--gap);margin:16px 0}
+.kpi{background:var(--card);border:1px solid var(--line);padding:14px 16px 12px;position:relative}
+.kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc)}
+.kpi:nth-child(4n+2):before{background:var(--acc2)}.kpi:nth-child(4n+3):before{background:var(--c3)}.kpi:nth-child(4n+4):before{background:var(--c4)}
+.kpi h4{margin:0 0 6px;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.kpi .vals{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.kpi .to{font:700 26px var(--mono);color:var(--fg);letter-spacing:-.02em}
+.kpi .from{font:500 13px var(--mono);color:var(--mut);text-decoration:line-through;text-decoration-thickness:1px}
+.kpi .d{font:700 12.5px var(--mono);margin-top:3px}
+.d.good{color:var(--acc2)}.d.bad{color:var(--c4)}.d.flat{color:var(--mut)}
+.kpi .track{position:relative;height:6px;margin-top:10px;background:var(--bg2)}
+.kpi .track i{position:absolute;left:0;top:0;bottom:0;background:var(--mut);opacity:.45}
+.kpi .track b{position:absolute;left:0;top:0;bottom:0;background:var(--acc)}
+.kpi .track u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--c3)}
+.kpi .bud{font:500 10.5px var(--mono);color:var(--mut);margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);padding:14px 16px;margin:12px 0;position:relative}
+.chartwrap{position:relative}
+.chartwrap svg{width:100%;height:auto;display:block;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:var(--bg);border:1px solid var(--acc);box-shadow:4px 4px 0 var(--acc2);padding:8px 10px;font:500 12.5px/1.4 var(--sans);max-width:300px;z-index:5;display:none}
+.tip b{font-family:var(--mono)}
+.tip em{display:block;color:var(--mut);font-style:normal;font-size:12px;margin-top:2px}
+.ax text{font:500 11px var(--mono);fill:var(--mut)}
+.ax line,.ax path{stroke:var(--line);fill:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:500 12px var(--mono);color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
+.revinfo{margin-top:10px;padding:10px 12px;background:var(--bg2);border-left:4px solid var(--acc);font-size:14px;min-height:3em}
+.revinfo b{font-family:var(--mono);color:var(--acc)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th.r,.tbl td.r{text-align:right}
+.tbl th.sort{cursor:pointer}.tbl th.sort:hover{color:var(--acc)}
+.tbl td{padding:6px 8px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);vertical-align:middle}
+.tbl td.m{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.tbl tr:hover td{background:color-mix(in srgb,var(--acc) 6%,transparent)}
+.pair{position:relative;height:16px;min-width:140px}
+.pair i,.pair b{position:absolute;left:0;height:7px}
+.pair i{top:0;background:var(--mut);opacity:.5}.pair b{top:9px;background:var(--acc)}
+.pair u{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--c3)}
+.pill{font:600 10.5px var(--mono);letter-spacing:.06em;padding:2px 7px;border:1px solid var(--line);white-space:nowrap}
+.pill.ok{color:var(--acc2);border-color:var(--acc2)}.pill.over{color:var(--c4);border-color:var(--c4)}
+.lay{display:grid;grid-template-columns:130px 1fr 92px;gap:4px 12px;align-items:center;font-size:13.5px}
+.lay .n{font-family:var(--mono);font-size:12.5px;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.lay .n i{width:10px;height:10px;display:inline-block;flex:none}
+.lay .bars{position:relative;height:18px}
+.lay .bars i,.lay .bars b{position:absolute;left:0;height:8px}
+.lay .bars i{top:0;opacity:.45}.lay .bars b{top:10px}
+.lay .v{font:500 12px var(--mono);text-align:right;color:var(--mut)}
+.chip{font:600 11px var(--mono);padding:1px 7px;color:#0b0f14}
+.flame{position:relative;background:var(--bg2);border:1px solid var(--line);overflow:hidden}
+.flame .f{position:absolute;height:20px;line-height:20px;padding:0 5px;font:500 11px var(--mono);color:#0b0f14;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-right:1px solid var(--bg2);cursor:pointer;transition:opacity .12s}
+.flame .f:hover{outline:2px solid var(--fg);outline-offset:-2px;z-index:2}
+.flame .f.dim{opacity:.22}.flame .f.hit{outline:2px solid var(--fg);outline-offset:-2px}
+.crumb{font:500 12.5px var(--mono);color:var(--mut);margin:0 0 8px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.crumb a{color:var(--acc2);cursor:pointer}
+.heat td.c{text-align:right;font:500 12.5px var(--mono);min-width:54px}
+.seg{display:flex;height:26px;margin:4px 0 2px;background:var(--bg2)}
+.seg i{display:block;height:100%;min-width:1px}
+.segrow{display:grid;grid-template-columns:110px 1fr 70px;gap:10px;align-items:center;font:500 12.5px var(--mono);margin:6px 0}
+.segrow span:last-child{text-align:right;color:var(--mut)}
+.foot{margin-top:2.6em;color:var(--mut);font-size:14px;border-top:1px solid var(--line);padding-top:1em}
+.empty{color:var(--mut);font-style:italic;padding:10px 0}
+@media(max-width:700px){.lay{grid-template-columns:96px 1fr 70px}.px h1{font-size:30px}.tbl{font-size:13px}}
+</style>
+
+<div class="px" id="px">
+  <header class="px-hero">
+    <p class="eyebrow">Performance · measured, not guessed</p>
+    <h1><span class="grad">Performance explorer</span></h1>
+    <p class="lead">Thirteen optimisations, twelve profiler runs. Pick any two of them and see what moved: latency per interaction, where the time goes, which functions got cheaper, and how every page switch improved. All numbers come from the profiler in <code>tools/profiler</code>, which drives the real app in a pseudo-terminal.</p>
+    <p class="note">Read the <a href="{{ '/design/performance-journey' | relative_url }}">story</a> first, or the <a href="{{ '/concepts/performance-progress' | relative_url }}">detailed log</a> for every change, its expected and real effect.</p>
+  </header>
+
+  <div class="px-bar" id="bar"></div>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Journey <small>one metric across every revision</small></h2>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <label for="metric">Metric</label><select id="metric"></select>
+      <span class="sp"></span>
+      <span class="note" style="margin:0">Click a point to set the <b>to</b> run, shift-click to set the <b>from</b> run.</span>
+    </div>
+    <div class="chartwrap" id="journey"></div>
+    <div class="revinfo" id="revinfo"></div>
+  </div>
+
+  <h2>Every interaction <small>from → to, against the perceived-instant budget</small></h2>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <div class="chips" id="filters"></div>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl" id="inter"></table></div>
+    <p class="note" style="margin-bottom:0">The yellow tick is the budget. The grey bar is the <b>from</b> run, the pink bar the <b>to</b> run. Values are medians of the probe-measured latency.</p>
+  </div>
+
+  <h2>Page switch by page <small>median milliseconds until the screen settled</small></h2>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <div class="chips" id="pagekind"></div>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl heat" id="pages"></table></div>
+    <p class="note" style="margin-bottom:0">One row per demo page; the darker the cell, the slower. Runs without a navigation scenario show a dash.</p>
+  </div>
+
+  <h2>Startup <small>where the first launch and every later launch spend their time</small></h2>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <div class="chips" id="startkind"></div>
+    </div>
+    <div id="startup"></div>
+  </div>
+
+  <h2>Where the time goes <small>traced runs only</small></h2>
+  <div class="px-bar" id="tracebar"></div>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <label for="scen">Interaction</label><select id="scen"></select>
+    </div>
+    <div class="lay" id="layers"></div>
+    <p class="note" style="margin-bottom:0">Milliseconds of shell work per action, attributed from a bash trace and scaled back to untraced speed. The pale bar is the <b>from</b> run, the solid bar the <b>to</b> run.</p>
+  </div>
+
+  <h2>Hot functions <small>self time over all interactions of one run</small></h2>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <label for="fq">Filter</label><input type="search" id="fq" placeholder="function or layer">
+    </div>
+    <div style="overflow-x:auto"><table class="tbl" id="funcs"></table></div>
+  </div>
+
+  <h2>Flame graph <small>click to zoom, search to highlight</small></h2>
+  <div class="card">
+    <div class="px-bar" style="margin:0 0 10px;box-shadow:none;border:0;background:none;padding:0">
+      <label for="flrun">Run</label><select id="flrun"></select>
+      <label for="flq">Search</label><input type="search" id="flq" placeholder="function name">
+      <button id="flreset" type="button">Reset zoom</button>
+    </div>
+    <div class="crumb" id="crumb"></div>
+    <div class="flame" id="flame"></div>
+    <p class="note" style="margin-bottom:0">Every interaction of the scripted session, top-down: a box is a function, its width the time spent in it and what it called. Hover a box for its numbers.</p>
+  </div>
+
+  <p class="foot">Generated from saved profiler reports by <code>tools/profiler/site_export.py</code>. Run the profiler yourself with <code>tools/profiler/profile.sh</code>; it needs only bash 5 and Python 3.</p>
+</div>
+
+{% raw %}
+<script id="px-script">
+(function () {
+"use strict";
+var D = /*DATA*/null;
+var RUNS = D.runs, LAYER_NAME = D.layers;
+var SVGNS = "http://www.w3.org/2000/svg";
+
+function mk(ns, tag, attrs, kids) {
+  var e = ns ? document.createElementNS(SVGNS, tag) : document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach(function (k) {
+    var v = attrs[k];
+    if (v === null || v === undefined || v === false) return;
+    if (k === "class") e.setAttribute("class", v);
+    else if (k === "style") e.setAttribute("style", v);
+    else if (k.indexOf("on") === 0) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? "" : String(v));
+  });
+  (kids || []).forEach(function add(c) {
+    if (c === null || c === undefined || c === false) return;
+    if (Array.isArray(c)) { c.forEach(add); return; }
+    e.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+  });
+  return e;
+}
+function h(tag, attrs) { return mk(false, tag, attrs, Array.prototype.slice.call(arguments, 2)); }
+function sv(tag, attrs) { return mk(true, tag, attrs, Array.prototype.slice.call(arguments, 2)); }
+function $(id) { return document.getElementById(id); }
+function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
+
+// brand palette: pink, blue, yellow, coral and blends of them
+var PAL = ["var(--acc)", "var(--acc2)", "var(--c3)", "var(--c4)",
+  "color-mix(in srgb,var(--acc) 50%,var(--acc2))", "color-mix(in srgb,var(--acc2) 50%,var(--c3))",
+  "color-mix(in srgb,var(--c3) 50%,var(--c4))", "color-mix(in srgb,var(--c4) 50%,var(--acc))",
+  "color-mix(in srgb,var(--acc) 62%,var(--c3))", "color-mix(in srgb,var(--acc2) 62%,var(--c4))",
+  "color-mix(in srgb,var(--acc) 70%,var(--fg))", "color-mix(in srgb,var(--acc2) 70%,var(--fg))"];
+var LAYER_COLOR = {process: 0, style: 1, flush: 2, layout: 3, render: 4, widgets: 5, markup: 6, cache: 7, loop: 8,
+  input: 9, focus: 10, scroll: 11, chrome: 5, term: 4, plugin: 6, config: 8, core: 9, app: 10, diag: 11};
+function layerColor(l) { return PAL[(LAYER_COLOR[l] !== undefined ? LAYER_COLOR[l] : 3) % PAL.length]; }
+function hashColor(s) { var x = 7; for (var i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) >>> 0; return PAL[x % PAL.length]; }
+
+function fmt(ms) {
+  if (ms === null || ms === undefined || isNaN(ms)) return "–";
+  if (ms >= 1000) return (ms / 1000).toFixed(2) + " s";
+  if (ms >= 100) return Math.round(ms) + " ms";
+  if (ms >= 10) return ms.toFixed(1) + " ms";
+  return ms.toFixed(2) + " ms";
+}
+function pct(a, b) { return a ? (b - a) / a * 100 : 0; }
+function dcls(p) { return p <= -3 ? "good" : p >= 3 ? "bad" : "flat"; }
+function dtxt(p) { return (p > 0 ? "+" : "") + Math.round(p) + "%"; }
+
+// ---- metric access
+var KPIS = [["nav.first", "Page switch · first visit"], ["nav.revisit", "Page switch · revisit"],
+  ["palette.close", "Command palette close"], ["scroll.step", "Wheel scroll"],
+  ["startup.warm", "Warm start"], ["startup.cold", "Cold start"], ["idle.fps", "Idle repaints / s"], ["theme.first", "Theme switch"]];
+function titleOf(key) {
+  if (key === "idle.fps") return "Idle repaints per second";
+  if (key === "pages.mean") return "Page switch · mean of all pages";
+  for (var i = 0; i < RUNS.length; i++) if (RUNS[i].lat[key]) return RUNS[i].lat[key].t;
+  return key;
+}
+function pageMean(r) {
+  var v = [];
+  ["nav.first", "nav.revisit"].forEach(function (g) {
+    var p = r.pages[g]; if (p) Object.keys(p).forEach(function (k) { v.push(p[k]); });
+  });
+  return v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length : null;
+}
+function val(r, key) {
+  if (key === "idle.fps") return r.idle ? r.idle.fps : null;
+  if (key === "pages.mean") return pageMean(r);
+  return r.lat[key] ? r.lat[key].v : null;
+}
+function budget(key) {
+  for (var i = RUNS.length - 1; i >= 0; i--) if (RUNS[i].lat[key]) return RUNS[i].lat[key].b;
+  if (key === "idle.fps") return 2;
+  return null;
+}
+function unitFmt(key, v) { return key === "idle.fps" ? (v === null ? "–" : v.toFixed(1) + " /s") : fmt(v); }
+function allKeys() {
+  var seen = {}, out = [];
+  RUNS.forEach(function (r) { Object.keys(r.lat).forEach(function (k) { if (!seen[k]) { seen[k] = 1; out.push(k); } }); });
+  return out;
+}
+var ORDER = ["nav.first", "nav.revisit", "nav.key", "startup.cold", "startup.warm", "palette.close", "palette.open", "palette.type",
+  "scroll.step", "scroll.burst", "scroll.page", "hover.move", "click", "focus.next", "focus.prev", "theme.first", "theme.again", "resize", "shutdown"];
+function sortedKeys() {
+  var k = allKeys();
+  return k.sort(function (a, b) {
+    var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+}
+
+// ---- state
+var DEEP = RUNS.map(function (r, i) { return r.deep ? i : -1; }).filter(function (i) { return i >= 0; });
+var S = { a: 0, b: RUNS.length - 1, metric: "nav.revisit", filter: "all", pagekind: "nav.revisit", startkind: "warm",
+  ta: DEEP[0], tb: DEEP[DEEP.length - 1], scen: "nav.revisit", fq: "", fsort: "delta", flrun: DEEP[DEEP.length - 1], flq: "", focus: null };
+
+function runOpt(sel, idx, onlyDeep) {
+  clear(sel);
+  RUNS.forEach(function (r, i) {
+    if (onlyDeep && !r.deep) return;
+    var o = h("option", { value: i }, r.label + (r.deep ? "  ·  traced" : ""));
+    if (i === idx) o.setAttribute("selected", "");
+    sel.appendChild(o);
+  });
+  sel.value = String(idx);
+}
+
+// ---- bars
+function buildBar() {
+  var bar = clear($("bar"));
+  var sa = h("select", { id: "sa", "aria-label": "From run" }), sb = h("select", { id: "sb", "aria-label": "To run" });
+  runOpt(sa, S.a, false); runOpt(sb, S.b, false);
+  sa.addEventListener("change", function () { S.a = +sa.value; renderAll(); });
+  sb.addEventListener("change", function () { S.b = +sb.value; renderAll(); });
+  bar.appendChild(h("label", { "for": "sa" }, "From"));
+  bar.appendChild(sa);
+  bar.appendChild(h("label", { "for": "sb" }, "To"));
+  bar.appendChild(sb);
+  bar.appendChild(h("span", { "class": "sp" }));
+  bar.appendChild(h("button", { type: "button", onclick: function () { S.a = 0; S.b = RUNS.length - 1; renderAll(); } }, "First → latest"));
+  bar.appendChild(h("button", { type: "button", onclick: function () { S.a = Math.max(0, RUNS.length - 4); S.b = RUNS.length - 1; renderAll(); } }, "Last three changes"));
+  bar.appendChild(h("button", { type: "button", onclick: function () { var t = S.a; S.a = S.b; S.b = t; renderAll(); } }, "Swap"));
+}
+function buildTraceBar() {
+  var bar = clear($("tracebar"));
+  var sa = h("select", { id: "ta", "aria-label": "From traced run" }), sb = h("select", { id: "tb", "aria-label": "To traced run" });
+  runOpt(sa, S.ta, true); runOpt(sb, S.tb, true);
+  sa.addEventListener("change", function () { S.ta = +sa.value; renderTrace(); });
+  sb.addEventListener("change", function () { S.tb = +sb.value; renderTrace(); });
+  bar.appendChild(h("label", { "for": "ta" }, "From"));
+  bar.appendChild(sa);
+  bar.appendChild(h("label", { "for": "tb" }, "To"));
+  bar.appendChild(sb);
+  bar.appendChild(h("span", { "class": "note", style: "margin:0" }, "Only deep runs carry a call trace."));
+}
+
+// ---- KPI cards
+function renderKpis() {
+  var box = clear($("kpis")), A = RUNS[S.a], B = RUNS[S.b];
+  KPIS.forEach(function (k) {
+    var key = k[0], a = val(A, key), b = val(B, key), bud = budget(key);
+    if (a === null && b === null) return;
+    var p = a !== null && b !== null ? pct(a, b) : null;
+    var max = Math.max(a || 0, b || 0, bud || 0) * 1.05 || 1;
+    var card = h("div", { "class": "kpi" },
+      h("h4", null, k[1]),
+      h("div", { "class": "vals" },
+        h("span", { "class": "to" }, unitFmt(key, b)),
+        a !== null && a !== b ? h("span", { "class": "from" }, unitFmt(key, a)) : null),
+      p !== null ? h("div", { "class": "d " + dcls(p) }, dtxt(p)) : h("div", { "class": "d flat" }, "not measured"),
+      h("div", { "class": "track" },
+        a !== null ? h("i", { style: "width:" + (a / max * 100) + "%" }) : null,
+        b !== null ? h("b", { style: "width:" + (b / max * 100) + "%" }) : null,
+        bud ? h("u", { style: "left:" + (bud / max * 100) + "%" }) : null),
+      bud ? h("div", { "class": "bud" }, "budget " + unitFmt(key, bud)) : null);
+    box.appendChild(card);
+  });
+}
+
+// ---- journey chart
+var SHORT = function (r, i) { return i === 0 ? "Base" : r.id === "latest" ? "Latest" : r.id.replace("c", ""); };
+function renderJourney() {
+  var key = S.metric, host = clear($("journey"));
+  var W = 920, H = 330, L = 62, R = 22, T = 18, Bm = 44;
+  var vals = RUNS.map(function (r) { return val(r, key); });
+  var bud = budget(key);
+  var mx = Math.max.apply(null, vals.filter(function (v) { return v !== null; }).concat(bud ? [bud] : [])) * 1.1 || 1;
+  var x = function (i) { return L + (W - L - R) * (RUNS.length === 1 ? 0.5 : i / (RUNS.length - 1)); };
+  var y = function (v) { return T + (H - T - Bm) * (1 - v / mx); };
+  var svg = sv("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Journey of " + titleOf(key) });
+  var ax = sv("g", { "class": "ax" });
+  for (var t = 0; t <= 4; t++) {
+    var v = mx * t / 4;
+    ax.appendChild(sv("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), "stroke-dasharray": t ? "2 4" : null }));
+    ax.appendChild(sv("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }, key === "idle.fps" ? v.toFixed(0) : fmt(v).replace(" ms", "")));
+  }
+  RUNS.forEach(function (r, i) {
+    ax.appendChild(sv("text", { x: x(i), y: H - Bm + 20, "text-anchor": "middle" }, SHORT(r, i)));
+  });
+  svg.appendChild(ax);
+  if (bud) {
+    svg.appendChild(sv("line", { x1: L, x2: W - R, y1: y(bud), y2: y(bud), stroke: "var(--c3)", "stroke-width": 1.5, "stroke-dasharray": "6 5" }));
+    svg.appendChild(sv("text", { x: W - R, y: y(bud) - 6, "text-anchor": "end", style: "font:600 11px var(--mono);fill:var(--c3)" }, "budget " + unitFmt(key, bud)));
+  }
+  var d = "", open = false, area = [];
+  vals.forEach(function (v, i) {
+    if (v === null) { open = false; return; }
+    d += (open ? " L" : " M") + x(i) + " " + y(v); open = true;
+  });
+  if (d) {
+    svg.appendChild(sv("path", { d: d, fill: "none", stroke: "var(--acc2)", "stroke-width": 2.5, "stroke-linejoin": "round" }));
+  }
+  var tip = h("div", { "class": "tip" });
+  host.appendChild(svg); host.appendChild(tip);
+  vals.forEach(function (v, i) {
+    if (v === null) return;
+    var sel = i === S.b ? "var(--acc)" : i === S.a ? "var(--c3)" : "var(--bg)";
+    var dot = sv("circle", { cx: x(i), cy: y(v), r: i === S.a || i === S.b ? 7 : 5, fill: sel, stroke: i === S.a || i === S.b ? "var(--fg)" : "var(--acc2)", "stroke-width": 2, style: "cursor:pointer" });
+    var hit = sv("circle", { cx: x(i), cy: y(v), r: 16, fill: "transparent", style: "cursor:pointer" });
+    var show = function () {
+      var r = RUNS[i], prev = null;
+      for (var j = i - 1; j >= 0 && prev === null; j--) prev = vals[j];
+      tip.innerHTML = "";
+      tip.appendChild(h("b", null, r.label + ": " + unitFmt(key, v)));
+      if (prev !== null) tip.appendChild(h("em", null, dtxt(pct(prev, v)) + " vs the previous measurement"));
+      tip.appendChild(h("em", null, r.desc));
+      tip.style.display = "block";
+      var rect = host.getBoundingClientRect ? host.getBoundingClientRect() : { width: W };
+      var px = x(i) / W * (rect.width || W);
+      tip.style.left = Math.min(Math.max(px - 110, 0), Math.max((rect.width || W) - 300, 0)) + "px";
+      tip.style.top = (y(v) / H * ((rect.width || W) * H / W) + 18) + "px";
+      info(i);
+    };
+    [dot, hit].forEach(function (n) {
+      n.addEventListener("mouseenter", show);
+      n.addEventListener("mouseleave", function () { tip.style.display = "none"; });
+      n.addEventListener("click", function (ev) { if (ev.shiftKey) S.a = i; else S.b = i; renderAll(); });
+    });
+    svg.appendChild(dot); svg.appendChild(hit);
+  });
+  info(S.b);
+  function info(i) {
+    var r = RUNS[i], box = clear($("revinfo"));
+    box.appendChild(h("b", null, r.label + "  "));
+    box.appendChild(document.createTextNode(r.desc + (r.deep ? " (traced deep run)" : "") + "  ·  report " + r.run));
+  }
+}
+
+// ---- interaction table
+function renderFilters() {
+  var box = clear($("filters"));
+  [["all", "All"], ["over", "Over budget"], ["better", "Improved"], ["worse", "Regressed"]].forEach(function (f) {
+    box.appendChild(h("button", { type: "button", "aria-pressed": S.filter === f[0] ? "true" : "false", onclick: function () { S.filter = f[0]; renderFilters(); renderInter(); } }, f[1]));
+  });
+}
+function renderInter() {
+  var t = clear($("inter")), A = RUNS[S.a], B = RUNS[S.b];
+  t.appendChild(h("tr", null, h("th", null, "Interaction"), h("th", { "class": "r" }, "From"), h("th", { "class": "r" }, "To"), h("th", null, "vs budget"), h("th", { "class": "r" }, "Change"), h("th", null, "State")));
+  var rows = 0;
+  sortedKeys().forEach(function (key) {
+    var a = val(A, key), b = val(B, key);
+    if (a === null && b === null) return;
+    var p = a !== null && b !== null ? pct(a, b) : null, bud = budget(key);
+    var over = b !== null && bud ? b > bud : false;
+    if (S.filter === "over" && !over) return;
+    if (S.filter === "better" && !(p !== null && p <= -3)) return;
+    if (S.filter === "worse" && !(p !== null && p >= 3)) return;
+    var max = Math.max(a || 0, b || 0, bud || 0) * 1.05 || 1;
+    t.appendChild(h("tr", null,
+      h("td", null, titleOf(key)),
+      h("td", { "class": "r m" }, fmt(a)),
+      h("td", { "class": "r m" }, fmt(b)),
+      h("td", null, h("div", { "class": "pair" },
+        a !== null ? h("i", { style: "width:" + (a / max * 100) + "%" }) : null,
+        b !== null ? h("b", { style: "width:" + (b / max * 100) + "%" }) : null,
+        bud ? h("u", { style: "left:" + (bud / max * 100) + "%" }) : null)),
+      h("td", { "class": "r m d " + (p === null ? "flat" : dcls(p)) }, p === null ? "–" : dtxt(p)),
+      h("td", null, b === null ? "" : h("span", { "class": "pill " + (over ? "over" : "ok") }, over ? "OVER " + (b / bud).toFixed(1) + "×" : "WITHIN"))));
+    rows++;
+  });
+  if (!rows) t.appendChild(h("tr", null, h("td", { colspan: 6, "class": "empty" }, "Nothing matches this filter for the selected runs.")));
+}
+
+// ---- pages heatmap
+function renderPages() {
+  var box = clear($("pagekind"));
+  [["nav.first", "First visit"], ["nav.revisit", "Revisit"]].forEach(function (f) {
+    box.appendChild(h("button", { type: "button", "aria-pressed": S.pagekind === f[0] ? "true" : "false", onclick: function () { S.pagekind = f[0]; renderPages(); } }, f[1]));
+  });
+  var t = clear($("pages")), g = S.pagekind;
+  var names = {}, max = 0;
+  RUNS.forEach(function (r) { var p = r.pages[g]; if (p) Object.keys(p).forEach(function (k) { names[k] = 1; if (p[k] > max) max = p[k]; }); });
+  var list = Object.keys(names);
+  var last = RUNS[RUNS.length - 1].pages[g] || {};
+  list.sort(function (a, b) { return (last[b] || 0) - (last[a] || 0); });
+  var head = h("tr", null, h("th", null, "Page"));
+  RUNS.forEach(function (r, i) {
+    head.appendChild(h("th", { "class": "r", title: r.desc, style: i === S.a || i === S.b ? "color:var(--acc)" : null }, SHORT(r, i)));
+  });
+  t.appendChild(head);
+  list.forEach(function (name) {
+    var tr = h("tr", null, h("td", null, name));
+    RUNS.forEach(function (r) {
+      var v = r.pages[g] ? r.pages[g][name] : undefined;
+      if (v === undefined) { tr.appendChild(h("td", { "class": "c", style: "color:var(--mut)" }, "–")); return; }
+      var w = Math.round(v / max * 70);
+      tr.appendChild(h("td", { "class": "c", style: "background:color-mix(in srgb,var(--acc) " + w + "%,var(--card))" }, String(Math.round(v))));
+    });
+    t.appendChild(tr);
+  });
+}
+
+// ---- startup phases
+function renderStartup() {
+  var box = clear($("startkind"));
+  [["warm", "Warm start (cache present)"], ["cold", "Cold start (first launch)"]].forEach(function (f) {
+    box.appendChild(h("button", { type: "button", "aria-pressed": S.startkind === f[0] ? "true" : "false", onclick: function () { S.startkind = f[0]; renderStartup(); } }, f[1]));
+  });
+  var host = clear($("startup")), kind = S.startkind;
+  var labels = [];
+  RUNS.forEach(function (r) { (r.start[kind] || []).forEach(function (sp) { if (labels.indexOf(sp[0]) < 0) labels.push(sp[0]); }); });
+  var maxTotal = 0;
+  var rows = [S.a, S.b].map(function (i) {
+    var spans = RUNS[i].start[kind];
+    var tot = spans ? spans.filter(function (s) { return !/splash/.test(s[0]); }).reduce(function (a, s) { return a + s[1]; }, 0) : 0;
+    if (tot > maxTotal) maxTotal = tot;
+    return { i: i, spans: spans, tot: tot };
+  });
+  rows.forEach(function (r) {
+    var line = h("div", { "class": "segrow" }, h("span", null, RUNS[r.i].label));
+    var seg = h("div", { "class": "seg" });
+    if (r.spans) {
+      r.spans.forEach(function (sp) {
+        if (/splash/.test(sp[0])) return; // nested inside the page-build phase
+        seg.appendChild(h("i", { title: sp[0] + ": " + fmt(sp[1]), style: "width:" + (sp[1] / maxTotal * 100) + "%;background:" + PAL[labels.indexOf(sp[0]) % PAL.length] }));
+      });
+    }
+    line.appendChild(seg);
+    line.appendChild(h("span", null, r.spans ? fmt(r.tot) : "–"));
+    host.appendChild(line);
+  });
+  var lg = h("div", { "class": "legend" });
+  labels.forEach(function (l) {
+    if (/splash/.test(l)) return;
+    lg.appendChild(h("span", null, h("i", { style: "background:" + PAL[labels.indexOf(l) % PAL.length] }), l));
+  });
+  host.appendChild(lg);
+  if (!rows[0].spans || !rows[1].spans) host.appendChild(h("p", { "class": "note" }, "One of the selected runs has no start-up timeline for this kind of start."));
+}
+
+// ---- layers
+function renderTrace() {
+  var A = RUNS[S.ta], B = RUNS[S.tb];
+  var sel = $("scen");
+  var keys = Object.keys(B.layers || {}).filter(function (k) { return A.layers && A.layers[k]; });
+  keys.sort(function (a, b) {
+    var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  if (keys.indexOf(S.scen) < 0) S.scen = keys[0];
+  clear(sel);
+  keys.forEach(function (k) { sel.appendChild(h("option", { value: k }, titleOf(k) === k ? k : titleOf(k))); });
+  sel.value = S.scen;
+  sel.onchange = function () { S.scen = sel.value; renderTrace(); };
+  var host = clear($("layers"));
+  var la = (A.layers[S.scen] || {}).layers || {}, lb = (B.layers[S.scen] || {}).layers || {};
+  var names = Object.keys(Object.assign({}, la, lb));
+  names.sort(function (x, y) { return Math.max(lb[y] || 0, la[y] || 0) - Math.max(lb[x] || 0, la[x] || 0); });
+  var mx = 0;
+  names.forEach(function (n) { mx = Math.max(mx, la[n] || 0, lb[n] || 0); });
+  mx = mx || 1;
+  host.appendChild(h("div", null)); host.appendChild(h("div", { style: "font:600 11px var(--mono);color:var(--mut)" }, A.label + "  →  " + B.label)); host.appendChild(h("div", { "class": "v" }, "from → to"));
+  names.forEach(function (n) {
+    var a = la[n] || 0, b = lb[n] || 0;
+    host.appendChild(h("div", { "class": "n" }, h("i", { style: "background:" + layerColor(n) }), LAYER_NAME[n] || n));
+    host.appendChild(h("div", { "class": "bars" },
+      h("i", { style: "width:" + (a / mx * 100) + "%;background:" + layerColor(n) }),
+      h("b", { style: "width:" + (b / mx * 100) + "%;background:" + layerColor(n) })));
+    host.appendChild(h("div", { "class": "v" }, fmt(a) + " → " + fmt(b)));
+  });
+  host.appendChild(h("div", { "class": "n", style: "border-top:1px solid var(--line);padding-top:6px" }, "Total"));
+  host.appendChild(h("div", { style: "border-top:1px solid var(--line);padding-top:6px;font:500 12px var(--mono);color:var(--mut)" }, ""));
+  host.appendChild(h("div", { "class": "v", style: "border-top:1px solid var(--line);padding-top:6px;color:var(--fg)" }, fmt((A.layers[S.scen] || {}).total) + " → " + fmt((B.layers[S.scen] || {}).total)));
+  renderFuncs();
+}
+
+// ---- hot functions
+function renderFuncs() {
+  var A = RUNS[S.ta], B = RUNS[S.tb], t = clear($("funcs"));
+  var map = {};
+  (A.funcs || []).forEach(function (f) { map[f[0]] = { n: f[0], l: f[1], a: f[2], b: 0, c: 0, inc: 0 }; });
+  (B.funcs || []).forEach(function (f) {
+    var e = map[f[0]] || (map[f[0]] = { n: f[0], l: f[1], a: 0, b: 0, c: 0, inc: 0 });
+    e.b = f[2]; e.c = f[4]; e.inc = f[3]; e.l = f[1];
+  });
+  var q = S.fq.toLowerCase();
+  var rows = Object.keys(map).map(function (k) { return map[k]; }).filter(function (e) {
+    return !q || e.n.toLowerCase().indexOf(q) >= 0 || (LAYER_NAME[e.l] || e.l).toLowerCase().indexOf(q) >= 0;
+  });
+  var sorters = {
+    name: function (x, y) { return x.n < y.n ? -1 : 1; },
+    a: function (x, y) { return y.a - x.a; }, b: function (x, y) { return y.b - x.b; },
+    delta: function (x, y) { return Math.abs(y.b - y.a) - Math.abs(x.b - x.a); }, calls: function (x, y) { return y.c - x.c; }
+  };
+  rows.sort(sorters[S.fsort] || sorters.delta);
+  var th = function (key, label, cls) {
+    return h("th", { "class": "sort " + (cls || ""), onclick: function () { S.fsort = key; renderFuncs(); }, title: "Sort by " + label, style: S.fsort === key ? "color:var(--acc)" : null }, label);
+  };
+  t.appendChild(h("tr", null, th("name", "Function"), h("th", null, "Layer"), th("a", "Self · from", "r"), th("b", "Self · to", "r"), th("delta", "Change", "r"), th("calls", "Calls · to", "r")));
+  rows.slice(0, 40).forEach(function (e) {
+    var d = e.b - e.a;
+    t.appendChild(h("tr", null,
+      h("td", { "class": "m" }, e.n),
+      h("td", null, h("span", { "class": "chip", style: "background:" + layerColor(e.l) }, LAYER_NAME[e.l] || e.l)),
+      h("td", { "class": "r m" }, e.a ? fmt(e.a) : "–"),
+      h("td", { "class": "r m" }, e.b ? fmt(e.b) : "–"),
+      h("td", { "class": "r m d " + (d < -0.5 ? "good" : d > 0.5 ? "bad" : "flat") }, (d > 0 ? "+" : "") + fmt(Math.abs(d)).replace(/^/, d < 0 ? "−" : "")),
+      h("td", { "class": "r m" }, e.c ? String(e.c) : "–")));
+  });
+  if (!rows.length) t.appendChild(h("tr", null, h("td", { colspan: 6, "class": "empty" }, "No function matches.")));
+}
+
+// ---- flame graph
+var ROW = 21;
+function flattenTree(node, x0, x1, depth, out) {
+  out.push({ n: node, x0: x0, x1: x1, d: depth });
+  var x = x0, span = x1 - x0, tot = node.v || 1;
+  (node.c || []).forEach(function (c) {
+    var w = span * (c.v / tot);
+    flattenTree(c, x, x + w, depth + 1, out);
+    x += w;
+  });
+}
+function pathTo(root, target) {
+  var res = null;
+  (function walk(n, p) {
+    if (res) return;
+    var np = p.concat([n]);
+    if (n === target) { res = np; return; }
+    (n.c || []).forEach(function (c) { walk(c, np); });
+  })(root, []);
+  return res || [root];
+}
+function renderFlame() {
+  var run = RUNS[S.flrun], host = clear($("flame")), crumb = clear($("crumb"));
+  if (!run || !run.tree) { host.appendChild(h("div", { "class": "empty", style: "padding:14px" }, "This run has no call trace.")); return; }
+  var root = run.tree;
+  var focus = S.focus && S.focusRun === S.flrun ? S.focus : root;
+  var list = [];
+  flattenTree(focus, 0, 1, 0, list);
+  var depth = 0;
+  list.forEach(function (e) { if (e.d > depth) depth = e.d; });
+  host.style.height = ((depth + 1) * ROW + 4) + "px";
+  var q = S.flq.toLowerCase();
+  list.forEach(function (e) {
+    var w = e.x1 - e.x0;
+    if (w < 0.0025) return;
+    var hit = q && e.n.n.toLowerCase().indexOf(q) >= 0;
+    var cls = "f" + (q ? (hit ? " hit" : " dim") : "");
+    var share = (e.n.v / root.v * 100);
+    var box = h("div", {
+      "class": cls,
+      title: e.n.n + "\n" + fmt(e.n.v) + " per pass  ·  " + share.toFixed(1) + "% of the run" + (e.n.v !== focus.v ? "  ·  " + (e.n.v / focus.v * 100).toFixed(1) + "% of the view" : ""),
+      style: "left:" + (e.x0 * 100) + "%;width:" + (w * 100) + "%;top:" + (e.d * ROW) + "px;background:" + hashColor(e.n.n),
+      onclick: function () { S.focus = e.n; S.focusRun = S.flrun; renderFlame(); }
+    }, w > 0.04 ? e.n.n : "");
+    host.appendChild(box);
+  });
+  var trail = pathTo(root, focus);
+  trail.forEach(function (n, i) {
+    if (i) crumb.appendChild(document.createTextNode("›"));
+    if (i === trail.length - 1) crumb.appendChild(h("span", { style: "color:var(--fg)" }, n.n + " · " + fmt(n.v)));
+    else crumb.appendChild(h("a", { onclick: function () { S.focus = n; S.focusRun = S.flrun; renderFlame(); } }, n.n));
+  });
+}
+
+function renderAll() {
+  buildBar(); renderKpis(); renderJourney(); renderFilters(); renderInter(); renderPages(); renderStartup();
+}
+
+function init() {
+  var ms = $("metric"), keys = sortedKeys();
+  ["pages.mean", "idle.fps"].forEach(function (k) { keys.push(k); });
+  keys.forEach(function (k) { ms.appendChild(h("option", { value: k }, titleOf(k))); });
+  ms.value = S.metric;
+  ms.addEventListener("change", function () { S.metric = ms.value; renderJourney(); });
+  var fr = $("flrun");
+  runOpt(fr, S.flrun, true);
+  fr.addEventListener("change", function () { S.flrun = +fr.value; S.focus = null; renderFlame(); });
+  $("flq").addEventListener("input", function (e) { S.flq = e.target.value; renderFlame(); });
+  $("fq").addEventListener("input", function (e) { S.fq = e.target.value; renderFuncs(); });
+  $("flreset").addEventListener("click", function () { S.focus = null; renderFlame(); });
+  buildTraceBar();
+  renderAll(); renderTrace(); renderFlame();
+}
+init();
+})();
+</script>
+{% endraw %}

@@ -1,5 +1,25 @@
 # D.A.B.T documentation
 
+## Table of Contents
+
+<details>
+
+   <summary>Contents</summary>
+
+1. [Where to look](#where-to-look)
+1. [High-level architecture](#high-level-architecture)
+   1. [Layers (load order in `lib/tui.sh`)](#layers-load-order-in-libtuish)
+   1. [What happens when a page loads](#what-happens-when-a-page-loads)
+   1. [The main loop (`tui.run`)](#the-main-loop-tuirun)
+   1. [Input dispatch](#input-dispatch)
+   1. [Design rules that shape the code](#design-rules-that-shape-the-code)
+1. [App layout](#app-layout)
+1. [Environment variables](#environment-variables)
+1. [Design write-ups](#design-write-ups)
+1. [Debugging and tooling](#debugging-and-tooling)
+
+</details>
+
 DinosAmazingBashTui is a terminal UI framework in **pure bash** (5.0+) plus POSIX utilities and `awk`. No Python, Node or ncurses.
 This page is the map: how the framework is put together, and where to look for what.
 

@@ -1,0 +1,97 @@
+ ◆ DABT PROFILE  292add2 devex/devex175 · dirty                                   scenario nav · 150×45 · 2 rounds · 37s · 2026-09-30 21:02
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─────────────────────────╮
+│ PAGE SWITCH             │
+│ 294 ms                  │
+│ ███████████████████████ │
+│ budget 100 ms           │
+╰─────────────────────────╯
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Page switch, first visit      22     284 ms     537 ms  █████████████████░  ▆▅█▆▁█▇█▆▃      7  49.2 KB                                 │
+│ ● Page switch, revisit          22     294 ms     503 ms  ██████████████████  ▇▆██▂▇▆█▆▁      7  49.0 KB                                 │
+│ ● Page switch by key (alt+2) …   2    10.8 ms    10.8 ms  █░░░░░░░░┃░░░░░░░░  ▁█              0      0 B                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ no trace data (run without --no-trace)                                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 4 total ╮
+│  CRIT  Page switch, revisit is over budget                                                                                               │
+│        Page switch, revisit takes 294 ms (budget 100 ms, 2.9×).                                                                          │
+│  CRIT  Page switch by key (alt+2) is over budget                                                                                         │
+│        Page switch by key (alt+2) takes 11 ms (budget 100 ms, 0.1×).                                                                     │
+│  WARN  Page switch, first visit is over budget                                                                                           │
+│        Page switch, first visit takes 284 ms (budget 150 ms, 1.9×).                                                                      │
+│  WARN  alt+2 does not switch pages on a warm start                                                                                       │
+│        The demo binds alt+1..0 in _nav.xml, but the key is dispatched with no binding found (handled in <1 ms, no page change).          │
+│        Mouse navigation works.                                                                                                           │
+│        ↳ share/demo/_nav.xml                                                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VS PREVIOUS RUN ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ against 292add2 (2026-09-30 21:01)                                                                                                       │
+│ Page switch, first visit               278 ms →     284 ms  +2%                                                                          │
+│ Page switch, revisit                   334 ms →     294 ms  -12%                                                                         │
+│ Page switch by key (alt+2)            10.8 ms →    10.8 ms  -1%                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ nav.first · components                      507 ms    410 ms     9.5  103.0 KB                                                           │
+│ nav.revisit · scrolling                     499 ms    421 ms       7   80.0 KB                                                           │
+│ nav.revisit · components                    495 ms    416 ms       9  102.6 KB                                                           │
+│ nav.first · scrolling                       495 ms    417 ms       7   80.0 KB                                                           │
+│ nav.revisit · docs                          482 ms    407 ms     8.5   68.2 KB                                                           │
+│ nav.first · docs                            457 ms    379 ms       8   67.8 KB                                                           │
+│ nav.first · monitor                         388 ms    286 ms     7.5   57.1 KB                                                           │
+│ nav.revisit · monitor                       375 ms    298 ms     7.5   57.7 KB                                                           │
+│ nav.first · widgets                         333 ms    195 ms     9.5   48.7 KB                                                           │
+│ nav.revisit · widgets                       316 ms    200 ms    10.0   49.0 KB                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Who draws the frames ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ frames per action, grouped by the functions that flush them (innermost caller first)                                                     │
+│ Page switch, first visit  7.36 frames per action                                                                                         │
+│                2      360 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             1.18     6.5 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1    40.2 KB  tui.render ‹ tui.goto ‹ _tui_goto_btn_* ‹ tui.action.click                                                  │
+│                1     3.7 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      504 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ _tui_goto_btn_*                                             │
+│                1      337 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│ Page switch, revisit  7.27 frames per action                                                                                             │
+│             1.91      349 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             1.18     6.6 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1    40.2 KB  tui.render ‹ tui.goto ‹ _tui_goto_btn_* ‹ tui.action.click                                                  │
+│                1     3.7 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      513 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ _tui_goto_btn_*                                             │
+│                1      337 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where pane drawing goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn                                          │
+│ Page switch, first visit  11.8 ms in pane drawing                                                                                        │
+│      3.44 ms    x1.1  nav                                                                                                                │
+│      3.21 ms    x1.1  root                                                                                                               │
+│      0.93 ms    x1.1  dabt_hdr_title                                                                                                     │
+│      0.90 ms    x1.1  dabt_hdr_clock                                                                                                     │
+│      0.62 ms    x0.2  welcome                                                                                                            │
+│ Page switch, revisit  11.8 ms in pane drawing                                                                                            │
+│      3.43 ms    x1.1  nav                                                                                                                │
+│      3.22 ms    x1.1  root                                                                                                               │
+│      0.94 ms    x1.1  dabt_hdr_title                                                                                                     │
+│      0.91 ms    x1.1  dabt_hdr_clock                                                                                                     │
+│      0.65 ms    x0.3  header                                                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.25 to match untraced busy time (processes and forks are real).

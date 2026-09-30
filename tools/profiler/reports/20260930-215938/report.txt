@@ -1,0 +1,175 @@
+ ◆ DABT PROFILE  3c3c677 devex/devex175                                       scenario startup · 150×45 · 5 rounds · 46s · 2026-09-30 21:59
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─────────────────────────╮
+│ WARM START              │
+│ 308 ms                  │
+│ ███▌░░░░░░░░░░░░░░░░░░░ │
+│ budget 1.00 s           │
+╰─────────────────────────╯
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Cold start (empty cache)       5     5.54 s     5.57 s  ██████████░░░░░░░░  ▁█▄▇▁                                                      │
+│ ● Warm start                     5     308 ms     310 ms  ███░░░░░░┃░░░░░░░░  ▅▁▆█▃                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ all interactions combined                                                                                                                │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│ ms per action                     total                                                                                                  │
+│ Warm start                       121 ms                                                                                                  │
+│ cell colour = share of that row · times calibrated to untraced speed (shell ×0.25)                                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ who hands work to whom (time passed down the call stack, ms per pass of all interactions)                                                │
+│      Main loop ━▶ Page cache     ██████████████████████████ 107 ms                                                                       │
+│     Page cache ━▶ Main loop      ██████████▋░░░░░░░░░░░░░░░ 43.7 ms                                                                      │
+│     Page cache ━▶ Style          █████████▏░░░░░░░░░░░░░░░░ 37.7 ms                                                                      │
+│          Style ━▶ Page cache     ████▊░░░░░░░░░░░░░░░░░░░░░ 19.8 ms                                                                      │
+│      Main loop ━▶ Render         ████▊░░░░░░░░░░░░░░░░░░░░░ 19.8 ms                                                                      │
+│        Widgets ━▶ Layout         ████▍░░░░░░░░░░░░░░░░░░░░░ 18.4 ms                                                                      │
+│         Layout ━▶ Subprocesses   ████░░░░░░░░░░░░░░░░░░░░░░ 16.9 ms                                                                      │
+│      Main loop ━▶ Widgets        ███▌░░░░░░░░░░░░░░░░░░░░░░ 14.6 ms                                                                      │
+│     Page cache ━▶ Subprocesses   ███▎░░░░░░░░░░░░░░░░░░░░░░ 13.8 ms                                                                      │
+│     Page cache ━▶ Core           ███▏░░░░░░░░░░░░░░░░░░░░░░ 13.0 ms                                                                      │
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 3 total ╮
+│  WARN  `awk` is the most expensive external program (4 runs, 11 ms per scenario pass)                                                    │
+│        Runs spawned from _tui._calc_bounds; scenarios: startup.warm.                                                                     │
+│        ↳ _tui._calc_bounds                                                                                                               │
+│  WARN  Cold start (empty cache) is over budget                                                                                           │
+│        Cold start (empty cache) takes 5536 ms (budget 5000 ms, 1.1×).                                                                    │
+│  INFO  Cold start is 18.0× slower than warm                                                                                              │
+│        5536 ms vs 308 ms; the difference is the page-cache build behind the splash.                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VS PREVIOUS RUN ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ against 97241c5 (2026-09-30 21:49)                                                                                                       │
+│ Cold start (empty cache)               5.60 s →     5.54 s  -1%                                                                          │
+│ Warm start                             823 ms →     308 ms  -63%                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Startup timeline ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ WARM START  ready in 308 ms  first pixel 156 ms                                                                                          │
+│   bash + script boot         3.58 ms  █                                                                                                  │
+│   load library               63.9 ms   ██████████████████                                                                                │
+│   validate pages             4.29 ms                               ██                                                                    │
+│   load cache                 34.7 ms                                 ██████████                                                          │
+│   init terminal              21.1 ms                                             ██████                                                  │
+│   load first page            89.1 ms                                                   █████████████████████████                         │
+│   first frame                44.4 ms                                                                             █████████████           │
+│                                                                                                                                          │
+│ COLD START  ready in 5.54 s  first pixel 1.38 s                                                                                          │
+│   bash + script boot         3.49 ms  █                                                                                                  │
+│   load library               64.3 ms  █                                                                                                  │
+│   validate pages              1.08 s   █████████████████                                                                                 │
+│   load cache                 0.14 ms                    █                                                                                │
+│   build caches (splash)       4.18 s                    ███████████████████████████████████████████████████████████████████              │
+│   save cache                 10.1 ms                                                                                       █             │
+│   init terminal              22.4 ms                                                                                       █             │
+│   load first page            91.3 ms                                                                                       ██            │
+│   first frame                44.4 ms                                                                                         █           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Hot functions ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ function                               self     total   calls  per call  layer         self share                                        │
+│ ⟨fork⟩                              16.3 ms   16.3 ms       –         –  Subprocesses  ██████████████████                                │
+│ ⟨awk⟩                               10.7 ms   10.7 ms       –         –  Subprocesses  ███████████▊░░░░░░                                │
+│ _tui.theme_parse                    9.57 ms   12.6 ms     300     32 µs  Style         ██████████▌░░░░░░░                                │
+│ ⟨stat⟩                              6.14 ms   6.14 ms       –         –  Subprocesses  ██████▊░░░░░░░░░░░                                │
+│ ⟨sort⟩                              4.32 ms   4.32 ms       –         –  Subprocesses  ████▊░░░░░░░░░░░░░                                │
+│ tui.tick.add                        3.92 ms   3.92 ms       2   1.96 ms  Main loop     ████▎░░░░░░░░░░░░░                                │
+│ ⟨dirname⟩                           3.80 ms   3.80 ms       –         –  Subprocesses  ████▏░░░░░░░░░░░░░                                │
+│ tui.cache.valid                     3.74 ms   6.45 ms    94.0     40 µs  Page cache    ████▏░░░░░░░░░░░░░                                │
+│ _tui._find_theme_collisions         3.59 ms   4.24 ms       1   3.59 ms  Style         ███▉░░░░░░░░░░░░░░                                │
+│ _tui.theme_decl                     3.03 ms   3.03 ms     183     17 µs  Style         ███▎░░░░░░░░░░░░░░                                │
+│ _tui_cache_slurp                    3.02 ms   3.02 ms     352      9 µs  Page cache    ███▎░░░░░░░░░░░░░░                                │
+│ ⟨mkdir⟩                             3.01 ms   3.01 ms       –         –  Subprocesses  ███▎░░░░░░░░░░░░░░                                │
+│ _tui._draw_widget_buf               2.64 ms   12.3 ms    33.0     80 µs  Render        ██▉░░░░░░░░░░░░░░░                                │
+│ _tui._pane_content_need             2.53 ms   2.53 ms    11.0   0.23 ms  Layout        ██▊░░░░░░░░░░░░░░░                                │
+│ _tui._inset                         2.11 ms   3.02 ms    72.0     29 µs  Layout        ██▎░░░░░░░░░░░░░░░                                │
+│ _tui._widget_pos                    2.07 ms   3.47 ms    32.0     65 µs  Widgets       ██▎░░░░░░░░░░░░░░░                                │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Hot source lines ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ tui.sh:2220                  11.4 ms   ×12.0  } END { print max+0 }') ⟨program⟩                                                          │
+│ tui.sh:2210                  5.48 ms      ×4  if ((_plain)); then ⟨fork⟩                                                                 │
+│ tui_cache.sh:258             4.00 ms      ×4  out="$(stat -c '%Y %n' -- "$@" 2>/dev/null)" || true ⟨program⟩                             │
+│ tui.sh:157                   3.90 ms      ×2  [[ "$existing" == "$fn" ]] && return                                                       │
+│ tui_cache.sh:808             2.92 ms      ×4  tui.start_cached() { ⟨program⟩                                                             │
+│ tui_plugin.sh:120            2.79 ms      ×8  else base="${path##*/}"; dir="$(cd -P "$(dirname "$path")" 2>/dev/null && pwd -P)"; file=… │
+│ tui_cache.sh:245             2.36 ms    ×528  IFS= read -r -d '' _SLURP <"$1" || true                                                    │
+│ tui_validate.sh:406          2.17 ms      ×1  _tui_validate.mtimes() { stat -c '%Y' -- "$@" 2>/dev/null || stat -f '%m' -- "$@" 2>/dev/… │
+│ app.sh:13                    2.02 ms      ×2   ⟨program⟩                                                                                 │
+│ tui_home.sh:102              1.91 ms   ×11.0  for k in $(printf '%s\n' "${!_TUI_META[@]}" | sort); do ⟨program⟩                          │
+│ tui_cache.sh:257             1.73 ms      ×2  local out line path ⟨fork⟩                                                                 │
+│ tui_cache.sh:114             1.56 ms      ×2  mkdir -p "$_TUI_THEME_STAMP_DIR" ⟨program⟩                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Call graph: heaviest edges ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ main                              ▶ tui.start_cached                     107 ms                                                          │
+│ tui.start_cached                  ▶ tui.run                             43.7 ms                                                          │
+│ tui.start_cached                  ▶ tui.load_cached                     32.9 ms                                                          │
+│ tui.load_cached                   ▶ tui.cache.replay                    30.1 ms                                                          │
+│ tui.run                           ▶ _tui_api._tick                      20.9 ms                                                          │
+│ tui.cache.replay                  ▶ tui.load_theme                      19.9 ms                                                          │
+│ tui.load_theme                    ▶ _tui.theme_load_file                19.8 ms                                                          │
+│ tui.run                           ▶ tui.render                          19.7 ms                                                          │
+│ tui.set_text                      ▶ _tui._calc_bounds                   17.1 ms                                                          │
+│ _tui_api._tick                    ▶ _tui_api._clock_run                 15.0 ms                                                          │
+│ _tui_api._clock_run               ▶ tui.set_text                        13.1 ms                                                          │
+│ tui.start_cached                  ▶ tui.init                            13.0 ms                                                          │
+│ _tui.theme_load_file              ▶ _tui.theme_parse                    12.6 ms                                                          │
+│ tui.render                        ▶ _tui._draw_widget_buf               12.3 ms                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Subprocesses ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ external programs  (per pass of every interaction)                                                                                       │
+│ program        runs      time  spawned by                                                                                                │
+│ awk               4   10.7 ms  _tui._calc_bounds                                                                                         │
+│ stat              2   3.98 ms  _tui_cache_stat_many                                                                                      │
+│ sort              2   2.60 ms  tui.start_cached                                                                                          │
+│ stat              1   2.17 ms  _tui_validate.mtimes	_tui_validate.fresh	_tui_validate.gate	tui.start_cached	main                         │
+│ sed               1   2.01 ms  ⟨main⟩                                                                                                    │
+│ sort              1   1.72 ms  _tui_home.meta_save                                                                                       │
+│ mkdir             1   1.56 ms  _tui_cache_theme_stamp                                                                                    │
+│ mv                1   1.51 ms  _tui_home.meta_save                                                                                       │
+│                                                                                                                                          │
+│ subshell fork sites                                                                                                                      │
+│ site                                                forks  scenarios                                                                     │
+│ _tui._calc_bounds (tui.sh:2220)                         8  startup.warm                                                                  │
+│ tui.start_cached (tui_cache.sh:808)                     7  startup.warm                                                                  │
+│ ⟨main⟩ (app.sh:10)                                      2  startup.warm                                                                  │
+│ _tui_cache_stat_many (tui_cache.sh:258)                 2  startup.warm                                                                  │
+│ _tui_home.meta_save (tui_home.sh:102)                   2  startup.warm                                                                  │
+│ tui.plugin.add (tui_plugin.sh:120)                      2  startup.warm                                                                  │
+│ _tui_validate.fresh	_tui_validate.gate	tui.start_…      1  startup.warm                                                                  │
+│ tui.init (tui.sh:221)                                   1  startup.warm                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Who draws the frames ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ frames per action, grouped by the functions that flush them (innermost caller first)                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where wall time goes (probes) ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action inside each probed function (nested: goto contains load_cached and render)                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where pane drawing goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.25 to match untraced busy time (processes and forks are real).

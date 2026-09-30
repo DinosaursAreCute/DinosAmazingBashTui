@@ -1,0 +1,220 @@
+ ◆ DABT PROFILE  292add2 devex/devex175 · dirty                                                 150×45 · 2 rounds · 196s · 2026-09-30 21:07
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─────────────────────────╮ ╭─────────────────────────╮ ╭─────────────────────────╮ ╭─────────────────────────╮ ╭─────────────────────────╮
+│ WARM START              │ │ PAGE SWITCH             │ │ HOVER FEEDBACK          │ │ FOCUS FEEDBACK          │ │ IDLE REPAINTS           │
+│ 2.65 s                  │ │ 320 ms                  │ │ 9.44 ms                 │ │ 3.00 ms                 │ │ 2 fr/s                  │
+│ ███████████████████████ │ │ ███████████████████████ │ │ ███▌░░░░░░░░░░░░░░░░░░░ │ │ ▋░░░░░░░░░░░░░░░░░░░░░░ │ │ ██▎░░░░░░░░░░░░░░░░░░░░ │
+│ budget 1.00 s           │ │ budget 100 ms           │ │ budget 30.0 ms          │ │ budget 50.0 ms          │ │ 3.7 KB/s · 2.3% cpu     │
+╰─────────────────────────╯ ╰─────────────────────────╯ ╰─────────────────────────╯ ╰─────────────────────────╯ ╰─────────────────────────╯
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Cold start (empty cache)       1     5.68 s     5.68 s  ██████████░░░░░░░░  ▁                                                          │
+│ ● Warm start                     2     2.65 s     4.45 s  ██████████████████  ▁█                                                         │
+│ ● Page switch, first visit      22     294 ms     505 ms  ██████████████████  ▇▄█▅▂▅▅█▅▁    7.5  48.6 KB                                 │
+│ ● Page switch, revisit          22     320 ms     502 ms  ██████████████████  ▇▆█▆▁▆▅█▅▂      7  49.0 KB                                 │
+│ ● Page switch by key (alt+2) …   2    10.8 ms    10.8 ms  █░░░░░░░░┃░░░░░░░░  ▁█              0      0 B                                 │
+│ ● Focus next (Tab)              20    3.00 ms    60.3 ms  █░░░░░░░░┃░░░░░░░░  ▁▁▁█▁▁▁▁█▁    1.5    239 B                                 │
+│ ● Focus previous (Shift+Tab)    10    2.36 ms    3.09 ms  ░░░░░░░░░┃░░░░░░░░  ▄▁▁▄▆▄▁▁▃█      2    232 B                                 │
+│ ● Mouse hover                   48    9.44 ms    11.6 ms  ███░░░░░░┃░░░░░░░░  ▁█▁█▁▁█▁█▁      0      0 B                                 │
+│ ● Mouse click                   10    11.2 ms    18.7 ms  █░░░░░░░░┃░░░░░░░░  ▁█▁▁▁▁▅▂▁▁      2    662 B                                 │
+│ ● Wheel scroll, single          16    58.6 ms    66.4 ms  █████████┃░░░░░░░░  ▁▁▁█▁▁▁▁▁▁      1   4.1 KB                                 │
+│ ● Wheel scroll, burst            8    63.5 ms    65.4 ms  ████░░░░░┃░░░░░░░░  ▁▁█▁▇▁▁▁        1   4.4 KB                                 │
+│ ● Page Down                      6    54.5 ms    54.7 ms  █████░░░░┃░░░░░░░░  ▁█▁▁▁▁          1   4.1 KB                                 │
+│ ● Command palette open           2    28.3 ms    28.6 ms  ███░░░░░░┃░░░░░░░░  █▁              1   2.9 KB                                 │
+│ ● Command palette typing         6    24.1 ms    25.9 ms  ████░░░░░┃░░░░░░░░  █▁▁▁▁▁          1   2.9 KB                                 │
+│ ● Command palette close          2    61.0 ms    64.8 ms  █████░░░░┃░░░░░░░░  ▁█            2.5  36.1 KB                                 │
+│ ● Theme switch, first use       10     337 ms     350 ms  ████████████░░░░░░  ████▁████▂      7  46.0 KB                                 │
+│ ● Theme switch, repeat          10    17.4 ms     184 ms  █░░░░░░░░┃░░░░░░░░  ▁▁▃▁▁▁▁▁█▁      1    290 B                                 │
+│ ● Terminal resize                6     218 ms     362 ms  ████████░┃░░░░░░░░  ▃▁▄█▁▆          3  44.1 KB                                 │
+│ ● Quit                           2    54.1 ms    54.2 ms  █░░░░░░░░┃░░░░░░░░  █▁              1   1.9 KB                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ no trace data (run without --no-trace)                                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 10 total ╮
+│  CRIT  Warm start is over budget                                                                                                         │
+│        Warm start takes 2646 ms (budget 1000 ms, 2.6×).                                                                                  │
+│  CRIT  Page switch, revisit is over budget                                                                                               │
+│        Page switch, revisit takes 320 ms (budget 100 ms, 3.2×).                                                                          │
+│  CRIT  Page switch by key (alt+2) is over budget                                                                                         │
+│        Page switch by key (alt+2) takes 11 ms (budget 100 ms, 0.1×).                                                                     │
+│  WARN  Cold start (empty cache) is over budget                                                                                           │
+│        Cold start (empty cache) takes 5678 ms (budget 5000 ms, 1.1×).                                                                    │
+│  WARN  Page switch, first visit is over budget                                                                                           │
+│        Page switch, first visit takes 294 ms (budget 150 ms, 2.0×).                                                                      │
+│  WARN  Theme switch, first use is over budget                                                                                            │
+│        Theme switch, first use takes 337 ms (budget 250 ms, 1.3×).                                                                       │
+│  WARN  alt+2 does not switch pages on a warm start                                                                                       │
+│        The demo binds alt+1..0 in _nav.xml, but the key is dispatched with no binding found (handled in <1 ms, no page change).          │
+│        Mouse navigation works.                                                                                                           │
+│        ↳ share/demo/_nav.xml                                                                                                             │
+│  WARN  Warm start takes 2646 ms                                                                                                          │
+│        Largest phase: build caches (splash) (4113 ms).                                                                                   │
+│        ↳ build caches (splash)                                                                                                           │
+│  INFO  Cold start is 2.1× slower than warm                                                                                               │
+│        5678 ms vs 2646 ms; the difference is the page-cache build behind the splash.                                                     │
+│        … 1 more in the deep dive / report.html                                                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VS PREVIOUS RUN ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ against 292add2 (2026-09-30 21:02)                                                                                                       │
+│ Page switch, first visit               284 ms →     294 ms  +4%                                                                          │
+│ Page switch, revisit                   294 ms →     320 ms  +9%                                                                          │
+│ Page switch by key (alt+2)            10.8 ms →    10.8 ms  +0%                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Startup timeline ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ WARM START  ready in 2.65 s  first pixel 507 ms                                                                                          │
+│   bash + script boot         4.14 ms  █                                                                                                  │
+│   load library               64.5 ms  ██                                                                                                 │
+│   validate pages             4.40 ms      █                                                                                              │
+│   load cache                  185 ms      ███████                                                                                        │
+│   init terminal              20.4 ms                                                                                    █                │
+│   load first page             109 ms                                                                                    ████             │
+│   first frame                45.3 ms                                                                                        ██           │
+│   build caches (splash)       4.11 s      █████████████████████████████████████████████████████████████████████████████████████████████… │
+│   save cache                 10.2 ms                                                                                                   … │
+│                                                                                                                                          │
+│ COLD START  ready in 5.68 s  first pixel 1.42 s                                                                                          │
+│   bash + script boot         3.47 ms  █                                                                                                  │
+│   load library               65.1 ms  █                                                                                                  │
+│   validate pages              1.08 s    ████████████████                                                                                 │
+│   load cache                 0.10 ms                     █                                                                               │
+│   build caches (splash)       4.27 s                     ██████████████████████████████████████████████████████████████████              │
+│   save cache                 10.2 ms                                                                                       █             │
+│   init terminal              22.5 ms                                                                                       █             │
+│   load first page             106 ms                                                                                       ██            │
+│   first frame                44.3 ms                                                                                         █           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ nav.first · scrolling                       503 ms    424 ms       7   80.0 KB                                                           │
+│ nav.revisit · scrolling                     499 ms    424 ms       7   80.0 KB                                                           │
+│ nav.revisit · components                    493 ms    416 ms       9  102.6 KB                                                           │
+│ nav.first · components                      471 ms    402 ms       9  102.6 KB                                                           │
+│ nav.revisit · docs                          460 ms    383 ms       8   67.8 KB                                                           │
+│ nav.first · docs                            456 ms    378 ms       8   67.8 KB                                                           │
+│ nav.revisit · monitor                       379 ms    300 ms       7   56.8 KB                                                           │
+│ nav.revisit · widgets                       372 ms    200 ms    10.0   49.0 KB                                                           │
+│ nav.first · monitor                         363 ms    290 ms       7   56.8 KB                                                           │
+│ theme.first · sunset                        347 ms    261 ms       7   46.0 KB                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Who draws the frames ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ frames per action, grouped by the functions that flush them (innermost caller first)                                                     │
+│ Page switch, first visit  7.32 frames per action                                                                                         │
+│                2      360 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             1.14     6.5 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1    40.2 KB  tui.render ‹ tui.goto ‹ _tui_goto_btn_* ‹ tui.action.click                                                  │
+│                1     3.7 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      504 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ _tui_goto_btn_*                                             │
+│                1      337 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│ Page switch, revisit  7.18 frames per action                                                                                             │
+│             1.91      349 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             1.09     6.5 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│                1    40.2 KB  tui.render ‹ tui.goto ‹ _tui_goto_btn_* ‹ tui.action.click                                                  │
+│                1     3.7 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      513 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ _tui_goto_btn_*                                             │
+│                1      337 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│ Focus next (Tab)  1.4 frames per action                                                                                                  │
+│              0.8      130 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ _tui._focus_next                                  │
+│              0.5      116 B  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ _tui._focus_next                             │
+│              0.1       69 B  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Focus previous (Shift+Tab)  1.2 frames per action                                                                                        │
+│              0.6      130 B  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ _tui._focus_prev                             │
+│              0.6       59 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ _tui._focus_prev                                  │
+│ Mouse click  2.4 frames per action                                                                                                       │
+│              0.4      984 B  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│              0.4       69 B  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ _tui._unfocus ‹ tui.action.click                         │
+│              0.4       29 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._unfocus ‹ tui.action.click                              │
+│              0.4       29 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│              0.2     9.3 KB  tui.render ‹ _sc_controls ‹ _showcase_set_status ‹ show_badges                                              │
+│              0.2      538 B  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.pane.focus ‹ tui.action.click                        │
+│ Wheel scroll, single  1.19 frames per action                                                                                             │
+│             1.06     4.2 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│             0.12       16 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│ Wheel scroll, burst  1.25 frames per action                                                                                              │
+│             1.25     4.4 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Page Down  1.17 frames per action                                                                                                        │
+│             1.17     4.2 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Command palette open  1 frames per action                                                                                                │
+│                1     2.9 KB  _tui_overlay.draw_all ‹ tui.modal.open ‹ tui.palette.open ‹ _tui_input.run                                  │
+│ Command palette typing  1.17 frames per action                                                                                           │
+│                1     2.9 KB  _tui_overlay.draw_all ‹ tui.modal.redraw ‹ _tui_cmd.palette_key ‹ _tui_input.key_event                      │
+│             0.17      114 B  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Command palette close  2.5 frames per action                                                                                             │
+│                1    35.3 KB  tui.render ‹ tui.relayout ‹ tui.modal.close ‹ _tui_cmd.palette_key                                          │
+│                1      513 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.relayout ‹ tui.modal.close                                         │
+│              0.5      344 B  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Theme switch, first use  6.5 frames per action                                                                                           │
+│              1.8      398 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│                1     2.6 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      259 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│              0.9     4.5 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│              0.8    29.6 KB  tui.render ‹ tui.goto ‹ tui.theme.reload ‹ tui.theme.set                                                    │
+│              0.8      410 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ tui.theme.reload                                            │
+│ Theme switch, repeat  1.2 frames per action                                                                                              │
+│                1      260 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│              0.2      367 B  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Terminal resize  2.67 frames per action                                                                                                  │
+│                1    39.5 KB  tui.render ‹ tui.run ‹ tui.start_cached ‹ main                                                              │
+│                1     1.9 KB  _tui_overlay.draw_all ‹ tui.render ‹ tui.run ‹ tui.start_cached                                             │
+│             0.67     1.1 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Idle (3 s, nothing happening)  6 frames per action                                                                                       │
+│                3     5.7 KB  _tui_overlay.draw_all ‹ tui.run ‹ tui.start_cached ‹ main                                                   │
+│                3     5.4 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where pane drawing goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn                                          │
+│ Page switch, first visit  11.8 ms in pane drawing                                                                                        │
+│      3.54 ms    x1.1  nav                                                                                                                │
+│      3.19 ms    x1.1  root                                                                                                               │
+│      0.93 ms    x1.1  dabt_hdr_title                                                                                                     │
+│      0.91 ms    x1.1  dabt_hdr_clock                                                                                                     │
+│      0.66 ms    x0.2  welcome                                                                                                            │
+│ Page switch, revisit  12.0 ms in pane drawing                                                                                            │
+│      3.61 ms    x1.1  nav                                                                                                                │
+│      3.29 ms    x1.1  root                                                                                                               │
+│      0.95 ms    x1.1  dabt_hdr_title                                                                                                     │
+│      0.94 ms    x1.1  dabt_hdr_clock                                                                                                     │
+│      0.62 ms    x0.2  welcome                                                                                                            │
+│ Mouse click  4.75 ms in pane drawing                                                                                                     │
+│      0.56 ms    x0.2  root                                                                                                               │
+│      0.55 ms    x0.2  nav                                                                                                                │
+│      0.53 ms    x0.2  main                                                                                                               │
+│      0.51 ms    x0.2  output                                                                                                             │
+│      0.51 ms    x0.2  controls                                                                                                           │
+│ Command palette close  11.2 ms in pane drawing                                                                                           │
+│      3.17 ms    x1.0  welcome                                                                                                            │
+│      2.97 ms    x1.0  nav                                                                                                                │
+│      2.65 ms    x1.0  root                                                                                                               │
+│      0.82 ms    x1.0  dabt_hdr_title                                                                                                     │
+│      0.81 ms    x1.0  footer                                                                                                             │
+│ Theme switch, first use  16.5 ms in pane drawing                                                                                         │
+│      2.82 ms    x0.8  nav                                                                                                                │
+│      2.64 ms    x0.8  form                                                                                                               │
+│      2.59 ms    x0.8  root                                                                                                               │
+│      2.20 ms    x0.8  preview                                                                                                            │
+│      2.09 ms    x0.8  status                                                                                                             │
+│ Terminal resize  16.7 ms in pane drawing                                                                                                 │
+│      2.69 ms    x1.0  form                                                                                                               │
+│      2.49 ms    x1.0  root                                                                                                               │
+│      2.45 ms    x1.0  nav                                                                                                                │
+│      2.36 ms    x1.0  preview                                                                                                            │
+│      2.16 ms    x1.0  preview_clock                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.25 to match untraced busy time (processes and forks are real).

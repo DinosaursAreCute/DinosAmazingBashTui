@@ -1,0 +1,69 @@
+ ◆ DABT PROFILE  97241c5 devex/devex175 · dirty                                scenario scroll · 150×45 · 3 rounds · 35s · 2026-09-30 21:43
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Wheel scroll, single          24    18.2 ms    18.6 ms  ███░░░░░░┃░░░░░░░░  ▁█▁▆▃▆▁▁█▄      1   4.1 KB                                 │
+│ ● Wheel scroll, burst           12    23.2 ms    30.8 ms  █░░░░░░░░┃░░░░░░░░  ▁▁█▁▁▁▁▁▁▄      1   4.1 KB                                 │
+│ ● Page Down                      9    14.2 ms    21.7 ms  █░░░░░░░░┃░░░░░░░░  ▁▁█▁▁▁▁▁▁       1   4.1 KB                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ no trace data (run without --no-trace)                                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 1 total ╮
+│  GOOD  3 interaction types are within budget                                                                                             │
+│        Wheel scroll, single, Wheel scroll, burst, Page Down                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ scroll.step · tick 4                        187 ms   7.75 ms       2    4.7 KB                                                           │
+│ scroll.burst · burst 3                      143 ms   7.72 ms       2    4.7 KB                                                           │
+│ scroll.step · tick 8                        136 ms   7.56 ms       2    4.7 KB                                                           │
+│ scroll.burst · burst 1                     23.4 ms   6.50 ms       1    4.1 KB                                                           │
+│ scroll.burst · burst 2                     23.2 ms   6.31 ms       1    4.1 KB                                                           │
+│ scroll.burst · burst 4                     22.6 ms   6.13 ms       1    4.1 KB                                                           │
+│ scroll.step · tick 1                       20.1 ms   7.74 ms       2    4.2 KB                                                           │
+│ scroll.page · pgdn 3                       19.7 ms   3.65 ms       1    4.7 KB                                                           │
+│ scroll.step · tick 2                       18.5 ms   6.31 ms       1    4.1 KB                                                           │
+│ scroll.step · tick 3                       18.4 ms   6.27 ms       1    4.1 KB                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Who draws the frames ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ frames per action, grouped by the functions that flush them (innermost caller first)                                                     │
+│ Wheel scroll, single  1.38 frames per action                                                                                             │
+│             1.25     4.2 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│             0.12       16 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│ Wheel scroll, burst  1.17 frames per action                                                                                              │
+│             1.17     4.2 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│ Page Down  1.11 frames per action                                                                                                        │
+│             1.11     4.3 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where wall time goes (probes) ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action inside each probed function (nested: goto contains load_cached and render)                                            │
+│ Wheel scroll, single  18.4 ms                                                                                                            │
+│      4.64 ms  _tui._handle_mouse                                                                                                         │
+│      2.14 ms  _tui._flush_pending_render                                                                                                 │
+│ Wheel scroll, burst  23.3 ms                                                                                                             │
+│      4.54 ms  _tui._handle_mouse                                                                                                         │
+│      2.11 ms  _tui._flush_pending_render                                                                                                 │
+│ Page Down  14.5 ms                                                                                                                       │
+│      2.20 ms  _tui._flush_pending_render                                                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where pane drawing goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.25 to match untraced busy time (processes and forks are real).

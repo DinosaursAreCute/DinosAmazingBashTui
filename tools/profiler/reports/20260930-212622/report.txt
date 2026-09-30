@@ -1,0 +1,80 @@
+ ◆ DABT PROFILE  97241c5 devex/devex175 · dirty                                 scenario theme · 150×45 · 3 rounds · 35s · 2026-09-30 21:26
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+╭─ HOW IT FEELS ─────────────────────────────────────────────────────────────────────── typical = median · budget = perceived-instant line ╮
+│ interaction                      n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● Theme switch, first use       15     329 ms     498 ms  ████████████░░░░░░  ▅▅▅▂▅▅▁▅█▂      7  46.0 KB                                 │
+│ ● Theme switch, repeat          15    18.1 ms     183 ms  █░░░░░░░░┃░░░░░░░░  ▁█▁▁▁▃▂▃▁▇      1    293 B                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ WHERE THE TIME GOES ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ no trace data (run without --no-trace)                                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ HOW WORK FLOWS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                          │
+│ hot path per scenario (heaviest call chain)                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ FINDINGS ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 2 total ╮
+│  WARN  Theme switch, first use is over budget                                                                                            │
+│        Theme switch, first use takes 329 ms (budget 250 ms, 1.3×).                                                                       │
+│  GOOD  1 interaction types are within budget                                                                                             │
+│        Theme switch, repeat                                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+────── DEEP DIVE ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+╭─ Slowest individual actions ─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ action                                        done      busy  frames     bytes                                                           │
+│ theme.first · light                         336 ms    257 ms       7   47.0 KB                                                           │
+│ theme.first · forest                        335 ms    253 ms       7   46.0 KB                                                           │
+│ theme.first · sunset                        334 ms    255 ms       7   46.0 KB                                                           │
+│ theme.first · ocean                         320 ms    246 ms       7   45.8 KB                                                           │
+│ theme.first · default                      33.4 ms   21.7 ms       4    5.0 KB                                                           │
+│ theme.again · default                      28.7 ms   15.4 ms       1     147 B                                                           │
+│ theme.again · light                        18.2 ms   4.95 ms       1     293 B                                                           │
+│ theme.again · sunset                       17.5 ms   4.54 ms       1     293 B                                                           │
+│ theme.again · forest                       17.0 ms   4.10 ms       1     290 B                                                           │
+│ theme.again · ocean                        17.0 ms   3.81 ms       1     277 B                                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Who draws the frames ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ frames per action, grouped by the functions that flush them (innermost caller first)                                                     │
+│ Theme switch, first use  6.53 frames per action                                                                                          │
+│              1.8      398 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│                1     2.6 KB  _tui._draw_ids_now ‹ _tui._draw_pane_borders_now ‹ tui.focus ‹ tui.action.click                             │
+│                1      259 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ tui.focus ‹ tui.action.click                                  │
+│             0.93     4.6 KB  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+│              0.8    29.6 KB  tui.render ‹ tui.goto ‹ tui.theme.reload ‹ tui.theme.set                                                    │
+│              0.8      410 B  _tui_overlay.draw_all ‹ tui.render ‹ tui.goto ‹ tui.theme.reload                                            │
+│ Theme switch, repeat  1.27 frames per action                                                                                             │
+│                1      260 B  _tui._draw_ids_now ‹ _tui._draw_widgets_now ‹ _tui._set_hovered_widget ‹ _tui._handle_mouse                 │
+│             0.27      489 B  _tui._flush_pending_render ‹ tui.run ‹ tui.start_cached ‹ main                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where wall time goes (probes) ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action inside each probed function (nested: goto contains load_cached and render)                                            │
+│ Theme switch, first use  329 ms                                                                                                          │
+│       202 ms  _tui._handle_mouse                                                                                                         │
+│       179 ms  tui.goto                                                                                                                   │
+│       122 ms  tui.load_cached                                                                                                            │
+│       114 ms  tui.cache.replay                                                                                                           │
+│      53.4 ms  tui.render                                                                                                                 │
+│      29.1 ms  _tui_cache_run_on_visit                                                                                                    │
+│ Theme switch, repeat  18.1 ms                                                                                                            │
+│      6.48 ms  _tui._handle_mouse                                                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ Where pane drawing goes ────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ wall ms per action spent drawing each pane (probe-measured); draws = times the pane was redrawn                                          │
+│ Theme switch, first use  16.1 ms in pane drawing                                                                                         │
+│      2.65 ms    x0.8  form                                                                                                               │
+│      2.61 ms    x0.8  nav                                                                                                                │
+│      2.52 ms    x0.8  root                                                                                                               │
+│      2.18 ms    x0.8  preview                                                                                                            │
+│      2.07 ms    x0.8  status                                                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+method: real app in a pty, latency from in-app probes (untraced) · attribution from bash xtrace, in-shell time rescaled ×0.25 to match untraced busy time (processes and forks are real).

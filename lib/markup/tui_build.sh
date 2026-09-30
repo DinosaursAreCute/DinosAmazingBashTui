@@ -91,11 +91,11 @@ _tui_build.dispatch() {
 _tui_build.tag.tui() {
 	local node="$1"
 	local visit
-	visit="$(_tui_build.attr "$node" on_visit)"
+	_tui_build.attrv "$node" on_visit visit
 	[[ -n "$visit" ]] && _TUI_BUILD_ON_VISIT="$visit"
 	local ddef dg
 	local -a dgs=()
-	ddef="$(_tui_build.attr "$node" defaults)"
+	_tui_build.attrv "$node" defaults ddef
 	if [[ -n "$ddef" ]]; then
 		IFS=',' read -ra dgs <<<"$ddef"
 		for dg in "${dgs[@]}"; do [[ "$dg" == -* ]] && tui.defaults.off --page "${dg#-}"; done
@@ -105,7 +105,7 @@ _tui_build.tag.tui() {
 
 _tui_build.tag.script() {
 	local node="$1" src resolved
-	src="$(_tui_build.attr "$node" src)"
+	_tui_build.attrv "$node" src src
 	[[ -z "$src" ]] && return 0
 	resolved="$src"
 	[[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR}/${src}"
@@ -114,11 +114,11 @@ _tui_build.tag.script() {
 
 _tui_build.tag.theme() {
 	local node="$1" tsrc tresolved
-	tsrc="$(_tui_build.attr "$node" src)"
+	_tui_build.attrv "$node" src tsrc
 	[[ -z "$tsrc" ]] && return 0
 	tresolved="$tsrc"
 	[[ "$tresolved" != /* ]] && tresolved="${_TUI_MARKUP_DIR}/${tsrc}"
-	tui.load_theme "$tresolved"
+	_tui_cache_theme "$tresolved"
 }
 
 tui.register tag tui _tui_build.tag.tui
@@ -136,12 +136,12 @@ _tui_build.tag.pane() {
 	local node="$1" id
 	_tui_build.attrv "$node" id id
 	if [[ -z "$id" ]]; then
-		id="$(_tui_build.auto_id pane)"
+		printf -v id \'_auto_%s_%d\' pane "$((++_TUI_BUILD_AUTO_N))"
 		_N_ID[$node]="$id"
 	fi
 
 	local split weight title border align valign minw minh maxw maxh class scroll strictfit
-	local rows cols fit roww colw sizew sizeh hpad vpad
+	local rows cols fit roww colw sizew sizeh hpad vpad gap
 	_tui_build.attrv "$node" split split
 	_tui_build.attrv "$node" weight weight
 	_tui_build.attrv "$node" title title
@@ -164,6 +164,7 @@ _tui_build.tag.pane() {
 	_tui_build.attrv "$node" size_h sizeh
 	_tui_build.attrv "$node" hpad hpad
 	_tui_build.attrv "$node" vpad vpad
+	_tui_build.attrv "$node" gap gap
 
 	[[ -n "$title" ]] && _TUI_BUILD_TITLE[$id]="$title"
 	[[ -n "$border" ]] && _TUI_BUILD_BORDER[$id]="$border"
@@ -172,7 +173,8 @@ _tui_build.tag.pane() {
 	tui.pane_minsize "$id" "$minw" "$minh"
 	tui.pane_maxsize "$id" "$maxw" "$maxh"
 	tui.pane_pad "$id" "$hpad" "$vpad"
-	tui.class "$id" "$class"
+	tui.pane_gap "$id" "$gap"
+	_tui_cache_class "$id" "$class"
 	tui.pane_scroll "$id" "$scroll"
 	[[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 
@@ -196,9 +198,19 @@ _tui_build.tag.pane() {
 					_tui_build.attrv "$k" newline cnl
 					pending="${pending:+$pending }${cid}:${cspan:-1}:${cnl:+1}"
 				else
-					local cw
-					_tui_build.attrv "$k" weight cw
-					pending="${pending:+$pending }${cid}:${cw:-1}"
+					# Size spec for this child on the split's own axis: an explicit
+					# width= (h split) / height= (v split) wins - a 2A unit token
+					# (N%, Nfr, auto, fill, clamp(...)) - else the legacy weight=
+					# (plain integer, "maps to fr" per the plan: _tui.layout_arrange
+					# treats a bare integer exactly like an "Nfr" token).
+					local cw cweight
+					_tui_build.attrv "$k" weight cweight
+					if [[ "$split" == "v" ]]; then
+						_tui_build.attrv "$k" height cw
+					else
+						_tui_build.attrv "$k" width cw
+					fi
+					pending="${pending:+$pending }${cid}:${cw:-${cweight:-1}}"
 				fi
 				;;
 			*)
@@ -323,82 +335,127 @@ tui.register tag divider _tui_build.tag.divider
 # falls back to the nearest enclosing pane and its inferred row (nested
 # widgets, new in 1.2 - see tui_build.build's doc comment).
 
+# _tui_build.pane_ofv NODE VAR / row_ofv NODE VAR - pane_of / row_of into VAR, no `$(...)` fork (they were two forks each)
+_tui_build.pane_ofv() {
+	local -n _po_out="$2"
+	tui_node.attr_get "$1" pane && _po_out="$_N_ATTR_V" || _po_out=""
+	_po_out="${_po_out:-$_TUI_BUILD_CTX_PANE}"
+}
+_tui_build.row_ofv() {
+	local -n _ro_out="$2"
+	tui_node.attr_get "$1" row && _ro_out="$_N_ATTR_V" || _ro_out=""
+	_ro_out="${_ro_out:-$_TUI_BUILD_CTX_ROW}"
+}
 _tui_build.pane_of() {
 	local v
-	v="$(_tui_build.attr "$1" pane)"
+	_tui_build.attrv "$1" pane v
 	printf '%s' "${v:-$_TUI_BUILD_CTX_PANE}"
 }
 _tui_build.row_of() {
 	local v
-	v="$(_tui_build.attr "$1" row)"
+	_tui_build.attrv "$1" row v
 	printf '%s' "${v:-$_TUI_BUILD_CTX_ROW}"
 }
 
 _tui_build.tag.label() {
 	local node="$1"
 	local lid lpane lrow lalign lvalign lminw lmaxw lclass
-	lid="$(_tui_build.attr "$node" id)"
-	lpane="$(_tui_build.pane_of "$node")"
-	lrow="$(_tui_build.row_of "$node")"
-	lalign="$(_tui_build.attr "$node" align)"
-	lvalign="$(_tui_build.attr "$node" valign)"
-	lminw="$(_tui_build.attr "$node" min_width)"
-	lmaxw="$(_tui_build.attr "$node" max_width)"
-	lclass="$(_tui_build.attr "$node" class)"
-	tui.label "$lid" "$lpane" "$lrow" "$(_tui_build.attr "$node" text)"
+	_tui_build.attrv "$node" id lid
+	_tui_build.pane_ofv "$node" lpane
+	_tui_build.row_ofv "$node" lrow
+	_tui_build.attrv "$node" align lalign
+	_tui_build.attrv "$node" valign lvalign
+	_tui_build.attrv "$node" min_width lminw
+	_tui_build.attrv "$node" max_width lmaxw
+	_tui_build.attrv "$node" class lclass
+	local ltext
+	_tui_build.attrv "$node" text ltext
+	tui.label "$lid" "$lpane" "$lrow" "$ltext"
 	tui.align "$lid" "$lalign"
 	tui.valign "$lid" "$lvalign"
 	tui.minsize "$lid" "$lminw"
 	tui.maxsize "$lid" "$lmaxw"
-	tui.class "$lid" "$lclass"
-	tui.pad "$lid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	local lwidth lheight lpadding
+	_tui_build.attrv "$node" width lwidth
+	_tui_build.attrv "$node" height lheight
+	_tui_build.attrv "$node" padding lpadding
+	[[ -n "$lwidth" ]] && tui.width "$lid" "$lwidth"
+	[[ -n "$lheight" ]] && tui.height "$lid" "$lheight"
+	_tui_cache_class "$lid" "$lclass"
+	local lhpad lvpad
+	_tui_build.attrv "$node" hpad lhpad
+	_tui_build.attrv "$node" vpad lvpad
+	tui.pad "$lid" "${lhpad:-$lpadding}" "${lvpad:-$lpadding}"
 }
 tui.register tag label _tui_build.tag.label
 
 _tui_build.tag.input() {
 	local node="$1"
 	local iid ipane irow ialign ivalign iminw imaxw ilalign ilwidth iclass
-	iid="$(_tui_build.attr "$node" id)"
-	ipane="$(_tui_build.pane_of "$node")"
-	irow="$(_tui_build.row_of "$node")"
-	ialign="$(_tui_build.attr "$node" align)"
-	ivalign="$(_tui_build.attr "$node" valign)"
-	iminw="$(_tui_build.attr "$node" min_width)"
-	imaxw="$(_tui_build.attr "$node" max_width)"
-	ilalign="$(_tui_build.attr "$node" label_align)"
-	ilwidth="$(_tui_build.attr "$node" label_width)"
-	iclass="$(_tui_build.attr "$node" class)"
-	tui.input "$iid" "$ipane" "$irow" "$(_tui_build.attr "$node" placeholder)" \
-		"$(_tui_build.attr "$node" label)" "$(_tui_build.attr "$node" submit)"
+	_tui_build.attrv "$node" id iid
+	_tui_build.pane_ofv "$node" ipane
+	_tui_build.row_ofv "$node" irow
+	_tui_build.attrv "$node" align ialign
+	_tui_build.attrv "$node" valign ivalign
+	_tui_build.attrv "$node" min_width iminw
+	_tui_build.attrv "$node" max_width imaxw
+	_tui_build.attrv "$node" label_align ilalign
+	_tui_build.attrv "$node" label_width ilwidth
+	_tui_build.attrv "$node" class iclass
+	local iminh imaxh iexpand
+	_tui_build.attrv "$node" min_height iminh
+	_tui_build.attrv "$node" max_height imaxh
+	_tui_build.attrv "$node" expand iexpand
+	local iph ilabel isubmit
+	_tui_build.attrv "$node" placeholder iph
+	_tui_build.attrv "$node" label ilabel
+	_tui_build.attrv "$node" submit isubmit
+	tui.input "$iid" "$ipane" "$irow" "$iph" "$ilabel" "$isubmit"
 	tui.align "$iid" "$ialign"
 	tui.valign "$iid" "$ivalign"
-	tui.minsize "$iid" "$iminw"
-	tui.maxsize "$iid" "$imaxw"
+	tui.minsize "$iid" "$iminw" "$iminh"
+	tui.maxsize "$iid" "$imaxw" "$imaxh"
+	[[ -n "$iexpand" ]] && tui.expand "$iid" "$iexpand"
+	local iwidth iheight ipadding
+	_tui_build.attrv "$node" width iwidth
+	_tui_build.attrv "$node" height iheight
+	_tui_build.attrv "$node" padding ipadding
+	[[ -n "$iwidth" ]] && tui.width "$iid" "$iwidth"
+	[[ -n "$iheight" ]] && tui.height "$iid" "$iheight"
 	tui.label_align "$iid" "$ilalign"
 	tui.label_width "$iid" "$ilwidth"
 	local iretain
-	iretain="$(_tui_build.attr "$node" retain_input_on_submit)"
+	_tui_build.attrv "$node" retain_input_on_submit iretain
 	[[ -n "$iretain" ]] && tui.input.retain "$iid" "$iretain"
-	[[ "$(_tui_build.attr "$node" sticky)" == true ]] && tui.input.sticky "$iid"
-	tui.class "$iid" "$iclass"
-	tui.pad "$iid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	local isticky
+	_tui_build.attrv "$node" sticky isticky
+	[[ "$isticky" == true ]] && tui.input.sticky "$iid"
+	_tui_cache_class "$iid" "$iclass"
+	local ihpad ivpad
+	_tui_build.attrv "$node" hpad ihpad
+	_tui_build.attrv "$node" vpad ivpad
+	tui.pad "$iid" "${ihpad:-$ipadding}" "${ivpad:-$ipadding}"
 }
 tui.register tag input _tui_build.tag.input
 
 _tui_build.tag.button() {
 	local node="$1"
 	local bid bpane brow btext baction bpage balign bvalign bminw bmaxw bclass
-	bid="$(_tui_build.attr "$node" id)"
-	bpane="$(_tui_build.pane_of "$node")"
-	brow="$(_tui_build.row_of "$node")"
-	btext="$(_tui_build.attr "$node" text)"
-	baction="$(_tui_build.attr "$node" action)"
-	bpage="$(_tui_build.attr "$node" page)"
-	balign="$(_tui_build.attr "$node" align)"
-	bvalign="$(_tui_build.attr "$node" valign)"
-	bminw="$(_tui_build.attr "$node" min_width)"
-	bmaxw="$(_tui_build.attr "$node" max_width)"
-	bclass="$(_tui_build.attr "$node" class)"
+	_tui_build.attrv "$node" id bid
+	_tui_build.pane_ofv "$node" bpane
+	_tui_build.row_ofv "$node" brow
+	_tui_build.attrv "$node" text btext
+	_tui_build.attrv "$node" action baction
+	_tui_build.attrv "$node" page bpage
+	_tui_build.attrv "$node" align balign
+	_tui_build.attrv "$node" valign bvalign
+	_tui_build.attrv "$node" min_width bminw
+	_tui_build.attrv "$node" max_width bmaxw
+	_tui_build.attrv "$node" class bclass
+	local bminh bmaxh bexpand
+	_tui_build.attrv "$node" min_height bminh
+	_tui_build.attrv "$node" max_height bmaxh
+	_tui_build.attrv "$node" expand bexpand
 
 	if [[ -n "$bpage" && -z "$baction" ]]; then
 		local fn="_tui_goto_${bid//[^A-Za-z0-9_]/_}"
@@ -409,35 +466,59 @@ _tui_build.tag.button() {
 	tui.button "$bid" "$bpane" "$brow" "$btext" "$baction"
 	tui.align "$bid" "$balign"
 	tui.valign "$bid" "$bvalign"
-	tui.minsize "$bid" "$bminw"
-	tui.maxsize "$bid" "$bmaxw"
-	tui.class "$bid" "$bclass"
-	tui.pad "$bid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	tui.minsize "$bid" "$bminw" "$bminh"
+	tui.maxsize "$bid" "$bmaxw" "$bmaxh"
+	[[ -n "$bexpand" ]] && tui.expand "$bid" "$bexpand"
+	local bwidth bheight bpadding
+	_tui_build.attrv "$node" width bwidth
+	_tui_build.attrv "$node" height bheight
+	_tui_build.attrv "$node" padding bpadding
+	[[ -n "$bwidth" ]] && tui.width "$bid" "$bwidth"
+	[[ -n "$bheight" ]] && tui.height "$bid" "$bheight"
+	_tui_cache_class "$bid" "$bclass"
+	local bhpad bvpad
+	_tui_build.attrv "$node" hpad bhpad
+	_tui_build.attrv "$node" vpad bvpad
+	tui.pad "$bid" "${bhpad:-$bpadding}" "${bvpad:-$bpadding}"
 }
 tui.register tag button _tui_build.tag.button
 
 _tui_build.tag.checkbox() {
 	local node="$1"
 	local kid kpane krow klabel kchecked kaction kalign kvalign kminw kmaxw kclass
-	kid="$(_tui_build.attr "$node" id)"
-	kpane="$(_tui_build.pane_of "$node")"
-	krow="$(_tui_build.row_of "$node")"
-	klabel="$(_tui_build.attr "$node" label)"
-	kchecked="$(_tui_build.attr "$node" checked)"
-	kaction="$(_tui_build.attr "$node" action)"
-	kalign="$(_tui_build.attr "$node" align)"
-	kvalign="$(_tui_build.attr "$node" valign)"
-	kminw="$(_tui_build.attr "$node" min_width)"
-	kmaxw="$(_tui_build.attr "$node" max_width)"
-	kclass="$(_tui_build.attr "$node" class)"
+	_tui_build.attrv "$node" id kid
+	_tui_build.pane_ofv "$node" kpane
+	_tui_build.row_ofv "$node" krow
+	_tui_build.attrv "$node" label klabel
+	_tui_build.attrv "$node" checked kchecked
+	_tui_build.attrv "$node" action kaction
+	_tui_build.attrv "$node" align kalign
+	_tui_build.attrv "$node" valign kvalign
+	_tui_build.attrv "$node" min_width kminw
+	_tui_build.attrv "$node" max_width kmaxw
+	_tui_build.attrv "$node" class kclass
+	local kminh kmaxh kexpand
+	_tui_build.attrv "$node" min_height kminh
+	_tui_build.attrv "$node" max_height kmaxh
+	_tui_build.attrv "$node" expand kexpand
 
 	tui.checkbox "$kid" "$kpane" "$krow" "$klabel" "$kchecked" "$kaction"
 	tui.align "$kid" "$kalign"
 	tui.valign "$kid" "$kvalign"
-	tui.minsize "$kid" "$kminw"
-	tui.maxsize "$kid" "$kmaxw"
-	tui.class "$kid" "$kclass"
-	tui.pad "$kid" "$(_tui_build.attr "$node" hpad)" "$(_tui_build.attr "$node" vpad)"
+	tui.minsize "$kid" "$kminw" "$kminh"
+	tui.maxsize "$kid" "$kmaxw" "$kmaxh"
+	[[ -n "$kexpand" ]] && tui.expand "$kid" "$kexpand"
+	local kwidth kheight kpadding
+	_tui_build.attrv "$node" width kwidth
+	_tui_build.attrv "$node" height kheight
+	_tui_build.attrv "$node" padding kpadding
+	[[ -n "$kwidth" ]] && tui.width "$kid" "$kwidth"
+	[[ -n "$kheight" ]] && tui.height "$kid" "$kheight"
+	_tui_cache_class "$kid" "$kclass"
+	local khpad kvpad
+	_tui_build.attrv "$node" hpad khpad
+	_tui_build.attrv "$node" vpad kvpad
+	tui.pad "$kid" "${khpad:-$kpadding}" "${kvpad:-$kpadding}"
 }
 tui.register tag checkbox _tui_build.tag.checkbox
 
@@ -455,8 +536,8 @@ _tui_build.tag.wx() {
 	done
 	line+="/>"
 	local pane row
-	pane="$(_tui_build.pane_of "$node")"
-	row="$(_tui_build.row_of "$node")"
+	_tui_build.pane_ofv "$node" pane
+	_tui_build.row_ofv "$node" row
 	[[ "$line" == *' pane='* ]] || line="${line/ $type/ $type pane=\"$pane\"}"
 	[[ "$line" == *' row='* ]] || line="${line/ pane=/ row=\"$row\" pane=}"
 	_markup_wx "$type" "$line"
@@ -471,25 +552,35 @@ tui.register tag progress _tui_build.tag.wx
 # ── page-level tags ─────────────────────────────────────────────────────
 
 _tui_build.tag.footer() {
-	tui.footer.set "$(_tui_build.attr "$1" items)"
+	local fitems
+	_tui_build.attrv "$1" items fitems
+	tui.footer.set "$fitems"
 }
 tui.register tag footer _tui_build.tag.footer
 
 _tui_build.tag.bind() {
 	local node="$1" bkey bact bpane_s bpass balways bdesc bscope
-	bkey="$(_tui_build.attr "$node" key)"
-	bact="$(_tui_build.attr "$node" action)"
-	bpane_s="$(_tui_build.attr "$node" pane)"
-	bpass="$(_tui_build.attr "$node" pass)"
-	balways="$(_tui_build.attr "$node" always)"
-	bdesc="$(_tui_build.attr "$node" desc)"
-	bscope="$(_tui_build.attr "$node" scope)"
+	_tui_build.attrv "$node" key bkey
+	_tui_build.attrv "$node" action bact
+	_tui_build.attrv "$node" pane bpane_s
+	_tui_build.attrv "$node" pass bpass
+	_tui_build.attrv "$node" always balways
+	_tui_build.attrv "$node" desc bdesc
+	_tui_build.attrv "$node" scope bscope
 	local -a bflags=(--page)
 	[[ "$bscope" == global ]] && bflags=()
 	[[ -n "$bpane_s" ]] && bflags+=(--pane "$bpane_s")
 	[[ "$bpass" == true ]] && bflags+=(--pass)
 	[[ "$balways" == true ]] && bflags+=(--always)
 	[[ -n "$bdesc" ]] && bflags+=(--desc "$bdesc")
+	# A cache replay skips tag dispatch, so the bind is recorded with the page's other replayed calls
+	# (see _tui_cache_define_goto); without it a cached page has none of its <bind>s.
+	local _rec="tui.bind" _q _a
+	for _a in "$bkey" "$bact" "${bflags[@]}"; do
+		printf -v _q '%q' "$_a"
+		_rec+=" $_q"
+	done
+	_TUI_CACHE_REC_GOTOS+=("$_rec")
 	tui.bind "$bkey" "$bact" "${bflags[@]}"
 }
 tui.register tag bind _tui_build.tag.bind
@@ -498,10 +589,10 @@ tui.register tag bind _tui_build.tag.bind
 # needed now that the whole document is parsed up front.
 _tui_build.tag.tabs() {
 	local node="$1" tabsid thp tcp tstyle
-	tabsid="$(_tui_build.attr "$node" id)"
-	thp="$(_tui_build.attr "$node" header_pane)"
-	tcp="$(_tui_build.attr "$node" content_pane)"
-	tstyle="$(_tui_build.attr "$node" style)"
+	_tui_build.attrv "$node" id tabsid
+	_tui_build.attrv "$node" header_pane thp
+	_tui_build.attrv "$node" content_pane tcp
+	_tui_build.attrv "$node" style tstyle
 	[[ "$tstyle" == "compact" ]] && tui.tabs.compact "$tabsid" true
 
 	tui_node.children "$node"
@@ -511,10 +602,10 @@ _tui_build.tag.tabs() {
 	for k in "${kids[@]}"; do
 		[[ "${_N_TYPE[$k]}" == "tab" ]] || continue
 		local tid tabtext tabaction tabdefault
-		tid="$(_tui_build.attr "$k" id)"
-		tabtext="$(_tui_build.attr "$k" text)"
-		tabaction="$(_tui_build.attr "$k" action)"
-		tabdefault="$(_tui_build.attr "$k" default)"
+		_tui_build.attrv "$k" id tid
+		_tui_build.attrv "$k" text tabtext
+		_tui_build.attrv "$k" action tabaction
+		_tui_build.attrv "$k" default tabdefault
 		tui.tabs.add "$tid" "$tabtext" "$tabaction" "$tabdefault"
 		tab_ids+=("$tid")
 	done

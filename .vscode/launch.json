@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "bashdb",
+      "request": "launch",
+      "name": "DABT demo app",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/bin/DABT_demo.sh",
+      "args": [],
+      "terminalKind": "integrated"
+    },
+    {
+      "type": "bashdb",
+      "request": "launch",
+      "name": "dabt (prompt for args)",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/bin/dabt",
+      "args": ["${input:dabtArgs}"],
+      "terminalKind": "integrated"
+    },
+    {
+      "type": "bashdb",
+      "request": "launch",
+      "name": "Current file",
+      "cwd": "${workspaceFolder}",
+      "program": "${file}",
+      "args": [],
+      "terminalKind": "integrated"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "dabtArgs",
+      "type": "promptString",
+      "description": "Arguments for dabt",
+      "default": ""
+    }
+  ]
+}

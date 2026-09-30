@@ -35,7 +35,12 @@ tui.config.save() {
 
 tui.config.apply() {
     local g
-    [[ -n "${_TUI_CFG[theme]:-}" && -r "${_TUI_CFG[theme]}" ]] && _TUI_THEME_OVERLAY="${_TUI_CFG[theme]}"
+    if [[ -n "${_TUI_CFG[theme]:-}" && -r "${_TUI_CFG[theme]}" ]]; then
+        tui.log.debug "tui.config.apply: restoring persisted theme overlay -> ${_TUI_CFG[theme]}"
+        _TUI_THEME_OVERLAY="${_TUI_CFG[theme]}"
+    else
+        tui.log.debug "tui.config.apply: no persisted theme overlay (key=${_TUI_CFG[theme]:-<unset>})"
+    fi
     for g in ${_TUI_CFG[defaults.off]:-}; do _TUI_DEF_OFF[$g]=1; done
     [[ -n "${_TUI_CFG[notify.position]:-}" ]] && tui.notify.position "${_TUI_CFG[notify.position]}" 2>/dev/null
     [[ -n "${_TUI_CFG[notify.seconds]:-}" ]]  && tui.notify.seconds "${_TUI_CFG[notify.seconds]}"

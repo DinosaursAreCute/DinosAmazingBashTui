@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Draft: plan, not started |
+| Status | IN PROGRESS |
 | Scope | [markup-v2-roadmap.md](markup-v2-roadmap.md) (section letters A–M refer to it) |
 | Rules | Bash 5 + POSIX only · TDD · least code · measurable · host-independent tests |
 
@@ -21,7 +21,7 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 1.2 Build via registry | `lib/markup/tui_build.sh` | medium | done |
 | 1.3 Snapshot cache | `lib/markup/tui_cache.sh` | medium | done |
 | 1.4 Parallel warm-up | `lib/markup/tui_cache.sh` | medium | done |
-| 2A Layout | `lib/layout/tui_layout.sh` | medium | todo |
+| 2A Layout | `lib/layout/tui_layout.sh` | medium | done |
 | 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | todo |
 | 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | todo |
 | 2D Node ops | `lib/markup/tui_ops.sh` | medium | todo |
@@ -162,9 +162,9 @@ Depends on 0. One track.
 - **Owner:** `lib/markup/tui_cache.sh`.
 - **Tasks:**
   - Cache the built engine state as a `declare -p` snapshot and restore it with one `source`, keyed by the existing mtime signature.
-  - Keep `<script>` and `on_visit` as recorded dynamic calls.
+  - Keep `<script>`, `on_visit`, `<theme src>` and every build-time `tui.class ID CLASS` call as recorded dynamic calls, replayed fresh on every cache hit - a theme switch (`tui.theme.set`/`.pick`) must reach an already-cached page's actual rendered colors, not just its class table.
 - **Deletes:** the wrapper list and the eval replay.
-- **Done when:** a warm load is faster than the baseline; editing any dependency invalidates the cache (unit-tested with the clock and stamps); no stale cache is served.
+- **Done when:** a warm load is faster than the baseline; editing any dependency invalidates the cache (unit-tested with the clock and stamps); no stale cache is served; switching the app-wide theme overlay recolors an already-cached page on its next replay, including per-widget baked style (`_TUI_STYLE_*`), not only the class table (`_TUI_CLASS_*`) - unit-tested, since this bypasses the mtime signature entirely and a naive fix silently stops at the class table.
 
 ### 1.4 Parallel warm-up behind the splash screen
 - **Owner:** `lib/markup/tui_cache.sh`. **Replaces:** the single sequential worker in `tui.cache.warm_with_spinner`.

@@ -1,0 +1,91 @@
+<!-- No xsi:noNamespaceSchemaLocation on purpose: this fixture intentionally uses tomorrow's
+     attribute names (see below), which today's tui.xsd doesn't declare yet - several shipped
+     pages (settings.xml, plugins.xml, keybinds.xml) already omit it too, so this isn't unusual. -->
+<tui on_visit="s2_page1_visit">
+  <script src="page1_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <!--
+    stage2_lab - a living validation fixture for docs/concepts/markup-v2-implementation-plan.md's
+    Stage 2 (tasks 2A-2D). Not a shipped app: run it with tools/stage2_lab.sh while implementing
+    2A/2B/2C/2D to check the real visuals/behavior against what the plan intends.
+
+    Attributes marked "2A" below are the plan's new pane/widget sizing syntax (width/height unit
+    tokens: cells, %, fr, auto, fill, clamp(); gap). They sit ALONGSIDE the existing weight=/
+    min_*/max_* attributes that drive today's real layout - the loader only errors on an unknown
+    TAG, never an unknown attribute (see tui_validate.sh), so these are silently inert today and
+    become live the moment 2A wires <pane> sizing through lib/layout/tui_layout.sh. expand=/
+    min_height=/max_height= on widgets are NOT inert - that slice of 2A (tui.expand, per-widget
+    min/max height) is already wired (lib/tui.sh, lib/markup/tui_build.sh), so those demos below
+    are real today.
+
+    Update this file (and page2.xml) as 2A-2D land, or if a justified change to the plan changes
+    what the syntax should look like - that's expected, not a bug in the fixture.
+  -->
+
+  <pane id="root" split="v" title="Stage 2 Lab - Layout &amp; Widgets" border="single" class="sidebar">
+    <pane id="root1" split="h" weight="100">
+      <pane id="nav" weight="18" title="Stage 2 Lab" border="single" class="sidebar"/>
+      <pane id="main" split="v" weight="82" border="none">
+
+        <pane id="sec_split" split="h" weight="20" gap="1" border="single" title="Split (h): weight= today, width=/gap= 2A (inert)" class="panel">
+          <pane id="split_a" weight="1" width="1fr" border="single" class="panel" title="1fr"/>
+          <pane id="split_b" weight="2" width="2fr" min_width="10" max_width="60" border="single" class="panel" title="2fr min10 max60"/>
+          <pane id="split_c" weight="1" width="clamp(8,1fr,20)" border="single" class="panel" title="clamp(8,1fr,20)"/>
+        </pane>
+
+        <pane id="sec_grid" split="grid" weight="20" rows="2" cols="2" border="single" title="Grid 2x2" class="panel">
+          <pane id="grid_00" border="heavy" class="panel" title="row0 col0"/>
+          <pane id="grid_01" border="heavy" class="panel" title="row0 col1"/>
+          <pane id="grid_10" border="heavy" class="panel" title="row1 col0"/>
+          <pane id="grid_11" border="heavy" class="panel" title="row1 col1"/>
+        </pane>
+
+        <pane id="sec_fixed" split="fixed" size_w="13" scroll="v" size_h="3" weight="15" border="single" title="Fixed flow (tui.fixed): fixed tiles, newline wraps" class="panel">
+          <pane id="tile_0" border="single" class="primary_button"/>
+          <pane id="tile_1" border="single" class="primary_button"/>
+          <pane id="tile_2" border="single" class="primary_button"/>
+          <pane id="tile_3" border="single" class="danger_button" newline="true"/>
+          <pane id="tile_4" border="single" class="danger_button"/>
+          <pane id="tile_5" border="single" class="danger_button"/>
+        </pane>
+        
+        <pane id="sec_widgets" split="h" weight="34" border="single" title="Widgets" class="panel">
+          <pane id="wx_form" weight="46" border="none" hpad="1"/>
+          <pane id="wx_data" weight="54" border="none" hpad="1"/>
+        </pane>
+
+        <pane id="sec_notes" split="v" weight="12" border="single" title="Spec notes (tui.tabs, real today)" class="panel">
+          <pane id="notes_tabs_header" weight="30" border="none"/>
+          <pane id="notes_output" weight="70" border="none"/>
+        </pane>
+
+      </pane>
+    </pane>
+  </pane>
+
+  <label  id="lbl_title" pane="nav" row="0" text="Stage 2 Lab" class="brand"/>
+  <label  id="lbl_sub"   pane="nav" row="1" text="Layout &amp; Widgets" class="muted_label"/>
+  <button id="btn_next"  pane="nav" row="3" text="[ Page 2: Focus/Hit -&gt; ]" action="s2_goto_page2" class="primary_button" align="fill"/>
+
+  <!-- Widgets: form column - every simple/input-style widget, plus the now-real expand=/min_height=/max_height= (2A) -->
+  <input    id="wx_user" pane="wx_form" row="0" label="User:" label_width="6" placeholder="name" class="field_label"/>
+  <password id="wx_pass" pane="wx_form" row="1" label="Pass:" label_width="6" placeholder="secret" class="field_label"/>
+  <select   id="wx_mode" pane="wx_form" row="2" label="Mode:" items="fast|balanced|careful" value="balanced"/>
+  <checkbox id="wx_chk"  pane="wx_form" row="3" label="Enabled" checked="true" class="check"/>
+  <progress id="wx_prog" pane="wx_form" row="4" label="Job:" value="35"/>
+  <button   id="wx_go"   pane="wx_form" row="6" text="[ expand=y fills the rest of this pane (2A, real) ]" action="s2_noop" class="primary_button" align="fill" expand="y"/>
+
+  <!-- Widgets: data column - list/table/textarea, with a 2A max_height= demo (real: caps the textarea below its default full-height expand) -->
+  <list     id="wx_list" pane="wx_data" row="0" rows="4" items="Alpha|Bravo|Charlie|Delta|Echo"/>
+  <table    id="wx_table" pane="wx_data" row="5" columns="Attr|Stage|Status" data="width=1fr|2A|inert;gap=1|2A|inert;expand=y|2A|\nreal;min_height=|2A|real;focus_group=|2C|inert"/>
+  <textarea id="wx_notes" pane="wx_data" row="10" placeholder="max_height=4 (2A, real) caps this below its default full-height expand" max_height="4"/>
+
+  <tabs id="notes_tabs" header_pane="notes_tabs_header" content_pane="notes_output" style="compact">
+    <tab id="notes_2a" text="2A notes" action="s2_notes_2a" default="true"/>
+    <tab id="notes_2b" text="2B notes" action="s2_notes_2b"/>
+    <tab id="notes_2c" text="2C notes" action="s2_notes_2c"/>
+    <tab id="notes_2d" text="2D notes" action="s2_notes_2d"/>
+  </tabs>
+
+</tui>

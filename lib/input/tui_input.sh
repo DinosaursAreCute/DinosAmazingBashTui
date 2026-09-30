@@ -507,6 +507,18 @@ tui.action.activate() {
     esac
 }
 
+# _tui_input.pane_is_scrollable P - true if P has scroll= set AND is a leaf
+# (no child panes). A split container's own content rect isn't a line
+# buffer - _tui._render_output_buf assumes it is (it repaints the pane's
+# rect from _TUI_PANE_CONTENT_P, zero lines if that's unset), so treating a
+# container as a scroll target blanks its children's already-drawn content
+# and nothing ever redraws them: shift+arrow on a page with scroll= on a
+# split pane makes everything under it vanish. See tests/unit/*scroll*.
+_tui_input.pane_is_scrollable() {
+    local p="$1"
+    [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != none && -z "${_TUI_P_CHILDREN[$p]:-}" ]]
+}
+
 # _tui_input.scroll_target -> _ST : the pane a scroll action should move.
 _tui_input.scroll_target() {
     local p=""
@@ -514,20 +526,20 @@ _tui_input.scroll_target() {
     else
         # keys: the keyboard pane (f6 / alt+arrows / clicking it) wins; else under the pointer; else the focused widget's pane
         p="$_TUI_PANE_FOCUS"
-        [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" == none ]] && p=""
+        _tui_input.pane_is_scrollable "$p" || p=""
         [[ -z "$p" ]] && p="${_TUI_HOVERED_PANE:-}"
         [[ -z "$p" && -n "$_TUI_FOCUS_ID" ]] && p="${_TUI_W_PANE[$_TUI_FOCUS_ID]}"
     fi
-    if [[ -z "$p" || "${_TUI_P_SCROLL[$p]:-none}" == none ]]; then
+    if ! _tui_input.pane_is_scrollable "$p"; then
         [[ "$TUI_EVENT_TYPE" == mouse ]] && { _ST=""; return 1; }
         local t
         p=""
         for t in "${_TUI_P_ALL[@]}"; do
-            [[ "${_TUI_P_SCROLL[$t]:-none}" != none ]] && { p="$t"; break; }
+            _tui_input.pane_is_scrollable "$t" && { p="$t"; break; }
         done
     fi
     _ST="$p"
-    [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != none ]]
+    _tui_input.pane_is_scrollable "$p"
 }
 
 # tui.action.scroll up|down|left|right [N]

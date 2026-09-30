@@ -99,3 +99,50 @@ t_cache_restore_reaches_global_scope_and_root_matches_replay_time_size() {
 	ok '(( _TUI_P_W[root] != 70 ))' # half of 140 (an earlier reported size) - the exact symptom reported
 	eval "$real_term_size"
 }
+
+# Regression test (bug report): switching the app-wide theme overlay
+# (tui.theme.set/.pick) after a page is already cached never recolored it -
+# only a full cache rebuild picked up the new theme. Root cause was two
+# separate bake points, and the first fix (replaying the page's <theme src>
+# via tui.load_theme on every tui.cache.replay) only closed half of it: it
+# refreshes _TUI_CLASS_FG/BG/MOD (the parsed stylesheet's class table), but
+# tui.class ID CLASS - called once per widget at BUILD time - bakes the
+# actual per-widget colors tui.sh's draw code reads into
+# _TUI_STYLE_FG/BG/MOD[id_state]. That table matches
+# _TUI_CACHE_STATE_REGEX, so a cache HIT restores it verbatim from record
+# time and nothing re-runs tui.class, leaving a cached page's rendered
+# colors frozen even though its class table is now correct. The real fix
+# also records every build-time (id, class) pair (_tui_cache_class,
+# _TUI_CACHE_CLASSES) and replays them - via tui.class - after the theme
+# reload on every tui.cache.replay.
+#
+# This test fails against the first (theme-table-only) fix: it would pass
+# the _TUI_CLASS_FG assertion but fail the _TUI_STYLE_FG one, which is
+# exactly the gap the screenshot report caught.
+t_cache_replay_reapplies_theme_overlay_to_baked_widget_style() {
+	_cache_fixture theme_a.css '.t_cache_theme_probe { fg: red; }'
+	local theme_a="$_CF"
+	_cache_fixture theme_b.css '.t_cache_theme_probe { fg: blue; }'
+	local theme_b="$_CF"
+	_cache_fixture page.xml "<tui><theme src=\"$theme_a\"/><pane id=\"root\" split=\"v\"><pane id=\"probe\" class=\"t_cache_theme_probe\" weight=\"1\"/></pane></tui>"
+	local page="$_CF"
+
+	_TUI_THEME_OVERLAY=""
+	tui.reset_ui
+	tui.cache.record "$page"
+	eq "red" "${_TUI_CLASS_FG[t_cache_theme_probe]}"
+	eq "red" "${_TUI_STYLE_FG[probe_normal]}"
+
+	# simulates tui.theme.set "$theme_b" (sets the overlay, then reloads the
+	# current page) without going through tui.goto/tui.theme.reload, which
+	# this unit tier doesn't stand up
+	_TUI_THEME_OVERLAY="$theme_b"
+	tui.reset_ui
+	tui.cache.replay "$page"
+	eq "blue" "${_TUI_CLASS_FG[t_cache_theme_probe]}" # class table: refreshed by either fix
+	eq "blue" "${_TUI_STYLE_FG[probe_normal]}"        # baked per-widget style: only the real fix refreshes this
+
+	_TUI_THEME_OVERLAY=""
+	unset '_TUI_CLASS_FG[t_cache_theme_probe]' '_TUI_STYLE_FG[probe_normal]'
+	tui.cache.theme_clear
+}

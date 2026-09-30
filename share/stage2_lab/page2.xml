@@ -1,0 +1,64 @@
+<!-- No xsi:noNamespaceSchemaLocation on purpose: see page1.xml's header comment. -->
+<tui on_visit="s2_page2_visit">
+  <script src="page2_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <!--
+    stage2_lab page 2 - Hit/Focus (2C) and Composition (2D). See page1.xml's header comment for
+    the fixture's purpose and the "inert attribute" convention (unknown attributes are silently
+    ignored by the loader; only unknown TAGS error - see tui_validate.sh). Everything under
+    "Hit & Focus" below is real markup on real widgets, just not yet READ by any tag handler, so
+    today's behavior is plain document-order Tab focus regardless of the tab_order=/focus_group=
+    values shown. 2D's planned tags (<template>, <for>, ...) genuinely cannot appear live here -
+    they'd fail the "unknown tag" validation gate - so they're shown as reference text instead.
+  -->
+
+  <pane id="root" split="v" title="Stage 2 Lab - Hit, Focus &amp; Composition" border="single" class="sidebar">
+    <pane id="root1" split="h" weight="100">
+      <pane id="nav" weight="18" title="Stage 2 Lab" border="single" class="sidebar"/>
+      <pane id="main" split="v" weight="82" border="none">
+
+        <pane id="sec_order" split="h" weight="22" border="single" title="Tab order: doc order today (real) / tab_order= (2C, inert)" class="panel">
+          <pane id="order_a" weight="1" border="none"/>
+          <pane id="order_b" weight="1" border="none"/>
+          <pane id="order_c" weight="1" border="none"/>
+          <pane id="order_d" weight="1" border="none"/>
+        </pane>
+
+        <pane id="sec_groups" split="h" weight="22" border="single" title="focus_group= / focus_wrap= / autofocus= (2C, inert)" class="panel">
+          <pane id="group_left"  weight="1" border="heavy" class="panel" title="focus_group=left"/>
+          <pane id="group_right" weight="1" border="heavy" class="panel" title="focus_group=right"/>
+        </pane>
+
+        <pane id="sec_hit" split="h" weight="14" border="single" title="hitbox= / hit_pad= (2C, inert) - bigger-than-visible click target" class="panel">
+          <pane id="hit_btn_pane" weight="1" border="none"/>
+          <pane id="hit_lbl_pane" weight="2" border="none"/>
+        </pane>
+
+        <pane id="sec_compose" weight="42" border="single" title="2D planned syntax (reference only - new tags, can't run yet)" class="panel"/>
+
+      </pane>
+    </pane>
+  </pane>
+
+  <label  id="lbl_title" pane="nav" row="0" text="Stage 2 Lab" class="brand"/>
+  <label  id="lbl_sub"   pane="nav" row="1" text="Hit, Focus &amp; Composition" class="muted_label"/>
+  <button id="btn_back"  pane="nav" row="3" text="[ &lt;- Page 1: Layout ]" action="s2_goto_page1" class="primary_button" align="fill"/>
+
+  <!-- doc order here is d, b, a, c - tab_order= (once 2C reads it) should make real Tab order 1,2,3,4 regardless -->
+  <button id="btn_order_d" pane="order_d" row="0" text="[ d: tab_order=1 ]" action="s2_noop" class="primary_button" align="fill" tab_order="1"/>
+  <button id="btn_order_b" pane="order_b" row="0" text="[ b: tab_order=2 ]" action="s2_noop" class="primary_button" align="fill" tab_order="2"/>
+  <button id="btn_order_a" pane="order_a" row="0" text="[ a: tab_order=3 ]" action="s2_noop" class="primary_button" align="fill" tab_order="3"/>
+  <button id="btn_order_c" pane="order_c" row="0" text="[ c: tab_order=4 ]" action="s2_noop" class="primary_button" align="fill" tab_order="4"/>
+
+  <button id="btn_left_1"  pane="group_left"  row="0" text="[ left 1 ]" action="s2_noop" class="primary_button" align="fill" focus_group="left" focus_wrap="true" autofocus="true"/>
+  <button id="btn_left_2"  pane="group_left"  row="1" text="[ left 2 ]" action="s2_noop" class="primary_button" align="fill" focus_group="left" focus_wrap="true"/>
+  <button id="btn_right_1" pane="group_right" row="0" text="[ right 1 ]" action="s2_noop" class="danger_button" align="fill" focus_group="right" focus_wrap="true"/>
+  <button id="btn_right_2" pane="group_right" row="1" text="[ right 2 ]" action="s2_noop" class="danger_button" align="fill" focus_group="right" focus_wrap="true"/>
+
+  <button id="btn_hit" pane="hit_btn_pane" row="0" text="[ hit_pad=2 ]" action="s2_noop" class="primary_button" align="fill" hitbox="true" hit_pad="2"/>
+  <label  id="lbl_hit" pane="hit_lbl_pane" row="0" text="  &lt;- intended: clicks up to 2 cells outside the border still activate it" class="muted_label"/>
+
+  <textarea id="compose_ref" pane="sec_compose" row="0" placeholder="" value="&lt;template id=&quot;row&quot;&gt;\n  &lt;pane split=&quot;h&quot;&gt;\n    &lt;label text=&quot;{{name}}&quot;/&gt;\n    &lt;button text=&quot;Remove&quot; action=&quot;remove_row&quot;/&gt;\n  &lt;/pane&gt;\n&lt;/template&gt;\n\n&lt;for each=&quot;row in rows&quot;&gt;\n  &lt;use template=&quot;row&quot; name=&quot;{{row.name}}&quot;/&gt;\n&lt;/for&gt;\n\n&lt;if when=&quot;rows.length == 0&quot;&gt;\n  &lt;label text=&quot;No rows yet&quot; class=&quot;muted_label&quot;/&gt;\n&lt;/if&gt;"/>
+
+</tui>

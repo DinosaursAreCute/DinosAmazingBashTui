@@ -58,6 +58,7 @@ tui.textarea() {
 	_TUI_W_PH[$1]="${4:-}"
 	_TUI_W_ROWSPAN[$1]="${5:-0}"
 	_TUI_W_SUBMIT[$1]="${6:-}"
+	_TUI_W_EXPAND[$1]=y
 }
 tui.list() {
 	_tui_wx.new "$1" list "$2" "$3" 1 || return 1
@@ -65,6 +66,7 @@ tui.list() {
 	_TUI_W_ROWSPAN[$1]="${5:-0}"
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
+	_TUI_W_EXPAND[$1]=y
 	_tui_wx.arr "$1"
 	_WXA=()
 }
@@ -75,6 +77,7 @@ tui.table() {
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
 	_WXCOLS[$1]=""
+	_TUI_W_EXPAND[$1]=y
 	_tui_wx.arr "$1"
 	_WXA=()
 }
@@ -603,63 +606,93 @@ _tui_wx.forget() {
 
 # markup: <password|textarea|list|table|select|progress ...>  (called by tui_markup.sh)
 _markup_wx() {
-	local tag="$1" line="$2" id pane row rows items data
-	id="$(_markup_attr "$line" id)"
-	pane="$(_markup_attr "$line" pane)"
-	row="$(_markup_attr "$line" row)"
-	rows="$(_markup_attr "$line" rows)"
+	local tag="$1" line="$2" id pane row rows items data _ma1 _ma2 _ma3
+	_markup_attrv "$line" id id
+	_markup_attrv "$line" pane pane
+	_markup_attrv "$line" row row
+	_markup_attrv "$line" rows rows
 	local -a arr=()
 	case "$tag" in
 		password)
-			tui.password "$id" "$pane" "$row" "$(_markup_attr "$line" placeholder)" "$(_markup_attr "$line" label)" "$(_markup_attr "$line" submit)"
-			tui.label_align "$id" "$(_markup_attr "$line" label_align)"
-			tui.label_width "$id" "$(_markup_attr "$line" label_width)"
+			_markup_attrv "$line" placeholder _ma1
+			_markup_attrv "$line" label _ma2
+			_markup_attrv "$line" submit _ma3
+			tui.password "$id" "$pane" "$row" "$_ma1" "$_ma2" "$_ma3"
+			_markup_attrv "$line" label_align _ma1
+			tui.label_align "$id" "$_ma1"
+			_markup_attrv "$line" label_width _ma1
+			tui.label_width "$id" "$_ma1"
 			;;
 		textarea)
-			tui.textarea "$id" "$pane" "$row" "$(_markup_attr "$line" placeholder)" "${rows:-0}" "$(_markup_attr "$line" submit)"
+			_markup_attrv "$line" placeholder _ma1
+			_markup_attrv "$line" submit _ma2
+			tui.textarea "$id" "$pane" "$row" "$_ma1" "${rows:-0}" "$_ma2"
 			local v
-			v="$(_markup_attr "$line" value)"
+			_markup_attrv "$line" value v
 			[[ -n "$v" ]] && tui.set "$id" "${v//\\n/$'\n'}"
 			;;
 		list)
-			tui.list "$id" "$pane" "$row" "$(_markup_attr "$line" action)" "${rows:-0}"
-			items="$(_markup_attr "$line" items)"
+			_markup_attrv "$line" action _ma1
+			tui.list "$id" "$pane" "$row" "$_ma1" "${rows:-0}"
+			_markup_attrv "$line" items items
 			if [[ -n "$items" ]]; then
 				IFS='|' read -ra arr <<<"$items"
 				tui.list.set "$id" "${arr[@]}"
 			fi
 			;;
 		table)
-			tui.table "$id" "$pane" "$row" "$(_markup_attr "$line" action)" "${rows:-0}"
-			data="$(_markup_attr "$line" data)"
+			_markup_attrv "$line" action _ma1
+			tui.table "$id" "$pane" "$row" "$_ma1" "${rows:-0}"
+			_markup_attrv "$line" data data
 			if [[ -n "$data" ]]; then IFS=';' read -ra arr <<<"$data"; fi
-			tui.table.set "$id" "$(_markup_attr "$line" columns)" "${arr[@]}"
+			_markup_attrv "$line" columns _ma1
+			tui.table.set "$id" "$_ma1" "${arr[@]}"
 			;;
 		select)
-			tui.select "$id" "$pane" "$row" "$(_markup_attr "$line" label)" "$(_markup_attr "$line" action)"
+			_markup_attrv "$line" label _ma1
+			_markup_attrv "$line" action _ma2
+			tui.select "$id" "$pane" "$row" "$_ma1" "$_ma2"
 			local sv
-			sv="$(_markup_attr "$line" value)"
+			_markup_attrv "$line" value sv
 			[[ -n "$sv" ]] && tui.set "$id" "$sv"
-			items="$(_markup_attr "$line" items)"
+			_markup_attrv "$line" items items
 			if [[ -n "$items" ]]; then
 				IFS='|' read -ra arr <<<"$items"
 				tui.select.set "$id" "${arr[@]}"
 			fi
 			;;
 		progress)
-			tui.progress "$id" "$pane" "$row" "$(_markup_attr "$line" label)"
+			_markup_attrv "$line" label _ma1
+			tui.progress "$id" "$pane" "$row" "$_ma1"
 			local pv
-			pv="$(_markup_attr "$line" value)"
+			_markup_attrv "$line" value pv
 			[[ -n "$pv" ]] && tui.set "$id" "$pv"
 			;;
 	esac
 	local oc
-	oc="$(_markup_attr "$line" on_change)"
+	_markup_attrv "$line" on_change oc
 	[[ -n "$oc" ]] && tui.on_change "$id" "$oc"
-	tui.align "$id" "$(_markup_attr "$line" align)"
-	tui.valign "$id" "$(_markup_attr "$line" valign)"
-	tui.minsize "$id" "$(_markup_attr "$line" min_width)"
-	tui.maxsize "$id" "$(_markup_attr "$line" max_width)"
-	tui.class "$id" "$(_markup_attr "$line" class)"
-	tui.pad "$id" "$(_markup_attr "$line" hpad)" "$(_markup_attr "$line" vpad)"
+	_markup_attrv "$line" align _ma1
+	tui.align "$id" "$_ma1"
+	_markup_attrv "$line" valign _ma1
+	tui.valign "$id" "$_ma1"
+	_markup_attrv "$line" min_width _ma1
+	_markup_attrv "$line" min_height _ma2
+	tui.minsize "$id" "$_ma1" "$_ma2"
+	_markup_attrv "$line" max_width _ma1
+	_markup_attrv "$line" max_height _ma2
+	tui.maxsize "$id" "$_ma1" "$_ma2"
+	local wx_expand wx_width wx_height wx_padding wx_hpad wx_vpad
+	_markup_attrv "$line" expand wx_expand
+	_markup_attrv "$line" width wx_width
+	_markup_attrv "$line" height wx_height
+	_markup_attrv "$line" padding wx_padding
+	_markup_attrv "$line" hpad wx_hpad
+	_markup_attrv "$line" vpad wx_vpad
+	[[ -n "$wx_expand" ]] && tui.expand "$id" "$wx_expand"
+	[[ -n "$wx_width" ]] && tui.width "$id" "$wx_width"
+	[[ -n "$wx_height" ]] && tui.height "$id" "$wx_height"
+	_markup_attrv "$line" class _ma1
+	_tui_cache_class "$id" "$_ma1"
+	tui.pad "$id" "${wx_hpad:-$wx_padding}" "${wx_vpad:-$wx_padding}"
 }

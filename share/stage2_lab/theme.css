@@ -1,0 +1,39 @@
+/* stage2_lab/theme.css - minimal palette for the two lab pages. Only the classes these pages
+ * actually use; see docs/guide/markup.md for the full .class:state syntax. */
+
+.sidebar        { fg: #d8dee9; bg: #1e222a; }
+.sidebar:border { fg: #5e81ac; }
+.sidebar:title  { fg: #88c0d0; mods: bold; }
+.sidebar:focus  { fg: #88c0d0; mods: bold; }
+
+.panel        { fg: #d8dee9; bg: #262b36; }
+.panel:border { fg: #4c566a; }
+.panel:title  { fg: #88c0d0; mods: bold; }
+.panel:focus  { bg: #313846; }
+
+.brand       { fg: #88c0d0; mods: bold; }
+.muted_label { fg: #6b7688; }
+
+.check            { fg: #6b7688; }
+.check:checked    { fg: #a3be8c; mods: bold; }
+.check:unchecked  { fg: #6b7688; }
+
+.primary_button        { fg: #1e222a; bg: #88c0d0; mods: bold; }
+.primary_button:focus  { fg: #1e222a; bg: #a6d4e0; mods: bold underline; }
+.primary_button:hover  { fg: #1e222a; bg: #6fa8ba; mods: bold; }
+
+.danger_button        { fg: #1e222a; bg: #bf616a; mods: bold; }
+.danger_button:focus  { fg: #1e222a; bg: #d08790; mods: bold underline; }
+.danger_button:hover  { fg: #1e222a; bg: #a54c54; mods: bold; }
+
+.tab_header          { fg: #d8dee9; bg: #262b36; }
+.tab_header:hover    { fg: #ffffff; bg: #313846; }
+.tab_header:focus    { fg: #1e222a; bg: #88c0d0; mods: bold; }
+.tab_header_compact         { fg: #6b7688; bg: #1e222a; }
+.tab_header_compact:hover   { fg: #d8dee9; bg: #313846; }
+.tab_header_compact:focus   { fg: #1e222a; bg: #88c0d0; mods: bold; }
+
+.field_label        { fg: #6b7688; }
+.field_label:focus  { fg: #88c0d0; }
+
+.spec_text { fg: #a3be8c; bg: #1e222a; }

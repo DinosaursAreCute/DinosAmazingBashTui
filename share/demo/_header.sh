@@ -2,7 +2,7 @@
 # _header.sh - the demo's shared header: a static title banner plus a live clock, both built on tui_api.sh
 # (tui.clock / tui.every), so they need no per-page tick hook and don't touch _TUI_TICK_FN.
 tui.require terminal_renderer
-
+declare -g TUI_LOG_DIR="."
 # Title banner in the pane's own theme colours. Change-detected by tui.set_text, so the 3-second refresh (which also
 # re-fits it after a resize) costs nothing when nothing changed.
 _dabt_title() {

@@ -39,12 +39,14 @@ _TUI_OVL_GEN=0
 # render (their own trigger, after tui.render already flushed once), so this owns its
 # own frame and its own synchronized flush rather than folding into tui.render's.
 _tui_overlay.draw_all() {
-	_TUI_OVL_GEN=$_TUI_FLUSH_GEN
 	local f _oda_saved="$_TUI_FRAME"
 	_TUI_FRAME=""
 	for f in "${_TUI_OVERLAY_FNS[@]}"; do "$f"; done
 	_tui._flush "$_TUI_FRAME"
 	_TUI_FRAME="$_oda_saved"
+	# after the flush, which bumps _TUI_FLUSH_GEN: marking the generation before it made the main loop
+	# see "something flushed since the last overlay draw" after every overlay draw, i.e. redraw forever
+	_TUI_OVL_GEN=$_TUI_FLUSH_GEN
 }
 
 tui.modal.active() { [[ -n "$_TUI_MODAL" && (-z "${1:-}" || "$_TUI_MODAL" == "$1") ]]; }

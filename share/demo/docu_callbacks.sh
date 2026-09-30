@@ -14,19 +14,21 @@ declare -gA _DOCU_TAB_TITLE=()
 # before a colon (most of these docs are titled "Title: Subtitle"),
 # capped to a sane length. README gets a fixed label instead of parsing
 # its heading, which starts with an emoji and a trailing <br/>.
-_docu_short_title() {
-	local file="$1"
-	local base
-	base="$(basename "$file" .md)"
+_docu_short_title_v() {
+	local file="$1" base="${1##*/}" heading
+	base="${base%.md}"
 	if [[ "${base,,}" == "readme" ]]; then
-		[[ "$file" == */docs/README.md ]] && printf 'Docs index' || printf 'README'
+		[[ "$file" == */docs/README.md ]] && _DOCU_T='Docs index' || _DOCU_T='README'
 		return
 	fi
-	local heading
-	heading="$(head -1 "$file")"
+	IFS= read -r heading <"$file" || true
 	heading="${heading#\# }"
 	heading="${heading%%:*}"
-	printf '%s' "${heading:0:16}"
+	_DOCU_T="${heading:0:16}"
+}
+_docu_short_title() {
+	_docu_short_title_v "$1"
+	printf '%s' "$_DOCU_T"
 }
 
 # Banner text for a doc: the full part of its first H1 heading before a
@@ -36,13 +38,14 @@ _docu_short_title() {
 _docu_banner_title() {
 	local file="$1"
 	local base
-	base="$(basename "$file" .md)"
+	base="${file##*/}"
+	base="${base%.md}"
 	if [[ "${base,,}" == "readme" ]]; then
 		[[ "$file" == */docs/README.md ]] && printf 'Docs index' || printf 'README'
 		return
 	fi
 	local heading
-	heading="$(head -1 "$file")"
+	IFS= read -r heading <"$file" || true
 	heading="${heading#\# }"
 	heading="${heading%%:*}"
 	printf '%s' "$heading"
@@ -69,13 +72,15 @@ on_docu_visit() {
 	local i tab_id title is_default base
 	for i in "${!files[@]}"; do
 		tab_id="doc_tab_${i}"
-		title="$(_docu_short_title "${files[$i]}")"
+		_docu_short_title_v "${files[$i]}"
+		title="$_DOCU_T"
 		if [[ -n "${seen_titles[$title]:-}" ]]; then
 			# Two docs' headings collided after truncation (e.g. two
 			# "Developer Guide: ..." titles) - fall back to the filename
 			# to keep tabs distinguishable, since a repeated label is
 			# confusing no matter how well it clips.
-			base="$(basename "${files[$i]}" .md)"
+			base="${files[$i]##*/}"
+			base="${base%.md}"
 			base="${base//[_-]/ }"
 			title="${base:0:16}"
 		fi
@@ -114,5 +119,5 @@ load_document() {
 
 	local formatted_doc="$(printf '%b' "$raw_doc")"
 	tui.output "content" "$formatted_doc"
-	tui.pane_title "content" "$(basename "$doc_path")"
+	tui.pane_title "content" "${doc_path##*/}"
 }

@@ -21,10 +21,16 @@ SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" # the lib/ fold
 source "${SCRIPT_DIR}/state.sh"
 # shellcheck source=perf.sh
 source "${SCRIPT_DIR}/perf.sh"
+# shellcheck source=layout/tui_layout.sh
+source "${SCRIPT_DIR}/layout/tui_layout.sh"
 # shellcheck source=terminal_controls.sh
 source "${SCRIPT_DIR}/terminal_controls.sh"
 # shellcheck source=render/tui_emit.sh
 source "${SCRIPT_DIR}/render/tui_emit.sh"
+# shellcheck source=render/tui_canvas.sh
+source "${SCRIPT_DIR}/render/tui_canvas.sh"
+# shellcheck source=render/tui_paint.sh
+source "${SCRIPT_DIR}/render/tui_paint.sh"
 # shellcheck source=colors.sh
 source "${SCRIPT_DIR}/colors.sh"
 # shellcheck source=tui_home.sh
@@ -83,8 +89,9 @@ source "${SCRIPT_DIR}/markup/tui_cache.sh"
 # input event. Lower = more responsive to a live tui.exec tick, higher =
 # less idle CPU. Two knobs because a live tick function (a running
 # tui.exec process) wants to be polled more eagerly than a fully idle UI.
-declare -g TUI_INPUT_POLL_TIMEOUT=0.05 # used while _TUI_TICK_FN is set
-declare -g TUI_INPUT_IDLE_TIMEOUT=0.2  # used otherwise
+declare -g TUI_INPUT_POLL_TIMEOUT=0.05   # used while _TUI_TICK_FN is set
+declare -g TUI_INPUT_IDLE_TIMEOUT=0.2    # used otherwise
+declare -g TUI_INPUT_SETTLE_TIMEOUT=0.01 # used instead while a pane render is queued: how long the input must stay quiet before it is flushed
 
 # How long to wait for each subsequent byte while assembling an escape
 # sequence that's already begun (arrow keys, SGR mouse reports, …).
@@ -242,16 +249,49 @@ tui.init() {
 	tui.hook.fire init
 }
 
-_kill_process_tree() {
-	local pid=$1
-	local children
-	children=$(pgrep -P "$pid" 2>/dev/null)
-	for child in $children; do
-		_kill_process_tree "$child"
+# _tui_proc_running PID - rc 0 while PID is alive and not a zombie (a child we have not wait()ed for still answers
+# `kill -0`). /proc where there is one, `kill -0` elsewhere.
+_tui_proc_running() {
+	local line st
+	if [[ -r "/proc/$1/stat" ]]; then
+		read -r line <"/proc/$1/stat" 2>/dev/null || return 1
+		st="${line##*) }"
+		[[ "${st:0:1}" != Z ]]
+	else
+		kill -0 "$1" 2>/dev/null
+	fi
+}
+
+# _tui_proc_tree PID - appends PID's descendants, deepest first, then PID itself, to _TUI_PTREE
+_tui_proc_tree() {
+	local child kids=""
+	# /proc/PID/task/PID/children where the kernel has it (no fork); pgrep scans all of /proc, ~25 ms here
+	if [[ -r "/proc/$1/task/$1/children" ]]; then
+		read -r kids <"/proc/$1/task/$1/children" 2>/dev/null
+	else
+		kids="$(pgrep -P "$1" 2>/dev/null)"
+	fi
+	for child in $kids; do
+		_tui_proc_tree "$child"
 	done
-	kill -TERM "$pid" 2>/dev/null
-	sleep 0.05
-	kill -KILL "$pid" 2>/dev/null
+	_TUI_PTREE+=("$1")
+}
+
+# SIGTERM the whole tree (children first), wait once for all of it for up to 50 ms polled every 5 ms, then SIGKILL
+# whatever is still running. It used to sleep a full 50 ms after every process: 150 ms for a three-level tree.
+_kill_process_tree() {
+	local -a _TUI_PTREE=()
+	local p i left
+	_tui_proc_tree "$1"
+	for p in "${_TUI_PTREE[@]}"; do kill -TERM "$p" 2>/dev/null; done
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		left=0
+		for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && left=1 && break; done
+		((left)) || return 0
+		read -rt 0.005 <> <(:)
+	done
+	for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && kill -KILL "$p" 2>/dev/null; done
+	return 0
 }
 
 # Kills one instance's process (if still alive) and closes its fifo fd.
@@ -339,6 +379,7 @@ _tui._split() {
 	_TUI_P_DIR[$parent]="$dir"
 	_TUI_P_CHILDREN[$parent]="$names"
 	_TUI_P_WEIGHTS[$parent]="$weights"
+	_tui.layout_bump
 
 	_tui._layout "$parent"
 
@@ -378,6 +419,7 @@ tui.fixed() {
 	_TUI_P_WEIGHTS[$parent]=""
 	_TUI_P_CELLW[$parent]="$sw"
 	_TUI_P_CELLH[$parent]="$sh"
+	_tui.layout_bump
 
 	_tui._layout "$parent"
 
@@ -531,6 +573,17 @@ _tui._layout_r() {
 	local dir="${_TUI_P_DIR[$p]:-}"
 	[[ -z "$dir" ]] && return
 
+	# Memoization (2A): a pane's whole subtree is safe to skip when its own
+	# (row,col,h,w) match the last pass AND nothing layout-relevant has
+	# mutated ANYWHERE since (the global _TUI_LY_GEN counter - see
+	# lib/layout/tui_layout.sh's header comment). Coarser than per-subtree
+	# dirty tracking but never stale: any split/gap/pad/border/max_* change,
+	# or a cache-replay boundary (_tui_cache_relayout), bumps it. This is
+	# what closes tools/bench/run.sh's resize_relayout back within G3 after
+	# routing every split through the fr/clamp engine (2A) made the first
+	# pass alone ~1.7x slower than the old inline arithmetic.
+	_tui.layout_cache_hit "$p" "${_TUI_P_ROW[$p]} ${_TUI_P_COL[$p]} ${_TUI_P_H[$p]} ${_TUI_P_W[$p]}" && return
+
 	# A parent's own border and vpad/hpad shrink the area its children
 	# share; _tui._inset drops both when the parent is too small for them.
 	_tui._inset "$p"
@@ -544,36 +597,88 @@ _tui._layout_r() {
 		return
 	fi
 
-	local -a ch wt
+	local -a ch spec
 	read -ra ch <<<"${_TUI_P_CHILDREN[$p]}"
-	read -ra wt <<<"${_TUI_P_WEIGHTS[$p]}"
+	read -ra spec <<<"${_TUI_P_WEIGHTS[$p]}"
+	local last=$((${#ch[@]} - 1))
+	local gap=${_TUI_P_GAP[$p]:-0} avail
+	[[ "$dir" == "h" ]] && avail=$pw || avail=$ph
 
-	local total=0
-	for w in "${wt[@]}"; do ((total += w)); done
+	# fast=1 while every child so far is a plain integer weight with no
+	# max_width/max_height and gap=0 - today's overwhelmingly common case
+	# (plain weight= splits). This first pass touches no _LY_* globals at
+	# all, only local vars - tools/bench/run.sh's resize_relayout caught a
+	# ~2.6x regression from unconditionally marshalling every split's specs
+	# into _tui.layout_arrange's arrays even for this trivial case; a second
+	# pass below builds those arrays and calls it, but only when this one
+	# actually finds something the fast arithmetic can't handle (a unit
+	# token, a max_width/max_height, or a gap).
+	local i name s fast=1 total=0
+	((gap != 0)) && fast=0
+	if ((fast)); then
+		for ((i = 0; i <= last; i++)); do
+			name="${ch[$i]}"
+			s="${spec[$i]:-1}"
+			if [[ -n "$s" && "$s" != *[!0-9]* ]] &&
+				{ [[ "$dir" == "h" ]] && [[ -z "${_TUI_P_MAXW[$name]:-}" ]] || [[ "$dir" != "h" && -z "${_TUI_P_MAXH[$name]:-}" ]]; }; then
+				((total += s))
+			else
+				fast=0
+				break
+			fi
+		done
+	fi
 
-	local i offset=0 last=$((${#ch[@]} - 1))
+	local -a sizes=()
+	if ((fast)); then
+		((total == 0)) && total=$((last + 1))
+		local off=0
+		for ((i = 0; i <= last; i++)); do
+			s="${spec[$i]:-1}"
+			if ((i == last)); then
+				sizes[i]=$((avail - off))
+			else
+				sizes[i]=$((avail * s / total))
+				((off += sizes[i]))
+			fi
+		done
+	else
+		# Per-child spec (plain weight, or a 2A unit token: N%, Nfr, auto,
+		# fill, clamp(...)) plus its legacy max_width/max_height, now
+		# correctly redistributed to siblings when it clamps (the old inline
+		# loop just dropped the freed space). Legacy min_width/min_height
+		# stay advisory-only (the "too small" warning) - real min
+		# enforcement is opt-in via a clamp(...) spec itself, see
+		# _tui.layout_arrange's own doc comment.
+		_LY_SPECS=() _LY_MINS=() _LY_MAXS=()
+		for ((i = 0; i <= last; i++)); do
+			name="${ch[$i]}"
+			_LY_SPECS[i]="${spec[$i]:-1}"
+			_LY_MINS[i]=""
+			[[ "$dir" == "h" ]] && _LY_MAXS[i]="${_TUI_P_MAXW[$name]:-}" || _LY_MAXS[i]="${_TUI_P_MAXH[$name]:-}"
+		done
+		_tui.layout_arrange "$avail" "$gap"
+		sizes=("${_LY_SIZES[@]}") # local snapshot: recursing below overwrites the shared _LY_* globals
+	fi
+
+	local offset=0 size
 	for ((i = 0; i <= last; i++)); do
-		local name="${ch[$i]}" w="${wt[$i]}"
+		name="${ch[$i]}"
+		size=${sizes[$i]:-0}
 
 		if [[ "$dir" == "h" ]]; then
-			local cw=$((pw * w / total))
-			((i == last)) && cw=$((pw - offset))
-			[[ -n "${_TUI_P_MAXW[$name]:-}" ]] && ((cw > _TUI_P_MAXW[$name])) && cw=${_TUI_P_MAXW[$name]}
 			_TUI_P_ROW[$name]=$pr
 			_TUI_P_COL[$name]=$((pc + offset))
 			_TUI_P_H[$name]=$ph
-			_TUI_P_W[$name]=$cw
-			((offset += cw))
+			_TUI_P_W[$name]=$size
 		else
-			local ch_h=$((ph * w / total))
-			((i == last)) && ch_h=$((ph - offset))
-			[[ -n "${_TUI_P_MAXH[$name]:-}" ]] && ((ch_h > _TUI_P_MAXH[$name])) && ch_h=${_TUI_P_MAXH[$name]}
 			_TUI_P_ROW[$name]=$((pr + offset))
 			_TUI_P_COL[$name]=$pc
-			_TUI_P_H[$name]=$ch_h
+			_TUI_P_H[$name]=$size
 			_TUI_P_W[$name]=$pw
-			((offset += ch_h))
 		fi
+		((offset += size))
+		((i < last)) && ((offset += gap))
 
 		[[ -n "${_TUI_P_CHILDREN[$name]:-}" ]] && _tui._layout_r "$name"
 	done
@@ -583,6 +688,7 @@ tui.pane_title() { _TUI_P_TITLE[$1]="$2"; }
 tui.pane_border() {
 	_TUI_P_BORDER[$1]="$2"
 	_TUI_P_BORDER_EXPL[$1]=1
+	_tui.layout_bump # border changes _tui._inset, which shifts every child's rect
 }
 # tui.pane_pad ID HPAD VPAD - blank cols/rows on each side. Parent panes:
 # gap between the frame and the children. Leaf panes: shrinks the area
@@ -590,10 +696,16 @@ tui.pane_border() {
 tui.pane_pad() {
 	[[ -n "$2" ]] && _TUI_P_HPAD[$1]="$2"
 	[[ -n "$3" ]] && _TUI_P_VPAD[$1]="$3"
+	_tui.layout_bump
 }
 tui.pad() {
 	[[ -n "$2" ]] && _TUI_W_HPAD[$1]="$2"
 	[[ -n "$3" ]] && _TUI_W_VPAD[$1]="$3"
+}
+# tui.pane_gap ID GAP - cells left blank between ID's children on its split axis (2A).
+tui.pane_gap() {
+	[[ -n "$2" ]] && _TUI_P_GAP[$1]="$2"
+	_tui.layout_bump
 }
 
 # _tui._eff_border ID - sets _TB to the border style actually drawn.
@@ -621,7 +733,19 @@ _tui._eff_border() {
 # inset 0 border cols; leaves with no frame keep the legacy 1-col margin.
 _tui._inset() {
 	local id="$1" bv bh
-	_tui._eff_border "$id"
+	# _tui._eff_border inlined (one call fewer on every widget position and pane rect); keep the two in step
+	local h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0} m
+	_TB="${_TUI_P_BORDER[$id]:-single}"
+	if [[ "$_TB" != none ]]; then
+		if [[ -n "${_TUI_P_CHILDREN[$id]:-}" ]]; then
+			if [[ -z "${_TUI_P_BORDER_EXPL[$id]:-}" ]] ||
+				((h - 2 - 2 * ${_TUI_P_VPAD[$id]:-0} < 3 || w - 4 - 2 * ${_TUI_P_HPAD[$id]:-0} < 5)); then
+				_TB=none
+			fi
+		elif ((h < 3 || w < 5)); then
+			_TB=none
+		fi
+	fi
 	if [[ "$_TB" != "none" ]]; then
 		bv=1
 		bh=2
@@ -633,7 +757,6 @@ _tui._inset() {
 		bh=1
 	fi
 	local vp=${_TUI_P_VPAD[$id]:-0} hp=${_TUI_P_HPAD[$id]:-0}
-	local h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0} m
 	m=$(((h - 1) / 2 - bv))
 	((m < 0)) && m=0
 	((vp > m)) && vp=$m
@@ -663,6 +786,7 @@ tui.pane_minsize() {
 tui.pane_maxsize() {
 	[[ -n "$2" ]] && _TUI_P_MAXW[$1]="$2"
 	[[ -n "$3" ]] && _TUI_P_MAXH[$1]="$3"
+	_tui.layout_bump # unlike min_*, max_* feeds real arrange math (fast-path check + _LY_MAXS)
 }
 
 tui.pane_scroll() {
@@ -840,7 +964,7 @@ tui.tabs.build() {
 		_TUI_TAB_GROUP[$tid]="$tabs_id"
 		tui.button "$tid" "${header_pane}_${tid}_cell" 0 "${_TUI_TAB_TEXT[$tid]:-$tid}" _tui._tab_activate
 		tui.align "$tid" fill
-		tui.class "$tid" "$cell_class"
+		_tui_cache_class "$tid" "$cell_class"
 		[[ "${_TUI_TAB_DEFAULT[$tid]:-}" == "true" ]] && default_tab="$tid"
 	done
 	[[ -z "$default_tab" ]] && default_tab="${tab_ids[0]}"
@@ -1011,6 +1135,8 @@ tui.factory.clear() {
 			unset '_TUI_W_TYPE[$id]' '_TUI_W_PANE[$id]' '_TUI_W_ROW[$id]' '_TUI_W_LABEL[$id]' \
 				'_TUI_W_VALUE[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
 				'_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
+				'_TUI_W_MINH[$id]' '_TUI_W_MAXH[$id]' '_TUI_W_EXPAND[$id]' \
+				'_TUI_W_WIDTH[$id]' '_TUI_W_HEIGHT[$id]' \
 				'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]'
 			_tui_wx.forget "$id"
 			unset '_TUI_P_ROW[$id]' '_TUI_P_COL[$id]' '_TUI_P_H[$id]' '_TUI_P_W[$id]' \
@@ -1052,8 +1178,25 @@ tui.on_action() { _TUI_W_ACTION[$1]="$2"; }
 tui.on_submit() { _TUI_W_SUBMIT[$1]="$2"; }
 tui.align() { [[ -n "$2" ]] && _TUI_W_ALIGN[$1]="$2"; }
 tui.valign() { [[ -n "$2" ]] && _TUI_W_VALIGN[$1]="$2"; }
-tui.minsize() { [[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"; }
-tui.maxsize() { [[ -n "$2" ]] && _TUI_W_MAXW[$1]="$2"; }
+tui.minsize() {
+	[[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"
+	[[ -n "$3" ]] && _TUI_W_MINH[$1]="$3"
+}
+tui.maxsize() {
+	[[ -n "$2" ]] && _TUI_W_MAXW[$1]="$2"
+	[[ -n "$3" ]] && _TUI_W_MAXH[$1]="$3"
+}
+# tui.expand ID x|y|both - which dims _tui._widget_pos fills to the pane's content area (2A: the
+# generic replacement for the old hardcoded textarea/list/table row-span case; see
+# docs/api/widgets/tui.expand.md). list/table/textarea default to "y"; call this to override (e.g.
+# opt a textarea back out to a fixed row count). "x" is currently a no-op (width already fills by
+# default) - accepted for forward compatibility, per the doc.
+tui.expand() { _TUI_W_EXPAND[$1]="$2"; }
+# tui.width/tui.height ID SPEC - an explicit 2A unit-token size (cells, %, clamp(...); auto/fill/fr
+# resolve to the widget's default fill size) for _tui._widget_pos, resolved through the same
+# _tui.layout_resolve panes use. Applied before min_*/max_* clamp further.
+tui.width() { [[ -n "$2" ]] && _TUI_W_WIDTH[$1]="$2"; }
+tui.height() { [[ -n "$2" ]] && _TUI_W_HEIGHT[$1]="$2"; }
 tui.label_align() { [[ -n "$2" ]] && _TUI_W_LABEL_ALIGN[$1]="$2"; }
 tui.label_width() { [[ -n "$2" ]] && _TUI_W_LABEL_WIDTH[$1]="$2"; }
 
@@ -1175,6 +1318,24 @@ declare -g _TUI_CONTENT_NEED_H=0
 # A container pane (has children) or one with scroll enabled is exempt:
 # a container's own children enforce their own fit, and a scrollable
 # pane's whole purpose is holding content taller/wider than its viewport.
+# One pass over every widget into per-pane maxima, for _tui._pane_content_need while _TUI_CN_ON=1 (tui.render's
+# up-front refresh): the per-pane scan of all widgets made a full render cost panes x widgets.
+declare -gA _TUI_CN_ROW=() _TUI_CN_LEN=()
+declare -gi _TUI_CN_ON=0 _TUI_FIT_FRESH=0 # _TUI_FIT_FRESH: tui.render has just refreshed every leaf's content fit
+_tui._content_need_index() {
+	_TUI_CN_ROW=()
+	_TUI_CN_LEN=()
+	local wid p row txt
+	for wid in "${_TUI_W_ORDER[@]}"; do
+		p="${_TUI_W_PANE[$wid]:-}"
+		[[ -n "$p" ]] || continue
+		row=${_TUI_W_ROW[$wid]:-0}
+		((row > ${_TUI_CN_ROW[$p]:--1})) && _TUI_CN_ROW[$p]=$row
+		case "${_TUI_W_TYPE[$wid]:-}" in textarea | list | table | progress) txt="${_TUI_W_LABEL[$wid]:-}" ;; *) txt="${_TUI_W_LABEL[$wid]:-${_TUI_W_VALUE[$wid]:-}}" ;; esac
+		((${#txt} > ${_TUI_CN_LEN[$p]:-0})) && _TUI_CN_LEN[$p]=${#txt}
+	done
+}
+
 _tui._pane_content_need() {
 	local id="$1"
 	_TUI_CONTENT_NEED_W=0
@@ -1183,13 +1344,18 @@ _tui._pane_content_need() {
 	[[ "${_TUI_P_SCROLL[$id]:-none}" != "none" ]] && return
 
 	local wid maxrow=-1 maxlen=0 row txt
-	for wid in "${_TUI_W_ORDER[@]}"; do
-		[[ "${_TUI_W_PANE[$wid]:-}" == "$id" ]] || continue
-		row=${_TUI_W_ROW[$wid]:-0}
-		((row > maxrow)) && maxrow=$row
-		case "${_TUI_W_TYPE[$wid]:-}" in textarea | list | table | progress) txt="${_TUI_W_LABEL[$wid]:-}" ;; *) txt="${_TUI_W_LABEL[$wid]:-${_TUI_W_VALUE[$wid]:-}}" ;; esac
-		((${#txt} > maxlen)) && maxlen=${#txt}
-	done
+	if ((_TUI_CN_ON)); then
+		maxrow=${_TUI_CN_ROW[$id]:--1}
+		maxlen=${_TUI_CN_LEN[$id]:-0}
+	else
+		for wid in "${_TUI_W_ORDER[@]}"; do
+			[[ "${_TUI_W_PANE[$wid]:-}" == "$id" ]] || continue
+			row=${_TUI_W_ROW[$wid]:-0}
+			((row > maxrow)) && maxrow=$row
+			case "${_TUI_W_TYPE[$wid]:-}" in textarea | list | table | progress) txt="${_TUI_W_LABEL[$wid]:-}" ;; *) txt="${_TUI_W_LABEL[$wid]:-${_TUI_W_VALUE[$wid]:-}}" ;; esac
+			((${#txt} > maxlen)) && maxlen=${#txt}
+		done
+	fi
 	((maxrow >= 0)) && _TUI_CONTENT_NEED_H=$((maxrow + 1))
 	((maxlen > _TUI_CONTENT_NEED_W)) && _TUI_CONTENT_NEED_W=$maxlen
 
@@ -1248,6 +1414,10 @@ _tui._pane_too_small() {
 	return 1
 }
 
+# While _TUI_WP_REUSE=1 (set only around loops that touch no geometry: tui.render's widget pass, _tui._hit_test)
+# consecutive widgets of one pane share that pane's inset instead of recomputing it per widget.
+declare -gi _TUI_WP_REUSE=0 _TUI_WP_IV=0 _TUI_WP_IH=0
+declare -g _TUI_WP_LAST=""
 _tui._widget_pos() {
 	local pane="${_TUI_W_PANE[$1]}"
 	local wrow="${_TUI_W_ROW[$1]}"
@@ -1256,13 +1426,29 @@ _tui._widget_pos() {
 	local content_top content_h
 	local whp=${_TUI_W_HPAD[$1]:-0} wvp=${_TUI_W_VPAD[$1]:-0}
 
-	_tui._inset "$pane"
+	if ((_TUI_WP_REUSE)) && [[ "$_TUI_WP_LAST" == "$pane" ]]; then
+		_IV=$_TUI_WP_IV _IH=$_TUI_WP_IH
+	else
+		_tui._inset "$pane"
+		_TUI_WP_LAST="$pane" _TUI_WP_IV=$_IV _TUI_WP_IH=$_IH
+	fi
 	content_top=$((pr + _IV + wvp))
 	content_h=$((ph - 2 * _IV - 2 * wvp))
 	_WSC=$((pc + _IH + whp))
 	_WSW=$((pw - 2 * _IH - 2 * whp))
 	((_WSW < 1)) && _WSW=1
 	((content_h < 1)) && content_h=1
+	_WSW_AVAIL=$_WSW # true available width, captured before width=/max_width= shrink it (the min_width= advisory reads this)
+
+	# width= (2A): an explicit unit-token size (cells, %, clamp(...); auto/fill/
+	# fr all resolve to the default fill width computed above) overrides the
+	# default before min_width=/max_width= clamp it further.
+	local width_spec="${_TUI_W_WIDTH[$1]:-}"
+	if [[ -n "$width_spec" ]]; then
+		_tui.layout_resolve "$width_spec" "$_WSW"
+		_WSW=$_LY_R
+		((_WSW < 1)) && _WSW=1
+	fi
 
 	_tui._widget_valign_v "$1"
 	case "$_R" in
@@ -1271,20 +1457,33 @@ _tui._widget_pos() {
 		*) _WSR=$((content_top + wrow)) ;;
 	esac
 
-	_WSH=1 # rows the widget occupies (textarea / list / table span several)
-	case "${_TUI_W_TYPE[$1]:-}" in
-		textarea | list | table)
-			_WSR=$((content_top + wrow))
-			_WSH=${_TUI_W_ROWSPAN[$1]:-0}
-			local avail=$((content_top + content_h - _WSR))
-			((_WSH <= 0 || _WSH > avail)) && _WSH=$avail
-			((_WSH < 1)) && _WSH=1
-			;;
-	esac
+	_WSH=1 # rows the widget occupies (expand=y widgets span several - see tui.expand)
+	local expand="${_TUI_W_EXPAND[$1]:-}"
+	local avail_h=1
+	if [[ "$expand" == y || "$expand" == both ]]; then
+		_WSR=$((content_top + wrow))
+		avail_h=$((content_top + content_h - _WSR))
+		((avail_h < 1)) && avail_h=1
+		_WSH=${_TUI_W_ROWSPAN[$1]:-0}
+		((_WSH <= 0 || _WSH > avail_h)) && _WSH=$avail_h
+		((_WSH < 1)) && _WSH=1
+	fi
+	# height= (2A): same idea as width= above, resolved against the fill
+	# height expand=y would use (1 row when there's no expand, since that's
+	# the only "available" a non-expanding widget ever had).
+	local height_spec="${_TUI_W_HEIGHT[$1]:-}"
+	if [[ -n "$height_spec" ]]; then
+		_tui.layout_resolve "$height_spec" "$avail_h"
+		_WSH=$_LY_R
+		((_WSH < 1)) && _WSH=1
+	fi
+	local maxh="${_TUI_W_MAXH[$1]:-}" minh="${_TUI_W_MINH[$1]:-}"
+	if [[ -n "$maxh" ]] && ((_WSH > maxh)); then _WSH=$maxh; fi
+	if [[ -n "$minh" ]] && ((_WSH < minh)); then _WSH=$minh; fi
 
-	_WSW_AVAIL=$_WSW
-	local maxw="${_TUI_W_MAXW[$1]:-}"
+	local maxw="${_TUI_W_MAXW[$1]:-}" minw="${_TUI_W_MINW[$1]:-}"
 	if [[ -n "$maxw" ]] && ((_WSW > maxw)); then _WSW=$maxw; fi
+	if [[ -n "$minw" ]] && ((_WSW < minw)); then _WSW=$minw; fi
 	((_WSW < 1)) && _WSW=1
 }
 
@@ -1328,8 +1527,17 @@ declare -gA _TUI_SGR_NAMED=([black]=30 [red]=31 [green]=32 [yellow]=33 [blue]=34
 	[br_black]=90 [br_red]=91 [br_green]=92 [br_yellow]=93 [br_blue]=94 [br_magenta]=95 [br_cyan]=96 [br_white]=97)
 declare -gA _TUI_SGR_MOD=([bold]=1 [dim]=2 [italic]=3 [underline]=4 [blink]=5 [reverse]=7 [hidden]=8 [strike]=9)
 
+declare -gA _TUI_SGR_MEMO=()
+declare -gi _TUI_SGR_MEMO_N=0
+
 # _tui._sgr_from FG BG MODS -> _SGR (pure; unknown colour names fall back to the slow capturing path)
+# Memoised on "fg|bg|mods": the result depends only on those strings, so it never needs invalidating.
 _tui._sgr_from() {
+	local mk="$1|$2|$3"
+	if [[ -n "${_TUI_SGR_MEMO[$mk]+x}" ]]; then
+		_SGR="${_TUI_SGR_MEMO[$mk]}"
+		return 0
+	fi
 	local fg="$1" bg="$2" mods="$3" m codes="" hx code
 	_SGR=""
 	if [[ -n "$fg" ]]; then
@@ -1353,6 +1561,10 @@ _tui._sgr_from() {
 		[[ -n "$code" ]] && codes+="$code;"
 	done
 	[[ -n "$codes" ]] && _SGR=$'\e['"${codes%;}m"
+	# bounded: dynamic per-row colours (gradients, charts) must not grow the table without limit
+	if ((_TUI_SGR_MEMO_N >= 4096)); then _TUI_SGR_MEMO=() _TUI_SGR_MEMO_N=0; fi
+	_TUI_SGR_MEMO[$mk]="$_SGR"
+	_TUI_SGR_MEMO_N+=1
 	return 0
 }
 
@@ -1438,7 +1650,8 @@ _tui._draw_pane_buf() {
 	local border=$_TB
 	local title="${_TUI_P_TITLE[$id]:-}"
 
-	_tui._refresh_content_fit "$id"
+	# tui.render refreshed every leaf up front; containers (nothing to scan) still refresh here
+	if ((! _TUI_FIT_FRESH)) || [[ -n "${_TUI_P_CHILDREN[$id]:-}" ]]; then _tui._refresh_content_fit "$id"; fi
 	if _tui._pane_too_small "$id"; then
 		_tui._draw_size_warning "$r" "$c" "$h" "$w" "${_TUI_P_EFFECTIVE_MINW[$id]:-0}" "${_TUI_P_EFFECTIVE_MINH[$id]:-0}"
 		return
@@ -1449,12 +1662,8 @@ _tui._draw_pane_buf() {
 		return
 	fi
 
-	local tl tr bl br hz vt
-	case "$border" in
-		double) tl="╔" tr="╗" bl="╚" br="╝" hz="═" vt="║" ;;
-		heavy) tl="┏" tr="┓" bl="┗" br="┛" hz="━" vt="┃" ;;
-		*) tl="┌" tr="┐" bl="└" br="┘" hz="─" vt="│" ;;
-	esac
+	_tui_canvas.glyphs "$border"
+	local tl=$_TC_TL tr=$_TC_TR bl=$_TC_BL br=$_TC_BR hz=$_TC_HZ vt=$_TC_VT
 
 	local inner=$((w - 2))
 	((inner < 1)) && inner=1
@@ -1487,19 +1696,24 @@ _tui._draw_pane_buf() {
 	fi
 	_tui.emit_reset
 
-	local blank
+	# every interior row is the same bytes after its cursor move: build the row once, not h-2 times
+	local blank rowbody _dp_saved="$_TUI_FRAME"
 	printf -v blank '%*s' "$inner" ""
+	_TUI_FRAME=""
+	_tui.emit_ring "${id}_border" "${id}_border" "$id"
+	_tui.emit "$vt"
+	_tui.emit_reset
+	_tui.emit_style "${id}_normal"
+	_tui.emit "$blank"
+	_tui.emit_reset
+	_tui.emit_ring "${id}_border" "${id}_border" "$id"
+	_tui.emit "$vt"
+	_tui.emit_reset
+	rowbody="$_TUI_FRAME"
+	_TUI_FRAME="$_dp_saved"
 	for ((row = 1; row < h - 1; row++)); do
 		_tui.emit_goto $((r + row)) "$c"
-		_tui.emit_ring "${id}_border" "${id}_border" "$id"
-		_tui.emit "$vt"
-		_tui.emit_reset
-		_tui.emit_style "${id}_normal"
-		_tui.emit "$blank"
-		_tui.emit_reset
-		_tui.emit_ring "${id}_border" "${id}_border" "$id"
-		_tui.emit "$vt"
-		_tui.emit_reset
+		_tui.emit "$rowbody"
 	done
 
 	_tui.emit_goto $((r + h - 1)) "$c"
@@ -1535,12 +1749,8 @@ _tui._draw_pane_border_buf() {
 	[[ "$border" == "none" ]] && return
 	_tui._pane_too_small "$id" && return
 
-	local tl tr bl br hz vt
-	case "$border" in
-		double) tl="╔" tr="╗" bl="╚" br="╝" hz="═" vt="║" ;;
-		heavy) tl="┏" tr="┓" bl="┗" br="┛" hz="━" vt="┃" ;;
-		*) tl="┌" tr="┐" bl="└" br="┘" hz="─" vt="│" ;;
-	esac
+	_tui_canvas.glyphs "$border"
+	local tl=$_TC_TL tr=$_TC_TR bl=$_TC_BL br=$_TC_BR hz=$_TC_HZ vt=$_TC_VT
 
 	local inner=$((w - 2))
 	((inner < 1)) && inner=1
@@ -1863,6 +2073,7 @@ tui.perf.mean_render_ms() {
 }
 
 tui.render() {
+	((_TUI_DEFER_RENDER)) && return 0
 	_tui_perf.begin render
 	_tui_perf.count full_renders
 	# Refresh every leaf pane's content-fit cache up front: _tui._draw_pane_buf
@@ -1873,9 +2084,13 @@ tui.render() {
 	# widget loop below) needs every pane's effective min already known, not
 	# just the ones with room to draw.
 	local pane
+	_tui._content_need_index
+	_TUI_CN_ON=1
 	for pane in "${_TUI_P_ALL[@]}"; do
 		[[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]] && _tui._refresh_content_fit "$pane"
 	done
+	_TUI_CN_ON=0
+	_TUI_FIT_FRESH=1 # _tui._draw_pane_buf below need not refresh a leaf again
 
 	_TUI_FRAME=""
 	for pane in "${_TUI_P_ALL[@]}"; do
@@ -1886,12 +2101,29 @@ tui.render() {
 			_tui._draw_pane_buf "$pane"
 		fi
 	done
+	_TUI_FIT_FRESH=0
+	_TUI_WP_LAST=""
+	_TUI_WP_REUSE=1
 	for wid in "${_TUI_W_ORDER[@]}"; do
 		_tui._draw_widget_buf "$wid"
 	done
+	_TUI_WP_REUSE=0
 	for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
 		[[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output_buf "$_oid"
 	done
+	# NOT diffed through lib/render/tui_paint.sh: tried it here, measured it
+	# back out. tui.render's only real callers are genuine full transitions
+	# (tui.init, a resize, tui.goto's page switch) - every hand-optimized
+	# incremental case (hover, focus, output/scroll) already goes through
+	# its own targeted _tui._draw_*_now path instead of tui.render, so by
+	# the time tui.render actually runs, the content is essentially always
+	# different from what's on screen. The diff's per-row split still costs
+	# real time even when it finds nothing reusable: measured a genuine
+	# page-switch render (components.xml -> home.xml) at +41% (20.5ms ->
+	# 29.0ms, stable across repeats) with zero rows actually skipped. See
+	# lib/render/tui_paint.sh for the mechanism itself - it's real and
+	# tested, just doesn't have a beneficial call site in this codebase's
+	# existing render architecture.
 	_tui._flush "$_TUI_FRAME"
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
 	((${#_TUI_OVERLAY_FNS[@]})) && _tui_overlay.draw_all
@@ -2125,14 +2357,18 @@ _tui._focus_prev() {
 _tui._hit_test() {
 	local mx="$1" my="$2"
 	_HIT=""
+	_TUI_WP_LAST=""
+	_TUI_WP_REUSE=1
 	for wid in "${_TUI_W_ORDER[@]}"; do
 		[[ "${_TUI_W_TYPE[$wid]}" == "label" ]] && continue
 		_tui._widget_pos "$wid"
 		if ((my >= _WSR && my < _WSR + _WSH && mx >= _WSC && mx < _WSC + _WSW)); then
 			_HIT="$wid"
+			_TUI_WP_REUSE=0
 			return 0
 		fi
 	done
+	_TUI_WP_REUSE=0
 	return 1
 }
 
@@ -2953,6 +3189,50 @@ _tui._render_output() {
 	_TUI_FRAME="$_ro_saved"
 }
 
+# _tui._vslice LINE OFF MAX -> _VS: the MAX visible columns of LINE after skipping OFF, CSI sequences kept
+# (they take no width), a reset appended. Pure bash: this used to be an awk fork on every coloured or scrolled pane.
+_tui._vslice() {
+	local s="$1" out="" chunk seq
+	local -i off="$2" max="$3" vis=0 skipped=0 clen remain
+	while [[ -n "$s" ]] && ((vis < max)); do
+		if [[ "$s" == *$'\e'* ]]; then
+			chunk="${s%%$'\e'*}"
+			s="${s:${#chunk}}"
+		else
+			chunk="$s"
+			s=""
+		fi
+		if ((skipped < off)); then
+			clen=${#chunk}
+			if ((skipped + clen <= off)); then
+				skipped+=clen
+				chunk=""
+			else
+				chunk="${chunk:off-skipped}"
+				skipped=off
+			fi
+		fi
+		if [[ -n "$chunk" ]]; then
+			remain=$((max - vis))
+			((${#chunk} > remain)) && chunk="${chunk:0:remain}"
+			out+="$chunk"
+			vis+=${#chunk}
+		fi
+		[[ -z "$s" ]] && break
+		((vis >= max)) && break
+		if [[ "$s" =~ ^$'\e'\[[0-9\;?]*[a-zA-Z] ]]; then
+			seq="${BASH_REMATCH[0]}"
+			out+="$seq"
+			s="${s:${#seq}}"
+		elif ((${#s} >= 2)); then
+			s="${s:2}"
+		else
+			break
+		fi
+	done
+	_VS="$out"$'\e[0m'
+}
+
 _tui._render_output_buf() {
 	local pane="$1" i
 	((${_TUI_P_H[$pane]:-0} < 1 || ${_TUI_P_W[$pane]:-0} < 1)) && return # hidden, or no geometry (pane not on this page)
@@ -2996,9 +3276,9 @@ _tui._render_output_buf() {
 	_tui._style_v "${pane}_normal"
 	local sty="$_SGR" res=$'\e[0m'
 
-	# 2a. FAST PATH: no scrolling, everything fits, no escape codes -> plain padded lines, no awk fork.
+	# 2a. FAST PATH: no scrolling, everything fits, no escape codes -> plain padded lines.
 	# (A screen of keycaps / labels / short status text is dozens of these per render.)
-	local frame_buf="" fast=0
+	local frame_buf="" fast=0 seg
 	if [[ "$scroll" == none ]] && ((total_lines <= ct_h && max_w <= ct_w)); then
 		fast=1
 		for ((i = 0; i < total_lines; i++)); do [[ "${lines[i]:-}" == *$'\e'* ]] && {
@@ -3016,71 +3296,25 @@ _tui._render_output_buf() {
 			frame_buf+="$seg"
 		done
 	fi
-	# 2b. Render Text Area via AWK (SINGLE PASS)
+	# 2b. General path (escape codes, scrolling, overflow): slice each line in bash, no fork
 	if ((! fast && ct_h > 0)); then
-		_tui_perf.count forks
-		frame_buf=$(
-			{ ((${#view_lines[@]} > 0)) && printf '%s\n' "${view_lines[@]}"; } | awk -v r="$ct_row" -v c="$ct_col" -v w="$ct_w" -v h="$ct_h" -v hoff="$h_off" -v sty="$sty" -v res="$res" '
-            function visible_slice(s, off, max) {
-                out = ""; vis = 0; skipped = 0
-                while (s != "" && vis < max) {
-                    p = index(s, "\033")
-                    if (p == 0) {
-                        if (skipped < off) {
-                            chunk_len = length(s)
-                            if (skipped + chunk_len <= off) { skipped += chunk_len; break }
-                            s = substr(s, off - skipped + 1)
-                            skipped = off
-                        }
-                        remain = max - vis
-                        out = out (length(s) > remain ? substr(s, 1, remain) : s)
-                        break
-                    }
-                    if (p > 1) {
-                        chunk = substr(s, 1, p - 1)
-                        if (skipped < off) {
-                            chunk_len = length(chunk)
-                            if (skipped + chunk_len <= off) { skipped += chunk_len; chunk = "" } 
-                            else { chunk = substr(chunk, off - skipped + 1); skipped = off }
-                        }
-                        if (length(chunk) > 0) {
-                            remain = max - vis
-                            if (length(chunk) > remain) chunk = substr(chunk, 1, remain)
-                            out = out chunk
-                            vis += length(chunk)
-                        }
-                        if (vis >= max) break
-                        s = substr(s, p)
-                    }
-                    if (substr(s, 2, 1) == "[" && match(s, /^\033\[[0-9;?]*[a-zA-Z]/)) {
-                        out = out substr(s, 1, RLENGTH)
-                        s = substr(s, RLENGTH + 1)
-                    } else if (length(s) >= 2) { s = substr(s, 3) } else { break }
-                }
-                return out res
-            }
-            BEGIN { clear_spaces = sprintf("%*s", w, "") }
-            {
-                sliced = visible_slice($0, hoff, w)
-                # sty again before the text: the clear above is followed by a reset, so without it the
-                # text (and any centering spaces in it) is drawn in the terminal default, not the pane style
-                printf "\033[%d;%dH%s%s%s\033[%d;%dH%s%s", r + NR - 1, c, sty, clear_spaces, res, r + NR - 1, c, sty, sliced
-            }
-            END {
-                for (i = NR; i < h; i++) {
-                    printf "\033[%d;%dH%s%s%s", r + i, c, sty, clear_spaces, res
-                }
-            }'
-		)
+		local clr n=${#view_lines[@]}
+		printf -v clr '%*s' "$ct_w" ''
+		for ((i = 0; i < ct_h; i++)); do
+			if ((i < n)); then
+				# sty again before the text: the clear is followed by a reset, so without it the text
+				# (and any centering spaces in it) is drawn in the terminal default, not the pane style
+				_tui._vslice "${view_lines[i]}" "$h_off" "$ct_w"
+				printf -v seg '\033[%d;%dH%s%s%s\033[%d;%dH%s%s' $((ct_row + i)) "$ct_col" "$sty" "$clr" "$res" \
+					$((ct_row + i)) "$ct_col" "$sty" "$_VS"
+			else
+				printf -v seg '\033[%d;%dH%s%s%s' $((ct_row + i)) "$ct_col" "$sty" "$clr" "$res"
+			fi
+			frame_buf+="$seg"
+		done
 	fi
 
-	# 3. Draw Scrollbars - built with printf -v (a builtin) into the same
-	# frame_buf instead of `frame_buf+=$(printf ...)`. Command substitution
-	# forks a subshell per iteration; printf -v does not. Same rule the AWK
-	# shader exists to satisfy for the text body above, just applied here
-	# with a builtin instead of a compiled helper since each cell is a
-	# handful of literal bytes, not a line of text to slice.
-	local seg
+	# 3. Draw Scrollbars - printf -v into frame_buf (no command substitution, so no fork per cell).
 	if [[ "$scroll" == "v" || "$scroll" == "both" ]] && ((total_lines > ct_h)); then
 		local track_x=$((pc + pw - 1))
 		local thumb_h=$((ct_h * ct_h / total_lines))
@@ -3208,6 +3442,9 @@ tui.run() {
 		if [[ -n "${_TUI_TICK_FN:-}" ]] || ((${#_TUI_TICK_LISTENERS[@]} > 0)); then
 			poll_timeout="$TUI_INPUT_POLL_TIMEOUT"
 		fi
+		# A queued pane render (tui.output, scroll batching) is flushed once the input goes quiet; waiting the
+		# full poll timeout for that made every scroll step and page load ~50 ms slower than its work.
+		((${#_TUI_PENDING_OUTPUT[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
 		((_TUI_PASSTHROUGH)) && poll_timeout="$TUI_INPUT_IDLE_TIMEOUT" # frozen: nothing to tick
 
 		_tui._next_byte char "$poll_timeout" && got_char=1

@@ -18,6 +18,10 @@ while (($#)); do
 			_T_PATTERN="$2"
 			shift 2
 			;;
+		-p)
+			pretty="$2"
+			shift 2
+			;;
 		*)
 			echo "usage: t.sh [-k PATTERN]" >&2
 			exit 2
@@ -59,7 +63,25 @@ source "$REPO/lib/tui.sh"
 # as later stages add mutable state modules with their own tests.
 _t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_TABS_)') 2>/dev/null; }
 _T_SNAPSHOT="$(_t_snapshot)"
-_t_restore() { eval "$_T_SNAPSHOT"; }
+# declare -p never emits -g (same gotcha tui_cache.sh's own _tui_cache_restore
+# works around): eval-ing the dump as-is inside this function would declare
+# fresh function-local shadows instead of resetting the real globals, so a
+# test's array mutations would silently survive into the next one. Rewrite
+# every "declare -X" to "declare -gX" line by line first - a blind whole-
+# string replace on "declare -" would turn a scalar's "declare -- NAME=…"
+# into the invalid "declare -g- NAME=…".
+_t_restore() {
+	local out="" line
+	while IFS= read -r line; do
+		if [[ "$line" == "declare --"* ]]; then
+			line="declare -g${line#declare --}"
+		elif [[ "$line" == "declare -"* ]]; then
+			line="declare -g${line#declare -}"
+		fi
+		out+="$line"$'\n'
+	done <<<"$_T_SNAPSHOT"
+	eval "$out"
+}
 
 # ── assertions ────────────────────────────────────────────────────────────
 _t_fail() {
@@ -106,6 +128,7 @@ for _T_CUR in "${_T_NAMES[@]}"; do
 	_t_restore
 	_T_FAILED=0
 	"$_T_CUR"
+	# when stumbling upon this add current test out name output with a waiting simboly ... then when fails or succeeds add green [OK] or [FAIL] with the full line being red"
 	if ((_T_FAILED)); then
 		((_T_FAIL++))
 	else

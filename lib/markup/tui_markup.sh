@@ -85,6 +85,21 @@ _markup_attr() {
 	fi
 }
 
+# _markup_attrv LINE NAME VAR - _markup_attr into VAR (a nameref), no `$(...)` fork.
+_markup_attrv() {
+	local -n _mav_out="$3"
+	_mav_out=""
+	if [[ "$1" =~ $2[[:space:]]*=[[:space:]]*\"([^\"]*)\" ]]; then
+		_mav_out="${BASH_REMATCH[1]}"
+		[[ "$_mav_out" == *"&"* ]] && {
+			_mav_out="${_mav_out//&lt;/<}"
+			_mav_out="${_mav_out//&gt;/>}"
+			_mav_out="${_mav_out//&quot;/\"}"
+			_mav_out="${_mav_out//&amp;/\&}"
+		} # XML entities
+	fi
+}
+
 # tui.load FILE - parse a markup file and build panes/widgets via tui.* calls.
 tui.load() {
 	local file="$1"
@@ -97,7 +112,10 @@ tui.load() {
 	_TUI_MARKUP_DIR="${_CANON%/*}"
 
 	# framework default theme first: every app gets the shared classes; its own <theme> tags override
-	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css"
+	if [[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]]; then
+		tui.log.debug "tui.load: loading framework default theme for $file"
+		tui.load_theme "$TUI_DEFAULTS_DIR/theme.css"
+	fi
 
 	tui_build.load "$file"
 	_tui_cache_relayout
@@ -117,6 +135,15 @@ tui.load() {
 # at - _tui._root_w/_tui._root_h re-derive both from the live terminal
 # before layout runs, so root is never left at a stale, cache-build-time size.
 _tui_cache_relayout() {
+	# Forces a real recompute regardless of _tui.layout_arrange's memoization
+	# (2A): a cache-hit replay restores every _TUI_P_* array verbatim
+	# (_tui_cache_restore, declare -p), but NOT _TUI_LY_KEY/_TUI_LY_GEN_AT -
+	# those live in this process across page switches, so a same-named pane
+	# from a DIFFERENT page (or an earlier visit to this one, at a different
+	# terminal size) could otherwise coincidentally satisfy the memo's key
+	# check. The memo's own generation counter can't tell replay apart from
+	# an ordinary call, so this is the one unconditional bump point.
+	_tui.layout_bump
 	_tui._root_w
 	_tui._root_h
 	_tui._layout root
@@ -151,6 +178,7 @@ tui.reset_ui() {
 	_TUI_P_MINH=()
 	_TUI_P_MAXW=()
 	_TUI_P_MAXH=()
+	_TUI_P_GAP=()
 	_TUI_P_STRICT_FIT=()
 	_TUI_P_EFFECTIVE_MINW=()
 	_TUI_P_EFFECTIVE_MINH=()
@@ -268,7 +296,12 @@ tui.goto() {
 	# One synchronized frame: the terminal never shows the cleared, half-built page.
 	((_TUI_RUNNING)) && mode.sync_start
 	tui.reset_ui
+	# on_visit code often ends with tui.render (layout changes); the render below covers it, so skip those.
+	# A goto made from inside an on_visit leaves the decision to the outermost goto.
+	local _gt_defer=$_TUI_DEFER_RENDER
+	_TUI_DEFER_RENDER=1
 	tui.load_cached "$resolved"
+	_TUI_DEFER_RENDER=$_gt_defer
 	if [[ -n "$keep_id" && -n "${_TUI_W_TYPE[$keep_id]:-}" ]]; then
 		local i
 		for ((i = 0; i < ${#_TUI_FOCUSABLE[@]}; i++)); do

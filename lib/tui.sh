@@ -29,6 +29,8 @@ source "${SCRIPT_DIR}/terminal_controls.sh"
 source "${SCRIPT_DIR}/render/tui_emit.sh"
 # shellcheck source=render/tui_canvas.sh
 source "${SCRIPT_DIR}/render/tui_canvas.sh"
+# shellcheck source=render/tui_paint.sh
+source "${SCRIPT_DIR}/render/tui_paint.sh"
 # shellcheck source=colors.sh
 source "${SCRIPT_DIR}/colors.sh"
 # shellcheck source=tui_home.sh
@@ -1448,8 +1450,17 @@ declare -gA _TUI_SGR_NAMED=([black]=30 [red]=31 [green]=32 [yellow]=33 [blue]=34
 	[br_black]=90 [br_red]=91 [br_green]=92 [br_yellow]=93 [br_blue]=94 [br_magenta]=95 [br_cyan]=96 [br_white]=97)
 declare -gA _TUI_SGR_MOD=([bold]=1 [dim]=2 [italic]=3 [underline]=4 [blink]=5 [reverse]=7 [hidden]=8 [strike]=9)
 
+declare -gA _TUI_SGR_MEMO=()
+declare -gi _TUI_SGR_MEMO_N=0
+
 # _tui._sgr_from FG BG MODS -> _SGR (pure; unknown colour names fall back to the slow capturing path)
+# Memoised on "fg|bg|mods": the result depends only on those strings, so it never needs invalidating.
 _tui._sgr_from() {
+	local mk="$1|$2|$3"
+	if [[ -n "${_TUI_SGR_MEMO[$mk]+x}" ]]; then
+		_SGR="${_TUI_SGR_MEMO[$mk]}"
+		return 0
+	fi
 	local fg="$1" bg="$2" mods="$3" m codes="" hx code
 	_SGR=""
 	if [[ -n "$fg" ]]; then
@@ -1473,6 +1484,10 @@ _tui._sgr_from() {
 		[[ -n "$code" ]] && codes+="$code;"
 	done
 	[[ -n "$codes" ]] && _SGR=$'\e['"${codes%;}m"
+	# bounded: dynamic per-row colours (gradients, charts) must not grow the table without limit
+	if ((_TUI_SGR_MEMO_N >= 4096)); then _TUI_SGR_MEMO=() _TUI_SGR_MEMO_N=0; fi
+	_TUI_SGR_MEMO[$mk]="$_SGR"
+	_TUI_SGR_MEMO_N+=1
 	return 0
 }
 
@@ -2004,6 +2019,19 @@ tui.render() {
 	for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
 		[[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output_buf "$_oid"
 	done
+	# NOT diffed through lib/render/tui_paint.sh: tried it here, measured it
+	# back out. tui.render's only real callers are genuine full transitions
+	# (tui.init, a resize, tui.goto's page switch) - every hand-optimized
+	# incremental case (hover, focus, output/scroll) already goes through
+	# its own targeted _tui._draw_*_now path instead of tui.render, so by
+	# the time tui.render actually runs, the content is essentially always
+	# different from what's on screen. The diff's per-row split still costs
+	# real time even when it finds nothing reusable: measured a genuine
+	# page-switch render (components.xml -> home.xml) at +41% (20.5ms ->
+	# 29.0ms, stable across repeats) with zero rows actually skipped. See
+	# lib/render/tui_paint.sh for the mechanism itself - it's real and
+	# tested, just doesn't have a beneficial call site in this codebase's
+	# existing render architecture.
 	_tui._flush "$_TUI_FRAME"
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
 	((${#_TUI_OVERLAY_FNS[@]})) && _tui_overlay.draw_all

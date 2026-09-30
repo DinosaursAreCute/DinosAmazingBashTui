@@ -66,8 +66,16 @@ erase.line_right() { echo -ne "\e[0K"; }  # Cursor to end of line
 erase.line_left() { echo -ne "\e[1K"; }   # Start of line to cursor
 erase.chars() { echo -ne "\e[${1:-1}X"; } # Erase N chars from cursor
 
-# Clear screen and scrollback, then home
-erase.all() { echo -ne "\e[2J\e[3J\e[H"; }
+# Clear screen and scrollback, then home. Also forgets tui.sh's per-row
+# damage-tracking memory (lib/render/tui_paint.sh) when that's loaded - the
+# physical screen this just blanked is what that memory claims is already
+# there, so leaving it stale would suppress the next real redraw of every
+# row. Guarded: this file loads even for terminal_renderer.sh's standalone
+# usage (examples/csv-charts/), which never sources tui_paint.sh at all.
+erase.all() {
+	echo -ne "\e[2J\e[3J\e[H"
+	declare -F tui.paint.reset >/dev/null && tui.paint.reset
+}
 
 # ─────────────────────────────────────────────
 #  Line / Character Insert & Delete

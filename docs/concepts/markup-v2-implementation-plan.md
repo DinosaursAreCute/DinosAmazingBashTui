@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Draft: plan, not started |
+| Status | IN PROGRESS |
 | Scope | [markup-v2-roadmap.md](markup-v2-roadmap.md) (section letters A–M refer to it) |
 | Rules | Bash 5 + POSIX only · TDD · least code · measurable · host-independent tests |
 

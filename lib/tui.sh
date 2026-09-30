@@ -1618,19 +1618,24 @@ _tui._draw_pane_buf() {
 	fi
 	_tui.emit_reset
 
-	local blank
+	# every interior row is the same bytes after its cursor move: build the row once, not h-2 times
+	local blank rowbody _dp_saved="$_TUI_FRAME"
 	printf -v blank '%*s' "$inner" ""
+	_TUI_FRAME=""
+	_tui.emit_ring "${id}_border" "${id}_border" "$id"
+	_tui.emit "$vt"
+	_tui.emit_reset
+	_tui.emit_style "${id}_normal"
+	_tui.emit "$blank"
+	_tui.emit_reset
+	_tui.emit_ring "${id}_border" "${id}_border" "$id"
+	_tui.emit "$vt"
+	_tui.emit_reset
+	rowbody="$_TUI_FRAME"
+	_TUI_FRAME="$_dp_saved"
 	for ((row = 1; row < h - 1; row++)); do
 		_tui.emit_goto $((r + row)) "$c"
-		_tui.emit_ring "${id}_border" "${id}_border" "$id"
-		_tui.emit "$vt"
-		_tui.emit_reset
-		_tui.emit_style "${id}_normal"
-		_tui.emit "$blank"
-		_tui.emit_reset
-		_tui.emit_ring "${id}_border" "${id}_border" "$id"
-		_tui.emit "$vt"
-		_tui.emit_reset
+		_tui.emit "$rowbody"
 	done
 
 	_tui.emit_goto $((r + h - 1)) "$c"
@@ -3093,6 +3098,50 @@ _tui._render_output() {
 	_TUI_FRAME="$_ro_saved"
 }
 
+# _tui._vslice LINE OFF MAX -> _VS: the MAX visible columns of LINE after skipping OFF, CSI sequences kept
+# (they take no width), a reset appended. Pure bash: this used to be an awk fork on every coloured or scrolled pane.
+_tui._vslice() {
+	local s="$1" out="" chunk seq
+	local -i off="$2" max="$3" vis=0 skipped=0 clen remain
+	while [[ -n "$s" ]] && ((vis < max)); do
+		if [[ "$s" == *$'\e'* ]]; then
+			chunk="${s%%$'\e'*}"
+			s="${s:${#chunk}}"
+		else
+			chunk="$s"
+			s=""
+		fi
+		if ((skipped < off)); then
+			clen=${#chunk}
+			if ((skipped + clen <= off)); then
+				skipped+=clen
+				chunk=""
+			else
+				chunk="${chunk:off-skipped}"
+				skipped=off
+			fi
+		fi
+		if [[ -n "$chunk" ]]; then
+			remain=$((max - vis))
+			((${#chunk} > remain)) && chunk="${chunk:0:remain}"
+			out+="$chunk"
+			vis+=${#chunk}
+		fi
+		[[ -z "$s" ]] && break
+		((vis >= max)) && break
+		if [[ "$s" =~ ^$'\e'\[[0-9\;?]*[a-zA-Z] ]]; then
+			seq="${BASH_REMATCH[0]}"
+			out+="$seq"
+			s="${s:${#seq}}"
+		elif ((${#s} >= 2)); then
+			s="${s:2}"
+		else
+			break
+		fi
+	done
+	_VS="$out"$'\e[0m'
+}
+
 _tui._render_output_buf() {
 	local pane="$1" i
 	((${_TUI_P_H[$pane]:-0} < 1 || ${_TUI_P_W[$pane]:-0} < 1)) && return # hidden, or no geometry (pane not on this page)
@@ -3136,9 +3185,9 @@ _tui._render_output_buf() {
 	_tui._style_v "${pane}_normal"
 	local sty="$_SGR" res=$'\e[0m'
 
-	# 2a. FAST PATH: no scrolling, everything fits, no escape codes -> plain padded lines, no awk fork.
+	# 2a. FAST PATH: no scrolling, everything fits, no escape codes -> plain padded lines.
 	# (A screen of keycaps / labels / short status text is dozens of these per render.)
-	local frame_buf="" fast=0
+	local frame_buf="" fast=0 seg
 	if [[ "$scroll" == none ]] && ((total_lines <= ct_h && max_w <= ct_w)); then
 		fast=1
 		for ((i = 0; i < total_lines; i++)); do [[ "${lines[i]:-}" == *$'\e'* ]] && {
@@ -3156,71 +3205,25 @@ _tui._render_output_buf() {
 			frame_buf+="$seg"
 		done
 	fi
-	# 2b. Render Text Area via AWK (SINGLE PASS)
+	# 2b. General path (escape codes, scrolling, overflow): slice each line in bash, no fork
 	if ((! fast && ct_h > 0)); then
-		_tui_perf.count forks
-		frame_buf=$(
-			{ ((${#view_lines[@]} > 0)) && printf '%s\n' "${view_lines[@]}"; } | awk -v r="$ct_row" -v c="$ct_col" -v w="$ct_w" -v h="$ct_h" -v hoff="$h_off" -v sty="$sty" -v res="$res" '
-            function visible_slice(s, off, max) {
-                out = ""; vis = 0; skipped = 0
-                while (s != "" && vis < max) {
-                    p = index(s, "\033")
-                    if (p == 0) {
-                        if (skipped < off) {
-                            chunk_len = length(s)
-                            if (skipped + chunk_len <= off) { skipped += chunk_len; break }
-                            s = substr(s, off - skipped + 1)
-                            skipped = off
-                        }
-                        remain = max - vis
-                        out = out (length(s) > remain ? substr(s, 1, remain) : s)
-                        break
-                    }
-                    if (p > 1) {
-                        chunk = substr(s, 1, p - 1)
-                        if (skipped < off) {
-                            chunk_len = length(chunk)
-                            if (skipped + chunk_len <= off) { skipped += chunk_len; chunk = "" } 
-                            else { chunk = substr(chunk, off - skipped + 1); skipped = off }
-                        }
-                        if (length(chunk) > 0) {
-                            remain = max - vis
-                            if (length(chunk) > remain) chunk = substr(chunk, 1, remain)
-                            out = out chunk
-                            vis += length(chunk)
-                        }
-                        if (vis >= max) break
-                        s = substr(s, p)
-                    }
-                    if (substr(s, 2, 1) == "[" && match(s, /^\033\[[0-9;?]*[a-zA-Z]/)) {
-                        out = out substr(s, 1, RLENGTH)
-                        s = substr(s, RLENGTH + 1)
-                    } else if (length(s) >= 2) { s = substr(s, 3) } else { break }
-                }
-                return out res
-            }
-            BEGIN { clear_spaces = sprintf("%*s", w, "") }
-            {
-                sliced = visible_slice($0, hoff, w)
-                # sty again before the text: the clear above is followed by a reset, so without it the
-                # text (and any centering spaces in it) is drawn in the terminal default, not the pane style
-                printf "\033[%d;%dH%s%s%s\033[%d;%dH%s%s", r + NR - 1, c, sty, clear_spaces, res, r + NR - 1, c, sty, sliced
-            }
-            END {
-                for (i = NR; i < h; i++) {
-                    printf "\033[%d;%dH%s%s%s", r + i, c, sty, clear_spaces, res
-                }
-            }'
-		)
+		local clr n=${#view_lines[@]}
+		printf -v clr '%*s' "$ct_w" ''
+		for ((i = 0; i < ct_h; i++)); do
+			if ((i < n)); then
+				# sty again before the text: the clear is followed by a reset, so without it the text
+				# (and any centering spaces in it) is drawn in the terminal default, not the pane style
+				_tui._vslice "${view_lines[i]}" "$h_off" "$ct_w"
+				printf -v seg '\033[%d;%dH%s%s%s\033[%d;%dH%s%s' $((ct_row + i)) "$ct_col" "$sty" "$clr" "$res" \
+					$((ct_row + i)) "$ct_col" "$sty" "$_VS"
+			else
+				printf -v seg '\033[%d;%dH%s%s%s' $((ct_row + i)) "$ct_col" "$sty" "$clr" "$res"
+			fi
+			frame_buf+="$seg"
+		done
 	fi
 
-	# 3. Draw Scrollbars - built with printf -v (a builtin) into the same
-	# frame_buf instead of `frame_buf+=$(printf ...)`. Command substitution
-	# forks a subshell per iteration; printf -v does not. Same rule the AWK
-	# shader exists to satisfy for the text body above, just applied here
-	# with a builtin instead of a compiled helper since each cell is a
-	# handful of literal bytes, not a line of text to slice.
-	local seg
+	# 3. Draw Scrollbars - printf -v into frame_buf (no command substitution, so no fork per cell).
 	if [[ "$scroll" == "v" || "$scroll" == "both" ]] && ((total_lines > ct_h)); then
 		local track_x=$((pc + pw - 1))
 		local thumb_h=$((ct_h * ct_h / total_lines))

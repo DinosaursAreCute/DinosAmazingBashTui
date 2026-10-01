@@ -36,6 +36,7 @@ tui.style() {
 	[[ -n "$fg" ]] && _TUI_STYLE_FG[$key]="$fg"
 	[[ -n "$bg" ]] && _TUI_STYLE_BG[$key]="$bg"
 	[[ -n "$mods" ]] && _TUI_STYLE_MOD[$key]="$mods"
+	_TUI_STYLE_EPOCH+=1
 }
 
 # ── theme loading ───────────────────────────────────────────────────────

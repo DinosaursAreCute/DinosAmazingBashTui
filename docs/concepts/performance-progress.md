@@ -4,7 +4,7 @@ Status: living overview. First entry 2026-09-30, commit 8274c7f plus uncommitted
 
 ## 1. Summary
 
-Thirteen changes have been made so far (in `lib/tui.sh`, `lib/chrome/tui_modal.sh`, `lib/markup/tui_cache.sh` and `lib/markup/tui_build.sh`):
+Fourteen changes have been made so far (in `lib/tui.sh`, `lib/chrome/tui_modal.sh`, `lib/markup/tui_cache.sh`, `lib/markup/tui_build.sh` and `lib/render/tui_rowcache.sh`):
 
 | change | what it does | outcome |
 |---|---|---|
@@ -21,6 +21,7 @@ Thirteen changes have been made so far (in `lib/tui.sh`, `lib/chrome/tui_modal.s
 | `tui.goto` defers `tui.render` while loading (`_TUI_DEFER_RENDER`), fork-free docs titles | Removes the duplicate full render inside `on_visit` | `components` page switch 364 → 276 ms, `docs` 384 → 287 ms; mean page switch 261 → 240 ms |
 | Fork-free page build, `_tui_cache_class`, process-tree kill (`/proc` children, one grace period) | Removes about 9,000 forks from the cache build and 250 ms of sleeps from leaving the Terminal page | Cold start 5.54 → 3.11 s (−44%); `scrolling` page switch 426 → 261 ms (−39%) |
 | Remaining cold-start forks in the cache recording (`deps_of`, goto records, `_markup_wx` attributes, spinner clock) | Removes 872 more forks from the cold start | Cold start 3.11 → 2.87 s, warm start 303 → 287 ms |
+| Content-addressed fragment cache (`lib/render/tui_rowcache.sh`) | Caches the bytes of bordered panes and label/button/checkbox widgets, keyed on geometry, state, resolved text and a style epoch | Render span −27% in the 40-switch bench; palette close −30%, resize −24%, revisits −15%; first visits slightly slower, output bytes unchanged |
 
 The profile also changed what we think matters. Colour and theme work is worth about 5% of a page switch at best. The remaining time is the full repaint: Flush, Layout, Render and Style together are about 160 ms of a ~270 ms page switch. The frame-source investigation (section 17) showed that the extra frames per action are small (one 40 KB render plus ~15 KB across the rest), so dirty flags are no longer the lead item; redundant chrome drawing and page loading are.
 
@@ -725,6 +726,135 @@ xychart-beta
 ### Verdict
 
 Correct and low-risk, but smaller than expected: the cold start is now limited by parsing and validating markup in bash, not by process creation.
+
+## 15b. Change 14: content-addressed fragment cache
+
+### What changed
+
+`lib/render/tui_rowcache.sh` caches the bytes a pane or widget appends to the frame. The key is every input that produces those bytes (geometry, focus and hover state, resolved text, alignment, a style epoch bumped by every `tui.style` call and page style reset), so a changed input is a different key and nothing is registered or invalidated per widget. It is used by `_tui._draw_pane_buf` (bordered panes) and `_tui._draw_widget_buf` (label, button, checkbox). Texts containing `${expr}` bypass it. It holds at most 4096 fragments, and `TUI_ROWCACHE=0` turns it off. Counters: `rowcache_hit`, `rowcache_miss`.
+
+### Expected vs real
+
+Bench `tools/bench/page_switch.sh 40` (150x45 demo), cache off vs on, then the deep runs `20260930-231054` (before) and `20261001-183844` (after), 5 rounds each, medians.
+
+| | expected | real |
+|---|---|---|
+| Render span mean, 40-switch bench | −25% | 50.6 → 36.7 ms (−27%), 80% hit rate (1354 hits, 348 misses) |
+| Warm page switch in the bench (home / components / widgets) | −30% | 39 / 83 / 46 → 24 / 46 / 32 ms |
+| `nav.revisit` | −15% | 196 → 168 ms (−14.7%) |
+| `nav.key` | −15% | 229 → 194 ms (−15.3%) |
+| `nav.first` | unchanged | 190 → 199 ms (+4.8%); `tui.render` 55.6 → 64.5 ms |
+| `palette.close` | −30% | 51.6 → 36.3 ms (−29.6%); `tui.render` 41.8 → 26.4 ms, `_tui._draw_pane_buf` 9.0 → 2.4 ms |
+| `resize` | −20% | 187 → 142 ms (−24.1%) |
+| `theme.again` | −20% | 20.1 → 14.1 ms (−30.0%) |
+| `theme.first` | small | 270 → 240 ms (−11.3%) |
+| Hover, scroll, idle, startup, shutdown | unchanged | within ±1.5% |
+| Bytes written per action | unchanged | unchanged for page switch, palette close, scroll |
+
+### Notes
+
+- A first visit pays for building keys and storing fragments with no hit to show for it: `tui.render` +9 ms on `nav.first`. Only revisits, resizes and re-renders of an unchanged page reuse fragments.
+- Output bytes did not change, as designed: this change skips composition, not emission. Palette close still writes 36.7 KB against the 10 KB target in `cheap-redraws-concept.md`.
+- The drops in bytes for `click` (2258 → 318), `focus.next` and `focus.prev` (about 2.4 KB → 0.23 KB) appear in the same run pair but are not caused by this change, since it does not alter what is emitted. They come from other changes between the two runs and were not investigated here.
+- Page switch is no longer dominated by rendering: in `nav.first`, `tui.goto` takes 133 ms of which `tui.load_cached` / `tui.cache.replay` take about 55 ms and `on_visit` about 26 ms, while `tui.render` is 64 ms.
+- Tests: `tests/unit/rowcache.t.sh` (8 tests). `tools/t_golden.sh --check` is byte-identical with the cache on and off.
+
+### Verdict
+
+Works for what it targets: warm and repeated redraws of unchanged panes and widgets (revisit, palette close, resize, theme re-apply). It does not touch emission, so palette close output is unchanged, and it adds a small cost to first visits. Next: localised updates for overlay close (damage rect, painted-key table), which targets the unchanged 36.7 KB.
+
+## 15c. Change 15: overlay dismissal replays the saved frame
+
+### What changed
+
+`tui.render` keeps its frame (`_TUI_BASE_FRAME`). `tui.modal.dismiss` (esc, click outside the palette) flushes that frame instead of re-composing the page. Paints that happen while the overlay is open (clock ticks, hover, focus) are folded into the saved frame, so it stays an exact replay of the screen; overlay draws are not. An erase, restyle, resize or an oversized frame (192 KB) drops it and the next dismissal takes the old full path. Closes that run a command (enter) are unchanged. Switch: `TUI_DISMISS_REPLAY=0`.
+
+### Expected vs real
+
+Runs `20261001-192440` (before the fold fix: every dismissal fell back, because the header clock repainted under the palette) and `20261001-193110` (after), `palette` scenario, 5 rounds, settle medians.
+
+| | before this change | fallback only | real |
+|---|---|---|---|
+| `palette.close` | 37.9 ms | 37.9 ms | 13.9 ms (−63%) |
+| `tui.render` inside the close | 26.9 ms | 26.9 ms | not called |
+| bytes written on close | 36.7 KB | 36.7 KB | 36.7 KB |
+| `palette.open`, `palette.type` | 28 / 24 ms | | 26.5 / 23.2 ms (unchanged) |
+
+### Notes
+
+- The first version invalidated the saved frame on any foreign paint and never took effect in the profiler. The demo header clock repaints every second, so any palette session longer than a tick fell back.
+- Bytes are unchanged on purpose: the whole frame is replayed (rows cannot be replayed alone, since `_tui._fill_pane_bg` sets its style once for many rows). The 10 KB byte target of `cheap-redraws-concept.md` is not met; the 30 ms time target is.
+- What is left in the palette: `palette.open` 26.5 ms and `palette.type` 23 ms are almost all inside the key handler (`_tui_input.key_event`), while the overlay draw is 1.5 ms. Not investigated.
+
+### Verdict
+
+Works for dismissals by esc and click outside. Covered by `tests/unit/modal_dismiss.t.sh`.
+
+## 15d. Change 16: geometry and line-slice memos, and where the render time actually is
+
+### What changed
+
+- `_tui._widget_pos` memoises its result on every input it reads (pane rect and inset, the widget's placement and size attributes, both valigns), so a changed attribute is a different key (`_TUI_WPC`, 4096 entries).
+- `_tui._vslice` (the pure-bash line slicer for coloured or scrolled output panes) memoises on (line, offset, width) (`_TUI_VS_MEMO`, 4096 entries). A scrolled-back or re-rendered line costs one lookup.
+- Tried and removed: a per-pass memo of `_tui._content_rect` (render −0.4%, no effect).
+
+### Measured
+
+Untraced, headless, 150x45, 100 iterations of a full `tui.render` with warm caches (scratch script, not committed; HEAD = commit `3e39d31`):
+
+| page | HEAD | with Change 14 only | now |
+|---|---|---|---|
+| components | 54.4 ms | 30.8 ms | 29.9 ms |
+| scrolling | 34.0 ms | not measured | 19.6 ms |
+| home | not measured | 16.9 ms | 15.9 ms |
+| output panes only, components / scrolling | 3.8 / 8.2 ms | | 3.0 / 6.4 ms |
+
+Bench `page_switch.sh 40` render mean: 20.5 → 20.0 ms.
+
+### Where the time is
+
+- Per label or button, a cache hit still costs about 300 µs: one associative-array lookup costs roughly 2-3 µs in this bash, and a hit needs about 100 of them (type, pane, geometry attributes, focus and hover compares, the cache key). Geometry memoisation removed only about 30 µs of that.
+- Phases of one render of `home` (15.9 ms): content-fit pre-pass 1.2, panes 2.2, widgets 10.6, outputs 0.
+- In the profiled page switch (`nav.revisit`, 167 ms) render is 37 ms; `tui.cache.replay` is 54 ms (including `on_visit` 27 ms) and the rest is probe, click and pty overhead, which the headless bench does not have.
+
+### Verdict
+
+Small gains, kept (the memos are exact and tested). A further large cut needs fewer lookups per widget, not faster ones: per-node display lists with dirty flags (plan 2B/4.2), indexed instead of associative arrays on the hot path, or persistent shells (3D). `tui.cache.replay` is the largest single item left in a page switch and has not been traced.
+
+## 15e. Change 17: demo page callbacks without forks, one navbar width, SIGHUP on page exit
+
+### What changed
+
+- New public `tui.capture VAR CMD ARGS...` (`VAR=$(CMD ...)` without the subshell). The demo callbacks use it for every renderer, getter and chart call; `date`, `nproc`, `cat`, `awk`, `sed` and `df | tail | awk` calls on visit, tick and input paths are gone (monitor, docs, settings, widgets, keys, debug, debug lab, case study, components).
+- `show_all` (components) and the case-study metrics tab are memoised per renderer width.
+- `_tui._calc_bounds` measures coloured output lines in bash (`_tui._vwidth_v`, memoised per line) instead of forking awk.
+- The menu column is 18% wide on every page (it was 18, 20 or 22).
+- `_kill_process_tree` sends SIGHUP to what survives the first 5 ms poll: an interactive shell ignores SIGTERM, so leaving the Terminal page waited the full 50 ms and then killed it (measured 55 ms, now 11 ms).
+
+### Measured
+
+Deep runs `20261001-195825` (before) and `20261001-201315` (after the demo changes, before the SIGHUP change), 5 rounds, settle medians:
+
+| | before | after |
+|---|---|---|
+| `nav.key` (alt+2 components, alt+7) | 201 ms | 106 ms (-47%) |
+| `nav.first` | 204 ms | 184 ms (-9%) |
+| `nav.revisit` | 168 ms | 156 ms (-7%) |
+| `theme.first` | 242 ms | 215 ms (-11%) |
+| components revisit / first | 215 / 269 ms | 157 / 227 ms |
+| settings revisit / first | 194 / 278 ms | 146 / 176 ms |
+| monitor revisit / first | 228 / 270 ms | 186 / 238 ms |
+| widgets revisit | 166 ms | 147 ms |
+| docs first / revisit | 338 / 222 ms | 253 / 214 ms |
+| home, layout, case study, terminal (revisit) | 119-158 ms | 109-153 ms |
+| hover, focus, click, scroll, palette, resize, startup | | unchanged (within 3%) |
+
+### Notes
+
+- A trivial page costs about 120 ms to revisit: `tui.cache.replay` 23 ms, `tui.render` 28 ms, the rest probe, click and settle overhead (settle minus busy is about 33 ms). Page code adds on top: monitor 57 ms of `on_visit`, docs 62 ms, widgets 26 ms, scrolling 23 ms.
+- The scrolling page's 211 ms contained about 50 ms of the Terminal page's shell being killed (leaving the Terminal page); the SIGHUP change targets exactly that.
+- **Confirmed** by run `20261001-201852` (standard, 3 rounds, `--scenario nav`, after the SIGHUP change): scrolling revisit 211 → 163 ms and first visit 248 → 199 ms; `nav.revisit` 156 → 146 ms and `nav.first` 184 → 179 ms; `nav.key` unchanged at 106 ms. Other pages moved by 1 to 4 ms.
+- What is left in page code is computation, not forks: the monitor's chart builders (about 70% of its `on_visit`), the docs page rebuilding its tabs on every visit (`tui.class`, `tui.grid`, `load_document`).
 
 ## 16. Standing against the budgets
 

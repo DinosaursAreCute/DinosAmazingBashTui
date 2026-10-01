@@ -214,7 +214,7 @@ _tui_cmd.run_selected() {
 _tui_cmd.palette_key() {
     local name="$1" t
     case "$name" in
-        esc|ctrl+g)          tui.modal.close; return ;;
+        esc|ctrl+g)          tui.modal.dismiss; return ;;
         enter)               _tui_cmd.run_selected; return ;;
         up|ctrl+p|ctrl+k)    (( _PAL_SEL > 0 )) && (( _PAL_SEL-- )) ;;
         down|ctrl+n|ctrl+j)  (( _PAL_SEL < ${#_PAL_IDS[@]} - 1 )) && (( _PAL_SEL++ )) ;;
@@ -242,7 +242,7 @@ _tui_cmd.palette_mouse() {
         wheel:up)   (( _PAL_SEL > 0 )) && (( _PAL_SEL-- )); _tui_cmd.scroll_into_view; tui.modal.redraw ;;
         wheel:down) (( _PAL_SEL < ${#_PAL_IDS[@]} - 1 )) && (( _PAL_SEL++ )); _tui_cmd.scroll_into_view; tui.modal.redraw ;;
         mouse:left)
-            if (( x < _PAL_BX || x >= _PAL_BX + _PAL_BW || y < _PAL_BY || y >= _PAL_BY + _PAL_BH )); then tui.modal.close; return; fi
+            if (( x < _PAL_BX || x >= _PAL_BX + _PAL_BW || y < _PAL_BY || y >= _PAL_BY + _PAL_BH )); then tui.modal.dismiss; return; fi
             row=$(( y - _PAL_RY ))
             if (( row >= 0 && row < _PAL_ROWS && _PAL_TOP + row < ${#_PAL_IDS[@]} )); then
                 _PAL_SEL=$(( _PAL_TOP + row )); _tui_cmd.run_selected

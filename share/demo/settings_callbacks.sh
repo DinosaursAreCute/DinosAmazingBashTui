@@ -50,18 +50,20 @@ _st_toast() { # the "Notifications" checkbox decides whether changes are announc
 _st_toast_clear() { tui.update lbl_toast ""; }
 
 _st_dump() {
-	local rows cols eff
+	local rows cols eff theme_file kv
 	tui.pane_size preview
 	rows=$TUI_PANE_ROWS
 	cols=$TUI_PANE_COLS
-	eff="$(tui.get.border preview)"
-	tui.output status "$(kv_string \
+	tui.capture eff tui.get.border preview
+	tui.capture theme_file tui.theme.current
+	tui.capture kv kv_string \
 		"file: ${_ST_FILE/#$HOME/~}" \
-		"theme: ${ST[theme]}   (tui.theme.current = $(basename "$(tui.theme.current)" 2>/dev/null))" \
+		"theme: ${ST[theme]}   (tui.theme.current = ${theme_file##*/})" \
 		"border: ${ST[border]}   (effective now: $eff)" \
 		"pad: hpad=${ST[hpad]} vpad=${ST[vpad]}   ->  usable preview area ${cols} x ${rows}" \
 		"font: ${ST[font]}   text: ${ST[text]}" \
-		"clock: ${ST[clock]}   notifications: ${ST[notify]}" | sed 's/\\n/\n/g')"
+		"clock: ${ST[clock]}   notifications: ${ST[notify]}"
+	tui.output status "${kv//\\n/$'\n'}"
 }
 
 # Frame = border/pad props. Content = banner/clock/dump. A change ends with
@@ -73,8 +75,10 @@ _st_frame() {
 
 _st_content() {
 	local out
-	out="$(banner_string "${ST[text]}" "${ST[font]}")"
-	tui.output preview "$(printf '%b' "$out")"$'\n\n'"border=${ST[border]}  hpad=${ST[hpad]}  vpad=${ST[vpad]}  font=${ST[font]}"
+	tui.capture out banner_string "${ST[text]}" "${ST[font]}"
+	printf -v out '%b' "$out"
+	out="${out%"${out##*[!$'\n']}"}" # trailing newlines off, as $( ) did
+	tui.output preview "$out"$'\n\n'"border=${ST[border]}  hpad=${ST[hpad]}  vpad=${ST[vpad]}  font=${ST[font]}"
 	_st_clock
 	_st_dump
 }
@@ -96,9 +100,10 @@ _st_labels() {
 	tui.set inp_text "${ST[text]}"
 	tui.update chk_clock "${ST[clock]}"
 	tui.update chk_notify "${ST[notify]}"
-	local t
+	local t mark
 	for t in default ocean forest sunset light; do
-		tui.set_label "btn_th_$t" "$([[ "${ST[theme]}" == "$t" ]] && echo "● $t (active)" || echo "  $t")"
+		if [[ "${ST[theme]}" == "$t" ]]; then mark="● $t (active)"; else mark="  $t"; fi
+		tui.set_label "btn_th_$t" "$mark"
 	done
 }
 
@@ -107,7 +112,7 @@ _st_labels() {
 # reloaded the page from inside on_visit).
 _st_theme_current() {
 	local f
-	f="$(tui.theme.current)"
+	tui.capture f tui.theme.current
 	f="${f##*/}"
 	ST[theme]="${f%.css}"
 	[[ -n "${ST[theme]}" ]] || ST[theme]=default
@@ -139,7 +144,7 @@ on_theme_pick() {
 		tui.theme.clear # reloads this page -> settings_visit shows the new state
 		return
 	fi
-	f="$(_st_theme_file "$name")" || {
+	tui.capture f _st_theme_file "$name" || {
 		tui.notify "No theme file for $name" error 4
 		return
 	}
@@ -147,7 +152,7 @@ on_theme_pick() {
 	tui.theme.set "$f"
 }
 on_border_cycle() {
-	ST[border]="$(_st_next _ST_BORDERS "${ST[border]}")"
+	tui.capture ST[border] _st_next _ST_BORDERS "${ST[border]}"
 	_st_labels
 	_st_save
 	_st_frame
@@ -156,7 +161,7 @@ on_border_cycle() {
 	_st_toast "border → ${ST[border]}"
 }
 on_font_cycle() {
-	ST[font]="$(_st_next _ST_FONTS "${ST[font]}")"
+	tui.capture ST[font] _st_next _ST_FONTS "${ST[font]}"
 	_st_labels
 	_st_save
 	_st_content
@@ -165,8 +170,8 @@ on_font_cycle() {
 
 on_pad_apply() {
 	local h v
-	h="$(tui.get inp_hpad)"
-	v="$(tui.get inp_vpad)"
+	tui.capture h tui.get inp_hpad
+	tui.capture v tui.get inp_vpad
 	[[ "$h" =~ ^[0-9]$ ]] && ST[hpad]=$h
 	[[ "$v" =~ ^[0-9]$ ]] && ST[vpad]=$v
 	_st_labels
@@ -179,7 +184,7 @@ on_pad_apply() {
 
 on_text_apply() {
 	local t
-	t="$(tui.get inp_text)"
+	tui.capture t tui.get inp_text
 	[[ -n "$t" ]] && ST[text]="${t:0:12}"
 	_st_labels
 	_st_save
@@ -188,13 +193,13 @@ on_text_apply() {
 }
 
 on_clock_toggle() {
-	ST[clock]="$(tui.get chk_clock)"
+	tui.capture ST[clock] tui.get chk_clock
 	_st_save
 	_st_clock
 	_st_toast "clock $([[ ${ST[clock]} == 1 ]] && echo on || echo off)"
 }
 on_notify_toggle() {
-	ST[notify]="$(tui.get chk_notify)"
+	tui.capture ST[notify] tui.get chk_notify
 	_st_save
 	tui.notify "Notifications $([[ ${ST[notify]} == 1 ]] && echo on || echo off)" info 2
 }

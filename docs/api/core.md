@@ -53,7 +53,7 @@ Each function has its own page; the summary tables link to them, and the full en
 
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
-<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw -->
+<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw -->
 
 | Function | Summary |
 |---|---|
@@ -72,6 +72,7 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 | [`tui.pane_scroll`](core/tui.pane_scroll.md) | Enables scrolling of the pane's output and resets its scroll position to the top left. |
 | [`tui.pane_strict_fit`](core/tui.pane_strict_fit.md) | Turns the automatic content-fit check of a leaf pane on (default) or off. |
 | [`tui.pane_size`](core/tui.pane_size.md) | Stores the usable content size of a pane (inside border and padding) in variables, without a subshell. |
+| [`tui.capture`](core/tui.capture.md) | Runs `CMD` and stores its standard output in `VAR`, like `VAR="$(CMD ARGS...)"` but without a subshell. |
 | [`tui.content_area`](core/tui.content_area.md) | Prints the content rectangle of a pane as `ROW COL HEIGHT WIDTH` (1-based, inside border and padding). |
 | [`tui.pane.focus`](core/tui.pane.focus.md) | Makes `PANE` the keyboard pane: the target of scroll keys, drawn with a highlighted border. |
 | [`tui.relayout`](core/tui.relayout.md) | Recomputes geometry and repaints in one synchronized frame. Use it after changing borders, padding, titles or splits while the app runs. |
@@ -110,6 +111,8 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.pane_strict_fit.md %}
 
 {% include_relative core/tui.pane_size.md %}
+
+{% include_relative core/tui.capture.md %}
 
 {% include_relative core/tui.content_area.md %}
 

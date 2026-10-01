@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Draws the DABT-themed release charts (pixel-cell bars in the brand colours) as standalone SVGs.
 
-    python3 tools/release_charts.py            # writes assets/release/devex-1-75-*.svg
+    python3 tools/release_charts.py            # writes assets/release/devex-*-improvements.svg and *-pages.svg
+    python3 tools/release_charts.py DIR        # same, into DIR
 
-Numbers: first deep profiler run against the latest deep run (see docs/design/performance-journey.md);
-update the tables below for the next release.
+One entry per release in RELEASES; add the next release there. Numbers come from deep profiler runs (see
+docs/design/performance-journey.md).
 """
 import os
+import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "assets", "release")
@@ -17,32 +19,74 @@ PINK, BLUE, YELLOW, CORAL = "#ff8cbf", "#a8d8ff", "#fff3a8", "#ff9e9e"
 FONT = "'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
 
 # (label, before, after, unit)  lower is better
-IMPROVEMENTS = [
-    ("IDLE REPAINTS", 20.7, 2.0, "/s"),
-    ("WHEEL SCROLL", 64.1, 17.3, "ms"),
-    ("WARM START", 856.7, 287.0, "ms"),
-    ("PALETTE CLOSE", 142.7, 51.6, "ms"),
-    ("COLD START", 5836.0, 2901.0, "ms"),
-    ("PAGE SWITCH, MEAN", 408.8, 202.7, "ms"),
-    ("PAGE REVISIT", 370.4, 196.4, "ms"),
-    ("PAGE FIRST VISIT", 355.5, 190.1, "ms"),
-    ("MOUSE CLICK", 11.4, 10.0, "ms"),
-    ("MOUSE HOVER", 9.45, 8.1, "ms"),
-]
-# time spent starting processes (forks and external programs) per action, attributed from the trace
-PROCESSES = [
-    ("HOVER", 2.9, 0.0, "ms"),
-    ("FOCUS (TAB)", 2.8, 0.0, "ms"),
-    ("MOUSE CLICK", 12.3, 1.7, "ms"),
-]
-PAGES = [  # page revisit, median ms
-    ("components", 618, 260), ("docs", 532, 244), ("scrolling", 488, 314), ("monitor", 472, 274),
-    ("settings", 372, 197), ("widgets", 364, 189), ("terminal", 358, 177), ("layout", 307, 145),
-    ("home", 288, 149), ("case study", 283, 132),
+RELEASES = [
+    {
+        "slug": "devex-1-75",
+        "name": "DevEx Update 1.75",
+        "improvements": [
+            ("IDLE REPAINTS", 20.7, 2.0, "/s"),
+            ("WHEEL SCROLL", 64.1, 17.3, "ms"),
+            ("WARM START", 856.7, 287.0, "ms"),
+            ("PALETTE CLOSE", 142.7, 51.6, "ms"),
+            ("COLD START", 5836.0, 2901.0, "ms"),
+            ("PAGE SWITCH, MEAN", 408.8, 202.7, "ms"),
+            ("PAGE REVISIT", 370.4, 196.4, "ms"),
+            ("PAGE FIRST VISIT", 355.5, 190.1, "ms"),
+            ("MOUSE CLICK", 11.4, 10.0, "ms"),
+            ("MOUSE HOVER", 9.45, 8.1, "ms"),
+        ],
+        # time spent starting processes (forks and external programs) per action, attributed from the trace
+        "processes": [
+            ("HOVER", 2.9, 0.0, "ms"),
+            ("FOCUS (TAB)", 2.8, 0.0, "ms"),
+            ("MOUSE CLICK", 12.3, 1.7, "ms"),
+        ],
+        "processes_title": "NO MORE PROCESSES ON INPUT",
+        "processes_sub": "time spent starting processes per action",
+        "improvements_sub": "lower is better &#183; bars show the new time as a share of the old",
+        "pages": [  # page revisit, median ms
+            ("components", 618, 260), ("docs", 532, 244), ("scrolling", 488, 314), ("monitor", 472, 274),
+            ("settings", 372, 197), ("widgets", 364, 189), ("terminal", 358, 177), ("layout", 307, 145),
+            ("home", 288, 149), ("case study", 283, 132),
+        ],
+        "pages_sub": "page switch on a revisit, median milliseconds &#183; first profiler run against the latest",
+    },
+    {
+        "slug": "devex-1-87-5",
+        "name": "DevEx Update 1.87,5",
+        # deep runs 20260930-231054 (end of 1.75) against 20261001-201315
+        "improvements": [
+            ("PALETTE CLOSE", 51.6, 13.4, "ms"),
+            ("SWITCH BY KEY (2 PAGES)", 229.3, 106.3, "ms"),
+            ("TERMINAL RESIZE", 187.2, 144.3, "ms"),
+            ("THEME SWITCH, FIRST", 270.3, 215.0, "ms"),
+            ("PAGE REVISIT", 196.4, 156.4, "ms"),
+            ("PAGE SWITCH, MEAN", 203.0, 173.0, "ms"),
+            ("PAGE FIRST VISIT", 190.1, 184.4, "ms"),
+        ],
+        # forks per run of the demo callbacks that run on a visit, a tick or an input
+        "processes": [
+            ("MONITOR REFRESH", 20, 1, "forks"),
+            ("COMPONENTS VISIT", 13, 0, "forks"),
+            ("WIDGETS STATUS TICK", 5, 0, "forks"),
+            ("DEBUG LAB TICK", 3, 0, "forks"),
+        ],
+        "processes_title": "NO MORE FORKS IN THE DEMO CALLBACKS",
+        "processes_sub": "processes started per run of a callback on a visit, a tick or an input",
+        "improvements_sub": "lower is better &#183; 1.75 against 1.87,5",
+        "pages": [  # page revisit, median ms
+            ("components", 260, 157), ("docs", 244, 214), ("scrolling", 314, 211), ("monitor", 274, 186),
+            ("settings", 197, 146), ("widgets", 189, 147), ("terminal", 177, 153), ("layout", 145, 119),
+            ("home", 149, 120), ("case study", 132, 109),
+        ],
+        "pages_sub": "page switch on a revisit, median milliseconds &#183; 1.75 against 1.87,5",
+    },
 ]
 
 
 def fmt(v, unit):
+    if unit == "forks":
+        return f"{v:g} forks" if v != 1 else "1 fork"
     if v == 0:
         return "0 ms"
     if unit == "/s":
@@ -88,17 +132,18 @@ def rows(svg, items, x0, top, row, N, label_w=32):
         svg.append(f'<text x="{bx + 35}" y="{y + 22}" font-size="14" font-weight="800" fill="{BG}" text-anchor="middle">&#8722;{abs(pct)}%</text>')
 
 
-def chart_improvements():
+def chart_improvements(cfg):
     W, row, top, N = 980, 54, 104, 44
     x0 = 232
     sec_gap = 74
+    IMPROVEMENTS, PROCESSES = cfg["improvements"], cfg["processes"]
     H = top + row * len(IMPROVEMENTS) + sec_gap + row * len(PROCESSES) + 64
-    svg = frame(W, H, "BEFORE &#8594; AFTER", "D.A.B.T DevEx Update 1.75 &#183; lower is better &#183; bars show the new time as a share of the old")
+    svg = frame(W, H, "BEFORE &#8594; AFTER", f"D.A.B.T {cfg['name']} &#183; {cfg['improvements_sub']}")
     rows(svg, IMPROVEMENTS, x0, top, row, N)
     y2 = top + row * len(IMPROVEMENTS) + 8
     svg.append(f'<rect x="32" y="{y2}" width="{W - 64}" height="2" fill="{LINE}"/>')
-    svg.append(f'<text x="32" y="{y2 + 30}" font-size="15" font-weight="700" fill="{YELLOW}">NO MORE PROCESSES ON INPUT</text>')
-    svg.append(f'<text x="32" y="{y2 + 50}" font-size="12" fill="{MUT}">time spent starting processes per action</text>')
+    svg.append(f'<text x="32" y="{y2 + 30}" font-size="15" font-weight="700" fill="{YELLOW}">{cfg["processes_title"]}</text>')
+    svg.append(f'<text x="32" y="{y2 + 50}" font-size="12" fill="{MUT}">{cfg["processes_sub"]}</text>')
     rows(svg, PROCESSES, x0, y2 + 60, row, N)
     ly = H - 30
     svg.append(f'<rect x="32" y="{ly - 10}" width="14" height="10" fill="{BLUE}" opacity="0.35"/><text x="54" y="{ly}" font-size="12" fill="{MUT}">before</text>')
@@ -107,10 +152,11 @@ def chart_improvements():
     return "\n".join(svg)
 
 
-def chart_pages():
+def chart_pages(cfg):
     W, row, top, N = 980, 38, 104, 44
+    PAGES = cfg["pages"]
     H = top + row * len(PAGES) + 64
-    svg = frame(W, H, "EVERY PAGE, FASTER", "page switch on a revisit, median milliseconds &#183; first profiler run against the latest")
+    svg = frame(W, H, "EVERY PAGE, FASTER", cfg["pages_sub"])
     x0 = 160
     scale = max(a for _, a, _ in PAGES) / N
     for i, (name, a, b) in enumerate(PAGES):
@@ -128,11 +174,13 @@ def chart_pages():
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
-    for name, fn in (("devex-1-75-improvements.svg", chart_improvements), ("devex-1-75-pages.svg", chart_pages)):
-        path = os.path.join(OUT, name)
-        open(path, "w", encoding="utf-8").write(fn())
-        print(os.path.relpath(path, REPO))
+    out = sys.argv[1] if len(sys.argv) > 1 else OUT
+    os.makedirs(out, exist_ok=True)
+    for cfg in RELEASES:
+        for suffix, fn in (("improvements", chart_improvements), ("pages", chart_pages)):
+            path = os.path.join(out, f"{cfg['slug']}-{suffix}.svg")
+            open(path, "w", encoding="utf-8").write(fn(cfg))
+            print(os.path.relpath(path, REPO))
 
 
 if __name__ == "__main__":

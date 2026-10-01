@@ -5,8 +5,8 @@
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
     <include src="_header.xml"/>
   <pane id="root1" weight="90" split="h">
-    <pane id="nav" weight="22" title="Menu" border="single" class="sidebar"/>
-    <pane id="main" split="v" weight="78">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="82">
       <pane id="term_output"  weight="75" title="Live Terminal (bash)" border="heavy" class="panel" scroll="both"/>
       <pane id="term_actions" weight="25" title="Terminal Controls"/>
     </pane>

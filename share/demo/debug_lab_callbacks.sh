@@ -9,7 +9,9 @@ _lab_log() {
 	local ts
 	printf -v ts '%(%H:%M:%S)T' -1
 	_LAB_LOG=("$ts  $1" "${_LAB_LOG[@]:0:99}") # newest first
-	tui.set_text lab_log "$(printf '%s\n' "${_LAB_LOG[@]}")"
+	local joined
+	printf -v joined '%s\n' "${_LAB_LOG[@]}"
+	tui.set_text lab_log "${joined%"${joined##*[!$'\n']}"}"
 }
 
 _lab_state() {
@@ -17,18 +19,24 @@ _lab_state() {
 	for g in "${!_TUI_DEF_OFF[@]}"; do off+="${off:+ }$g"; done
 	tui.bind.dirty && rc=" (unsaved changes)" || rc=""
 	local -a u=("${!_TUI_UBIND[@]}")
+	local overlay_on=off keys_off=no passthrough=no last_event paste_more=""
+	[[ $_LAB_OVERLAY == 1 ]] && overlay_on=on
+	[[ $_TUI_KEYS_SUSPENDED == 1 ]] && keys_off=YES
+	[[ $_TUI_PASSTHROUGH == 1 ]] && passthrough=YES
+	((${#TUI_LAST_PASTE} > 40)) && paste_more=…
+	tui.capture last_event tui.get.event
 	tui.set_text lab_state "modal            ${_TUI_MODAL:-none}"$'\n'"\
-overlay box      $([[ $_LAB_OVERLAY == 1 ]] && echo on || echo off)"$'\n'"\
-keybinds off     $([[ $_TUI_KEYS_SUSPENDED == 1 ]] && echo YES || echo no)   (chord $TUI_KEYS_SUSPEND_KEY)"$'\n'"\
-terminal mode    $([[ $_TUI_PASSTHROUGH == 1 ]] && echo YES || echo no)   (chord $TUI_PASSTHROUGH_KEY)"$'\n'"\
+overlay box      ${overlay_on}"$'\n'"\
+keybinds off     ${keys_off}   (chord $TUI_KEYS_SUSPEND_KEY)"$'\n'"\
+terminal mode    ${passthrough}   (chord $TUI_PASSTHROUGH_KEY)"$'\n'"\
 keyboard pane    ${_TUI_PANE_FOCUS:--}"$'\n'"\
 focused widget   ${_TUI_FOCUS_ID:--}"$'\n'"\
 your keybinds    ${#u[@]}${rc}"$'\n'"\
 default groups   off: ${off:-none}"$'\n'"\
 commands         ${#_TUI_CMD_IDS[@]} registered ($((${#_TUI_CMD_DYN[@]})) from providers)"$'\n'"\
 page history     ${#_TUI_PAGE_HISTORY[@]} back-steps"$'\n'"\
-last input       $(tui.get.event)"$'\n'"\
-last paste       ${TUI_LAST_PASTE:0:40}$([[ ${#TUI_LAST_PASTE} -gt 40 ]] && echo …)"
+last input       ${last_event}"$'\n'"\
+last paste       ${TUI_LAST_PASTE:0:40}${paste_more}"
 }
 
 lab_visit() {

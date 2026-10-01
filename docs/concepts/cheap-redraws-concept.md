@@ -109,3 +109,27 @@ Performance targets per action are established as follows: page switch latency u
 - Identification of widgets with per-frame state changes (clocks, monitors, charts). These require exclusion from pane-level caching or assignment of dedicated dirty regions.
 - Terminal support coverage for scroll regions and synchronized output across all DABT deployment environments. Both have fallback behavior (full repaint).
 - Ownership model for cache invalidation when application callbacks directly mutate widget state. All mutation paths must touch the applicable version counter, following the discipline of the style epoch mechanism.
+
+## 7. Implementation status
+
+Content-addressed fragment cache (`lib/render/tui_rowcache.sh`, strategy A at pane and widget granularity). A fragment is keyed on geometry, state, resolved content and `_TUI_STYLE_EPOCH` (bumped by `tui.style` and the page style reset), so a changed input is a different key and nothing is registered per widget. Texts containing `${expr}` bypass the cache. Wired into `_tui._draw_pane_buf` (bordered panes) and `_tui._draw_widget_buf` (label, button, checkbox). Kill switch: `TUI_ROWCACHE=0`. Counters: `rowcache_hit`, `rowcache_miss`.
+
+Not done: emission-level diffing. The 2026-09-30 40-switch bench shows flush at 0.29 ms mean against render at 48 ms, so skipping bytes saves nothing measurable, and skipping a fragment on screen is unsafe while panes redraw over their children. Revisit after the before/after bench.
+
+Measured 2026-10-01, `tools/bench/page_switch.sh 40` (150x45 demo, same machine, cache off vs on):
+
+| | off | on |
+|---|---|---|
+| render span mean | 50.6 ms | 36.7 ms |
+| render span p95 | 78.4 ms | 89.0 ms |
+| warm page switch (home / components / widgets) | 39 / 83 / 46 ms | 24 / 46 / 32 ms |
+| wall per switch (incl. 6 cold loads) | 177 ms | 164 ms |
+| fragments replayed / composed | 0 / 1702 | 1354 / 348 |
+
+Hit rate 80%. Each cold first visit pays the miss cost once; its p95 is noise from the 6 cold loads.
+
+### Overlay dismissal (strategy C, implemented as base-frame replay)
+
+`tui.render` saves its frame (`_TUI_BASE_FRAME`). `tui.modal.dismiss` (esc, click outside the palette) replays it instead of re-composing the page, but only while the screen still matches: every flush after the base must be an overlay draw (`_TUI_FLUSH_GEN - _TUI_BASE_GEN == _TUI_OVL_FLUSHES`), the style epoch and terminal size are unchanged, and nothing called `erase.all` or painted outside `_tui._flush`. Otherwise it falls back to `tui.modal.close` (full relayout). Closes that run a command (enter) still use the full path, since the command may change state the saved frame does not know about. Switch: `TUI_DISMISS_REPLAY=0`. Counters: `dismiss_replay`, `dismiss_full`, span `dismiss`.
+
+Row-level replay was rejected: some draw paths set a style once and then write several rows (`_tui._fill_pane_bg`), so a single row cut out of the frame can come out in the wrong colours. Consequence: output bytes on dismissal stay at the full-frame size (about 37 KB); the saving is composition time, not bytes.

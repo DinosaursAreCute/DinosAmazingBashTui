@@ -1,0 +1,9 @@
+<button id="btn_buttons" pane="nav" row="0" text="  Buttons" page="buttons.xml" align="left"/>
+<button id="btn_form"    pane="nav" row="1" text="  Form"    page="form.xml"    align="left"/>
+<button id="btn_data"    pane="nav" row="2" text="  Data"    page="data.xml"    align="left"/>
+<button id="btn_layout"  pane="nav" row="3" text="  Layout"  page="layout.xml"  align="left"/>
+<button id="btn_quit"    pane="nav" row="5" text="  Quit"    action="tui.action.quit" align="left"/>
+<bind key="alt+1" action="tui.action.goto buttons.xml" desc="Buttons"/>
+<bind key="alt+2" action="tui.action.goto form.xml"    desc="Form"/>
+<bind key="alt+3" action="tui.action.goto data.xml"    desc="Data"/>
+<bind key="alt+4" action="tui.action.goto layout.xml"  desc="Layout"/>

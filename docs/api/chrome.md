@@ -47,7 +47,7 @@ The command bar (default `ctrl+p` or `:`) lists registered commands and runs one
 
 An overlay is a draw function called after every repaint, so it stays on top. A modal is an overlay that also captures all input.
 
-<!-- api: tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.close tui.modal.active tui.modal.redraw -->
+<!-- api: tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.close tui.modal.dismiss tui.modal.active tui.modal.redraw -->
 
 | Function | Summary |
 |---|---|
@@ -56,6 +56,7 @@ An overlay is a draw function called after every repaint, so it stays on top. A 
 | [`tui.overlay.box`](chrome/tui.overlay.box.md) | Draws a framed box at an absolute position. Meant for overlay and modal draw functions. |
 | [`tui.modal.open`](chrome/tui.modal.open.md) | Opens a modal: an overlay that receives all input until it is closed. |
 | [`tui.modal.close`](chrome/tui.modal.close.md) | Closes the open modal and repaints the screen under it. |
+| [`tui.modal.dismiss`](chrome/tui.modal.dismiss.md) | Closes the open modal without running anything, replaying the saved page frame when it still matches the screen. |
 | [`tui.modal.active`](chrome/tui.modal.active.md) | Returns `0` while a modal is open (or, with `NAME`, while that modal is open). |
 | [`tui.modal.redraw`](chrome/tui.modal.redraw.md) | Redraws all overlays now. Call it after changing the state a modal draws. |
 
@@ -70,6 +71,8 @@ An overlay is a draw function called after every repaint, so it stays on top. A 
 {% include_relative chrome/tui.modal.open.md %}
 
 {% include_relative chrome/tui.modal.close.md %}
+
+{% include_relative chrome/tui.modal.dismiss.md %}
 
 {% include_relative chrome/tui.modal.active.md %}
 

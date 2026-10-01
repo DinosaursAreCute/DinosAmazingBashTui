@@ -30,23 +30,24 @@ wx_visit() {
 # the status line under the editor: position, selection, size (polled: moving the cursor is not an edit)
 wx_status_tick() {
 	local id
-	id="$(tui.get.focused)"
+	tui.capture id tui.get.focused
 	[[ "$id" == wx_text ]] || {
 		tui.update wx_stat1 "click into the notes to edit"
 		return 0
 	}
-	local pos sel len
-	pos="$(tui.text.cursor wx_text)"
-	sel="$(tui.text.selection wx_text)"
-	len="$(tui.get wx_text)"
-	tui.update wx_stat1 "Ln ${pos% *}, Col ${pos#* }   selected ${#sel}   ${#len} chars   $(tui.text.line_count wx_text) lines"
+	local pos sel len lines
+	tui.capture pos tui.text.cursor wx_text
+	tui.capture sel tui.text.selection wx_text
+	tui.capture len tui.get wx_text
+	tui.capture lines tui.text.line_count wx_text
+	tui.update wx_stat1 "Ln ${pos% *}, Col ${pos#* }   selected ${#sel}   ${#len} chars   $lines lines"
 }
 wx_text_changed() { :; }
 
 wx_login() {
 	local u p
-	u="$(tui.get wx_user)"
-	p="$(tui.get wx_pass)"
+	tui.capture u tui.get wx_user
+	tui.capture p tui.get wx_pass
 	if [[ -z "$u" || -z "$p" ]]; then
 		tui.notify "Enter a user and a password" warn
 		return
@@ -57,7 +58,11 @@ wx_login() {
 		tui.update wx_pass ""
 	else tui.notify "Wrong password for $u (hint: secret)" error 6; fi
 }
-wx_mode_picked() { tui.notify "Mode: $(tui.get wx_mode)" info 2; }
+wx_mode_picked() {
+	local mode
+	tui.capture mode tui.get wx_mode
+	tui.notify "Mode: $mode" info 2
+}
 
 wx_run_job() {
 	tui.progress.set wx_prog 0
@@ -65,7 +70,7 @@ wx_run_job() {
 }
 wx_job_step() {
 	local v
-	v="$(tui.get wx_prog)"
+	tui.capture v tui.get wx_prog
 	((v += 4))
 	tui.progress.set wx_prog "$v"
 	((v >= 100)) && {
@@ -74,6 +79,14 @@ wx_job_step() {
 	}
 }
 
-wx_list_open() { tui.notify "Open: $(tui.list.item wx_list)" info 2; }
+wx_list_open() {
+	local item
+	tui.capture item tui.list.item wx_list
+	tui.notify "Open: $item" info 2
+}
 wx_list_moved() { :; }
-wx_table_open() { tui.notify "Row: $(tui.table.row wx_table)" info 3; }
+wx_table_open() {
+	local row
+	tui.capture row tui.table.row wx_table
+	tui.notify "Row: $row" info 3
+}

@@ -2,7 +2,7 @@
 # Generate a block5 header SVG (transparent bg) from a string.
 # Usage: tools/gen_header.sh "TEXT" [OUT.svg] [CELL_PX]
 #   OUT defaults to assets/headers/<slug>.svg; CELL_PX defaults to 7 (height = 5 cells).
-# Font: A-Z 0-9 . - : ? / _ !  (lowercase is uppercased, other chars dropped)
+# Font: A-Z 0-9 . , - : ? / _ !  (lowercase is uppercased, other chars dropped)
 # Env: HEADER_COLORS="#ff8cbf #a8d8ff #fff3a8 #ff9e9e" (cycled per letter)
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)

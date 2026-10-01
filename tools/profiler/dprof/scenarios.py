@@ -12,6 +12,9 @@ PAGES = [("home", "Home"), ("components", "Components"), ("settings", "Settings"
          ("terminal", "Terminal"), ("scrolling", "Scrolling"), ("case_study", "Case Study"), ("docs", "Docs"),
          ("layout", "Layout"), ("widgets", "Widgets")]
 LABEL = dict(PAGES)
+# alt+N bindings of the demo's _nav.xml (alt+0 is the tenth page)
+KEY_PAGE = {"1": "home", "2": "components", "3": "settings", "4": "monitor", "5": "terminal", "6": "scrolling",
+            "7": "case_study", "8": "docs", "9": "layout", "0": "widgets"}
 
 GROUP_INFO = {
     # group: (title, kind, budget_ms)  budget = the perceived-instant line for that interaction
@@ -19,7 +22,7 @@ GROUP_INFO = {
     "startup.warm": ("Warm start", "startup", 1000),
     "nav.first": ("Page switch, first visit", "nav", 150),
     "nav.revisit": ("Page switch, revisit", "nav", 100),
-    "nav.key": ("Page switch by key (alt+N)", "nav", 100),
+    "nav.key": ("Page switch by key (alt+1…0, every page)", "nav", 100),
     "focus.next": ("Focus next (Tab)", "input", 50),
     "focus.prev": ("Focus previous (Shift+Tab)", "input", 50),
     "hover.move": ("Mouse hover", "input", 30),
@@ -113,9 +116,12 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                     add(Step(group, name, "click_text", label, quiet=0.15))
                 add(Step(group, "home", "click_text", "Home", quiet=0.15))
         if want("nav.key"):
-            add(Step("nav.key", "alt+2", "key", ESC + b"2", quiet=0.15, timeout=1.0))  # bound in _nav.xml: must navigate
-            # a light page next to the heavy one: compare each with clicking the same page (nav.first/nav.revisit details)
-            add(Step("nav.key", "alt+7", "key", ESC + b"7", quiet=0.15, timeout=1.0))
+            # alt+1..9 and alt+0 are bound in _nav.xml: every page once by key, so the median is over all pages and each
+            # can be compared with clicking the same page (nav.first/nav.revisit details). The run before ends on home, so
+            # the sequence starts at alt+2 (alt+1 would be a switch to the page already shown) and ends with alt+1.
+            keys = ("2", "7") if quick else ("2", "3", "4", "5", "6", "7", "8", "9", "0", "1")
+            for k in keys:
+                add(Step("nav.key", f"alt+{k} {KEY_PAGE[k]}", "key", ESC + k.encode(), quiet=0.15, timeout=1.0))
     if want("focus.next", "focus.prev", "hover.move", "click"):
         add(_setup("Components"))
         for i in range(6 if quick else 10):

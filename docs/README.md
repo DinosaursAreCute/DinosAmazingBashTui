@@ -6,6 +6,7 @@
 
    <summary>Contents</summary>
 
+1. [News](#news)
 1. [Where to look](#where-to-look)
 1. [High-level architecture](#high-level-architecture)
    1. [Layers (load order in `lib/tui.sh`)](#layers-load-order-in-libtuish)
@@ -23,6 +24,11 @@
 DinosAmazingBashTui is a terminal UI framework in **pure bash** (5.0+) plus POSIX utilities and `awk`. No Python, Node or ncurses.
 This page is the map: how the framework is put together, and where to look for what.
 
+## News
+
+- **DevEx Update 1.87,5: Don't redo what you already know** (unreleased). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. [Release notes](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/release-notes/devex-update-1.87,5.md) · [Designing fast apps](guide/performance.md) · [Performance explorer](design/performance-explorer.html)
+- **DevEx Update 1.75: Blowing up a mountain** (v0.0.20). Page switches twice as fast, idle repaints down 90%. [Release notes](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/release-notes/devex-update-1.75.md) · [The performance journey](design/performance-journey.md)
+
 ## Where to look
 
 | I want to... | Read |
@@ -33,6 +39,7 @@ This page is the map: how the framework is put together, and where to look for w
 | Build a page from XML (panes, grids, tabs, includes, themes) | [guide/markup.md](guide/markup.md) |
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
+| Make pages and callbacks fast: budgets, fork-free callbacks, memoising, what the caches do | [guide/performance.md](guide/performance.md) |
 | Bind keys and mouse, use the command bar, footer, default pages | [guide/input-bindings.md](guide/input-bindings.md) |
 | Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
 | Write, install and manage plugins; where DABT keeps its files | [guide/plugins.md](guide/plugins.md) |
@@ -148,6 +155,7 @@ my_app/
 | `TUI_CONFIG_FILE` | `$TUI_APP_CONF/dabt.conf` | Persisted framework settings. |
 | `TUI_FOOTER_DEFAULT` | quit, command bar, back | Default `<footer/>` items. |
 | `TUI_INPUT_RETAIN_ON_SUBMIT` | `true` | Whether inputs keep focus after Enter (per input: `tui.input.retain`). |
+| `TUI_CACHE_TRUST` | `1` | Source files (pages, includes, themes) are checked against the page cache once, at start-up, and assumed unchanged while the app runs; edits take effect on the next start. `0` keeps the check on every page switch, for developing a page with the app open. |
 | `TR_WIDTH` | terminal width | Renderers: force the width they lay out to (e.g. a pane's width). |
 | `TUI_MOUSE_DRAIN_PEEK_TIMEOUT` | small, **> 0** | Mouse-motion coalescing peek. Never set to 0 (`read -t 0` consumes nothing). |
 

@@ -10,14 +10,15 @@ Medians of the profiler's probe-measured latency, first deep run against the lat
 
 | Interaction | Before | After | Change | Budget |
 |---|---|---|---|---|
-| Page switch, mean over all pages | 409 ms | 203 ms | **−50%** | — |
-| Page switch, first visit | 356 ms | 190 ms | **−47%** | 150 ms |
-| Page switch, revisit | 370 ms | 196 ms | **−47%** | 100 ms |
-| Command palette close | 143 ms | 52 ms | **−64%** | 100 ms |
-| Wheel scroll | 64 ms | 17 ms | **−73%** | 60 ms |
+| Page switch, mean over all pages | 409 ms | 173 ms | **−58%** | — |
+| Page switch, first visit | 356 ms | 184 ms | **−48%** | 150 ms |
+| Page switch, revisit | 370 ms | 156 ms | **−58%** | 100 ms |
+| Command palette close | 143 ms | 13 ms | **−91%** | 100 ms |
+| Wheel scroll | 64 ms | 18 ms | **−72%** | 60 ms |
+| Terminal resize | 260 ms | 144 ms | **−45%** | 250 ms |
 | Idle repaints | 20.7 /s | 2.0 /s | **−90%** | 2 /s |
-| Warm start | 857 ms | 287 ms | **−66%** | 1 s |
-| Cold start (first launch) | 5.84 s | 2.90 s | **−50%** | 5 s |
+| Warm start | 857 ms | 294 ms | **−66%** | 1 s |
+| Cold start (first launch) | 5.84 s | 2.86 s | **−51%** | 5 s |
 
 Budgets are the "perceived instant" lines the profiler checks against. Everything except the page switches is now inside its budget; the page switches are the remaining gap, and they are dominated by a few heavy pages (see below).
 
@@ -27,26 +28,26 @@ xychart-beta
     x-axis ["page first", "page revisit", "palette close", "wheel scroll"]
     y-axis "ms" 0 --> 400
     bar [356, 370, 143, 64]
-    bar [190, 196, 52, 17]
+    bar [184, 156, 13, 18]
 ```
 
 *Pink: before. Blue: after.*
 
 ## The journey
 
-Thirteen changes, each followed by a measurement. The page switch fell in steps; no single change did it.
+Seventeen changes, each followed by a measurement. The page switch fell in steps; no single change did it.
 
 ```mermaid
 xychart-beta
     title "Page switch (ms) after each change"
-    x-axis ["base", "1-2", "3-4", "5", "6-7", "9", "10", "11", "12", "latest"]
+    x-axis ["base", "1-2", "3-4", "5", "6-7", "9", "10", "11", "12", "13", "14", "15-16", "latest"]
     y-axis "ms" 150 --> 420
-    line [409, 377, 346, 308, 283, 251, 267, 239, 226, 203]
-    line [356, 320, 295, 260, 228, 201, 245, 208, 208, 190]
-    line [370, 339, 325, 264, 225, 216, 213, 216, 207, 196]
+    line [409, 377, 346, 308, 283, 251, 267, 239, 226, 203, 192, 200, 173]
+    line [356, 320, 295, 260, 228, 201, 245, 208, 208, 190, 199, 204, 184]
+    line [370, 339, 325, 264, 225, 216, 213, 216, 207, 196, 168, 168, 156]
 ```
 
-*Pink: mean over all pages. Blue: first visit. Yellow: revisit. The bump at change 10 is the known first-visit run-to-run swing, not a regression.*
+*Pink: mean over all pages. Blue: first visit. Yellow: revisit. The bump at change 10 is the known first-visit run-to-run swing, not a regression. The first-visit points for changes 14 and 15-16 (199, 204 ms) are slightly above change 13: the fragment cache pays to build and store a key on a first visit and only wins on repeats.*
 
 ## Where the time went
 
@@ -76,7 +77,7 @@ pie showData
     "Other" : 45
 ```
 
-Style and subprocess time almost vanished; what is left is the actual drawing work. That is where a further win would need a different approach (caching rows, not recomputing them).
+Style and subprocess time almost vanished; what is left is the actual drawing work. That is where a further win would need a different approach (caching rows, not recomputing them). Changes 14 to 16 took that approach: panes and plain widgets are composed once per distinct input, and closing the palette replays the saved page. The measured effect is under "What we changed" and in the explorer.
 
 ## What we changed
 
@@ -93,6 +94,12 @@ Style and subprocess time almost vanished; what is left is the actual drawing wo
 | | Cached pages re-applied every widget's style on each visit | 25 ms per page switch |
 | | On-visit code called `tui.render` a second time | Heaviest page: −90 ms |
 | | Colour-code conversion recomputed per call | Memoised; style layer −85% together with the above |
+| **Caching by content** | Panes, labels, buttons and checkboxes are composed once per distinct input (geometry, state, text, style epoch) and replayed; widget positions and coloured-line slices are memoised the same way | Render of a content-heavy page 54 → 30 ms; revisits −15% |
+| | Closing the palette repainted the whole page from scratch | The saved page is replayed when nothing else painted: 38 → 14 ms |
+| **Page code, not framework** | Demo callbacks forked on every visit, tick and keystroke (`date`, `cat`, `awk`, `$( )` around each renderer); a new `tui.capture VAR CMD` runs them in the current shell | Switch by key 201 → 106 ms; settings first visit 278 → 176 ms; monitor refresh 20 forks → 1 |
+| | The same static renderer view was rebuilt on every visit | Built once per width |
+| | Output widths of coloured lines forked `awk` | Measured in bash and memoised, identical results on 1,500 randomised lines |
+| | A shell that ignores SIGTERM made leaving the Terminal page wait the full 50 ms | SIGHUP after the first poll: 55 → 11 ms; the next page's revisit 211 → 163 ms |
 | **Found by profiling** | Key bindings from markup were lost on cached pages | `alt+1…0` navigation works on a warm start |
 
 ## Which pages gained most
@@ -105,7 +112,7 @@ xychart-beta
     x-axis ["componen.", "docs", "scrolling", "monitor", "settings", "widgets", "terminal", "layout", "case st.", "home"]
     y-axis "ms" 0 --> 650
     bar [618, 532, 488, 472, 372, 364, 358, 307, 283, 288]
-    bar [260, 244, 314, 274, 197, 189, 177, 145, 132, 149]
+    bar [157, 214, 211, 186, 146, 147, 153, 119, 109, 120]
 ```
 
 *Pink: before. Blue: after.*
@@ -117,10 +124,10 @@ A first launch has to validate every page and build the page cache; every later 
 ```mermaid
 xychart-beta
     title "Startup (seconds) after each change"
-    x-axis ["base", "1-2", "3-4", "6-7", "8", "12", "13", "latest"]
+    x-axis ["base", "1-2", "3-4", "6-7", "8", "12", "13", "14", "15-16", "latest"]
     y-axis "seconds" 0 --> 6.5
-    line [5.84, 5.68, 5.61, 5.60, 5.54, 3.11, 2.87, 2.90]
-    line [0.86, 0.86, 0.85, 0.82, 0.31, 0.30, 0.29, 0.29]
+    line [5.84, 5.68, 5.61, 5.60, 5.54, 3.11, 2.87, 2.86, 2.86, 2.86]
+    line [0.86, 0.86, 0.85, 0.82, 0.31, 0.30, 0.29, 0.29, 0.30, 0.29]
 ```
 
 *Pink: cold start. Blue: warm start.*
@@ -132,6 +139,10 @@ xychart-beta
 - **Forks are cheaper than assumed, but they still add up.** Removing 872 forks saved about 230 ms: roughly a quarter of a millisecond each, not the millisecond we had guessed.
 - **A median hides the heavy pages.** Page-code changes moved the mean and the heaviest pages by up to 25% while the median stayed put. Look at both.
 - **Some wins are correctness bugs.** The profiler's "this key does nothing" finding led to key bindings that had silently disappeared on every cached page.
+- **Remove forks and waits before shaving arithmetic.** An associative-array lookup costs 2 to 3 µs in bash, so trimming a handful of lookups per widget moved a render by a few percent, while removing a fork or a wait moved a page by tens of milliseconds.
+- **A wait that looks like another page's cost.** The scrolling page took 70 ms longer than the sum of its parts; the missing time was the Terminal page's interactive shell, which ignores SIGTERM, being waited out when you left it. Compare a page's total with its parts.
+- **Cache on inputs, not on counters.** Row, geometry and slice caches are keyed on the values that produce them, so a stale result cannot happen. The first version of the palette replay invalidated itself on any paint under it and never ran, because the header clock repaints every second; folding those paints into the saved page fixed it.
+- **Prove a rewrite is byte-identical.** Every fork-free conversion was compared with the old output (including a 1,500-line randomised comparison for the width measurement) before it was kept.
 - **Keep the noise in view.** Run-to-run swings of up to 10% on first-visit medians and a bimodal resize timing meant that changes under about 3% were never reported as changes.
 
 ## How it was measured

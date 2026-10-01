@@ -103,8 +103,8 @@ _tui_cache_restore() {
 # read, no forks).
 #
 # Freshness is fork-free too: after a parse we `: > STAMP` (a builtin redirect = touch), and a file
-# is stale when it is newer than its stamp (`[[ FILE -nt STAMP ]]` - no stat, no subshell). So
-# editing theme.css still takes effect on the next page visit, like the page cache itself.
+# is stale when it is newer than its stamp (`[[ FILE -nt STAMP ]]` - no stat, no subshell). While the cache is not
+# yet trusted (see _TUI_CACHE_TRUSTED), editing theme.css takes effect on the next page visit, like the page cache.
 declare -gA _TUI_THEME_MEMO=() _TUI_THEME_STAMP=() # file -> "class<US>fg<US>bg<US>mods\n..." / stamp path
 declare -g _TUI_THEME_STAMP_DIR="" _TUI_THEME_STAMP_N=0
 
@@ -120,7 +120,7 @@ _tui_cache_theme_stamp() { # FILE -> sets _TS to a fresh stamp path (creates the
 
 _tui.theme_load_file() {
 	local file="$1" cls fg bg mods out=""
-	if [[ -n "${_TUI_THEME_MEMO[$file]+x}" && ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; then
+	if [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || [[ ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; }; then
 		tui.log.debug "_tui.theme_load_file: memo HIT for $file, re-applying from memory"
 		# fd 7, not stdin: tui.load_theme runs mid-build (from a <theme> tag
 		# handler); keep fd 0 free for the tty the same way tui.cache.replay's
@@ -367,14 +367,22 @@ tui.cache.record() {
 	_TUI_CACHE_SIG["$file"]="$(tui.cache.signature "${deps[@]}")"
 }
 
+# 1 once tui.start_cached has validated and warmed every page: source files are then assumed not to change while the
+# app runs, so tui.cache.valid and the theme memo stop checking mtimes (one stat call per page switch gone). Edits made
+# while the app runs take effect on the next start. TUI_CACHE_TRUST=0 keeps the live checks (developing a page).
+declare -gi _TUI_CACHE_TRUSTED=0
+declare -gi TUI_CACHE_TRUST="${TUI_CACHE_TRUST:-1}"
+
 # tui.cache.valid FILE - true if FILE has a cached page AND every
 # dependency file its signature covers (the page itself plus every
 # <include> it pulled in at record time) still has the exact mtime it had
 # then, i.e. neither the page nor anything it includes has changed since.
+# Once the cache is trusted (_TUI_CACHE_TRUSTED) a recorded page is simply valid: no stat.
 tui.cache.valid() {
 	local file="$1"
 	local sig="${_TUI_CACHE_SIG[$file]:-}"
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" && -n "$sig" ]] || return 1
+	((_TUI_CACHE_TRUSTED)) && return 0
 	local -a parts paths=() wants=()
 	IFS=';' read -ra parts <<<"$sig"
 	local pair i
@@ -458,9 +466,8 @@ tui.cache.replay() {
 }
 
 # tui.load_cached FILE - drop-in replacement for tui.load: replays a cached
-# page if one's available and still valid (see tui.cache.valid - a page or
-# include edited since it was recorded self-heals here, not just via the
-# disk-cache path), otherwise does a normal tui.load and records it fresh.
+# page if one's available and still valid (see tui.cache.valid: checked against the files' mtimes until the cache is
+# trusted at the end of start-up, assumed valid afterwards), otherwise does a normal tui.load and records it fresh.
 tui.load_cached() {
 	local file="$1" resolved dir
 	resolved="$file"
@@ -542,7 +549,7 @@ tui.cache.load_dir() {
 	done
 	((${#keys[@]})) || return 0
 	# every dependency of every cached page in one stat call; tui.cache.valid reads the result until
-	# start_cached clears _TUI_CACHE_MTIME_FRESH (a live edit is caught by the per-switch check, which stats again)
+	# start_cached clears _TUI_CACHE_MTIME_FRESH; after start-up the cache is trusted (_TUI_CACHE_TRUSTED) and nothing stats at all
 	local -a parts
 	local pair
 	for key in "${keys[@]}"; do
@@ -875,6 +882,8 @@ tui.start_cached() {
 		tui.cache.warm_with_spinner "${stale[@]}"
 		tui.cache.dump_dir "$disk_dir"
 	fi
+	# every page is now cached and checked against its files: from here on the files are assumed unchanged
+	((TUI_CACHE_TRUST)) && _TUI_CACHE_TRUSTED=1
 
 	tui.init
 	if ! tui.load_cached "$file"; then

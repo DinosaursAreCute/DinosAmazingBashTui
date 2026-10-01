@@ -9,6 +9,7 @@ tui.require terminal_renderer
 # fit checkbox can re-run it, sizes the renderers (TR_WIDTH) to the pane, and
 # swaps the Controls box to the options that view actually has.
 _SC_VIEW=""
+declare -gA _SC_ALL_MEMO # no "=()": the script is re-sourced on every visit and must keep the memo
 _SC_W=80
 _SC_CTL_VIEW=""
 _showcase_set_status() {
@@ -288,27 +289,50 @@ show_quote() {
 
 show_all() {
 	_showcase_set_status "All Renderers"
-	local out=""
-	out+="$(banner 'DABT')"$'\n\n'
-	out+="$(divider 'BOX')"$'\n'
-	out+="$(box 'Pure bash terminal rendering')"$'\n\n'
-	out+="$(divider 'ALERTS')"$'\n'
-	out+="$(alert success 'All systems go')"$'\n\n'
-	out+="$(divider 'TABLE')"$'\n'
-	out+="$(table 'Cmd|Description' 'box|Bordered box' 'alert|Callout' 'table|Data grid')"$'\n\n'
-	out+="$(divider 'KEY-VALUE')"$'\n'
-	out+="$(kv 'Framework: DABT' 'Language: bash' 'Deps: zero')"$'\n\n'
-	out+="$(divider 'BAR CHART')"$'\n'
-	out+="$(hbar -w $((_SC_W - 24)) 'Bash:100' 'Fun:99' 'Sanity:12')"$'\n\n'
-	out+="$(divider 'BADGES')"$'\n'
-	out+="$(badges 'pass:Build' 'pass:Tests' 'info:v0.1.0')"$'\n\n'
-	out+="$(divider 'LIST')"$'\n'
-	out+="$(list 'Markup' 'Theming' 'Rendering' 'Execution')"$'\n\n'
-	out+="$(divider 'TREE')"$'\n'
-	out+="$(tree 'DABT/' '  bin/' '    tui.sh' '  config/' '    home.xml')"$'\n\n'
-	out+="$(divider 'QUOTE')"$'\n'
-	out+="$(quote -a 'DABT' 'I use arch btw :D')"
-	tui.output "output" "$out"
+	local out="" part key="${TR_WIDTH:--}|$_SC_W"
+	# static for a given width: the renderers run once per width, later visits and resizes reuse the text
+	if [[ -z "${_SC_ALL_MEMO[$key]+x}" ]]; then
+		tui.capture part banner 'DABT'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'BOX'
+		out+="$part"$'\n'
+		tui.capture part box 'Pure bash terminal rendering'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'ALERTS'
+		out+="$part"$'\n'
+		tui.capture part alert success 'All systems go'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'TABLE'
+		out+="$part"$'\n'
+		tui.capture part table 'Cmd|Description' 'box|Bordered box' 'alert|Callout' 'table|Data grid'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'KEY-VALUE'
+		out+="$part"$'\n'
+		tui.capture part kv 'Framework: DABT' 'Language: bash' 'Deps: zero'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'BAR CHART'
+		out+="$part"$'\n'
+		tui.capture part hbar -w $((_SC_W - 24)) 'Bash:100' 'Fun:99' 'Sanity:12'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'BADGES'
+		out+="$part"$'\n'
+		tui.capture part badges 'pass:Build' 'pass:Tests' 'info:v0.1.0'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'LIST'
+		out+="$part"$'\n'
+		tui.capture part list 'Markup' 'Theming' 'Rendering' 'Execution'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'TREE'
+		out+="$part"$'\n'
+		tui.capture part tree 'DABT/' '  bin/' '    tui.sh' '  config/' '    home.xml'
+		out+="$part"$'\n\n'
+		tui.capture part divider 'QUOTE'
+		out+="$part"$'\n'
+		tui.capture part quote -a 'DABT' 'I use arch btw :D'
+		out+="$part"
+		_SC_ALL_MEMO[$key]="$out"
+	fi
+	tui.output "output" "${_SC_ALL_MEMO[$key]}"
 }
 
 on_clear() {

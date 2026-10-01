@@ -2186,6 +2186,7 @@ _banner_font_init() {
 	_BANNER_FONT[' ']="   |   |   |   |   "
 	_BANNER_FONT['!']="█|█|█| |█"
 	_BANNER_FONT['.']=" | | | |█"
+	_BANNER_FONT[',']=" | | |█|█"
 	_BANNER_FONT['-']="    |    |████|    |    "
 	_BANNER_FONT[':']=" | |█| |█"
 	_BANNER_FONT['?']=" ██ |█  █|  █ |    |  █ "

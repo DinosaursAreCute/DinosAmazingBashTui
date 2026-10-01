@@ -1,0 +1,18 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd">
+  <script src="callbacks.sh"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav"  weight="18" title="Menu" border="single"/>
+    <pane id="main" weight="82" split="h" border="none">
+      <pane id="left"  weight="40" title="List"  border="single" hpad="1"/>
+      <pane id="right" weight="60" title="Table" border="single" hpad="1"/>
+    </pane>
+  </pane>
+
+  <label id="lbl_page" pane="left" row="0" text="Page 3: Data"/>
+  <list  id="lst_items" pane="left" row="2" rows="20" on_change="cmp_list_moved" items="Item 01|Item 02|Item 03|Item 04|Item 05|Item 06|Item 07|Item 08|Item 09|Item 10|Item 11|Item 12|Item 13|Item 14|Item 15|Item 16|Item 17|Item 18|Item 19|Item 20|Item 21|Item 22|Item 23|Item 24|Item 25|Item 26|Item 27|Item 28|Item 29|Item 30|Item 31|Item 32|Item 33|Item 34|Item 35|Item 36|Item 37|Item 38|Item 39|Item 40"/>
+  <label id="lbl_sel"  pane="left" row="23" text="Selected: Item 01"/>
+  <table id="tbl_files" pane="right" row="0" columns="File|Size|Kind" data="file01.txt|3k|text;file02.txt|6k|text;file03.txt|9k|text;file04.txt|12k|text;file05.txt|15k|text;file06.txt|18k|text;file07.txt|21k|text;file08.txt|24k|text;file09.txt|27k|text;file10.txt|30k|text;file11.txt|33k|text;file12.txt|36k|text"/>
+
+  <include src="_nav.xml"/>
+</tui>

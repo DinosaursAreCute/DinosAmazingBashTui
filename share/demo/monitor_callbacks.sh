@@ -21,12 +21,13 @@ declare -g _MON_ENABLED_CPU=1 _MON_ENABLED_MEM=1 _MON_ENABLED_LOAD=1 _MON_ENABLE
 declare -g _MON_TICK_COUNT=0
 declare -g _MON_REFRESH_EVERY_TICKS=20 # ≈1s at the default 0.05s poll timeout
 declare -g _MON_NPROC
-_MON_NPROC="$(nproc 2>/dev/null || echo 1)"
+[[ -n "$_MON_NPROC" ]] || _MON_NPROC="$(nproc 2>/dev/null || echo 1)" # once per process: the script is re-sourced on every visit
 
 # Canonical pane order (matches monitor.xml's original 2x2) and the
 # title/border each carries - tui.grid resets both on every pane it
 # (re)creates, "grid"'s own row/cell wrappers included, so a disabled
 # pane's title/border have to be reapplied by hand after each rebuild.
+declare -gA _MON_INTERVAL_S
 declare -ga _MON_PANE_ORDER=(cpu_pane mem_pane load_pane disk_pane)
 declare -gA _MON_PANE_TITLE=(
 	[cpu_pane]="CPU Cores - vbar"
@@ -62,7 +63,15 @@ _mon_output_fit() {
 	if ((${#lines[@]} > cah)); then
 		lines=("${lines[@]:0:cah}")
 	fi
-	tui.output "$pane" "$(printf '%s\n' "${lines[@]}")"
+	local joined
+	printf -v joined '%s\n' "${lines[@]}"
+	tui.output "$pane" "${joined%"${joined##*[!$'\n']}"}" # trailing newlines off, as $( ) did
+}
+
+# _mon_join_v ITEM... -> _MJ: the items joined with commas (no subshell)
+_mon_join_v() {
+	local IFS=,
+	_MJ="$*"
 }
 
 # Re-lay the 2x2 "grid" pane to include only the currently-enabled
@@ -179,13 +188,10 @@ _mon_refresh_cpu() {
 	local vh=$((cah - 3))
 	((vh < 2)) && vh=2
 
-	local color_arg
-	color_arg="$(
-		IFS=,
-		printf '%s' "${colors[*]}"
-	)"
-	local out
-	out="$(vbar_string -h "$vh" -m 100 -n 0 -cw "$col_width" -c "$color_arg" "${labels[@]}")"
+	local color_arg out
+	_mon_join_v "${colors[@]}"
+	color_arg=$_MJ
+	tui.capture out vbar_string -h "$vh" -m 100 -n 0 -cw "$col_width" -c "$color_arg" "${labels[@]}"
 	local _out_b
 	printf -v _out_b '%b' "$out"
 	_mon_output_fit "cpu_pane" "$_out_b"
@@ -256,9 +262,10 @@ _mon_refresh_mem() {
 	local breakdown="  U:${used_gb}G C:${cache_gb}G F:${free_gb}G T:${total_gb}G"
 	((${#breakdown} > caw)) && breakdown="${breakdown:0:caw}"
 
-	local out=""
+	local out="" gauge
 	out+="\n"
-	out+="$(gauge_string -l "RAM" -lw "$label_width" -w "$gauge_width" -c "$used_color" "$used_pct")\n\n"
+	tui.capture gauge gauge_string -l "RAM" -lw "$label_width" -w "$gauge_width" -c "$used_color" "$used_pct"
+	out+="${gauge}\n\n"
 	out+="${breakdown}\n\n"
 
 	if [[ -n "$swap_total" && "$swap_total" -gt 0 ]]; then
@@ -267,7 +274,8 @@ _mon_refresh_mem() {
 		local swap_color
 		_mon_color_v "$swap_pct"
 		swap_color="$_MC"
-		out+="$(gauge_string -l "Swap" -lw "$label_width" -w "$gauge_width" -c "$swap_color" "$swap_pct")"
+		tui.capture gauge gauge_string -l "Swap" -lw "$label_width" -w "$gauge_width" -c "$swap_color" "$swap_pct"
+		out+="$gauge"
 	else
 		out+="  Swap: not configured"
 	fi
@@ -308,13 +316,10 @@ _mon_refresh_load() {
 	((plot_w < 4)) && plot_w=4
 
 	local load_max=$((_MON_NPROC * 100))
-	local series
-	series="$(
-		IFS=,
-		printf '%s' "${_MON_LOAD_HISTORY[*]}"
-	)"
-	local out
-	out="$(linechart_string -h "$lh" -w "$plot_w" -n 0 -m "$load_max" -c "BRIGHT_CYAN" "Load x100:${series}")"
+	local series out
+	_mon_join_v "${_MON_LOAD_HISTORY[@]}"
+	series=$_MJ
+	tui.capture out linechart_string -h "$lh" -w "$plot_w" -n 0 -m "$load_max" -c "BRIGHT_CYAN" "Load x100:${series}"
 
 	local current_line="  current: ${load1} (${_MON_NPROC} cores)"
 	((${#current_line} > caw)) && current_line="${current_line:0:caw}"
@@ -336,7 +341,7 @@ _mon_refresh_disk() {
 	# -- I/O throughput: aggregate sectors across whole-disk devices only,
 	#    skipping partitions and virtual devices so nothing is double-counted.
 	local now_ts
-	now_ts="$(date +%s)"
+	printf -v now_ts '%(%s)T' -1
 	local read_sect=0 write_sect=0
 	local dline dname dreads dsect_r dwrites dsect_w drest
 	while read -r dline; do
@@ -373,29 +378,27 @@ _mon_refresh_disk() {
 	#    otherwise all report the same device + Use% under different paths).
 	local -a entries=() colors=()
 	local -A seen_device=()
-	local line device pct target label
+	local device pct target label _hdr
 
-	while read -r line; do
-		device="${line%%$'\x01'*}"
-		line="${line#*$'\x01'}"
-		pct="${line%%$'\x01'*}"
-		target="${line#*$'\x01'}"
-		pct="${pct%\%}"
+	# one df, parsed in bash (was df | tail | awk: four processes); fields as awk saw them: $1 device, $5 use%, $6 mount
+	{
+		read -r _hdr
+		while read -r device _ _ _ pct target _; do
+			pct="${pct%\%}"
 
-		[[ -n "${seen_device[$device]:-}" ]] && continue
-		seen_device[$device]=1
+			[[ -n "${seen_device[$device]:-}" ]] && continue
+			seen_device[$device]=1
 
-		label="$target"
-		[[ "$label" == "/" ]] && label="root"
-		label="${label##*/}"
-		[[ -z "$label" ]] && label="root"
+			label="$target"
+			[[ "$label" == "/" ]] && label="root"
+			label="${label##*/}"
+			[[ -z "$label" ]] && label="root"
 
-		entries+=("${label}:${pct}")
-		_mon_color_v "$pct"
-		colors+=("$_MC")
-	done < <(df -P -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null |
-		tail -n +2 |
-		awk '{print $1"\x01"$5"\x01"$6}')
+			entries+=("${label}:${pct}")
+			_mon_color_v "$pct"
+			colors+=("$_MC")
+		done
+	} < <(df -P -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null)
 
 	# Reserve 4 rows for the I/O section (blank separator + read/write
 	# sparkline lines + nothing else); the rest goes to disk usage bars.
@@ -421,20 +424,24 @@ _mon_refresh_disk() {
 			bar_w=$((caw - label_width - 2 - value_reserve))
 			((bar_w < 1)) && bar_w=1
 		fi
-		local color_arg
-		color_arg="$(
-			IFS=,
-			printf '%s' "${colors[*]}"
-		)"
-		out+="$(hbar_string -m 100 -n 0 -w "$bar_w" -lw "$label_width" -c "$color_arg" "${entries[@]}")\n"
+		local color_arg bars
+		_mon_join_v "${colors[@]}"
+		color_arg=$_MJ
+		tui.capture bars hbar_string -m 100 -n 0 -w "$bar_w" -lw "$label_width" -c "$color_arg" "${entries[@]}"
+		out+="${bars}\n"
 	fi
 
 	local spark_w=$((caw - 14))
 	((spark_w < 5)) && spark_w=5
 	local read_series="${_MON_IO_READ_HISTORY[*]:-0}"
 	local write_series="${_MON_IO_WRITE_HISTORY[*]:-0}"
-	out+="$(printf 'R %-6s %s' "${read_kbps}K/s" "$(sparkline_string -w "$spark_w" -c GREEN "$read_series")")\n"
-	out+="$(printf 'W %-6s %s' "${write_kbps}K/s" "$(sparkline_string -w "$spark_w" -c YELLOW "$write_series")")"
+	local spark io_line
+	tui.capture spark sparkline_string -w "$spark_w" -c GREEN "$read_series"
+	printf -v io_line 'R %-6s %s' "${read_kbps}K/s" "$spark"
+	out+="${io_line}\n"
+	tui.capture spark sparkline_string -w "$spark_w" -c YELLOW "$write_series"
+	printf -v io_line 'W %-6s %s' "${write_kbps}K/s" "$spark"
+	out+="$io_line"
 
 	local _out_b
 	printf -v _out_b '%b' "$out"
@@ -447,9 +454,14 @@ _mon_refresh_all() {
 	_mon_refresh_load
 	_mon_refresh_disk
 
-	local interval_s
-	interval_s="$(awk -v t="$_MON_REFRESH_EVERY_TICKS" -v p="${TUI_INPUT_POLL_TIMEOUT:-0.05}" 'BEGIN{printf "%.2g", t*p}')"
-	_TUI_W_LABEL[lbl_mon_stamp]="Last refreshed: $(date +%H:%M:%S)  (every ${interval_s}s)"
+	# the interval text only changes with the tick count or poll timeout: awk runs once per pair, not per refresh
+	local interval_s memo_key="$_MON_REFRESH_EVERY_TICKS|${TUI_INPUT_POLL_TIMEOUT:-0.05}" now
+	if [[ -z "${_MON_INTERVAL_S[$memo_key]+x}" ]]; then
+		_MON_INTERVAL_S[$memo_key]="$(awk -v t="$_MON_REFRESH_EVERY_TICKS" -v p="${TUI_INPUT_POLL_TIMEOUT:-0.05}" 'BEGIN{printf "%.2g", t*p}')"
+	fi
+	interval_s="${_MON_INTERVAL_S[$memo_key]}"
+	printf -v now '%(%H:%M:%S)T' -1
+	_TUI_W_LABEL[lbl_mon_stamp]="Last refreshed: ${now}  (every ${interval_s}s)"
 	((_TUI_RUNNING)) && _tui._queue_render "header"
 }
 
@@ -494,7 +506,9 @@ on_monitor_set_interval() {
 	_MON_REFRESH_EVERY_TICKS=$ticks
 	_MON_TICK_COUNT=0
 	tui.set "inp_mon_interval" "$value"
-	_TUI_W_LABEL[lbl_mon_stamp]="Interval set to ${value}s - refreshed $(date +%H:%M:%S)"
+	local now
+	printf -v now '%(%H:%M:%S)T' -1
+	_TUI_W_LABEL[lbl_mon_stamp]="Interval set to ${value}s - refreshed ${now}"
 	((_TUI_RUNNING)) && _tui._queue_render "header"
 }
 

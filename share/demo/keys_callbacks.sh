@@ -23,7 +23,9 @@ _keys_on_event() {
 	((${#_KEYS_TAPE[@]} > 200)) && _KEYS_TAPE=("${_KEYS_TAPE[@]: -200}")
 	local -a rev=() i
 	for ((i = ${#_KEYS_TAPE[@]} - 1; i >= 0; i--)); do rev+=("${_KEYS_TAPE[i]}"); done # newest first
-	tui.set_text events "$(printf '%s\n' "${rev[@]}")"
+	local joined
+	printf -v joined '%s\n' "${rev[@]}"
+	tui.set_text events "${joined%"${joined##*[!$'\n']}"}"
 }
 
 keys_visit() {
@@ -50,8 +52,8 @@ _keys_dirty_label() {
 
 on_key_bind() {
 	local k a
-	k="$(tui.get inp_key)"
-	a="$(tui.get inp_action)"
+	tui.capture k tui.get inp_key
+	tui.capture a tui.get inp_action
 	if [[ -z "$k" || -z "$a" ]]; then
 		tui.update lbl_k_status "need both a key and an action"
 		return
@@ -68,7 +70,7 @@ on_key_bind() {
 
 on_key_unbind() {
 	local k
-	k="$(tui.get inp_key)"
+	tui.capture k tui.get inp_key
 	[[ -z "$k" ]] && {
 		tui.update lbl_k_status "type the key to unbind first"
 		return

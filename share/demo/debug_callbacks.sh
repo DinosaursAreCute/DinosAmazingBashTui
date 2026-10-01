@@ -18,12 +18,14 @@ declare -a _DEBUG_TAPE=()
 _DEBUG_TAPE_MAX=300
 
 _debug_on_input_event() {
-	local desc="$1"
-	_DEBUG_TAPE+=("$(date +%H:%M:%S) $desc")
+	local desc="$1" ts joined
+	printf -v ts '%(%H:%M:%S)T' -1
+	_DEBUG_TAPE+=("$ts $desc")
 	if ((${#_DEBUG_TAPE[@]} > _DEBUG_TAPE_MAX)); then
 		_DEBUG_TAPE=("${_DEBUG_TAPE[@]: -${_DEBUG_TAPE_MAX}}")
 	fi
-	tui.output "tape" "$(printf '%s\n' "${_DEBUG_TAPE[@]}")"
+	printf -v joined '%s\n' "${_DEBUG_TAPE[@]}"
+	tui.output "tape" "${joined%"${joined##*[!$'\n']}"}"
 }
 _TUI_ON_INPUT_EVENT="_debug_on_input_event"
 
@@ -94,7 +96,7 @@ _TUI_TICK_FN="_debug_tick"
 
 _debug_refresh_status() {
 	local mean
-	mean="$(tui.perf.mean_render_ms 5)"
+	tui.capture mean tui.perf.mean_render_ms 5
 	[[ -z "$mean" ]] && mean="n/a"
 
 	local lines=""
@@ -105,7 +107,8 @@ _debug_refresh_status() {
 	lines+="Mean render time (last 5s): ${mean} ms\n"
 	lines+="Frames tracked: ${#_TUI_RENDER_LOG_T[@]}\n"
 
-	tui.output "status" "$(printf '%b' "$lines")"
+	printf -v lines '%b' "$lines"
+	tui.output "status" "${lines%"${lines##*[!$'\n']}"}"
 }
 
 # ── Initial build ───────────────────────────────────────────────────────

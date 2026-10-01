@@ -2,7 +2,7 @@
 # header.sh - the block-font header images used in release notes (same look as assets/headers/*.svg).
 #
 # dapk.header.generate TEXT OUT [CELL_PX]   writes a transparent SVG of TEXT in the block5 font (default cell 7px, height = 5 cells); rc 1 on failure
-#     Font: A-Z 0-9 . - : ? / _ !  (lowercase is uppercased, other characters are dropped). Env HEADER_COLORS="#ff8cbf #a8d8ff ..." (cycled per letter).
+#     Font: A-Z 0-9 . , - : ? / _ !  (lowercase is uppercased, other characters are dropped). Env HEADER_COLORS="#ff8cbf #a8d8ff ..." (cycled per letter).
 # dapk.header.version_file VERSION          assets/headers/v1-4-2.svg (the file `dabt pkg release` writes and the release notes point at)
 
 _DAPK_HEADER_COLORS="#ff8cbf #a8d8ff #fff3a8 #ff9e9e"

@@ -146,3 +146,35 @@ t_cache_replay_reapplies_theme_overlay_to_baked_widget_style() {
 	unset '_TUI_CLASS_FG[t_cache_theme_probe]' '_TUI_STYLE_FG[probe_normal]'
 	tui.cache.theme_clear
 }
+
+# After start-up the cache is trusted: a recorded page is valid without looking at its files.
+t_cache_trusted_skips_the_mtime_check() {
+	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
+	touch -d '@1000000000' "$_CF"
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	_TUI_CACHE_TRUSTED=0
+	touch -d '@2000000000' "$_CF"
+	ok '! tui.cache.valid "$_CF"' # not trusted: the edit is seen
+	_TUI_CACHE_TRUSTED=1
+	ok 'tui.cache.valid "$_CF"' # trusted: no stat, the recorded page stands
+}
+
+t_cache_trusted_still_rejects_a_page_that_was_never_recorded() {
+	_TUI_CACHE_TRUSTED=1
+	ok '! tui.cache.valid "$_T_ROOT/never_recorded.xml"'
+}
+
+t_cache_trusted_theme_memo_is_not_stat_checked() {
+	local css="$_T_ROOT/memo.css" out
+	printf '.k { fg: red; }\n' >"$css"
+	touch -d '@1000000000' "$css"
+	tui.cache.theme_clear
+	_TUI_CACHE_TRUSTED=0
+	_tui.theme_load_file "$css"
+	touch -d '@2000000000' "$css" # newer than the stamp taken at the parse
+	_TUI_CLASS_FG=()
+	_TUI_CACHE_TRUSTED=1
+	_tui.theme_load_file "$css" # a memo hit: re-applied from memory although the file is newer
+	eq "red" "${_TUI_CLASS_FG[k]:-}"
+}

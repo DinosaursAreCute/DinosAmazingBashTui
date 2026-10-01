@@ -232,6 +232,7 @@ tui.reset_ui() {
 	_TUI_STYLE_FG=()
 	_TUI_STYLE_BG=()
 	_TUI_STYLE_MOD=()
+	_TUI_STYLE_EPOCH+=1
 
 	_tui_api.shutdown 2>/dev/null
 	_tui_input.clear_page

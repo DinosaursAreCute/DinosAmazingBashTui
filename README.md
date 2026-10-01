@@ -20,13 +20,22 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency n
 [![Repo size](https://img.shields.io/github/repo-size/DinosaursAreCute/DinosAmazingBashTui?style=flat-square)](https://github.com/DinosaursAreCute/DinosAmazingBashTui)
 [![Made with bash](https://img.shields.io/badge/made%20with-bash-1f425f?style=flat-square&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
 
-[**Quick start**](#quick-start) · [**Features**](#features) · [**The `dabt` command**](#the-dabt-command) · [**Apps & security scan**](#security-scan) · [**Plugins**](#plugins) · [**Docs**](#documentation) · [**Changelog**](CHANGELOG.md)
+[**News**](#news) · [**Quick start**](#quick-start) · [**Features**](#features) · [**The `dabt` command**](#the-dabt-command) · [**Apps & security scan**](#security-scan) · [**Plugins**](#plugins) · [**Docs**](#documentation) · [**Changelog**](CHANGELOG.md)
 
 <img src="screenshots/default/home.png" alt="Home" width="760">
 
 </div>
 
 ---
+
+<br/>
+<br/>
+<h2 id="news">News</h2>
+
+- **DevEx Update 1.87,5: Don't redo what you already know** (unreleased). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. New `tui.capture` and `tui.modal.dismiss`, a developer guide for fast apps, and a DABT-versus-Textual comparison harness. [Release notes](release-notes/devex-update-1.87,5.md) · [Designing fast apps](docs/guide/performance.md)
+- **DevEx Update 1.75: Blowing up a mountain** (v0.0.20). Page switches twice as fast, idle repaints down 90%, warm start 0.29 s. [Release notes](release-notes/devex-update-1.75.md) · [The performance journey](docs/design/performance-journey.md)
+
+Every change is in the [changelog](CHANGELOG.md).
 
 <br/>
 <br/>

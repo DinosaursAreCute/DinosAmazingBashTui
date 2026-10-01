@@ -1,0 +1,17 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd">
+  <script src="callbacks.sh"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav"  weight="18" title="Menu" border="single"/>
+    <pane id="main" weight="82" title="Form" border="single" hpad="1"/>
+  </pane>
+
+  <label    id="lbl_page"   pane="main" row="0" text="Page 2: Form"/>
+  <input    id="inp_name"   pane="main" row="2" label="Name:" label_width="7" placeholder="your name" submit="cmp_submit"/>
+  <checkbox id="chk_news"   pane="main" row="4" label="Subscribe to news" checked="false"/>
+  <checkbox id="chk_dark"   pane="main" row="5" label="Dark mode"         checked="true"/>
+  <button   id="btn_submit" pane="main" row="7" text="[ Submit ]" action="cmp_submit" align="left"/>
+  <label    id="lbl_status" pane="main" row="9" text="Status: waiting"/>
+
+  <include src="_nav.xml"/>
+</tui>

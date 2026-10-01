@@ -32,7 +32,10 @@ REVISIONS = [
     ("c11", "Change 11", "20260930-223251", "No render inside on_visit; fork-free docs page titles.", False),
     ("c12", "Change 12", "20260930-225600", "Fork-free page build, cheaper process-tree kill on leaving the Terminal page.", False),
     ("c13", "Change 13", "20260930-230441", "Remaining cold-start forks in the cache recording removed.", False),
-    ("latest", "Latest deep run", "20260930-231054", "Deep run after all thirteen changes.", True),
+    ("c13d", "Deep run after 13", "20260930-231054", "Deep run after the first thirteen changes.", True),
+    ("c14", "Change 14", "20261001-183844", "Content-addressed fragment cache: panes, labels, buttons and checkboxes are composed once per distinct input.", True),
+    ("c15-16", "Changes 15-16", "20261001-195825", "Overlay dismissal replays the saved frame; widget geometry and coloured-line slice memos.", True),
+    ("latest", "Latest deep run", "20261001-201315", "Demo callbacks without forks, memoised renderer views, one navbar width, fork-free output measuring.", True),
 ]
 
 

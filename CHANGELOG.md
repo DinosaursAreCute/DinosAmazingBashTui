@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+DevEx Update 1.87,5 ([release notes](release-notes/devex-update-1.87,5.md)).
+
+### Added
+
+* `tui.capture VAR CMD [ARGS...]` (lib/tui_api.sh): `VAR=$(CMD ARGS...)` without the subshell; `CMD` runs in the current shell, trailing newlines are stripped like `$( )`, calls nest. API entry `docs/api/core/tui.capture.md`.
+* `tui.modal.dismiss` (lib/chrome/tui_modal.sh): closes a modal for esc and click-outside by replaying the page frame saved by `tui.render` while it still matches the screen; falls back to `tui.modal.close`. Used by the command palette. API entry `docs/api/chrome/tui.modal.dismiss.md`; switch `TUI_DISMISS_REPLAY=0`.
+* Content-addressed fragment cache (`lib/render/tui_rowcache.sh`): `_tui._draw_pane_buf` and `_tui._draw_widget_buf` (label, button, checkbox) replay the bytes composed for an identical input (geometry, state, resolved text, `_TUI_STYLE_EPOCH`). Texts with `${expr}` bypass it. Bounded at 4096 entries; switch `TUI_ROWCACHE=0`; counters `rowcache_hit` / `rowcache_miss`.
+* `_TUI_STYLE_EPOCH`: bumped by `tui.style` and by the page style reset; part of every cache key.
+* `tools/compare/`: a DABT app (`dabt_app/`) and a Textual app (`textual_app/`) with the same four pages, and `compare.py`, a black-box harness that drives both in a pseudo-terminal (latency, bytes, CPU, RSS, startup). `tools/bench/redraw.sh`, `tools/profiler/site_export.py` revisions for the new runs.
+* Developer guide `docs/guide/performance.md` (budgets, cost model, fork-free callbacks, memoising, what defeats the caches) and a News section in the READMEs.
+* Unit tests: `rowcache`, `modal_dismiss`, `capture`, `render_width`, and the trusted-cache cases in `cache` (`tests/unit/`).
+* Release assets for DevEx Update 1.87,5: title header `assets/headers/devex-update-1-87-5.svg`, section header `assets/headers/release-what-changed.svg`, and the charts `assets/release/devex-1-87-5-improvements.svg` and `-pages.svg`.
+
+### Changed
+
+* Performance (deep runs `20260930-231054` -> `20261001-201315`): command palette close 52 -> 13 ms, page switch by key 229 -> 106 ms, revisit 196 -> 156 ms, first visit 190 -> 184 ms, mean over all pages 203 -> 173 ms, resize 187 -> 144 ms, theme switch (first) 270 -> 215 ms; hover, focus, click, scroll, start-up and idle unchanged.
+* `_tui._widget_pos` memoises its result per input set (`_TUI_WPC`, 4096 entries); `_tui._vslice` memoises per (line, offset, width) (`_TUI_VS_MEMO`, 4096 entries).
+* `_tui._calc_bounds` measures lines with escape codes in bash (`_tui._vwidth_v`, memoised) instead of piping them through `awk`; verified identical on real renderer output and 1,500 randomised lines.
+* `tui.render` keeps its frame (`_TUI_BASE_FRAME`); `_tui._flush`, the standalone `_tui._draw_pane` / `_tui._draw_widget` and `erase.all` maintain it (`_tui_modal.base_fold`, `_TUI_BASE_GEN`).
+* Demo pages: callbacks (monitor, docs, settings, widgets, keys, debug, debug lab, case study, components, demo) no longer fork on visit, tick or input (`tui.capture`, `printf -v '%(...)T'`, `$(<file)`, one `df` parsed in bash, `nproc` once per process); the components renderer view and the case-study metrics tab are memoised per renderer width; the menu column is 18% wide on every page (was 18, 20 or 22).
+* Page cache: source files are validated once, at the end of start-up (`tui.start_cached`), and assumed unchanged while the app runs (`_TUI_CACHE_TRUSTED`): `tui.cache.valid` and the theme memo no longer check mtimes, which removes the `stat` call from every page switch (about 3 ms per switch in the headless bench). Edits to pages, includes or themes made while the app runs take effect on the next start. `TUI_CACHE_TRUST=0` keeps the live check (developing a page with the app open).
+* Profiler: the `nav.key` scenario presses every page's key (`alt+2` … `alt+9`, `alt+0`, `alt+1`; `--quick` keeps `alt+2` and `alt+7`) instead of two, with the page in each label. Earlier `nav.key` medians came from two pages and are not comparable.
+* `tools/release_charts.py` draws the charts of every release from one `RELEASES` table (the 1.75 charts are reproduced byte for byte) and takes an optional output directory.
+* Block-font header and banner generator: `,` is now a glyph of the block5 font (`lib/terminal_renderer.sh`, used by `tools/gen_header.sh`, `dapk.header.generate` and `banner` in that font); it used to be dropped.
+* `tools/t.sh` restores `_TUI_RC*`, `_TUI_ROWCACHE`, `_TUI_BASE*`, `_TUI_OVL_FLUSHES` and `_TUI_MODAL` between tests.
+* Docs: performance journey, explorer and progress pages include the new runs.
+
+### Fixed
+
+* `_kill_process_tree` (lib/tui.sh): an interactive shell ignores SIGTERM, so leaving the Terminal page waited 50 ms and then sent SIGKILL (55 ms); a SIGHUP after the first poll ends it in 11 ms and takes about 48 ms off the next page's revisit.
+
 ## [0.0.20] - 2026-10-01
   
 ### Added

@@ -17,7 +17,7 @@ may use Python; the DABT runtime stays pure bash.
 ## What it does
 
 1. **Latency rounds (untraced).** Starts the demo in a hidden pseudo-terminal and plays a scripted user session:
-   cold start, warm start, every page (first visit and revisit), Tab/Shift+Tab, mouse hover and click, wheel and
+   cold start, warm start, every page (first visit, revisit, and once by key with alt+1…0), Tab/Shift+Tab, mouse hover and click, wheel and
    PgDn scrolling, command palette, three resizes, 3 s idle, quit. Timing comes from probes that
    `probe_shim.sh` wraps around ~18 coarse functions (key/mouse handlers, `tui.goto`, `tui.render`, `_tui._flush`,
    startup phases). Output volume is counted per frame.

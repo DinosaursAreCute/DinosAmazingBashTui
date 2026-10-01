@@ -31,6 +31,8 @@ source "${SCRIPT_DIR}/render/tui_emit.sh"
 source "${SCRIPT_DIR}/render/tui_canvas.sh"
 # shellcheck source=render/tui_paint.sh
 source "${SCRIPT_DIR}/render/tui_paint.sh"
+# shellcheck source=render/tui_rowcache.sh
+source "${SCRIPT_DIR}/render/tui_rowcache.sh"
 # shellcheck source=colors.sh
 source "${SCRIPT_DIR}/colors.sh"
 # shellcheck source=tui_home.sh
@@ -279,6 +281,8 @@ _tui_proc_tree() {
 
 # SIGTERM the whole tree (children first), wait once for all of it for up to 50 ms polled every 5 ms, then SIGKILL
 # whatever is still running. It used to sleep a full 50 ms after every process: 150 ms for a three-level tree.
+# An interactive shell ignores SIGTERM but exits on SIGHUP, so whatever survives the first poll gets a SIGHUP: leaving a
+# page that runs a shell cost the full 50 ms wait plus the kill.
 _kill_process_tree() {
 	local -a _TUI_PTREE=()
 	local p i left
@@ -288,6 +292,9 @@ _kill_process_tree() {
 		left=0
 		for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && left=1 && break; done
 		((left)) || return 0
+		if ((i == 2)); then
+			for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && kill -HUP "$p" 2>/dev/null; done
+		fi
 		read -rt 0.005 <> <(:)
 	done
 	for p in "${_TUI_PTREE[@]}"; do _tui_proc_running "$p" && kill -KILL "$p" 2>/dev/null; done
@@ -1418,6 +1425,8 @@ _tui._pane_too_small() {
 # consecutive widgets of one pane share that pane's inset instead of recomputing it per widget.
 declare -gi _TUI_WP_REUSE=0 _TUI_WP_IV=0 _TUI_WP_IH=0
 declare -g _TUI_WP_LAST=""
+declare -gA _TUI_WPC=()
+declare -gi _TUI_WPC_N=0
 _tui._widget_pos() {
 	local pane="${_TUI_W_PANE[$1]}"
 	local wrow="${_TUI_W_ROW[$1]}"
@@ -1431,6 +1440,15 @@ _tui._widget_pos() {
 	else
 		_tui._inset "$pane"
 		_TUI_WP_LAST="$pane" _TUI_WP_IV=$_IV _TUI_WP_IH=$_IH
+	fi
+	# Content-addressed: the key holds every input the arithmetic below reads (pane rect and inset, the widget's
+	# placement and size attributes, both valigns), so a changed attribute is a different key and nothing needs
+	# invalidating. Equal keys recur across pages (the shared nav and header panes), not only across redraws.
+	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}"
+	if [[ -n "${_TUI_WPC[$_wk]+x}" ]]; then
+		set -- "$1" ${_TUI_WPC[$_wk]}
+		_WSR=$2 _WSC=$3 _WSW=$4 _WSH=$5 _WSW_AVAIL=$6
+		return
 	fi
 	content_top=$((pr + _IV + wvp))
 	content_h=$((ph - 2 * _IV - 2 * wvp))
@@ -1485,6 +1503,9 @@ _tui._widget_pos() {
 	if [[ -n "$maxw" ]] && ((_WSW > maxw)); then _WSW=$maxw; fi
 	if [[ -n "$minw" ]] && ((_WSW < minw)); then _WSW=$minw; fi
 	((_WSW < 1)) && _WSW=1
+	if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
+	_TUI_WPC[$_wk]="$_WSR $_WSC $_WSW $_WSH $_WSW_AVAIL"
+	_TUI_WPC_N+=1
 }
 
 tui.content_area() {
@@ -1637,6 +1658,8 @@ _tui._draw_pane() {
 	local _dp_saved="$_TUI_FRAME"
 	_TUI_FRAME=""
 	_tui._draw_pane_buf "$1"
+	_tui_modal.base_fold "$_TUI_FRAME"
+	((_TUI_FLUSH_GEN++))
 	printf '%s' "$_TUI_FRAME"
 	_TUI_FRAME="$_dp_saved"
 }
@@ -1661,6 +1684,9 @@ _tui._draw_pane_buf() {
 		_tui._fill_pane_bg "$id" "$r" "$c" "$h" "$w"
 		return
 	fi
+
+	local _rc_key="p|$id|$r|$c|$h|$w|$border|$title|$_TUI_STYLE_EPOCH" _rc_from=${#_TUI_FRAME}
+	_tui_rowcache.replay "$_rc_key" && return
 
 	_tui_canvas.glyphs "$border"
 	local tl=$_TC_TL tr=$_TC_TR bl=$_TC_BL br=$_TC_BR hz=$_TC_HZ vt=$_TC_VT
@@ -1722,6 +1748,7 @@ _tui._draw_pane_buf() {
 	_tui.emit_repeat "$hz" "$inner"
 	_tui.emit "$br"
 	_tui.emit_reset
+	_tui_rowcache.store "$_rc_key" "$_rc_from"
 }
 
 # Redraws only a pane's border ring (corners/edges/title), resolving its own
@@ -1817,6 +1844,8 @@ _tui._draw_widget() {
 	local _dw_saved="$_TUI_FRAME"
 	_TUI_FRAME=""
 	_tui._draw_widget_buf "$1"
+	_tui_modal.base_fold "$_TUI_FRAME" # painted outside _tui._flush
+	((_TUI_FLUSH_GEN++))
 	printf '%s' "$_TUI_FRAME"
 	_TUI_FRAME="$_dw_saved"
 }
@@ -1840,6 +1869,18 @@ _tui._draw_widget_buf() {
 	# clip: a row outside the pane's content area would spill over the border / neighbouring panes
 	_tui._content_rect "${_TUI_W_PANE[$id]}"
 	((sr < _CR_R || sr >= _CR_R + _CR_H)) && return
+
+	# label/button/checkbox only: their bytes depend on nothing outside this key. A ${expr} text bypasses the cache.
+	local _rc_key="" _rc_from=0
+	case "$type" in
+		label | button | checkbox)
+			if [[ "${_TUI_W_VALUE[$id]:-}${_TUI_W_LABEL[$id]:-}" != *'${'* ]]; then
+				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|$_TUI_STYLE_EPOCH|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}"
+				_tui_rowcache.replay "$_rc_key" && return
+				_rc_from=${#_TUI_FRAME}
+			fi
+			;;
+	esac
 
 	local minw="${_TUI_W_MINW[$id]:-0}"
 	if ((minw > 0 && _WSW_AVAIL < minw)); then
@@ -1977,6 +2018,7 @@ _tui._draw_widget_buf() {
 			_tui_wx.draw_buf "$id" "$type" "$sr" "$sc" "$sw" "$_WSH" "$focused" "$hovered" "$style_key" "$pane_key"
 			;;
 	esac
+	[[ -n "$_rc_key" ]] && _tui_rowcache.store "$_rc_key" "$_rc_from"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2023,6 +2065,7 @@ _tui._now_us() {
 # only happens while _TUI_PERF_TRACKING is on.
 _tui._flush() {
 	local buf="$1"
+	((_TUI_OVL_FLUSHING)) || _tui_modal.base_fold "$buf"
 	((_TUI_FLUSH_GEN++))
 	if ((! _TUI_PERF_TRACKING)); then
 		mode.sync_start
@@ -2124,7 +2167,10 @@ tui.render() {
 	# lib/render/tui_paint.sh for the mechanism itself - it's real and
 	# tested, just doesn't have a beneficial call site in this codebase's
 	# existing render architecture.
+	_TUI_BASE_FRAME="$_TUI_FRAME"
+	_TUI_BASE_GEN=-1 # this flush is the base itself: no fold
 	_tui._flush "$_TUI_FRAME"
+	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=$_TUI_STYLE_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
 	((${#_TUI_OVERLAY_FNS[@]})) && _tui_overlay.draw_all
 	_tui_perf.end render
@@ -2272,6 +2318,36 @@ _tui._draw_ids_now() {
 _tui._draw_widgets_now() { _tui._draw_ids_now _tui._draw_widget_buf "$@"; }
 _tui._draw_pane_borders_now() { _tui._draw_ids_now _tui._draw_pane_border_buf "$@"; }
 
+# _tui._vwidth_v LINE -> _VW: the display width of LINE with CSI, OSC and two-character escape sequences removed (what the awk
+# pass here used to measure). Pure in LINE, so memoised on it; bounded like _TUI_SGR_MEMO.
+declare -gA _TUI_VW_MEMO=()
+declare -gi _TUI_VW_MEMO_N=0
+declare -g _TUI_VW_CSI=$'\e\\[[0-9;?]*[A-Za-z]' _TUI_VW_OSC=$'\e\\][^\a\e]*(\a|\e\\\\)' _TUI_VW_ESC2=$'\e[@A-Z\\\\_-]'
+# Three global removal passes in the order the awk gsubs ran (CSI, then OSC, then two-character escapes), each scanning the text
+# once and not re-examining what a removal joined together.
+_tui._vwidth_v() {
+	local s="$1" rest out m re
+	if [[ -n "${_TUI_VW_MEMO[$s]+x}" ]]; then
+		_VW=${_TUI_VW_MEMO[$s]}
+		return
+	fi
+	for re in "$_TUI_VW_CSI" "$_TUI_VW_OSC" "$_TUI_VW_ESC2"; do
+		[[ "$s" == *$'\e'* ]] || break
+		out=""
+		rest="$s"
+		while [[ "$rest" =~ $re ]]; do
+			m="${BASH_REMATCH[0]}"
+			out+="${rest%%"$m"*}"
+			rest="${rest#*"$m"}"
+		done
+		s="$out$rest"
+	done
+	_VW=${#s}
+	if ((_TUI_VW_MEMO_N >= 4096)); then _TUI_VW_MEMO=() _TUI_VW_MEMO_N=0; fi
+	_TUI_VW_MEMO[$1]=$_VW
+	_TUI_VW_MEMO_N+=1
+}
+
 _tui._calc_bounds() {
 	local pane="$1"
 	declare -n arr="_TUI_PANE_CONTENT_${pane}"
@@ -2283,27 +2359,16 @@ _tui._calc_bounds() {
 		return
 	fi
 
-	# No escape codes anywhere (labels, keycaps, plain status text): the widest line is just ${#line}, no fork.
-	# Only content carrying ANSI needs awk to strip the codes before measuring.
-	local _l _plain=1 max_w=0
+	# Plain lines: the widest is just ${#line}. Lines carrying ANSI are measured without their escape codes.
+	local _l max_w=0
 	for _l in "${arr[@]}"; do
 		if [[ "$_l" == *$'\e'* ]]; then
-			_plain=0
-			break
+			_tui._vwidth_v "$_l"
+			((_VW > max_w)) && max_w=$_VW
+		else
+			((${#_l} > max_w)) && max_w=${#_l}
 		fi
-		((${#_l} > max_w)) && max_w=${#_l}
 	done
-	if ((_plain)); then
-		_TUI_P_MAX_W[$pane]=$max_w
-		return
-	fi
-	max_w=$(printf '%s\n' "${arr[@]}" | awk '{
-        gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
-        gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
-        gsub(/\033[@A-Z\\\-_]/, "")
-        l = length($0)
-        if (l > max) max = l
-    } END { print max+0 }')
 	_TUI_P_MAX_W[$pane]=$max_w
 }
 
@@ -3191,7 +3256,16 @@ _tui._render_output() {
 
 # _tui._vslice LINE OFF MAX -> _VS: the MAX visible columns of LINE after skipping OFF, CSI sequences kept
 # (they take no width), a reset appended. Pure bash: this used to be an awk fork on every coloured or scrolled pane.
+# Pure in (LINE, OFF, MAX), so the result is memoised on exactly that triple: a scrolled-back or re-rendered line costs one
+# lookup. Bounded: streamed output must not grow it without limit.
+declare -gA _TUI_VS_MEMO=()
+declare -gi _TUI_VS_MEMO_N=0
 _tui._vslice() {
+	local _vk="$2|$3|$1"
+	if [[ -n "${_TUI_VS_MEMO[$_vk]+x}" ]]; then
+		_VS="${_TUI_VS_MEMO[$_vk]}"
+		return
+	fi
 	local s="$1" out="" chunk seq
 	local -i off="$2" max="$3" vis=0 skipped=0 clen remain
 	while [[ -n "$s" ]] && ((vis < max)); do
@@ -3231,6 +3305,9 @@ _tui._vslice() {
 		fi
 	done
 	_VS="$out"$'\e[0m'
+	if ((_TUI_VS_MEMO_N >= 4096)); then _TUI_VS_MEMO=() _TUI_VS_MEMO_N=0; fi
+	_TUI_VS_MEMO[$_vk]="$_VS"
+	_TUI_VS_MEMO_N+=1
 }
 
 _tui._render_output_buf() {

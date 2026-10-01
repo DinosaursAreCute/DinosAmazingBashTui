@@ -208,7 +208,10 @@ the modification time of every `<include>` it drew upon, discovered
 through a dedicated traversal (`tui.cache.deps_of`) rather than by
 reusing the tracking mechanism described above, which remains
 unobservable outside its own subshell. Before a replay proceeds, this
-signature is compared against the filesystem; any discrepancy, whether
+signature is compared against the filesystem (since DevEx Update 1.87,5 this happens
+at start-up only: once every page is validated and warmed the cache is trusted for
+the rest of the run, and files are assumed not to change while the app is running,
+unless `TUI_CACHE_TRUST=0`); any discrepancy, whether
 in the page itself or in a shared fragment edited since the page was
 last recorded, is treated as absence rather than as stale but usable
 data, and control passes through precisely the path taken by a page that

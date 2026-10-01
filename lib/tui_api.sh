@@ -6,6 +6,7 @@
 # tui.ansi ID [STATE]        prints the ANSI prefix (fg+bg+mods) of a pane/widget id's style.
 # tui.class.ansi CLASS [STATE]  same, straight from a theme.css class (no pane needed).
 # tui.paint ID TEXT [STATE]  prints TEXT wrapped in ID's style + reset.
+# tui.capture VAR CMD [ARGS...]  VAR=$(CMD ARGS...) without the subshell: CMD runs in the current shell.
 # tui.class.paint CLASS TEXT [STATE]
 #
 # STATE: normal (default) | focus | border | title | hover | checked | unchecked
@@ -616,6 +617,22 @@ tui.get.class.style() {
 			return 2
 			;;
 	esac
+}
+
+# tui.capture VAR CMD [ARGS...] - stores CMD's stdout in VAR, trailing newlines stripped like $( ). CMD runs in the current
+# shell (no fork): a file in the api tmp dir stands in for the pipe, one file per nesting depth. Returns CMD's status.
+declare -gi _TA_CAP_DEPTH=0
+tui.capture() {
+	local _cap_var="$1" _cap_rc _cap_out _cap_file
+	shift
+	[[ -n "$_TA_TMP" && -d "$_TA_TMP" ]] || _tui_api._tmp_init
+	_cap_file="$_TA_TMP/capture.$((_TA_CAP_DEPTH++))"
+	"$@" >"$_cap_file"
+	_cap_rc=$?
+	((_TA_CAP_DEPTH--))
+	_cap_out="$(<"$_cap_file")"
+	printf -v "$_cap_var" '%s' "$_cap_out"
+	return "$_cap_rc"
 }
 
 # tui.pane_size PANE — fork-free: sets TUI_PANE_ROWS / TUI_PANE_COLS to the

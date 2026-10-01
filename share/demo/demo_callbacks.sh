@@ -4,14 +4,17 @@
 
 on_theme_apply() {
 	local theme font notif dark
-	theme=$(tui.get "inp_theme")
-	font=$(tui.get "inp_font")
-	notif=$(tui.get "chk_notifications")
-	dark=$(tui.get "chk_darkmode")
+	tui.capture theme tui.get "inp_theme"
+	tui.capture font tui.get "inp_font"
+	tui.capture notif tui.get "chk_notifications"
+	tui.capture dark tui.get "chk_darkmode"
 
 	tui.update "out1" "Theme: ${theme:-<empty>}"
 	tui.update "out2" "Font:  ${font:-<empty>}"
-	tui.update "out3" "Notifications: $([[ "$notif" == "1" ]] && echo on || echo off)   Dark mode: $([[ "$dark" == "1" ]] && echo on || echo off)"
+	local notif_s=off dark_s=off
+	[[ "$notif" == "1" ]] && notif_s=on
+	[[ "$dark" == "1" ]] && dark_s=on
+	tui.update "out3" "Notifications: ${notif_s}   Dark mode: ${dark_s}"
 	tui.update "out4" "✔ Applied!"
 }
 

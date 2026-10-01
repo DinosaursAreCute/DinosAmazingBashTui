@@ -1,0 +1,16 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd">
+  <script src="callbacks.sh"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav"  weight="18" title="Menu" border="single"/>
+    <pane id="main" weight="82" title="Buttons" border="single" hpad="1"/>
+  </pane>
+
+  <label  id="lbl_page"   pane="main" row="0" text="Page 1: Buttons"/>
+  <label  id="lbl_clicks" pane="main" row="2" text="Clicks: 0"/>
+  <button id="btn_inc"    pane="main" row="4" text="[ Increment ]" action="cmp_inc"   align="left"/>
+  <button id="btn_dec"    pane="main" row="5" text="[ Decrement ]" action="cmp_dec"   align="left"/>
+  <button id="btn_reset"  pane="main" row="6" text="[ Reset ]"     action="cmp_reset" align="left"/>
+
+  <include src="_nav.xml"/>
+</tui>

@@ -7,7 +7,7 @@
 <h3><em>Blowing up the mountain because climbing is hard</em></h3>
 </div>
 
-We profiled the real app from the outside, found where the time was going, and stopped climbing. **Page switches are twice as fast, a launch with a warm cache takes 0.29 s instead of 0.86 s, the very first launch takes 2.9 s instead of 5.8 s, and an idle app no longer repaints 20 times a second.** How you write apps does not change, apart from the short upgrade notes at the end.
+We profiled the real app from the outside, found where the time was going, and stopped climbing. **Page switches are twice as fast, a launch with a warm cache takes 1.29 s instead of 0.86 s, the very first launch takes 2.9 s instead of 5.8 s, and an idle app no longer repaints 20 times a second.** How you write apps does not change, apart from the short upgrade notes at the end.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/release/devex-1-75-improvements.svg" alt="Before and after: idle repaints -90%, wheel scroll -73%, warm start -66%, palette close -64%, cold start -50%, page switch -50%" width="900">

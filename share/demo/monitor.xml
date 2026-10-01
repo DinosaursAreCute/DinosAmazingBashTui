@@ -5,8 +5,8 @@
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
     <include src="_header.xml"/>
   <pane id="root1" weight="90" split="h">
-    <pane id="nav" weight="20" title="Menu" border="single" class="sidebar"/>
-    <pane id="main" split="v" weight="80">
+    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+    <pane id="main" split="v" weight="82">
 
     <pane id="controls" title="System Monitoring Controls" split="grid" weight="8" rows="1" cols="6" fit="stretch" border="single" class="panel">
         <pane id="ctl_cpu"      border="none"/>

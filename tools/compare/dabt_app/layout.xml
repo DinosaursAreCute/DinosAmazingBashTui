@@ -1,0 +1,23 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd">
+  <script src="callbacks.sh"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav"  weight="18" title="Menu" border="single"/>
+    <pane id="main" weight="82" split="h" border="none">
+      <pane id="left"  weight="40" title="Info"     border="single" hpad="1"/>
+      <pane id="right" weight="60" split="v" border="none">
+        <pane id="top"    weight="50" title="Progress" border="single" hpad="1"/>
+        <pane id="bottom" weight="50" title="Status"   border="single" hpad="1"/>
+      </pane>
+    </pane>
+  </pane>
+
+  <label    id="lbl_page" pane="left" row="0" text="Page 4: Layout"/>
+  <label    id="lbl_l1"   pane="left" row="2" text="Three panes: one tall,"/>
+  <label    id="lbl_l2"   pane="left" row="3" text="two stacked."/>
+  <progress id="prg"      pane="top"  row="0" label="Job:" value="0"/>
+  <button   id="btn_adv"  pane="top"  row="2" text="[ Advance 10% ]" action="cmp_advance" align="left"/>
+  <label    id="lbl_stat" pane="bottom" row="0" text="Progress: 0%"/>
+
+  <include src="_nav.xml"/>
+</tui>

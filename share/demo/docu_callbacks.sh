@@ -34,21 +34,18 @@ _docu_short_title() {
 # Banner text for a doc: the full part of its first H1 heading before a
 # colon, unlike _docu_short_title above this is not capped to tab-label
 # length - the banner has the width of the whole content pane to work
-# with, not a narrow tab strip.
-_docu_banner_title() {
-	local file="$1"
-	local base
+# with, not a narrow tab strip. Result in _DOCU_T (no subshell).
+_docu_banner_title_v() {
+	local file="$1" base heading
 	base="${file##*/}"
 	base="${base%.md}"
 	if [[ "${base,,}" == "readme" ]]; then
-		[[ "$file" == */docs/README.md ]] && printf 'Docs index' || printf 'README'
+		[[ "$file" == */docs/README.md ]] && _DOCU_T='Docs index' || _DOCU_T='README'
 		return
 	fi
-	local heading
 	IFS= read -r heading <"$file" || true
 	heading="${heading#\# }"
-	heading="${heading%%:*}"
-	printf '%s' "$heading"
+	_DOCU_T="${heading%%:*}"
 }
 
 on_docu_visit() {
@@ -63,7 +60,8 @@ on_docu_visit() {
 	done
 
 	if ((${#files[@]} == 0)); then
-		tui.output "content" "$(alert_string error "No documentation files found under docs/.")"
+		tui.capture _DOCU_T alert_string error "No documentation files found under docs/."
+		tui.output "content" "$_DOCU_T"
 		return
 	fi
 
@@ -107,17 +105,21 @@ on_docu_tab_activate() {
 
 load_document() {
 	local doc_path="$1"
-	local raw_doc=""
+	local raw_doc="" part formatted_doc
 
-	raw_doc+="\n$(banner_string "$(_docu_banner_title "$doc_path")")\n\n"
+	_docu_banner_title_v "$doc_path"
+	tui.capture part banner_string "$_DOCU_T"
+	raw_doc+="\n${part}\n\n"
 
 	if [[ -f "$doc_path" ]]; then
-		raw_doc+="$(cat "$doc_path")\n"
+		raw_doc+="$(<"$doc_path")\n"
 	else
-		raw_doc+="$(alert_string error "Document not found at: $doc_path")\n"
+		tui.capture part alert_string error "Document not found at: $doc_path"
+		raw_doc+="${part}\n"
 	fi
 
-	local formatted_doc="$(printf '%b' "$raw_doc")"
+	printf -v formatted_doc '%b' "$raw_doc"
+	formatted_doc="${formatted_doc%"${formatted_doc##*[!$'\n']}"}" # trailing newlines off, as $( ) did
 	tui.output "content" "$formatted_doc"
 	tui.pane_title "content" "${doc_path##*/}"
 }

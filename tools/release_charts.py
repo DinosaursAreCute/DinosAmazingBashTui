@@ -81,6 +81,34 @@ RELEASES = [
         ],
         "pages_sub": "page switch on a revisit, median milliseconds &#183; 1.75 against 1.87,5",
     },
+    {
+        "slug": "devex-1-93-75",
+        "name": "DevEx Update 1.93,75",
+        # floor: probe spans of the floor scenario, 20261001-211251 (the code of v0.0.21) -> deep run 20261001-230749;
+        # page switches and switch by key: nav run 20261001-204153 (10 rounds, the build of v0.0.21) -> the same
+        # interactions in the deep run 20261001-230749 (5 rounds, idle machine)
+        "improvements": [
+            ("TRIVIAL-PAGE SWITCH", 136.3, 86.5, "ms"),
+            ("PAGE REVISIT", 152.1, 125.1, "ms"),
+            ("PAGE SWITCH, MEAN", 165.1, 137.0, "ms"),
+            ("PAGE FIRST VISIT", 180.3, 142.9, "ms"),
+            ("SWITCH BY KEY (10 PAGES)", 124.0, 100.6, "ms"),
+        ],
+        # processes started per page switch (trace attribution, runs 20261001-204153 -> 212745)
+        "processes": [
+            ("STTY CALLS", 1, 0, "forks"),
+        ],
+        "processes_title": "NO MORE PROCESS ON A PAGE SWITCH",
+        "processes_sub": "processes started per page switch: the terminal size is no longer read with stty",
+        "improvements_sub": "lower is better &#183; v0.0.21 (1.87,5) against 1.93,75",
+        "pages": [  # page revisit, median ms
+            ("components", 153, 125), ("docs", 214, 188), ("scrolling", 162, 143), ("monitor", 179, 161),
+            ("settings", 141, 121), ("widgets", 148, 124), ("terminal", 145, 129), ("layout", 114, 94),
+            ("home", 117, 91), ("case study", 105, 86),
+        ],
+        "pages_title": "PAGE REVISIT, PER PAGE",
+        "pages_sub": "page switch on a revisit, median milliseconds &#183; v0.0.21 against 1.93,75",
+    },
 ]
 
 
@@ -156,7 +184,7 @@ def chart_pages(cfg):
     W, row, top, N = 980, 38, 104, 44
     PAGES = cfg["pages"]
     H = top + row * len(PAGES) + 64
-    svg = frame(W, H, "EVERY PAGE, FASTER", cfg["pages_sub"])
+    svg = frame(W, H, cfg.get("pages_title", "EVERY PAGE, FASTER"), cfg["pages_sub"])
     x0 = 160
     scale = max(a for _, a, _ in PAGES) / N
     for i, (name, a, b) in enumerate(PAGES):

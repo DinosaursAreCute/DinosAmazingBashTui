@@ -178,3 +178,53 @@ t_cache_trusted_theme_memo_is_not_stat_checked() {
 	_tui.theme_load_file "$css" # a memo hit: re-applied from memory although the file is newer
 	eq "red" "${_TUI_CLASS_FG[k]:-}"
 }
+
+# The snapshot is rewritten to `declare -g...` once, at record time; a dump from an earlier version (plain declare -p)
+# still restores through the line-by-line rewrite.
+t_cache_snapshot_is_ready_to_eval_and_old_dumps_still_restore() {
+	declare -gA _TUI_W_SNAPTEST=([k]=v)
+	declare -g _TUI_W_SNAPSCALAR="plain"
+	local fresh legacy
+	fresh="$(_tui_cache_snapshot)"
+	[[ "$fresh" == "declare -g"* ]] || _t_fail "snapshot does not start with declare -g"
+	[[ "$fresh" != *$'\ndeclare -A'* && "$fresh" != *$'\ndeclare --'* ]] || _t_fail "snapshot still has a plain declare line"
+	legacy="$(declare -p _TUI_W_SNAPTEST _TUI_W_SNAPSCALAR)"
+	unset _TUI_W_SNAPTEST _TUI_W_SNAPSCALAR
+	_tui_cache_restore "$legacy"
+	eq "v" "${_TUI_W_SNAPTEST[k]:-}"
+	eq "plain" "${_TUI_W_SNAPSCALAR:-}"
+	unset _TUI_W_SNAPTEST _TUI_W_SNAPSCALAR
+	_tui_cache_restore "$fresh"
+	eq "v" "${_TUI_W_SNAPTEST[k]:-}"
+	eq "plain" "${_TUI_W_SNAPSCALAR:-}"
+}
+
+# The geometry in a snapshot is laid out for the size it was recorded at: a replay at that size needs no relayout, and
+# the geometry it leaves equals what a relayout would compute.
+t_cache_replay_skips_the_relayout_at_the_recorded_size_and_keeps_the_geometry() {
+	_cache_fixture page.xml '<tui><pane id="root" split="h"><pane id="a" weight="1"/><pane id="b" weight="3"/></pane></tui>'
+	_TUI_ROWS=24 _TUI_COLS=80
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	local snap_size="$_TUI_SNAP_SIZE" g_skip g_full
+	tui.reset_ui
+	_TUI_ROWS=24 _TUI_COLS=80
+	tui.cache.replay "$_CF"
+	eq "24 80 0" "$_TUI_SNAP_SIZE"
+	g_skip="${_TUI_P_COL[a]} ${_TUI_P_W[a]} ${_TUI_P_COL[b]} ${_TUI_P_W[b]} ${_TUI_P_H[root]}"
+	_tui_cache_relayout
+	g_full="${_TUI_P_COL[a]} ${_TUI_P_W[a]} ${_TUI_P_COL[b]} ${_TUI_P_W[b]} ${_TUI_P_H[root]}"
+	eq "$g_full" "$g_skip"
+}
+
+t_cache_replay_relays_out_at_another_size() {
+	_cache_fixture page.xml '<tui><pane id="root" split="h"><pane id="a" weight="1"/><pane id="b" weight="3"/></pane></tui>'
+	_TUI_ROWS=24 _TUI_COLS=80
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	tui.reset_ui
+	_TUI_ROWS=30 _TUI_COLS=120
+	tui.cache.replay "$_CF"
+	eq 120 "${_TUI_P_W[root]}"
+	eq "$((_TUI_P_W[a] + _TUI_P_W[b]))" "${_TUI_P_W[root]}"
+}

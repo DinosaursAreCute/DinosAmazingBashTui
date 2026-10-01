@@ -1685,7 +1685,9 @@ _tui._draw_pane_buf() {
 		return
 	fi
 
-	local _rc_key="p|$id|$r|$c|$h|$w|$border|$title|$_TUI_RC_EPOCH" _rc_from=${#_TUI_FRAME}
+	# every input of the bytes below: geometry, border, title and the style strings of the three styles it draws with. No
+	# page, id or counter in the key, so identical panes (the menu, the header) hit across pages.
+	local _rc_key="p|$r|$c|$h|$w|$border|$title|${_TUI_STYLE_FG[${id}_border]:-}|${_TUI_STYLE_BG[${id}_border]:-}|${_TUI_STYLE_MOD[${id}_border]:-}|${_TUI_STYLE_FG[${id}_title]:-}|${_TUI_STYLE_BG[${id}_title]:-}|${_TUI_STYLE_MOD[${id}_title]:-}|${_TUI_STYLE_FG[${id}_normal]:-}|${_TUI_STYLE_BG[${id}_normal]:-}|${_TUI_STYLE_MOD[${id}_normal]:-}" _rc_from=${#_TUI_FRAME}
 	_tui_rowcache.replay "$_rc_key" && return
 
 	_tui_canvas.glyphs "$border"
@@ -1854,28 +1856,39 @@ _tui._draw_widget_buf() {
 	local id="$1"
 	local type="${_TUI_W_TYPE[$id]:-}"
 	[[ -z "$type" ]] && return
-	_tui_perf.count nodes_painted
+	((_TUI_PERF_TRACKING)) && _tui_perf.count nodes_painted
 	local focused=0
 	[[ "$_TUI_FOCUS_ID" == "$id" ]] && focused=1
 	local hovered=0
 	[[ "$_TUI_HOVERED_WIDGET" == "$id" ]] && hovered=1
 
-	((${_TUI_P_H[${_TUI_W_PANE[$id]}]:-0} < 1)) && return # hidden / not on this page
-	_tui._pane_too_small "${_TUI_W_PANE[$id]}" && return
+	local _wpane="${_TUI_W_PANE[$id]}"
+	((${_TUI_P_H[$_wpane]:-0} < 1)) && return # hidden / not on this page
+	_tui._pane_too_small "$_wpane" && return
 
 	_tui._widget_pos "$id"
 	local sr=$_WSR sc=$_WSC sw=$_WSW
 
-	# clip: a row outside the pane's content area would spill over the border / neighbouring panes
-	_tui._content_rect "${_TUI_W_PANE[$id]}"
-	((sr < _CR_R || sr >= _CR_R + _CR_H)) && return
+	# clip: a row outside the pane's content area would spill over the border / neighbouring panes. _widget_pos just
+	# left this pane's inset in _IV/_IH, so the content rect is two additions, not another _tui._inset call.
+	local _clip_r=$((${_TUI_P_ROW[$_wpane]} + _IV)) _clip_h=$((${_TUI_P_H[$_wpane]} - 2 * _IV))
+	((_clip_h < 1)) && _clip_h=1
+	((sr < _clip_r || sr >= _clip_r + _clip_h)) && return
 
 	# label/button/checkbox only: their bytes depend on nothing outside this key. A ${expr} text bypasses the cache.
-	local _rc_key="" _rc_from=0
+	# The style strings of the keys the draw resolves (the widget's own state style and its pane's) are part of the key,
+	# not a counter: the same widget on another page, or after a theme switch that did not touch it, still hits.
+	local _rc_key="" _rc_from=0 _rc_sk _rc_pk
 	case "$type" in
 		label | button | checkbox)
 			if [[ "${_TUI_W_VALUE[$id]:-}${_TUI_W_LABEL[$id]:-}" != *'${'* ]]; then
-				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|$_TUI_RC_EPOCH|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}"
+				_rc_sk="${id}_normal"
+				if ((focused)); then _rc_sk="${id}_focus"; elif ((hovered)); then _rc_sk="${id}_hover"; fi
+				_rc_pk="${_TUI_W_PANE[$id]}_normal"
+				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}|${_TUI_STYLE_FG[$_rc_sk]:-}|${_TUI_STYLE_BG[$_rc_sk]:-}|${_TUI_STYLE_MOD[$_rc_sk]:-}|${_TUI_STYLE_FG[$_rc_pk]:-}|${_TUI_STYLE_BG[$_rc_pk]:-}|${_TUI_STYLE_MOD[$_rc_pk]:-}"
+				if [[ "$type" == checkbox ]]; then # the :checked / :unchecked look and the normal style it falls back to
+					_rc_key+="|${_TUI_STYLE_FG[${id}_checked]:-}|${_TUI_STYLE_BG[${id}_checked]:-}|${_TUI_STYLE_MOD[${id}_checked]:-}|${_TUI_STYLE_FG[${id}_unchecked]:-}|${_TUI_STYLE_BG[${id}_unchecked]:-}|${_TUI_STYLE_MOD[${id}_unchecked]:-}|${_TUI_STYLE_FG[${id}_normal]:-}|${_TUI_STYLE_BG[${id}_normal]:-}|${_TUI_STYLE_MOD[${id}_normal]:-}"
+				fi
 				_tui_rowcache.replay "$_rc_key" && return
 				_rc_from=${#_TUI_FRAME}
 			fi

@@ -1139,14 +1139,23 @@ tui.bind.load          # user keybinds from the last run apply from the start (u
 # code binds, which win over active defaults; within a tier the LONGEST name wins, so a chord (ctrl+q, ctrl+p) is preferred
 # to a bare key (q, :), the way footers and menus usually show them.
 declare -gA _REVK=()
+# The default tier (the longest loop: one default_active call per default) is rebuilt only when its inputs differ from the
+# last build, compared by content; user and code binds are a handful of entries and are read every time.
+declare -gA _REVK_RD=()
+declare -g _REVK_RD_SIG=""
 _tui_input.reverse_keys() {
-    local -A ru=() rc=() rd=(); local k a
+    local -A ru=() rc=(); local k a
     _REVK=()
     for k in "${!_TUI_UBIND[@]}"; do [[ "$k" == \|* ]] || continue; a="${_TUI_UBIND[$k]}"; [[ -z "${ru[$a]:-}" || ${#k} -gt $(( ${#ru[$a]} + 1 )) ]] && ru[$a]="${k#|}"; done
     for k in "${!_TUI_BIND[@]}";  do [[ "$k" == \|* ]] || continue; a="${_TUI_BIND[$k]}";  [[ -z "${rc[$a]:-}" || ${#k} -gt $(( ${#rc[$a]} + 1 )) ]] && rc[$a]="${k#|}"; done
-    for k in "${!_TUI_BIND_DEF[@]}"; do
-        _tui_input.default_active "$k" || continue
-        a="${_TUI_BIND_DEF[$k]}"; [[ -z "${rd[$a]:-}" || ${#k} -gt ${#rd[$a]} ]] && rd[$a]="$k"
-    done
-    for a in "${!ru[@]}" "${!rc[@]}" "${!rd[@]}"; do _REVK[$a]="${ru[$a]:-${rc[$a]:-${rd[$a]:-}}}"; done
+    local sig="${!_TUI_BIND_DEF[*]}|${_TUI_BIND_DEF[*]}|${!_TUI_BIND_DEF_GROUP[*]}|${_TUI_BIND_DEF_GROUP[*]}|${!_TUI_DEF_OFF[*]}|${_TUI_DEF_OFF[*]}|${!_TUI_DEF_OFF_PAGE[*]}|${_TUI_DEF_OFF_PAGE[*]}"
+    if [[ "$sig" != "$_REVK_RD_SIG" ]]; then
+        _REVK_RD=()
+        for k in "${!_TUI_BIND_DEF[@]}"; do
+            _tui_input.default_active "$k" || continue
+            a="${_TUI_BIND_DEF[$k]}"; [[ -z "${_REVK_RD[$a]:-}" || ${#k} -gt ${#_REVK_RD[$a]} ]] && _REVK_RD[$a]="$k"
+        done
+        _REVK_RD_SIG="$sig"
+    fi
+    for a in "${!ru[@]}" "${!rc[@]}" "${!_REVK_RD[@]}"; do _REVK[$a]="${ru[$a]:-${rc[$a]:-${_REVK_RD[$a]:-}}}"; done
 }

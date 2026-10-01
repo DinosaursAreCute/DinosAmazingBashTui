@@ -61,7 +61,7 @@ source "$REPO/lib/tui.sh"
 # ~300 of those (mostly static config/lookup tables, never mutated by tests)
 # blows the speed budget for no correctness gain. Extend the pattern below
 # as later stages add mutable state modules with their own tests.
-_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_MODAL|_TUI_CACHE_TRUSTED)') 2>/dev/null; }
+_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP)') 2>/dev/null; }
 _T_SNAPSHOT="$(_t_snapshot)"
 # declare -p never emits -g (same gotcha tui_cache.sh's own _tui_cache_restore
 # works around): eval-ing the dump as-is inside this function would declare

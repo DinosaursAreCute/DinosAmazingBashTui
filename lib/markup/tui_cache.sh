@@ -61,16 +61,32 @@ declare -g _TUI_CACHE_STATE_REGEX='^(_TUI_P_|_TUI_W_|_TUI_PANE_CONTENT$|_TUI_PAN
 
 # _tui_cache_snapshot -> stdout : a `declare -p` dump of every currently
 # live variable tui.reset_ui/_tui_wx.reset would clear - the built page's
-# whole engine-visible state, replayable with one eval.
+# whole engine-visible state, replayable with one eval. Every "declare -X" is
+# already rewritten to "declare -gX" (see _tui_cache_restore for why), once here
+# at record time instead of line by line on every replay (about 7 of 9.5 ms).
 _tui_cache_snapshot() {
 	local -a names=()
+	local v dump line out=""
 	# grep -E in one batch over compgen's whole list, not a bash [[ =~ ]]
 	# loop per variable - bash has hundreds to thousands of variables in
 	# scope (env, framework globals, ...); looping that many regex matches
 	# in-shell measured slower than the one extra fork this pipe costs.
 	while IFS= read -r v; do names+=("$v"); done < <(compgen -A variable | grep -E "$_TUI_CACHE_STATE_REGEX")
-	((${#names[@]} > 0)) && declare -p "${names[@]}"
+	((${#names[@]} > 0)) || return 0
+	dump="$(declare -p "${names[@]}")"
+	while IFS= read -r line; do
+		if [[ "$line" == "declare --"* ]]; then
+			line="declare -g${line#declare --}"
+		elif [[ "$line" == "declare -"* ]]; then
+			line="declare -g${line#declare -}"
+		fi
+		out+="$line"$'\n'
+	done <<<"$dump"
+	# the terminal size the geometry in this snapshot was laid out for (tui.load ends with a layout): a replay at the
+	# same size and footer needs no relayout, see tui.cache.replay
+	printf '%sdeclare -g _TUI_SNAP_SIZE="%s %s %s"' "$out" "$_TUI_ROWS" "$_TUI_COLS" "$_TUI_FOOTER_ON"
 }
+declare -g _TUI_SNAP_SIZE=""
 
 # _tui_cache_restore DUMP - restores a _tui_cache_snapshot dump. Run inside
 # a function: declare -p's own output has no -g, so every "declare -X"
@@ -79,6 +95,12 @@ _tui_cache_snapshot() {
 # "declare -- NAME=…" would otherwise collide with a blind `declare -`
 # string replace (it turns "-- " into "-g- ", an invalid option).
 _tui_cache_restore() {
+	# a snapshot written by _tui_cache_snapshot is ready to eval; one recorded by an earlier version (still on disk)
+	# has plain `declare -p` lines and goes through the rewrite below
+	if [[ "$1" == "declare -g"* ]]; then
+		eval "$1"
+		return
+	fi
 	local dump="$1" out="" line
 	# fd 8, not stdin: this loop's body is self-contained today (no nested
 	# tui.goto/term.size), but every stdin-bound while-read in this file
@@ -419,8 +441,11 @@ tui.cache.replay() {
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" ]] || return 1
 	tui.log.debug "tui.cache.replay: replaying $file from snapshot (cache hit)"
 	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
+	_TUI_SNAP_SIZE=""  # a snapshot from an earlier version does not set it
 	_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
 	_TUI_RC_EPOCH+=1 # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
+	_tui.layout_bump # the layout memo belongs to the previous page (see _tui_cache_relayout)
+	local _ly_gen=$_TUI_LY_GEN
 	# Re-applies the page's <theme> plus whatever app-wide overlay is
 	# currently set (tui.load_theme itself layers _TUI_THEME_OVERLAY on top,
 	# see tui_style.sh) - skipped by the restore above since the whole build
@@ -461,7 +486,14 @@ tui.cache.replay() {
 		[[ -z "$rec" ]] && continue
 		eval "$rec"
 	done 9<<<"${_TUI_CACHE_GOTOS[$file]:-}"
-	_tui_cache_relayout
+	# The restored geometry was laid out at the size the page was recorded at. When the terminal and the footer still
+	# match and nothing the scripts did changed a layout input (every layout setter bumps _TUI_LY_GEN), it is already
+	# right: no relayout (the memo was invalidated above, so a later layout still recomputes everything).
+	if [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON" ]] && ((_TUI_LY_GEN == _ly_gen)); then
+		_tui_perf.count relayout_skipped
+	else
+		_tui_cache_relayout
+	fi
 	_tui_cache_run_on_visit "${_TUI_CACHE_ON_VISIT[$file]:-}"
 	return 0
 }

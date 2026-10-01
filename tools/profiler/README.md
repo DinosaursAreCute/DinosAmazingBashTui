@@ -26,6 +26,11 @@ may use Python; the DABT runtime stays pure bash.
    the app runs (nothing large is written to disk). Wall time between trace lines is split into in-shell work,
    external programs, process creation and waiting. In-shell time is rescaled per scenario so that it matches
    the untraced busy time; programs and forks are real time and stay as measured.
+   `--scenario floor` replays warm switches between the three lightest pages (home, layout, case study; one priming lap, ten
+   measured laps) so the trace shows what a page switch costs when no page code runs. For `tui.goto`, `tui.cache.replay`,
+   `tui.render` and their neighbours (`FOCUS_ROOTS` in `dprof/scenarios.py`) the report lists, per switch and unpruned, the callee
+   the time went into, the functions that ran the commands and the hottest source lines below them: the "Page-switch floor"
+   section of the deep dive and of `report.html`.
 3. **Report.** Terminal overview first (verdict tiles, latency scorecard against perceived-instant budgets,
    layer heat-matrix, layer-to-layer flow, findings), then the deep dive (startup timeline, flame, hot functions,
    hot source lines, call-graph edges, subprocess and fork sites, slowest actions). `report.html` adds an

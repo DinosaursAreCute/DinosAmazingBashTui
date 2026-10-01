@@ -49,6 +49,11 @@ _tui_overlay.draw_all() {
 	local f _oda_saved="$_TUI_FRAME"
 	_TUI_FRAME=""
 	for f in "${_TUI_OVERLAY_FNS[@]}"; do "$f"; done
+	if [[ -z "$_TUI_FRAME" ]]; then # every overlay was already on screen unchanged (the footer): no write, no sync frame
+		_TUI_FRAME="$_oda_saved"
+		_TUI_OVL_GEN=$_TUI_FLUSH_GEN
+		return 0
+	fi
 	_TUI_OVL_FLUSHING=1 # overlay bytes are not part of the base frame
 	_tui._flush "$_TUI_FRAME"
 	_TUI_OVL_FLUSHING=0

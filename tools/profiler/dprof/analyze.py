@@ -7,7 +7,7 @@ import os
 import re
 import statistics
 
-from .scenarios import GROUP_INFO
+from .scenarios import FOCUS_ROOTS, GROUP_INFO
 
 # layer -> (title, what it is)
 LAYERS = {
@@ -312,7 +312,7 @@ def attribution(traces, latency_list, repo_files):
         den += sh * n
     global_k = max(0.03, min(1.0, num / den)) if den else 0.25
 
-    out = {"global_k": global_k, "groups": {}, "files": funcfile}
+    out = {"global_k": global_k, "groups": {}, "files": funcfile, "focus": {}}
     total_calls = {}
     fn_tot = {}
     edge_tot = {}
@@ -376,6 +376,9 @@ def attribution(traces, latency_list, repo_files):
         gv[kind] = view
         if kind != "w":
             continue
+        foc = _focus(stacks, b.get("focus") or {}, k, n)
+        if foc:
+            out["focus"][gid] = foc
         for fn, c in b["calls"].items():
             total_calls.setdefault(fn, {})[gid] = c / n
         for fn in self_ms:
@@ -416,6 +419,32 @@ def attribution(traces, latency_list, repo_files):
         e["n_sites"] = len(e.pop("sites"))
         e["layer"] = layer_of(e["func"], file_of(e["func"]))
     out["forks"] = sorted(by_fn.values(), key=lambda d: -d["count"])
+    return out
+
+
+def _focus(stacks, focus_lines, k, n):
+    """Per FOCUS_ROOTS function, per action (ms): its inclusive time, which direct callee the time went to, which
+    functions ran the commands (own time), and the hottest source lines below it. Nothing is pruned."""
+    out = {}
+    for root in FOCUS_ROOTS:
+        incl, children, leaves = 0.0, {}, {}
+        for frames, ms in stacks:
+            if root not in frames:
+                continue
+            i = frames.index(root)
+            incl += ms
+            child = frames[i + 1] if i + 1 < len(frames) else "(its own commands)"
+            children[child] = children.get(child, 0.0) + ms
+            leaves[frames[-1]] = leaves.get(frames[-1], 0.0) + ms
+        if incl <= 0:
+            continue
+        lines = {}
+        for (r, src), (sh, ex, fk, hits) in focus_lines.items():
+            if r == root:
+                lines[src] = {"sh": sh * k / n / 1000, "ex": ex / n / 1000, "fk": fk / n / 1000, "hits": hits / n, "groups": {}}
+        top = lambda d, m=14: [{"name": a, "ms": v} for a, v in sorted(d.items(), key=lambda kv: -kv[1])[:m]]
+        rows = _hot_lines(lines)[:14]
+        out[root] = {"incl": incl, "children": top(children), "leaves": top(leaves), "lines": rows}
     return out
 
 

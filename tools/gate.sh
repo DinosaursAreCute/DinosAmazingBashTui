@@ -3,8 +3,7 @@
 # from docs/concepts/markup-v2-implementation-plan.md and prints only failures, one per
 # line: gate<TAB>file:line<TAB>message. Exit 0 when clean.
 #
-# G3 (bench), G4 (golden frames), G6 (fork counter) have no infrastructure yet
-# (added by tasks 0.2/0.3) and are skipped silently, not failed. G7 (real terminal)
+# G3 (bench) and G6 (fork counter) have no pass/fail check yet and are skipped silently, not failed. G7 (real terminal)
 # and G8 (LOC report) are human/reporting gates, not pass/fail checks - also skipped.
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO" || exit 1
@@ -55,6 +54,13 @@ if _g_wanted G1 || _g_wanted G2; then
 	if _g_wanted G2 && grep -q 'speed budget exceeded' <<<"$_g_t_out"; then
 		_g_report G2 "tools/t.sh:0" "$(grep 'speed budget exceeded' <<<"$_g_t_out")"
 	fi
+fi
+
+# G4: the golden frame of every renderable demo page is byte-identical (tools/t_golden.sh --check)
+if _g_wanted G4; then
+	while IFS=$'\t' read -r _g_gate _g_file _g_msg; do
+		[[ -n "$_g_gate" ]] && _g_report G4 "$_g_file:0" "$_g_msg"
+	done < <(tools/t_golden.sh --check)
 fi
 
 # G5: docs stay in sync with the API (tool already exists)

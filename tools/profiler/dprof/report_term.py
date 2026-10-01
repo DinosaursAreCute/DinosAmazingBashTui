@@ -325,6 +325,32 @@ def span_block(rep, W):
     return lines
 
 
+def focus_block(rep, W):
+    """The page-switch floor: for one switch, what each page-switch function spends its time on. Per function: the callee
+    its time went into (inclusive), the functions that ran the commands (own time) and the hottest source lines below it.
+    Per action, ms, calibrated like every other attribution figure."""
+    foc = rep["attr"].get("focus") or {}
+    lines = []
+    for gid in ("nav.floor", "nav.revisit", "nav.first", "nav.key"):
+        roots = foc.get(gid)
+        if not roots:
+            continue
+        title = next((g["title"] for g in rep["latency"] if g["id"] == gid), gid)
+        lines.append(c(f"{title}  ·  per switch", "white", bold=True))
+        for root, v in sorted(roots.items(), key=lambda kv: -kv[1]["incl"]):
+            lines.append(pad(c("  " + root, "cyan", bold=True), 34) + pad(c(fmt_ms(v["incl"]), "white", bold=True), 9, "r") + c("  inclusive", "faint"))
+            into = "   ".join(f"{x['name']} {fmt_ms(x['ms'])}" for x in v["children"][:8])
+            own = "   ".join(f"{x['name']} {fmt_ms(x['ms'])}" for x in v["leaves"][:8])
+            lines.append(c("      into    ", "dim") + into)
+            lines.append(c("      run by  ", "dim") + own)
+            for r in v["lines"][:6]:
+                tag = c(" ⟨program⟩", "red") if r["ex_ms"] > r["ms"] * 0.5 else c(" ⟨fork⟩", "red") if r["fk_ms"] > r["ms"] * 0.5 else ""
+                lines.append("      " + pad(c(r["src"], "cyan"), 26) + pad(c(fmt_ms(r["ms"]), "white"), 9, "r") + pad(c("×" + fmt_num(r["hits"]), "dim"), 7, "r")
+                             + "  " + c(r["code"], "dim") + tag)
+        lines.append("")
+    return lines[:-1] if lines else lines
+
+
 def page_block(rep, W):
     """Per page: done time and where it went. Columns are NESTED wall-clock spans (median over rounds), not additive."""
     lines = []
@@ -498,6 +524,7 @@ def render(rep, W=None, deep=True):
         ("Slowest individual actions", slowest(rep, W - 4), "dim"),
         ("Who draws the frames", frame_block(rep, W - 4), "dim"),
         ("Where each page's time goes", page_block(rep, W - 4), "dim"),
+        ("Page-switch floor: inside goto, replay and render", focus_block(rep, W - 4), "dim"),
         ("Timeline of one page switch", timeline_block(rep, W - 4), "dim"),
         ("Where wall time goes (probes)", span_block(rep, W - 4), "dim"),
         ("Where pane drawing goes", pane_block(rep, W - 4), "dim"),

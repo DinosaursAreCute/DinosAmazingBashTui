@@ -160,7 +160,7 @@ Text derived from a setting that changes rarely (a refresh interval, a label) do
 - **Panes cost.** Each pane is drawn, laid out and key-hashed on every full render. Prefer fewer, larger panes; nest only where the structure is real. Do not add wrapper panes for spacing; use `hpad`/`vpad`.
 - **Consistent geometry is cheaper.** The shared menu is 18% wide on every page, so its rectangles and the cached geometry for its 15 buttons are identical across pages and are reused.
 - **Pick plain widgets for static content.** Labels, buttons and checkboxes with plain text are cached by the framework. A text containing `${expr}` is re-evaluated (and forks) on every draw and bypasses the cache; keep dynamic text in a variable you update with `tui.update`, not in an expression.
-- **Do not restyle every frame.** Every `tui.style` call bumps a style epoch that is part of every cache key. Changing styles in a tick callback invalidates every cached widget. Style once, then change text.
+- **Do not restyle every frame.** A pane or widget fragment is cached under its geometry, text, state and the style strings it draws with, so a restyled widget only misses for itself, and an identical widget on another page (the menu, the header) hits. Restyling in a tick callback still recomposes what it touches on every frame, and the frame must be flushed. Style once, then change text.
 - **Update, do not rebuild.** `tui.update ID TEXT` changes one widget. Rebuilding a tab strip or grid (`tui.tabs.build`, `tui.grid`) on every visit costs tens of milliseconds; build once and keep it when the content is unchanged.
 - **Output panes.** Lines with colour are measured and sliced in bash and memoised per line, so scrolling back is cheap. Very large outputs (thousands of lines) still cost to split into lines; page or truncate long documents when the user does not need all of it at once.
 
@@ -176,7 +176,7 @@ Text derived from a setting that changes rarely (a refresh interval, a label) do
 | mechanism | what it saves | what defeats it |
 |---|---|---|
 | page snapshot cache | parse and build on revisit, and the per-switch `stat` | an edited page or dependency is detected at start-up only; while the app runs the cache is trusted (`TUI_CACHE_TRUST=0` re-enables the live check); `<script>` and `on_visit` always run fresh |
-| row cache (`_tui_rowcache`) | recomposing unchanged panes and plain widgets, about -45% render on a content-heavy page | `${expr}` texts, a changed style epoch, a changed geometry or text |
+| row cache (`_tui_rowcache`) | recomposing unchanged panes and plain widgets, about -45% render on a content-heavy page | `${expr}` texts, a changed style, geometry or text (only for the fragment concerned) |
 | widget geometry memo | recomputing positions | a changed placement or size attribute, a resized pane |
 | line-slice and width memos | re-measuring and re-slicing coloured output lines | new line text (it is a miss, not an error) |
 | `tui.modal.dismiss` | re-rendering the page under a closing overlay (palette close 38 ms to 14 ms) | anything painting, restyling or resizing while the overlay is open (it falls back to the full repaint) |
@@ -221,3 +221,12 @@ Before you ship a page, run the profiler on it and check:
 - [ ] Before and after profiler numbers recorded for anything you call an optimisation.
 
 See also: [Callbacks and interactive viewports](callbacks-and-viewports.md), [Grids and tabs](grid-layouts-and-tabs.md), the measurements in [performance-progress](../concepts/performance-progress.md) and the design background in [cheap-redraws-concept](../concepts/cheap-redraws-concept.md).
+
+## 11. Lessons from the page-switch floor
+
+Measured on the trivial pages (home, layout, case study), where no page code runs: a switch fell from 136 ms to 86 ms by removing framework work, not page work. What carried over to app code:
+
+- **Key a cache on what the result depends on, then count the hits.** A fragment cache keyed on a counter that every page switch bumped never hit across pages (57 stores per switch) while a repeat-render benchmark looked fine. A key made of the real inputs (geometry, text, the style strings) lets identical elements on different pages share one entry.
+- **Do the rewrite once, where the data is produced.** The page snapshot was reformatted line by line on every replay; moving that step to record time cut the restore from 9.5 to 2.6 ms. Look for transformations of data that never changes.
+- **Do not repeat work whose inputs did not change.** The footer row, its key-hint map, the terminal size and the layout of a replayed page are all functions of inputs that rarely change; each is now skipped (or rebuilt) when its inputs differ, compared by content.
+- **Price a suspect untraced before you fix it.** `xtrace` inflates in-shell time unevenly: it blamed 6 ms on re-sourcing page scripts that costs 0.5 ms. Use the trace to find candidates, a timed loop to price them, and `tools/profiler/profile.sh --scenario floor` to see the breakdown of one switch.

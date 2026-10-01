@@ -856,6 +856,33 @@ Deep runs `20261001-195825` (before) and `20261001-201315` (after the demo chang
 - **Confirmed** by run `20261001-201852` (standard, 3 rounds, `--scenario nav`, after the SIGHUP change): scrolling revisit 211 → 163 ms and first visit 248 → 199 ms; `nav.revisit` 156 → 146 ms and `nav.first` 184 → 179 ms; `nav.key` unchanged at 106 ms. Other pages moved by 1 to 4 ms.
 - What is left in page code is computation, not forks: the monitor's chart builders (about 70% of its `on_visit`), the docs page rebuilding its tabs on every visit (`tui.class`, `tui.grid`, `load_document`).
 
+## 15f. Change 18: snapshot rewritten once, no `stty` per switch
+
+Found with the new `--scenario floor` trace (run `20261001-211251`, 3 rounds, per switch between trivial pages: `tui.goto` 82 ms = `tui.render` 56 + `tui.load_cached` 22 + `tui.reset_ui` 4).
+
+- `_tui_cache_restore` rewrote all 135 to 300 `declare` lines of the snapshot in a bash loop on every replay. Untraced: restore 9.5 ms, of which the `eval` is 2.5 ms. The rewrite now happens once at record time. Headless loop, `reset_ui` + `load_cached` over home, layout and case study: 34 → 15 ms per switch. Old on-disk snapshots still restore.
+- `tui.reset_ui` forked `stty size` (2.3 ms in the trace) on every switch; a running app keeps the size from its resize handler.
+- Found, not yet fixed: the fragment cache key contains `_TUI_RC_EPOCH`, which every page switch bumps, so fragments never hit across pages (57 `_tui_rowcache.store` calls and about 5.7 ms per switch, with few hits). The key should hold the style strings instead.
+
+## 15g. Change 19: fragment keys without the epoch
+
+The floor trace (`20261001-212745`) still showed 57 `_tui_rowcache.store` calls per switch: `_TUI_RC_EPOCH` is bumped by every page switch and was part of every key, so no fragment was ever reused across pages. Keys now hold the resolved style strings (and no page or pane id); the menu and header panes and buttons, identical on every page since the menu width was aligned, hit on every page. Headless (24x80 fallback, so a small frame) the switch loop went 24.3 → 22.4 ms, with the cache now faster than no cache (24.4 ms) instead of equal to it; frames are byte-identical in all three modes. Confirmed in the real app by run `20261001-222623` (full, 2 rounds; floor scenario, probe spans per switch): `nav.floor` settle 125.2 → 93.1 ms (-26%), `tui.render` 58.2 → 28.3 ms, `_tui._draw_pane_buf` 14.6 → 3.8 ms, `tui.goto` 75.1 → 45.4 ms. Page switches: first visit 180 → 159 ms, revisit 152 → 135 ms (against the deep run `201315`: -14% each); revisit per page home 120 → 99, layout 119 → 104, case study 109 → 95, components 157 → 136. The estimate was 10 to 15 ms; the render halved because a hit also skips composing and storing. Everything else is unchanged within noise (`theme.first` 240 ms is inside its 215 to 242 ms band over earlier runs); the docs revisit (233 ms against 212 to 222) did not improve and has only 2 rounds behind it.
+
+## 15h. Change 20: footer, relayout and widget-visit overhead
+
+From the floor trace `20261001-222939` (per switch, calibrated): footer overlay 4.1 ms (`reverse_keys` 3.4), relayout 5.2 ms, widget visits 13.7 ms with every fragment hitting.
+
+- `reverse_keys` memoises its default tier by content: 1269 -> 384 us per call; a footer rebuild per switch 1.9 -> 0.9 ms.
+- The footer writes its row only when it changes; `draw_all` skips the write and the sync frame when nothing was drawn.
+- The snapshot records the size it was laid out for; a replay at the same size and footer with no layout-input change by the scripts skips the relayout (counter `relayout_skipped`).
+- The widget clip reuses the inset `_widget_pos` set instead of a second `_tui._inset`.
+
+Headless switch loop (reset + load_cached + render, home and case study): 30.3 ms at v0.0.21 plus the epoch fix, 21.4 ms now (this includes the snapshot and cache-key changes before it). Frames are byte-identical (goldens, cache on and off); 7 new tests. Confirmed by floor run `20261001-224357` (3 rounds, probe spans per switch): settle 93.9 -> 86.3 ms, `tui.goto` 45.4 -> 37.8, `tui.render` 28.5 -> 24.4, `tui.cache.replay` 14.9 -> 11.3 (the relayout is gone from the trace), `_tui_overlay.draw_all` 3.8 -> 2.4. Over the whole day the trivial-page switch went 136.3 ms (`211251`) -> 86.3 ms (-37%). What is left per switch (calibrated): widget visits 10.9 ms (every fragment hits; the cost is the visit), `tui.load_theme` 3.0, snapshot restore 2.5, the content-fit pass about 3, output buffers 2.4, `reverse_keys` 1.1.
+
+## 15i. Release check: deep run `20261001-230749`
+
+Full scenario, 5 rounds, idle machine, with the floor group (the earlier deep run `225547` overlapped with test runs on the same machine and was not used). Medians: page switch first visit 142.9 ms (budget 150: inside), revisit 125.1 ms (budget 100), switch by key over all ten pages 100.6 ms (budget 100), mean over all pages 137.0 ms, trivial-page floor 86.5 ms, palette close 13.7, theme first 229.6, warm start 289.7 ms. Per page, revisit: home 91, case study 86, layout 94, settings 121, widgets 124, components 125, terminal 129, scrolling 143, monitor 161, docs 188 ms. Against the v0.0.21 nav run `204153` (first 180.3, revisit 152.1, key 124.0): -21%, -18%, -19%. Noise to know: the resize median swings between 145 and 203 ms because its three targets swap between two timing modes (unchanged by this work); palette close shows two samples at 78 ms in two runs because a clock tick lands in the settle window (busy 3 ms in every sample).
+
 ## 16. Standing against the budgets
 
 Budgets are the perceived-instant lines in `tools/profiler/dprof/scenarios.py`. Baseline is the first deep run (`20260930-193435`); current is the latest deep run (`20260930-214915`). Theme switching and alt+2 are compared with their first measured values where they exist (the baseline alt+2 was a no-op).

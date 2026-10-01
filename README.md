@@ -32,7 +32,8 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency n
 <br/>
 <h2 id="news">News</h2>
 
-- **DevEx Update 1.87,5: Don't redo what you already know** (unreleased). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. New `tui.capture` and `tui.modal.dismiss`, a developer guide for fast apps, and a DABT-versus-Textual comparison harness. [Release notes](release-notes/devex-update-1.87,5.md) · [Designing fast apps](docs/guide/performance.md)
+- **DevEx Update 1.93,75: Grinding the cleanup rubble to dust** (unreleased). A page switch between trivial pages is 86 ms instead of 136: the render cache now hits across pages, the page snapshot is rewritten once instead of on every replay, and the footer, the terminal-size read and the relayout only run when something changed. The profiler gained a page-switch "floor" trace. [Release notes](release-notes/devex-update-1.93,75.md) · [The performance journey](docs/design/performance-journey.md)
+- **DevEx Update 1.87,5: Don't redo what you already know** (v0.0.21). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. New `tui.capture` and `tui.modal.dismiss`, a developer guide for fast apps, and a DABT-versus-Textual comparison harness. [Release notes](release-notes/devex-update-1.87,5.md) · [Designing fast apps](docs/guide/performance.md)
 - **DevEx Update 1.75: Blowing up a mountain** (v0.0.20). Page switches twice as fast, idle repaints down 90%, warm start 0.29 s. [Release notes](release-notes/devex-update-1.75.md) · [The performance journey](docs/design/performance-journey.md)
 
 Every change is in the [changelog](CHANGELOG.md).

@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+DevEx Update 1.93,75 ([release notes](release-notes/devex-update-1.93,75.md)).
+
+### Added
+
+* Profiler: `--scenario floor` (group `nav.floor`) replays warm switches between the three lightest pages, and the trace now breaks down `tui.goto`, `tui.cache.replay`, `tui.render` and their neighbours (`FOCUS_ROOTS`, `dprof/scenarios.py`) without pruning: per switch, the callee each time went into, the functions that ran the commands and the hottest source lines below each. New "Page-switch floor" section in the terminal deep dive and in `report.html`; data in `attr.focus` of `report.json`.
+
+* Release assets for DevEx Update 1.93,75: title header `assets/headers/devex-update-1-93-75.svg` and the charts `assets/release/devex-1-93-75-improvements.svg` and `-pages.svg` (`tools/release_charts.py` gains a `RELEASES` entry and a `pages_title`); `tools/profiler/site_export.py` revisions for the new runs (`c18`, `c19`, `latest`), the explorer page regenerated.
+* Docs: the performance journey, explorer, progress and cheap-redraws pages and the developer guide (section 11, lessons from the page-switch floor) include this release; News in both READMEs.
+
+### Fixed
+
+* The demo's `share/demo/_header.sh` forced `TUI_LOG_DIR="."`, so every run of a demo page (including `tests/layout.bats`) wrote a log file into the current directory, the repository root; the "installing/updating never touches the source tree" bats tests then failed intermittently when they ran in parallel with it (CI uses `bats --jobs`). The override is gone: the demo logs to its config folder like every app.
+* `tools/frame.sh` set the terminal size before sourcing `lib/tui.sh`, whose `lib/state.sh` resets `_TUI_ROWS`/`_TUI_COLS` to 0 on load, so every page was laid out in a 0x-1 area and rendered as one line. The size is now set after the source.
+
+### Changed
+
+* Performance (v0.0.21 build, nav run `20261001-204153` -> deep run `20261001-230749`): page switch revisit 152 -> 125 ms, first visit 180 -> 143 ms, mean over all pages 165 -> 137 ms, switch by key over all ten pages 124 -> 101 ms, trivial-page switch (floor scenario) 136 -> 86 ms; hover, focus, click, scroll, palette close, start-up and idle unchanged.
+* Footer: `_tui_footer.draw` writes the bottom row only when it would change (new content, another size, or after an erase; `erase.all` resets `_TUI_FTR_PAINTED`), and `_tui_overlay.draw_all` neither writes nor flushes when no overlay produced output. Before, every render and every loop iteration after a paint rewrote the footer in its own synchronized frame.
+* `_tui_input.reverse_keys` rebuilds the default-binding tier only when its inputs differ from the last build (compared by content, `_REVK_RD`/`_REVK_RD_SIG`): 1269 -> 384 us per call, so a page switch no longer pays for it (footer rebuild per switch 1.9 -> 0.9 ms).
+* Page cache: a snapshot carries the size it was laid out for (`_TUI_SNAP_SIZE`, written with the snapshot); `tui.cache.replay` skips the relayout when the terminal size and footer match and no script bumped `_TUI_LY_GEN` (counter `relayout_skipped`). The layout memo is still invalidated on every replay.
+* `_tui._draw_widget_buf`: one pane lookup, the clip uses the inset `_tui._widget_pos` just set instead of a second `_tui._inset` call, and the `nodes_painted` counter is a call only while tracking.
+* Fragment cache keys (`_tui._draw_pane_buf`, `_tui._draw_widget_buf`) hold the style strings the fragment draws with (fg, bg, mods of the keys it resolves) instead of `_TUI_RC_EPOCH`, and no page or pane id. The epoch changed on every page switch, so fragments never hit across pages (57 stores per switch for 5.4 ms in the floor trace); the menu and header now hit on every page. `_TUI_RC_EPOCH` only tells the saved frame of `tui.modal.dismiss` that the screen may have been restyled. Byte-identical frames with the cache on and off (goldens), 4 new tests.
+* Page cache: `_tui_cache_snapshot` writes the snapshot already rewritten to `declare -g...` (once, at record time), so `_tui_cache_restore` is a single `eval`; it used to rewrite every `declare` line in a bash loop on each replay (about 7 ms of a 9.5 ms restore on `home`; `reset_ui` + `load_cached` over home, layout and case study 34 -> 15 ms per switch in the headless loop). Snapshots recorded by earlier versions (plain `declare -p` lines, still on disk) restore through the old rewrite. 
+* `tui.reset_ui` no longer forks `stty size` while the app is running (`_TUI_RUNNING`): the resize handler keeps `_TUI_ROWS`/`_TUI_COLS` current (about 2 ms per page switch).
+* Golden frames (`tools/t_golden.sh`) record the byte stream of each page (`--sgr`: cursor moves and colours included, wall-clock times blanked) at 80x24, so a moved widget or a changed colour is a change; they were one-line frames before. Pages without a stable headless frame are skipped (`components_live`, `monitor`, `settings`, `docu`); all frames were re-recorded and are identical with `TUI_ROWCACHE=0`.
+* `tools/gate.sh` runs G4 (`tools/t_golden.sh --check`).
+
 ## [0.0.21] - 2026-10-01
 
 DevEx Update 1.87,5 ([release notes](release-notes/devex-update-1.87,5.md)).

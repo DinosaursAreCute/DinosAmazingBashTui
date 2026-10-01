@@ -13,11 +13,15 @@
 #   WHEN_FN   optional predicate; the item is shown only while it succeeds.
 # Default: quit, command bar, and Back (only when there is a page to go back to).
 # Style: theme classes .footer (the bar), .footer_key (a key chip), .footer_label; built-in colours when absent.
-# Redrawn after every render and once per loop like any overlay (tui_modal.sh), and rebuilt when the bindings, the
-# terminal width or the page history change.
+# Offered to the screen after every render and once per loop like any overlay (tui_modal.sh), but only written when the
+# row would change (new content, a resize or an erase); rebuilt when the bindings, the terminal width or the page history
+# change.
 declare -g TUI_FOOTER_DEFAULT='@tui.action.quit|Quit;@tui.palette.open|Command bar;@tui.action.back|Back|_tui_cmd.has_history'
 declare -g _TUI_FOOTER_ON=0 _TUI_FOOTER_ITEMS="" _TUI_FOOTER_STR="" _TUI_FOOTER_STAMP=""
 declare -g _TUI_BIND_GEN=0 # bumped by every binding change (footer / palette hints re-read the keys)
+# What the bottom row shows right now ("ROWS:STRING", empty after an erase). Not _TUI_FOOTER_*: those are part of every page
+# snapshot, and this describes the screen, not the page.
+declare -g _TUI_FTR_PAINTED=""
 
 # tui.footer.set ITEMS - declare the footer (what <footer/> calls, also replayed from the page cache). It only records the
 # state; the page's final layout leaves the last row free. At runtime use tui.footer.show, which also relayouts.
@@ -106,5 +110,10 @@ _tui_footer.draw() {
 		_TUI_FOOTER_STAMP="$stamp"
 		_tui_footer.build
 	fi
+	# the footer row belongs to the footer alone (panes stop above it): once drawn it stays until an erase, a resize or new
+	# content, so an unchanged footer adds nothing to the frame
+	local painted="$_TUI_ROWS:$_TUI_FOOTER_STR"
+	[[ "$painted" == "$_TUI_FTR_PAINTED" ]] && return 0
+	_TUI_FTR_PAINTED="$painted"
 	_tui.emit_printf '\e7\e[?7l\e[%d;1H%s\e[K\e[?7h\e8' "$_TUI_ROWS" "$_TUI_FOOTER_STR"
 }

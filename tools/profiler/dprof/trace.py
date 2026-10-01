@@ -26,6 +26,8 @@ import shutil
 import threading
 import time
 
+from .scenarios import FOCUS_ROOTS
+
 BUILTINS = set(
     "alias bg bind break builtin caller cd command compgen complete compopt continue declare dirs disown echo "
     "enable eval exec exit export false fc fg getopts hash help history jobs kill let local logout mapfile "
@@ -42,7 +44,7 @@ KINDS = ("sh", "ex", "fk", "idle", "wait", "probe")
 
 
 class Bucket:
-    __slots__ = ("stacks", "lines", "calls", "edges", "forks", "execs", "tot", "nlines", "pids")
+    __slots__ = ("stacks", "lines", "calls", "edges", "forks", "execs", "tot", "nlines", "pids", "focus")
 
     def __init__(self):
         self.stacks = {}   # (stack id, kind key) -> [us, n]
@@ -54,6 +56,7 @@ class Bucket:
         self.tot = dict.fromkeys(KINDS, 0)
         self.nlines = 0
         self.pids = set()
+        self.focus = {}    # (FOCUS_ROOTS function, "file:line") -> [sh_us, ex_us, fk_us, hits], whatever runs below it
 
 
 class Aggregator:
@@ -62,6 +65,7 @@ class Aggregator:
         self.buckets = {}
         self.stack_ids = {}      # raw stack bytes -> sid
         self.stack_info = []     # sid -> (frames tuple, top_is_probe)
+        self.stack_roots = {}    # sid -> the FOCUS_ROOTS present in that stack (computed once per stack)
         self.work_sid = []       # sid -> does this stack belong to answering the user
         self.funcs = set()
         self.funcfile = {}
@@ -218,6 +222,16 @@ class Aggregator:
                         e[0] += dur
                         e[1] += 1
                     if kind in ("sh", "ex", "fk"):
+                        roots = self.stack_roots.get(psid)
+                        if roots is None:
+                            fr = stack_info[psid][0]
+                            roots = self.stack_roots[psid] = tuple(r for r in FOCUS_ROOTS if r in fr)
+                        for r in roots:
+                            fe = pbucket.focus.get((r, psrc))
+                            if fe is None:
+                                fe = pbucket.focus[(r, psrc)] = [0, 0, 0, 0]
+                            fe[0 if kind == "sh" else 1 if kind == "ex" else 2] += dur
+                            fe[3] += 1
                         ls = pbucket.lines.get(psrc)
                         if ls is None:
                             ls = pbucket.lines[psrc] = [0, 0, 0, 0]
@@ -271,7 +285,7 @@ class Aggregator:
             out["buckets"][key] = {
                 "stacks": {(self.stack_info[sid][0], kk): v for (sid, kk), v in b.stacks.items()},
                 "lines": b.lines, "calls": dict(b.calls), "edges": dict(b.edges),
-                "forks": dict(b.forks),
+                "forks": dict(b.forks), "focus": dict(b.focus),
                 "execs": {(w.decode("utf-8", "replace"), f): v for (w, f), v in b.execs.items()},
                 "tot": b.tot, "nlines": b.nlines, "pids": len(b.pids),
             }

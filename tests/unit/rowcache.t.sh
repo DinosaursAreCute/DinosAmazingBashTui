@@ -126,3 +126,58 @@ t_vslice_memo_keeps_escape_sequences() {
 	_tui._vslice $'\e[31mred\e[0m' 0 2
 	eq $'\e[31mre\e[0m' "$_VS"
 }
+
+# The fragment key holds the style strings, not a counter: a page switch (the epoch changes) still hits, and a style
+# written straight into the table (no tui.style, no epoch bump) is still seen.
+t_widget_fragment_survives_an_epoch_bump() {
+	_rc_pane
+	tui.label l1 p 0 "Hello" ""
+	_tui_rowcache.reset
+	_rc_draw_widget l1
+	local n=$_TUI_RC_N first="$_RC_OUT"
+	_TUI_RC_EPOCH+=1 # what every page switch does
+	_rc_draw_widget l1
+	eq "$n" "$_TUI_RC_N" # a hit: nothing new stored
+	eq "$first" "$_RC_OUT"
+}
+
+t_widget_fragment_sees_a_style_written_without_the_epoch() {
+	_rc_pane
+	tui.label l1 p 0 "Hello" ""
+	_tui_rowcache.reset
+	_rc_draw_widget l1
+	local before="$_RC_OUT"
+	_TUI_STYLE_FG[l1_normal]="#00ff00" # bypasses tui.style on purpose
+	_rc_draw_widget l1
+	[[ "$before" != "$_RC_OUT" ]] || _t_fail "a changed style was served from the cache"
+	match "$_RC_OUT" '38;2;0;255;0'
+}
+
+t_widget_fragment_follows_its_pane_style() {
+	_rc_pane
+	tui.label l1 p 0 "Hello" ""
+	_tui_rowcache.reset
+	_rc_draw_widget l1
+	local before="$_RC_OUT"
+	_TUI_STYLE_BG[p_normal]="#112233" # the pane colour the widget falls back to
+	_rc_draw_widget l1
+	[[ "$before" != "$_RC_OUT" ]] || _t_fail "a changed pane style was served from the cache"
+}
+
+t_pane_fragment_is_keyed_on_its_styles_and_survives_an_epoch_bump() {
+	_TUI_P_ROW[bp]=1 _TUI_P_COL[bp]=1 _TUI_P_H[bp]=5 _TUI_P_W[bp]=12 _TUI_P_BORDER[bp]=single _TUI_P_TITLE[bp]="T"
+	unset '_TUI_P_CHILDREN[bp]'
+	_tui_rowcache.reset
+	_TUI_FRAME=""
+	_tui._draw_pane_buf bp
+	local first="$_TUI_FRAME" n=$_TUI_RC_N
+	_TUI_RC_EPOCH+=1
+	_TUI_FRAME=""
+	_tui._draw_pane_buf bp
+	eq "$n" "$_TUI_RC_N"
+	eq "$first" "$_TUI_FRAME"
+	_TUI_STYLE_FG[bp_border]="#ff0000"
+	_TUI_FRAME=""
+	_tui._draw_pane_buf bp
+	[[ "$first" != "$_TUI_FRAME" ]] || _t_fail "a changed border style was served from the cache"
+}

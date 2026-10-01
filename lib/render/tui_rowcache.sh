@@ -2,7 +2,7 @@
 # tui_rowcache.sh - content-addressed cache of composed frame fragments.
 # A fragment (the bytes a pane or simple widget appends to _TUI_FRAME) is
 # keyed on every input that produces it: geometry, state, resolved content
-# and _TUI_RC_EPOCH. A changed input is a different key, so staleness is
+# and the style strings it draws with. A changed input is a different key, so staleness is
 # detected by construction and nothing is registered or invalidated per
 # widget. Callers skip the cache when an input is not a plain value
 # (a ${expr} text), so dynamic content always recomposes.
@@ -11,7 +11,7 @@
 
 declare -gA _TUI_RC=()
 declare -gi _TUI_RC_N=0
-declare -gi _TUI_RC_EPOCH=0 # bumped by every style write; part of every key
+declare -gi _TUI_RC_EPOCH=0 # bumped by every style write and page reset; not in the fragment keys: only tells the saved frame (tui.modal.dismiss) that the screen may have been restyled
 declare -gi _TUI_ROWCACHE="${TUI_ROWCACHE:-1}"
 declare -gi _TUI_RC_MAX=4096 # bounded like _TUI_SGR_MEMO: a gradient or chart must not grow it without limit
 

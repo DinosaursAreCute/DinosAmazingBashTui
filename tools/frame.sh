@@ -25,9 +25,6 @@ if [[ -z "$_F_PAGE" ]]; then
 	exit 2
 fi
 
-_TUI_COLS="${_F_SIZE%x*}"
-_TUI_ROWS="${_F_SIZE#*x}"
-
 # host-independent, same isolation tools/t.sh uses for unit tests: a frame
 # must render the same bytes regardless of where/when this runs.
 LC_ALL=C
@@ -47,6 +44,10 @@ export TUI_APP_NAME="frame_tool"
 
 # shellcheck source=../lib/tui.sh
 source "$REPO/lib/tui.sh"
+
+# after the source: lib/state.sh resets _TUI_ROWS/_TUI_COLS to 0 when it loads, which laid every page out in a 0x-1 area
+_TUI_COLS="${_F_SIZE%x*}"
+_TUI_ROWS="${_F_SIZE#*x}"
 
 # Minimal, non-terminal-mutating subset of tui.init: sets up the root pane
 # without stty/alt-screen/mouse modes or querying a real tty size, so the

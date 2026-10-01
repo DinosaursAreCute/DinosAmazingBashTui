@@ -16,6 +16,12 @@ LABEL = dict(PAGES)
 KEY_PAGE = {"1": "home", "2": "components", "3": "settings", "4": "monitor", "5": "terminal", "6": "scrolling",
             "7": "case_study", "8": "docs", "9": "layout", "0": "widgets"}
 
+# Functions the trace breaks down in full (children, own time, source lines) for a page switch: the report's
+# "page-switch floor" section. A call stack that contains one of them is attributed to it, unpruned.
+FOCUS_ROOTS = ("tui.goto", "tui.reset_ui", "tui.load_cached", "tui.cache.replay", "_tui_cache_restore",
+               "_tui_cache_run_on_visit", "_tui_cache_source", "tui.render", "_tui._draw_pane_buf",
+               "_tui._draw_widget_buf", "_tui._render_output_buf", "_tui_overlay.draw_all", "_tui._flush")
+
 GROUP_INFO = {
     # group: (title, kind, budget_ms)  budget = the perceived-instant line for that interaction
     "startup.cold": ("Cold start (empty cache)", "startup", 5000),
@@ -23,6 +29,7 @@ GROUP_INFO = {
     "nav.first": ("Page switch, first visit", "nav", 150),
     "nav.revisit": ("Page switch, revisit", "nav", 100),
     "nav.key": ("Page switch by key (alt+1…0, every page)", "nav", 100),
+    "nav.floor": ("Page switch, trivial pages (the floor)", "nav", 100),
     "focus.next": ("Focus next (Tab)", "input", 50),
     "focus.prev": ("Focus previous (Shift+Tab)", "input", 50),
     "hover.move": ("Mouse hover", "input", 30),
@@ -69,6 +76,7 @@ SCENARIOS = [
     ("full", "Everything: start, navigation, input, scrolling, palette, themes, resize, idle, quit", None),
     ("startup", "Cold start (empty cache) and warm start", {"startup.cold", "startup.warm"}),
     ("nav", "Page navigation: first visit, revisit, key binding", {"nav.first", "nav.revisit", "nav.key"}),
+    ("floor", "Warm switches between the three lightest pages, repeated: what a page switch costs with no page code (read the \"Page-switch floor\" section of the trace)", {"nav.floor"}),
     ("input", "Focus, hover and click", {"focus.next", "focus.prev", "hover.move", "click"}),
     ("scroll", "Wheel, burst and Page Down scrolling", {"scroll.step", "scroll.burst", "scroll.page"}),
     ("palette", "Command palette open, typing, close", {"palette.open", "palette.type", "palette.close"}),
@@ -77,6 +85,7 @@ SCENARIOS = [
     ("idle", "Idle: what the app does when nothing happens", {"idle"}),
 ]
 SCENARIO_NAMES = [n for n, _, _ in SCENARIOS]
+FLOOR_LAPS = ["Layout", "Case Study", "Home"]   # nav labels of the trivial pages; the lap ends on home, the start page
 THEME_BUTTONS = ["ocean", "forest", "sunset", "light", "default"]   # Settings page rows (the page lowercases them); default last restores the look
 
 
@@ -122,6 +131,14 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
             keys = ("2", "7") if quick else ("2", "3", "4", "5", "6", "7", "8", "9", "0", "1")
             for k in keys:
                 add(Step("nav.key", f"alt+{k} {KEY_PAGE[k]}", "key", ESC + k.encode(), quiet=0.15, timeout=1.0))
+    if want("nav.floor"):
+        # home, layout and case study carry no on_visit work: every millisecond here is the framework. One priming lap
+        # (labelled setup, not reported) takes the first-visit costs out; the measured laps are all warm switches.
+        for label in FLOOR_LAPS:
+            add(_setup(label))
+        for lap in range(3 if quick else 10):
+            for label in FLOOR_LAPS:
+                add(Step("nav.floor", f"lap {lap + 1} {label.lower()}", "click_text", label, quiet=0.15))
     if want("focus.next", "focus.prev", "hover.move", "click"):
         add(_setup("Components"))
         for i in range(6 if quick else 10):

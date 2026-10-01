@@ -13,14 +13,20 @@ mkdir -p "$GOLDEN_DIR"
 _TG_CHECK=0
 [[ "$1" == "--check" ]] && _TG_CHECK=1
 
-# Pages whose on_visit starts background work (tui.exec, ticks) that never
-# returns without a real event loop driving it - not headlessly renderable,
-# so excluded from both record and check rather than timing out every run.
-_TG_SKIP=(components_live)
+# Pages that cannot give a stable frame headlessly: on_visit starts background work (tui.exec, ticks) that never
+# returns without a real event loop (components_live), or the page shows live or environment data - system
+# statistics (monitor), a block-font clock (settings), the list of files under docs/ (docu).
+_TG_SKIP=(components_live monitor settings docu)
 _tg_is_skipped() {
 	local name="$1" s
 	for s in "${_TG_SKIP[@]}"; do [[ "$name" == "$s" ]] && return 0; done
 	return 1
+}
+
+# The frame as the byte stream the renderer wrote (cursor moves and colours included, so a moved widget or a changed
+# colour is a change), with wall-clock times blanked.
+_tg_frame() {
+	timeout 20 "$REPO/tools/frame.sh" "$1" --sgr | sed -E 's/[0-9]{2}:[0-9]{2}:[0-9]{2}/HH:MM:SS/g'
 }
 
 _TG_FAIL=0
@@ -34,13 +40,13 @@ for _tg_page in "$REPO"/share/demo/*.xml; do
 			_TG_FAIL=1
 			continue
 		fi
-		_tg_now="$(timeout 5 "$REPO/tools/frame.sh" "$_tg_page")"
+		_tg_now="$(_tg_frame "$_tg_page")"
 		if [[ "$_tg_now" != "$(cat "$_tg_out")" ]]; then
 			printf 'G4\t%s\tframe changed\n' "$_tg_page"
 			_TG_FAIL=1
 		fi
 	else
-		timeout 5 "$REPO/tools/frame.sh" "$_tg_page" >"$_tg_out" || {
+		_tg_frame "$_tg_page" >"$_tg_out" || {
 			printf 'G4\t%s\ttimed out or failed, no golden frame recorded\n' "$_tg_page" >&2
 			rm -f "$_tg_out"
 		}

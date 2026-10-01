@@ -10,15 +10,15 @@ Medians of the profiler's probe-measured latency, first deep run against the lat
 
 | Interaction | Before | After | Change | Budget |
 |---|---|---|---|---|
-| Page switch, mean over all pages | 409 ms | 173 ms | **−58%** | — |
-| Page switch, first visit | 356 ms | 184 ms | **−48%** | 150 ms |
-| Page switch, revisit | 370 ms | 156 ms | **−58%** | 100 ms |
-| Command palette close | 143 ms | 13 ms | **−91%** | 100 ms |
+| Page switch, mean over all pages | 409 ms | 137 ms | **−67%** | — |
+| Page switch, first visit | 356 ms | 143 ms | **−60%** | 150 ms |
+| Page switch, revisit | 370 ms | 125 ms | **−66%** | 100 ms |
+| Command palette close | 143 ms | 14 ms | **−90%** | 100 ms |
 | Wheel scroll | 64 ms | 18 ms | **−72%** | 60 ms |
-| Terminal resize | 260 ms | 144 ms | **−45%** | 250 ms |
+| Terminal resize | 260 ms | 145 to 203 ms | **−22 to −44%** | 250 ms |
 | Idle repaints | 20.7 /s | 2.0 /s | **−90%** | 2 /s |
-| Warm start | 857 ms | 294 ms | **−66%** | 1 s |
-| Cold start (first launch) | 5.84 s | 2.86 s | **−51%** | 5 s |
+| Warm start | 857 ms | 290 ms | **−66%** | 1 s |
+| Cold start (first launch) | 5.84 s | 2.83 s | **−52%** | 5 s |
 
 Budgets are the "perceived instant" lines the profiler checks against. Everything except the page switches is now inside its budget; the page switches are the remaining gap, and they are dominated by a few heavy pages (see below).
 
@@ -28,23 +28,23 @@ xychart-beta
     x-axis ["page first", "page revisit", "palette close", "wheel scroll"]
     y-axis "ms" 0 --> 400
     bar [356, 370, 143, 64]
-    bar [184, 156, 13, 18]
+    bar [143, 125, 14, 18]
 ```
 
 *Pink: before. Blue: after.*
 
 ## The journey
 
-Seventeen changes, each followed by a measurement. The page switch fell in steps; no single change did it.
+Twenty changes, each followed by a measurement. The page switch fell in steps; no single change did it.
 
 ```mermaid
 xychart-beta
     title "Page switch (ms) after each change"
-    x-axis ["base", "1-2", "3-4", "5", "6-7", "9", "10", "11", "12", "13", "14", "15-16", "latest"]
-    y-axis "ms" 150 --> 420
-    line [409, 377, 346, 308, 283, 251, 267, 239, 226, 203, 192, 200, 173]
-    line [356, 320, 295, 260, 228, 201, 245, 208, 208, 190, 199, 204, 184]
-    line [370, 339, 325, 264, 225, 216, 213, 216, 207, 196, 168, 168, 156]
+    x-axis ["base", "1-2", "3-4", "5", "6-7", "9", "10", "11", "12", "13", "14", "15-16", "17", "latest"]
+    y-axis "ms" 130 --> 420
+    line [409, 377, 346, 308, 283, 251, 267, 239, 226, 203, 192, 200, 173, 137]
+    line [356, 320, 295, 260, 228, 201, 245, 208, 208, 190, 199, 204, 184, 143]
+    line [370, 339, 325, 264, 225, 216, 213, 216, 207, 196, 168, 168, 156, 125]
 ```
 
 *Pink: mean over all pages. Blue: first visit. Yellow: revisit. The bump at change 10 is the known first-visit run-to-run swing, not a regression. The first-visit points for changes 14 and 15-16 (199, 204 ms) are slightly above change 13: the fragment cache pays to build and store a key on a first visit and only wins on repeats.*
@@ -94,8 +94,12 @@ Style and subprocess time almost vanished; what is left is the actual drawing wo
 | | Cached pages re-applied every widget's style on each visit | 25 ms per page switch |
 | | On-visit code called `tui.render` a second time | Heaviest page: −90 ms |
 | | Colour-code conversion recomputed per call | Memoised; style layer −85% together with the above |
-| **Caching by content** | Panes, labels, buttons and checkboxes are composed once per distinct input (geometry, state, text, style epoch) and replayed; widget positions and coloured-line slices are memoised the same way | Render of a content-heavy page 54 → 30 ms; revisits −15% |
+| **Caching by content, across pages** | Panes, labels, buttons and checkboxes are composed once per distinct input (geometry, state, text, style epoch) and replayed; widget positions and coloured-line slices are memoised the same way | Render of a content-heavy page 54 → 30 ms; revisits −15% |
 | | Closing the palette repainted the whole page from scratch | The saved page is replayed when nothing else painted: 38 → 14 ms |
+| **The page-switch floor** | The cached snapshot was rewritten line by line in a bash loop on every replay; it is now rewritten once, at record time | Restore 9.5 → 2.6 ms; a switch between trivial pages 34 → 15 ms in the headless loop |
+| | The fragment cache key held a counter that every page switch bumped, so no fragment ever hit across pages (57 stores per switch); the key now holds the style strings the fragment draws with | `tui.render` 58 → 28 ms on trivial pages; the menu and header hit on every page |
+| | Source files were checked against the cache on every switch (a `stat` fork); they are checked once at start-up and assumed unchanged afterwards (`TUI_CACHE_TRUST=0` keeps the check) | One fork and about 4 ms per switch |
+| | `tui.reset_ui` forked `stty size` on every switch; the footer was rewritten on every render and its key map rebuilt; the relayout ran even at the recorded size | About 2 + 2 + 4 ms per switch; trivial-page switch 94 → 86 ms |
 | **Page code, not framework** | Demo callbacks forked on every visit, tick and keystroke (`date`, `cat`, `awk`, `$( )` around each renderer); a new `tui.capture VAR CMD` runs them in the current shell | Switch by key 201 → 106 ms; settings first visit 278 → 176 ms; monitor refresh 20 forks → 1 |
 | | The same static renderer view was rebuilt on every visit | Built once per width |
 | | Output widths of coloured lines forked `awk` | Measured in bash and memoised, identical results on 1,500 randomised lines |
@@ -112,7 +116,7 @@ xychart-beta
     x-axis ["componen.", "docs", "scrolling", "monitor", "settings", "widgets", "terminal", "layout", "case st.", "home"]
     y-axis "ms" 0 --> 650
     bar [618, 532, 488, 472, 372, 364, 358, 307, 283, 288]
-    bar [157, 214, 211, 186, 146, 147, 153, 119, 109, 120]
+    bar [125, 188, 143, 161, 121, 124, 129, 94, 86, 91]
 ```
 
 *Pink: before. Blue: after.*
@@ -143,6 +147,9 @@ xychart-beta
 - **A wait that looks like another page's cost.** The scrolling page took 70 ms longer than the sum of its parts; the missing time was the Terminal page's interactive shell, which ignores SIGTERM, being waited out when you left it. Compare a page's total with its parts.
 - **Cache on inputs, not on counters.** Row, geometry and slice caches are keyed on the values that produce them, so a stale result cannot happen. The first version of the palette replay invalidated itself on any paint under it and never ran, because the header clock repaints every second; folding those paints into the saved page fixed it.
 - **Prove a rewrite is byte-identical.** Every fork-free conversion was compared with the old output (including a 1,500-line randomised comparison for the width measurement) before it was kept.
+- **A cache is only as good as its key, so count the hits.** The fragment cache looked fine in a repeat-render benchmark and never hit across page switches, because its key held a counter every switch bumped. A trace that shows 57 stores per switch finds that; a median does not. Putting the actual style strings in the key fixed it and halved the render of a trivial page.
+- **Check the trace against an untraced clock.** The trace blamed 6 ms on re-sourcing the page scripts and 6 ms on one `tui.tick.add` line; timing both untraced gave 0.5 ms and 19 µs. In-shell time under `xtrace` is inflated unevenly: use it to find candidates and an untraced loop to price them.
+- **Fix the instruments first.** The golden-frame check had rendered every page as one line for weeks, because the frame tool set the terminal size before the library reset it. After the fix the same check proved the caches change no pixel.
 - **Keep the noise in view.** Run-to-run swings of up to 10% on first-visit medians and a bimodal resize timing meant that changes under about 3% were never reported as changes.
 
 ## How it was measured

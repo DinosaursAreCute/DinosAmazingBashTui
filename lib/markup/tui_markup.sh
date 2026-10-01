@@ -241,7 +241,8 @@ tui.reset_ui() {
 	_tui_dialog.reset
 	((_EXEC_PID > 0)) && _exec_cleanup_process
 
-	term.size _TUI_ROWS _TUI_COLS
+	# a running app keeps _TUI_ROWS/_TUI_COLS current from its resize handler: no stty fork on every page switch
+	((_TUI_RUNNING)) || term.size _TUI_ROWS _TUI_COLS
 	_TUI_P_ROW[root]=1
 	_TUI_P_COL[root]=1
 	_TUI_P_H[root]=$_TUI_ROWS

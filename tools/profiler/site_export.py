@@ -35,7 +35,10 @@ REVISIONS = [
     ("c13d", "Deep run after 13", "20260930-231054", "Deep run after the first thirteen changes.", True),
     ("c14", "Change 14", "20261001-183844", "Content-addressed fragment cache: panes, labels, buttons and checkboxes are composed once per distinct input.", True),
     ("c15-16", "Changes 15-16", "20261001-195825", "Overlay dismissal replays the saved frame; widget geometry and coloured-line slice memos.", True),
-    ("latest", "Latest deep run", "20261001-201315", "Demo callbacks without forks, memoised renderer views, one navbar width, fork-free output measuring.", True),
+    ("c17", "Change 17", "20261001-201315", "Demo callbacks without forks, memoised renderer views, one navbar width, fork-free output measuring (deep run).", True),
+    ("c18", "Change 18", "20261001-204153", "Trusted cache, ten-page switch by key (nav run, 10 rounds): the build of v0.0.21.", False),
+    ("c19", "Changes 19-20", "20261001-222623", "Snapshot rewritten once, no stty per switch, fragment keys without the epoch (full run, 2 rounds).", False),
+    ("latest", "Latest deep run", "20261001-230749", "Footer written only on change, relayout skipped at the recorded size, widget draw overhead; includes the page-switch floor scenario (deep run, 5 rounds, idle machine).", True),
 ]
 
 

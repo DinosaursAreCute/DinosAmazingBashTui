@@ -47,9 +47,9 @@ t_rowcache_is_bounded() {
 }
 
 t_style_write_bumps_epoch() {
-	local before=$_TUI_STYLE_EPOCH
+	local before=$_TUI_RC_EPOCH
 	tui.style x "#ffffff" "" "" normal
-	ok "((_TUI_STYLE_EPOCH > $before))"
+	ok "((_TUI_RC_EPOCH > $before))"
 }
 
 t_widget_cached_draw_is_byte_identical_to_uncached() {

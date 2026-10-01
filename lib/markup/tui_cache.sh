@@ -420,6 +420,7 @@ tui.cache.replay() {
 	tui.log.debug "tui.cache.replay: replaying $file from snapshot (cache hit)"
 	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
 	_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
+	_TUI_RC_EPOCH+=1 # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
 	# Re-applies the page's <theme> plus whatever app-wide overlay is
 	# currently set (tui.load_theme itself layers _TUI_THEME_OVERLAY on top,
 	# see tui_style.sh) - skipped by the restore above since the whole build

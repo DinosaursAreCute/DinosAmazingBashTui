@@ -14,8 +14,8 @@ DevEx Update 1.87,5 ([release notes](release-notes/devex-update-1.87,5.md)).
 
 * `tui.capture VAR CMD [ARGS...]` (lib/tui_api.sh): `VAR=$(CMD ARGS...)` without the subshell; `CMD` runs in the current shell, trailing newlines are stripped like `$( )`, calls nest. API entry `docs/api/core/tui.capture.md`.
 * `tui.modal.dismiss` (lib/chrome/tui_modal.sh): closes a modal for esc and click-outside by replaying the page frame saved by `tui.render` while it still matches the screen; falls back to `tui.modal.close`. Used by the command palette. API entry `docs/api/chrome/tui.modal.dismiss.md`; switch `TUI_DISMISS_REPLAY=0`.
-* Content-addressed fragment cache (`lib/render/tui_rowcache.sh`): `_tui._draw_pane_buf` and `_tui._draw_widget_buf` (label, button, checkbox) replay the bytes composed for an identical input (geometry, state, resolved text, `_TUI_STYLE_EPOCH`). Texts with `${expr}` bypass it. Bounded at 4096 entries; switch `TUI_ROWCACHE=0`; counters `rowcache_hit` / `rowcache_miss`.
-* `_TUI_STYLE_EPOCH`: bumped by `tui.style` and by the page style reset; part of every cache key.
+* Content-addressed fragment cache (`lib/render/tui_rowcache.sh`): `_tui._draw_pane_buf` and `_tui._draw_widget_buf` (label, button, checkbox) replay the bytes composed for an identical input (geometry, state, resolved text, `_TUI_RC_EPOCH`). Texts with `${expr}` bypass it. Bounded at 4096 entries; switch `TUI_ROWCACHE=0`; counters `rowcache_hit` / `rowcache_miss`.
+* `_TUI_RC_EPOCH`: bumped by `tui.style` and by the page style reset; part of every cache key.
 * `tools/compare/`: a DABT app (`dabt_app/`) and a Textual app (`textual_app/`) with the same four pages, and `compare.py`, a black-box harness that drives both in a pseudo-terminal (latency, bytes, CPU, RSS, startup). `tools/bench/redraw.sh`, `tools/profiler/site_export.py` revisions for the new runs.
 * Developer guide `docs/guide/performance.md` (budgets, cost model, fork-free callbacks, memoising, what defeats the caches) and a News section in the READMEs.
 * Unit tests: `rowcache`, `modal_dismiss`, `capture`, `render_width`, and the trusted-cache cases in `cache` (`tests/unit/`).

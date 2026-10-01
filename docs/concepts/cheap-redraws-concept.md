@@ -112,7 +112,7 @@ Performance targets per action are established as follows: page switch latency u
 
 ## 7. Implementation status
 
-Content-addressed fragment cache (`lib/render/tui_rowcache.sh`, strategy A at pane and widget granularity). A fragment is keyed on geometry, state, resolved content and `_TUI_STYLE_EPOCH` (bumped by `tui.style` and the page style reset), so a changed input is a different key and nothing is registered per widget. Texts containing `${expr}` bypass the cache. Wired into `_tui._draw_pane_buf` (bordered panes) and `_tui._draw_widget_buf` (label, button, checkbox). Kill switch: `TUI_ROWCACHE=0`. Counters: `rowcache_hit`, `rowcache_miss`.
+Content-addressed fragment cache (`lib/render/tui_rowcache.sh`, strategy A at pane and widget granularity). A fragment is keyed on geometry, state, resolved content and `_TUI_RC_EPOCH` (bumped by `tui.style` and the page style reset), so a changed input is a different key and nothing is registered per widget. Texts containing `${expr}` bypass the cache. Wired into `_tui._draw_pane_buf` (bordered panes) and `_tui._draw_widget_buf` (label, button, checkbox). Kill switch: `TUI_ROWCACHE=0`. Counters: `rowcache_hit`, `rowcache_miss`.
 
 Not done: emission-level diffing. The 2026-09-30 40-switch bench shows flush at 0.29 ms mean against render at 48 ms, so skipping bytes saves nothing measurable, and skipping a fragment on screen is unsafe while panes redraw over their children. Revisit after the before/after bench.
 

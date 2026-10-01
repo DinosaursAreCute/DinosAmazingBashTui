@@ -5,7 +5,7 @@ _md_open_valid() {
 	_TUI_BASE_FRAME="BASEFRAME"
 	_TUI_DISMISS_REPLAY=1
 	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0
-	_TUI_BASE_EPOCH=$_TUI_STYLE_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
+	_TUI_BASE_EPOCH=$_TUI_RC_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
 }
 
 t_dismiss_replays_base_frame_when_valid() {
@@ -71,7 +71,7 @@ t_dismiss_oversized_base_is_dropped() {
 
 t_dismiss_style_change_invalidates() {
 	_md_open_valid
-	_TUI_STYLE_EPOCH+=1
+	_TUI_RC_EPOCH+=1
 	local out
 	tui.modal.dismiss >"$_T_ROOT/md.out"
 	out="$(<"$_T_ROOT/md.out")"

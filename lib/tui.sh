@@ -1685,7 +1685,7 @@ _tui._draw_pane_buf() {
 		return
 	fi
 
-	local _rc_key="p|$id|$r|$c|$h|$w|$border|$title|$_TUI_STYLE_EPOCH" _rc_from=${#_TUI_FRAME}
+	local _rc_key="p|$id|$r|$c|$h|$w|$border|$title|$_TUI_RC_EPOCH" _rc_from=${#_TUI_FRAME}
 	_tui_rowcache.replay "$_rc_key" && return
 
 	_tui_canvas.glyphs "$border"
@@ -1875,7 +1875,7 @@ _tui._draw_widget_buf() {
 	case "$type" in
 		label | button | checkbox)
 			if [[ "${_TUI_W_VALUE[$id]:-}${_TUI_W_LABEL[$id]:-}" != *'${'* ]]; then
-				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|$_TUI_STYLE_EPOCH|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}"
+				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|$_TUI_RC_EPOCH|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}"
 				_tui_rowcache.replay "$_rc_key" && return
 				_rc_from=${#_TUI_FRAME}
 			fi
@@ -2170,7 +2170,7 @@ tui.render() {
 	_TUI_BASE_FRAME="$_TUI_FRAME"
 	_TUI_BASE_GEN=-1 # this flush is the base itself: no fold
 	_tui._flush "$_TUI_FRAME"
-	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=$_TUI_STYLE_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
+	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=$_TUI_RC_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
 	((${#_TUI_OVERLAY_FNS[@]})) && _tui_overlay.draw_all
 	_tui_perf.end render

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.22] - 2026-10-01
+
 DevEx Update 1.93,75 ([release notes](release-notes/devex-update-1.93,75.md)).
 
 ### Added

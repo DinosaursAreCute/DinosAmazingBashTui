@@ -39,7 +39,7 @@ tui.footer.show() {
 	if ((_TUI_RUNNING)); then
 		_tui._root_w
 		_tui._root_h
-		tui.relayout
+		tui.frame.request
 	fi
 }
 tui.footer.add() { tui.footer.show "${_TUI_FOOTER_ITEMS:-$TUI_FOOTER_DEFAULT};$1|$2${3:+|$3}"; }
@@ -50,7 +50,7 @@ tui.footer.hide() {
 	if ((_TUI_RUNNING)); then
 		_tui._root_w
 		_tui._root_h
-		tui.relayout
+		tui.frame.request
 	fi
 }
 # tui.reset_ui: the footer belongs to the page that declared it

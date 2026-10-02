@@ -53,7 +53,7 @@ Each function has its own page; the summary tables link to them, and the full en
 
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
-<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw -->
+<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
 
 | Function | Summary |
 |---|---|
@@ -79,6 +79,7 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 | [`tui.clear_pane`](core/tui.clear_pane.md) | Blanks the pane's content rectangle on screen. |
 | [`tui.render`](core/tui.render.md) | Repaints every pane, widget and output now, as one buffered frame. |
 | [`tui.redraw`](core/tui.redraw.md) | Same as [`tui.render`](/api/core/tui.render.html). |
+| [`tui.frame.request`](core/tui.frame.request.md) | Asks for a relayout and repaint at the end of the current input-loop iteration. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -125,6 +126,8 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.render.md %}
 
 {% include_relative core/tui.redraw.md %}
+
+{% include_relative core/tui.frame.request.md %}
 
 </div>
 

@@ -728,7 +728,7 @@ tui.notify.position() {
 			return 1
 			;;
 	esac
-	((_TUI_RUNNING && ${#_TST_ID[@]})) && tui.relayout # wipe the old spot, redraw at the new one
+	((_TUI_RUNNING && ${#_TST_ID[@]})) && tui.frame.request # wipe the old spot, redraw at the new one
 	return 0
 }
 tui.notify.seconds() {
@@ -763,7 +763,7 @@ tui.notify.clear() {
 		_TST_ON=0
 		tui.overlay.remove _tui_dialog.toast_draw
 	}
-	((_TUI_RUNNING)) && tui.relayout
+	((_TUI_RUNNING)) && tui.frame.request
 	return 0
 }
 

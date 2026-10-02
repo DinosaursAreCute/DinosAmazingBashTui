@@ -27,7 +27,7 @@ _resize_restore_stty() { unset -f stty; }
 # and relayouts root, and (2) that's exactly what tui.run's own top now does
 # with a resize flagged before its first render - the actual regression
 # (it used to zero _TUI_RESIZED unread instead).
-t_pending_resize_before_first_render_is_applied_not_dropped() {
+ti_pending_resize_before_first_render_is_applied_not_dropped() {
 	local _R_REAL_TERM_SIZE
 	_R_REAL_TERM_SIZE="$(declare -f term.size)"
 	term.size() {

@@ -32,12 +32,16 @@ declare -ga _TP_ROW_ORDER=()   # rows touched this call, first-seen order
 # associative-array subscript outright (confirmed: a[""]=1 errors "bad
 # array subscript" even quoted, not just a quoting gotcha).
 declare -g _TP_PRE_ROW="-1"
+declare -g _TP_LAST="" # last diffed buffer that had no pre-goto run: re-sending it verbatim changes nothing
 
 # tui.paint.reset - forget every remembered row (a full erase.all just
 # blanked the physical screen, or the terminal was just taken over/resized
 # drastically enough that comparing against old bytes would be meaningless
 # - either way, the next flush must resend everything unconditionally).
-tui.paint.reset() { _TUI_PAINT_PREV=(); }
+tui.paint.reset() {
+	_TUI_PAINT_PREV=()
+	_TP_LAST=""
+}
 
 # _tui_paint.split_rows BUF - fills _TP_ROW/_TP_ROW_ORDER: BUF cut at every
 # \e[ROW;COLH boundary, each goto (kept verbatim) plus the content up to
@@ -74,8 +78,11 @@ _tui_paint.split_rows() {
 # chunk removed, and records the rows it kept as the new "last sent" bytes
 # for next time.
 _tui_paint.diff() {
-	_tui_paint.split_rows "$1"
 	_TP_OUT=""
+	[[ -n "$1" && "$1" == "$_TP_LAST" ]] && return # every row of it is already PREV
+	_tui_paint.split_rows "$1"
+	_TP_LAST=""
+	[[ -z "${_TP_ROW[$_TP_PRE_ROW]+x}" ]] && _TP_LAST="$1"
 	local row
 	for row in "${_TP_ROW_ORDER[@]}"; do
 		if [[ "$row" == "$_TP_PRE_ROW" || "${_TP_ROW[$row]}" != "${_TUI_PAINT_PREV[$row]:-}" ]]; then
@@ -83,4 +90,22 @@ _tui_paint.diff() {
 			[[ "$row" != "$_TP_PRE_ROW" ]] && _TUI_PAINT_PREV[$row]="${_TP_ROW[$row]}"
 		fi
 	done
+}
+
+declare -gi _TUI_PAINT_GEN=-1 # _TUI_FLUSH_GEN right after the last diffed flush
+
+# _tui_paint.flush BUF - _tui._flush with unchanged rows left out. _TUI_PAINT_PREV only
+# describes the screen while nothing else painted since the last call, which every
+# other flush and standalone draw shows by bumping _TUI_FLUSH_GEN; otherwise (or when
+# BUF itself erases the screen) the memory is dropped and BUF goes out whole.
+_tui_paint.flush() {
+	((_TUI_PAINT_GEN == _TUI_FLUSH_GEN)) || tui.paint.reset
+	if [[ "$1" == *$'\e[2J'* ]]; then
+		tui.paint.reset
+		_tui._flush "$1"
+	else
+		_tui_paint.diff "$1"
+		_tui._flush "$1" "$_TP_OUT"
+	fi
+	_TUI_PAINT_GEN=$_TUI_FLUSH_GEN
 }

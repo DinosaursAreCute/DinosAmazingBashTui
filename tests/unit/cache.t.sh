@@ -12,7 +12,7 @@ _cache_fixture() { # NAME CONTENT -> writes CONTENT to $_T_ROOT/NAME, returns it
 	printf '%s' "$2" >"$_CF"
 }
 
-t_cache_record_then_valid_then_replay_rebuilds_same_state() {
+ti_cache_record_then_valid_then_replay_rebuilds_same_state() {
 	_cache_fixture cb.sh 'declare -gi CACHE_SCRIPT_RUNS=$((CACHE_SCRIPT_RUNS + 1))'
 	_cache_fixture page.xml '<tui on_visit="cache_test_on_visit"><script src="cb.sh"/><pane id="root" split="v"><pane id="a" weight="1"/><pane id="b" weight="2"/></pane></tui>'
 	declare -gi CACHE_SCRIPT_RUNS=0 CACHE_ON_VISIT_RUNS=0
@@ -35,7 +35,7 @@ t_cache_record_then_valid_then_replay_rebuilds_same_state() {
 	eq "2" "$CACHE_ON_VISIT_RUNS"
 }
 
-t_cache_editing_page_invalidates_it() {
+ti_cache_editing_page_invalidates_it() {
 	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
 	touch -d '@1000000000' "$_CF"
 	tui.reset_ui
@@ -71,7 +71,7 @@ _cache_deeper_replay_wrapper() { tui.cache.replay "$1"; }
 # than whichever one warmed the cache, and every cached page is too narrow
 # (or too wide). _tui._root_w (lib/chrome/tui_footer.sh) fixes it the same
 # way - proven here by recording at one size and replaying at another.
-t_cache_restore_reaches_global_scope_and_root_matches_replay_time_size() {
+ti_cache_restore_reaches_global_scope_and_root_matches_replay_time_size() {
 	_cache_fixture page.xml '<tui><pane id="root" split="h"><pane id="a" weight="1"/><pane id="b" weight="1"/></pane></tui>'
 	local real_term_size
 	real_term_size="$(declare -f term.size)"
@@ -119,7 +119,7 @@ t_cache_restore_reaches_global_scope_and_root_matches_replay_time_size() {
 # This test fails against the first (theme-table-only) fix: it would pass
 # the _TUI_CLASS_FG assertion but fail the _TUI_STYLE_FG one, which is
 # exactly the gap the screenshot report caught.
-t_cache_replay_reapplies_theme_overlay_to_baked_widget_style() {
+ti_cache_replay_reapplies_theme_overlay_to_baked_widget_style() {
 	_cache_fixture theme_a.css '.t_cache_theme_probe { fg: red; }'
 	local theme_a="$_CF"
 	_cache_fixture theme_b.css '.t_cache_theme_probe { fg: blue; }'
@@ -148,7 +148,7 @@ t_cache_replay_reapplies_theme_overlay_to_baked_widget_style() {
 }
 
 # After start-up the cache is trusted: a recorded page is valid without looking at its files.
-t_cache_trusted_skips_the_mtime_check() {
+ti_cache_trusted_skips_the_mtime_check() {
 	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
 	touch -d '@1000000000' "$_CF"
 	tui.reset_ui
@@ -181,7 +181,7 @@ t_cache_trusted_theme_memo_is_not_stat_checked() {
 
 # The snapshot is rewritten to `declare -g...` once, at record time; a dump from an earlier version (plain declare -p)
 # still restores through the line-by-line rewrite.
-t_cache_snapshot_is_ready_to_eval_and_old_dumps_still_restore() {
+ti_cache_snapshot_is_ready_to_eval_and_old_dumps_still_restore() {
 	declare -gA _TUI_W_SNAPTEST=([k]=v)
 	declare -g _TUI_W_SNAPSCALAR="plain"
 	local fresh legacy
@@ -201,7 +201,7 @@ t_cache_snapshot_is_ready_to_eval_and_old_dumps_still_restore() {
 
 # The geometry in a snapshot is laid out for the size it was recorded at: a replay at that size needs no relayout, and
 # the geometry it leaves equals what a relayout would compute.
-t_cache_replay_skips_the_relayout_at_the_recorded_size_and_keeps_the_geometry() {
+ti_cache_replay_skips_the_relayout_at_the_recorded_size_and_keeps_the_geometry() {
 	_cache_fixture page.xml '<tui><pane id="root" split="h"><pane id="a" weight="1"/><pane id="b" weight="3"/></pane></tui>'
 	_TUI_ROWS=24 _TUI_COLS=80
 	tui.reset_ui
@@ -217,7 +217,7 @@ t_cache_replay_skips_the_relayout_at_the_recorded_size_and_keeps_the_geometry() 
 	eq "$g_full" "$g_skip"
 }
 
-t_cache_replay_relays_out_at_another_size() {
+ti_cache_replay_relays_out_at_another_size() {
 	_cache_fixture page.xml '<tui><pane id="root" split="h"><pane id="a" weight="1"/><pane id="b" weight="3"/></pane></tui>'
 	_TUI_ROWS=24 _TUI_COLS=80
 	tui.reset_ui

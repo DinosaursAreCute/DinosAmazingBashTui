@@ -109,7 +109,7 @@ t_node_reset_clears_every_table() {
 	eq "0" "${#_N_BY_ID[@]}"
 }
 
-t_node_walk_over_1000_nodes_is_fast() {
+ti_node_walk_over_1000_nodes_is_fast() {
 	tui_node.reset
 	tui_node.create pane
 	local root=$_N

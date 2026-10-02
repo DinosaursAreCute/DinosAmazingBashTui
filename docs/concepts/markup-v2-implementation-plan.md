@@ -22,7 +22,7 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 1.3 Snapshot cache | `lib/markup/tui_cache.sh` | medium | done |
 | 1.4 Parallel warm-up | `lib/markup/tui_cache.sh` | medium | done |
 | 2A Layout | `lib/layout/tui_layout.sh` | medium | done |
-| 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | todo |
+| 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | done |
 | 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | todo |
 | 2D Node ops | `lib/markup/tui_ops.sh` | medium | todo |
 | 3A Fused/resize/collapse | `lib/layout/tui_frame.sh` | medium | todo |
@@ -54,7 +54,7 @@ Orchestration (stage start, gate review, cross-track decisions) runs at high eff
 | Gate | Check |
 |---|---|
 | G1 Tests | `bats tests/ tests/dapk/` and `tools/t.sh` pass |
-| G2 Test speed | Unit suite < 200 ms per 100 tests, enforced by the runner |
+| G2 Test speed | Unit (`t_*`) suite < 200 ms per 100 tests; integration (`ti_*`, page build/replay) exempt from the flat budget, capped at 1 s total (`TUI_T_INTEG_MS`); both enforced by the runner |
 | G3 Performance | `tools/bench/run.sh --compare baseline` shows no bench more than 5 % slower in mean; the stage's target benches improve |
 | G4 Frames | Golden frames of every `share/demo/*.xml` page and of DABT_someApp are identical, unless the stage changes them on purpose (changes are reviewed and re-recorded) |
 | G5 Docs | `tools/gen_api_docs.sh --check` passes; guide and XSD are updated for new tags and attributes |

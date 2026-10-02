@@ -70,18 +70,20 @@ _T_SNAPSHOT="$(_t_snapshot)"
 # every "declare -X" to "declare -gX" line by line first - a blind whole-
 # string replace on "declare -" would turn a scalar's "declare -- NAME=…"
 # into the invalid "declare -g- NAME=…".
-_t_restore() {
-	local out="" line
+_T_RESTORE_SRC=""
+_t_restore_prepare() {
+	local line
 	while IFS= read -r line; do
 		if [[ "$line" == "declare --"* ]]; then
 			line="declare -g${line#declare --}"
 		elif [[ "$line" == "declare -"* ]]; then
 			line="declare -g${line#declare -}"
 		fi
-		out+="$line"$'\n'
+		_T_RESTORE_SRC+="$line"$'\n'
 	done <<<"$_T_SNAPSHOT"
-	eval "$out"
 }
+_t_restore_prepare
+_t_restore() { eval "$_T_RESTORE_SRC"; }
 
 # ── assertions ────────────────────────────────────────────────────────────
 _t_fail() {
@@ -111,7 +113,12 @@ for _t_file in "$REPO"/tests/unit/*.t.sh; do
 done
 unset _t_file
 
-mapfile -t _T_ALL < <(compgen -A function t_)
+# t_* = unit tests (flat 2 ms/test budget); ti_* = integration tests (page build/replay,
+# file stamps): exempt from the flat budget, capped in total by TUI_T_INTEG_MS.
+mapfile -t _T_ALL < <(
+	compgen -A function t_
+	compgen -A function ti_
+)
 _T_NAMES=()
 for _t_name in "${_T_ALL[@]}"; do
 	[[ -z "$_T_PATTERN" || "$_t_name" == *"$_T_PATTERN"* ]] && _T_NAMES+=("$_t_name")
@@ -123,8 +130,10 @@ _T_PASS=0
 _T_FAIL=0
 _T_FAIL_LINES=()
 _T_START="${EPOCHREALTIME//[!0-9]/}"
+_T_UNIT_US=0 _T_INTEG_US=0 _T_UNIT_N=0 _T_INTEG_N=0
 
 for _T_CUR in "${_T_NAMES[@]}"; do
+	_T_T0="${EPOCHREALTIME//[!0-9]/}"
 	_t_restore
 	_T_FAILED=0
 	"$_T_CUR"
@@ -133,6 +142,11 @@ for _T_CUR in "${_T_NAMES[@]}"; do
 		((_T_FAIL++))
 	else
 		((_T_PASS++))
+	fi
+	if [[ "$_T_CUR" == ti_* ]]; then
+		((_T_INTEG_US += ${EPOCHREALTIME//[!0-9]/} - _T_T0, _T_INTEG_N++))
+	else
+		((_T_UNIT_US += ${EPOCHREALTIME//[!0-9]/} - _T_T0, _T_UNIT_N++))
 	fi
 done
 
@@ -145,14 +159,19 @@ done
 
 printf '%d %d %d\n' "$_T_PASS" "$_T_FAIL" "$_T_MS"
 
-_T_COUNT=${#_T_NAMES[@]}
-if ((_T_COUNT > 0)); then
-	_T_BUDGET_MS=$((200 * _T_COUNT / 100))
-	((_T_BUDGET_MS < 1)) && _T_BUDGET_MS=1
-	if ((_T_MS > _T_BUDGET_MS)); then
-		echo "t.sh: speed budget exceeded: ${_T_COUNT} tests took ${_T_MS}ms, budget ${_T_BUDGET_MS}ms" >&2
-		exit 1
-	fi
+# flat budget: unit tests only (200 ms per 100); integration tests get a total cap
+_T_BUDGET_MS=$((200 * _T_UNIT_N / 100))
+((_T_UNIT_N > 0 && _T_BUDGET_MS < 1)) && _T_BUDGET_MS=1
+_T_UNIT_MS=$((_T_UNIT_US / 1000))
+_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-1000}
+_T_INTEG_MS=$((_T_INTEG_US / 1000))
+if ((_T_UNIT_N > 0 && _T_UNIT_MS > _T_BUDGET_MS)); then
+	echo "t.sh: speed budget exceeded: ${_T_UNIT_N} tests took ${_T_UNIT_MS}ms, budget ${_T_BUDGET_MS}ms" >&2
+	exit 1
+fi
+if ((_T_INTEG_MS > _T_INTEG_CAP_MS)); then
+	echo "t.sh: speed budget exceeded: ${_T_INTEG_N} integration tests took ${_T_INTEG_MS}ms, cap ${_T_INTEG_CAP_MS}ms" >&2
+	exit 1
 fi
 
 ((_T_FAIL == 0))

@@ -2077,23 +2077,27 @@ _tui._now_us() {
 # instead of five near-identical copies of the same three lines. Timing
 # only happens while _TUI_PERF_TRACKING is on.
 _tui._flush() {
-	local buf="$1"
+	local buf="$1" out="${2-$1}" # OUT: the part of BUF that must reach the terminal (tui_paint.sh drops unchanged rows)
 	((_TUI_OVL_FLUSHING)) || _tui_modal.base_fold "$buf"
 	((_TUI_FLUSH_GEN++))
 	if ((! _TUI_PERF_TRACKING)); then
+		[[ -z "$out" ]] && return
 		mode.sync_start
-		printf '%s' "$buf"
+		printf '%s' "$out"
 		mode.sync_end
 		return
 	fi
 
 	_tui_perf.begin flush
-	_tui_perf.count bytes_flushed "${#buf}"
+	_tui_perf.count bytes_flushed "${#out}"
+	_tui_perf.count bytes_suppressed "$((${#buf} - ${#out}))"
 	_tui._now_us
 	local t0=$_TUI_NOW_US
-	mode.sync_start
-	printf '%s' "$buf"
-	mode.sync_end
+	[[ -n "$out" ]] && {
+		mode.sync_start
+		printf '%s' "$out"
+		mode.sync_end
+	}
 	_tui._now_us
 	local t1=$_TUI_NOW_US
 	_tui_perf.end flush
@@ -2128,8 +2132,22 @@ tui.perf.mean_render_ms() {
 	printf '%s' "$((sum / count))"
 }
 
+# tui.frame.request - asks for a full relayout + repaint at the end of the current
+# main-loop iteration. Any number of requests inside one event collapse into one frame;
+# tui.render (an immediate frame) satisfies a pending request.
+declare -gi _TUI_FRAME_REQ=0
+tui.frame.request() { _TUI_FRAME_REQ=1; }
+
+# _tui.frame_present - the main loop's end-of-iteration hook: the requested frame, once.
+_tui.frame_present() {
+	((_TUI_FRAME_REQ)) || return 0
+	_TUI_FRAME_REQ=0
+	tui.relayout
+}
+
 tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
+	_TUI_FRAME_REQ=0
 	_tui_perf.begin render
 	_tui_perf.count full_renders
 	# Refresh every leaf pane's content-fit cache up front: _tui._draw_pane_buf
@@ -2167,19 +2185,9 @@ tui.render() {
 	for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
 		[[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output_buf "$_oid"
 	done
-	# NOT diffed through lib/render/tui_paint.sh: tried it here, measured it
-	# back out. tui.render's only real callers are genuine full transitions
-	# (tui.init, a resize, tui.goto's page switch) - every hand-optimized
-	# incremental case (hover, focus, output/scroll) already goes through
-	# its own targeted _tui._draw_*_now path instead of tui.render, so by
-	# the time tui.render actually runs, the content is essentially always
-	# different from what's on screen. The diff's per-row split still costs
-	# real time even when it finds nothing reusable: measured a genuine
-	# page-switch render (components.xml -> home.xml) at +41% (20.5ms ->
-	# 29.0ms, stable across repeats) with zero rows actually skipped. See
-	# lib/render/tui_paint.sh for the mechanism itself - it's real and
-	# tested, just doesn't have a beneficial call site in this codebase's
-	# existing render architecture.
+	# Not diffed: tui.render only runs for full transitions (init, resize, page switch),
+	# where almost every row differs and the split costs more than it saves (+41% measured).
+	# Targeted redraws (_tui._draw_ids_now) go through _tui_paint.flush instead.
 	_TUI_BASE_FRAME="$_TUI_FRAME"
 	_TUI_BASE_GEN=-1 # this flush is the base itself: no fold
 	_tui._flush "$_TUI_FRAME"
@@ -2322,7 +2330,7 @@ _tui._draw_ids_now() {
 	local buf="$_TUI_FRAME"
 	_TUI_FRAME="$_din_saved"
 	[[ -z "$buf" ]] && return
-	_tui._flush "$buf"
+	_tui_paint.flush "$buf"
 }
 
 # DRAW_FN passed to _tui._draw_ids_now must append to _TUI_FRAME (the _buf
@@ -3602,6 +3610,7 @@ tui.run() {
 				"$_tick_listener"
 			done
 		fi
+		_tui.frame_present
 	done
 
 	_master_cleanup

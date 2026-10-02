@@ -109,6 +109,27 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 
 <!-- /api -->
 
+## Focus and hit zones
+
+`lib/input/tui_focus.sh` keeps the Tab order and group navigation, `lib/input/tui_hit.sh` the per-row index of mouse zones (scrollbar, divider, handle, chevron, title, widget, hitbox, pane). Both are driven by widget attributes in markup.
+
+<!-- api: tui.focus.set tui.hit.set -->
+
+| Function | Summary |
+|---|---|
+| [`tui.focus.set`](input/tui.focus.set.md) | Sets one focus attribute of a widget. Every attribute is also a markup attribute on every widget tag, so most pages never call this. |
+| [`tui.hit.set`](input/tui.hit.set.md) | Widens the area of a widget that counts as a mouse hit. The same names work as markup attributes on every widget tag. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative input/tui.focus.set.md %}
+
+{% include_relative input/tui.hit.set.md %}
+
+</div>
+
+<!-- /api -->
+
 ## Built-in actions
 
 Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` or `tui.cmd.add`. All are bound by default and rebindable. More actions live with their modules: [`tui.action.text_keys`](widgets/tui.action.text_keys.md), [`tui.action.update`](apps/tui.action.update.md), [`tui.palette.open`](chrome/tui.palette.open.md).
@@ -119,12 +140,12 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 |---|---|
 | [`tui.action.quit`](input/tui.action.quit.md) | Quits the app. Asks for confirmation first when the `confirm.quit` config key is `1`. |
 | [`tui.action.quit_now`](input/tui.action.quit_now.md) | Quits the app without asking, regardless of `confirm.quit`. |
-| [`tui.action.focus_next`](input/tui.action.focus_next.md) | Moves focus to the next focusable widget in creation order, wrapping around (`tab`). |
+| [`tui.action.focus_next`](input/tui.action.focus_next.md) | Moves focus to the next focusable widget in Tab order (`tab_order`, else document order), wrapping around (`tab`). |
 | [`tui.action.focus_prev`](input/tui.action.focus_prev.md) | Moves focus to the previous focusable widget (`shift+tab`). |
 | [`tui.action.focus_dir`](input/tui.action.focus_dir.md) | Moves focus to the widget you would expect in that direction on screen. |
 | [`tui.action.unfocus`](input/tui.action.unfocus.md) | Removes focus from the focused widget (`esc`). |
 | [`tui.action.activate`](input/tui.action.activate.md) | Acts on the focused widget as Enter does: presses a button, toggles a checkbox, submits a text widget, opens a select, or runs a list/table action. |
-| [`tui.action.click`](input/tui.action.click.md) | Handles a left press or drag: jumps a scrollbar, else acts on the widget under the pointer, else removes focus. |
+| [`tui.action.click`](input/tui.action.click.md) | Handles a left press or drag: jumps a scrollbar (the pointer is in a scrollbar hit zone, 3 cells wide), else acts on the widget under the pointer, else removes focus. |
 | [`tui.action.scroll`](input/tui.action.scroll.md) | Scrolls the target pane by `N` lines (up/down, default 3) or columns (left/right, default 5). |
 | [`tui.action.page`](input/tui.action.page.md) | Scrolls the target pane by one screen (its height minus 3 rows). |
 | [`tui.action.scroll_top`](input/tui.action.scroll_top.md) | Scrolls the target pane to the top left. |

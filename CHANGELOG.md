@@ -6,6 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+Markup v2, stage 2: pages become data that can be reused, extended and changed while the app runs.
+
+### News
+
+* **Holding an arrow key feels instant.** Moving focus with Up/Down on the nav bar paints about 8× fewer bytes and takes about 4 ms per repeat instead of about 13 ms, well under the ~33 ms a held key repeats at.
+* **Arrow-key focus on busy pages is about 10× cheaper.** Finding the neighbouring widget no longer recomputes every widget's position on each press.
+* **The profiler now measures a held key the way a finger feels it.** New `held` scenario: real key-repeat pacing, hold lengths from a tap to a long hold, per-press lag and render cadence for the nav bar, lists, tables, inputs, Tab and PgDn.
+
+### Added
+
+* Profiler `--scenario held` (`tools/profiler/dprof/scenarios.py`, group kind `held`, 50 ms budget): sends one press every 33 ms (the ~30/s repeat of a held key) for holds of 0.1 s to 1 s, Down then Up, on the nav bar, a list, a table, an input (typing and cursor), Tab cycling, a page of widgets and PgDn/PgUp. Per press it reports queue time (sent to handled) and lag (sent to the first output the terminal receives, so widgets that draw outside `_tui._flush` count), plus the mean gap between frames. The rating uses the worst press, not the first paint.
+* Tests: a focus move draws no border inside one pane, does no row diff and flushes once; `tui.action.focus_dir` direction, stale-index and no-position-recompute tests.
+* Reuse in pages: `<template>`/`<use>`/`<slot>`/`<fill>`, `<component name src>`, `<for each|count>`, `<if test>`/`<else>`, and `<include src p="v"/>` with `{{@p}}` parameters. They are expanded when a page loads (`lib/markup/tui_compose.sh`), so the built page has only plain tags.
+* Addons: `<addon id target priority>` files with `append`, `prepend`, `before`, `after`, `replace`, `remove`, `set` and `wrap` ops, read from `$TUI_APP_CONF/addons` and from folders given to `tui.addon.dir` (plugin-owned, `tui.addon.undir` removes one). Addon files and folders are part of a page's cache signature.
+* `tui.page.refresh`: re-applies addons to the page on screen and rebuilds only the panes whose content changed (`lib/markup/tui_refresh.sh`). Pages keep their raw tree and a signature per pane in the snapshot. Nothing changed: 27 ms; one addon: about 45 ms; the result equals a full load (unit-tested).
+* `tui.job.run`, `tui.job.cancel`, `tui.job.running`: work in a background process with a spinner after a configurable delay (default 100 ms) and a done function that draws the result in one go (`lib/tui_job.sh`). `tui.page.rebuild [--quiet]` builds a page in the background and shows it when complete. `tui.cache.forget FILE`.
+* `tui.get ID VAR` and `tui.list.selected ID VAR` store into a variable instead of printing (no subshell).
+* Focus and hit zones (`lib/input/tui_focus.sh`, `tui_hit.sh`): `tab_order`, `tabbable`, `focusable`, `focus_group`, `focus_nav`, `focus_wrap`, `focus_next`, `focus_prev`, `autofocus`, `hit_pad`, `hitbox`, a per-row zone index, mouse events carry `TUI_EVENT_ZONE`, `_ZONE_ID`, `_ZONE_ARG`; pane titles are zones; `tui.focus.set`, `tui.hit.set`.
+* Paint pipeline: targeted redraws are diffed against the last flush row by row (`bytes_suppressed`), `tui.frame.request` coalesces redraws to one flush per loop pass, the line canvas has a junction table for every border style.
+* Demo: the *Addons* page (five example addons in `share/demo/addon_examples/`) and the *Generated* page (cards from one template and two loops, driven by a control panel); both reachable from the command bar. The header and menu are templates in `share/demo/_templates.xml`.
+* Validator and schema: the composition and addon tags, `<component>` makes `<name>` a known tag on its page, and the sizing attributes (`width`, `height`, `gap`, `padding`, `expand`, `min_height`, `max_height`) are in `share/tui.xsd`. Addon files validate as documents of their own.
+* Tooling: profiler scenarios `addons` and `generated` (100 ms budgets), `tools/bench/hit.sh`; the unit runner splits `t_*` unit tests (2 ms each) from `ti_*` integration tests (60 ms each on average) and caches its state restore.
+* Docs: a rewritten markup guide, grid and tabs guide, app guide, performance guide (new costs and rules), a new design page ([pages, templates, addons and refresh](docs/design/pages-templates-addons-refresh.md)), and updated tutorials; the first-app example is the tutorial's final state. A unit test validates the page examples in the guides.
+
+### Changed
+
+* `tui.focus` knows its dirty set (the old and the new widget, plus the border of every pane whose keyboard focus changed), so it draws them into one frame and flushes it raw: no row diff, no border redraw when focus stays in the same pane.
+* `tui.action.focus_dir` reads widget rects from the hit index (`_TUI_HZ_WR/WC/WW`, filled by `_tui_hit.rebuild`) instead of one `_tui._widget_pos` call per focusable widget per press. Widgets the index skips fall back to `_tui._widget_pos`.
+* Widgets nested in a pane start on its first line (row 0). They were placed from row 1.
+* Shift+Tab with nothing focused starts at the last widget. A pane that scrolls only vertically has no bottom-row scrollbar zone, and a widget's click area is clipped to its pane. Scrollbars react three cells wide.
+* `tui.cache.deps_of` and the parser's `<include>` lookup no longer fork, and the parser finds the end of a tag with one regex instead of a loop over its characters.
+* Node store: `_N_ANAMES` lists each node's attribute names, so clone, remove, parameter substitution and the `wx` widget builder visit only the attributes they need.
+* Demo pages use `<include src="_templates.xml"/>` and `<use template=...>` instead of the `_header.xml` and `_nav.xml` fragments (removed).
+
+### Fixed
+
+* `${v//a/&...}` on bash 5.2+ treats `&` as "the matched text": template parameters containing `&` and the `wx` widget attribute rebuild now quote the replacement.
+* `<if>` branches sharing a widget id removed the kept branch from the id index.
+* An addon folder that was both registered and the app's own was read twice and reported as an include cycle.
+* The validator demanded `pane` and `row` on widgets nested in a pane.
+
 ## [0.0.22] - 2026-10-01
 
 DevEx Update 1.93,75 ([release notes](release-notes/devex-update-1.93,75.md)).

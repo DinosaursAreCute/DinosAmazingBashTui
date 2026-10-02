@@ -1,9 +1,10 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="sc_tab_fit">
+  <include src="_templates.xml"/>
   <script src="showcase_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
   <pane id="root1" weight="90" split="h">
     <pane id="sidebar" weight="18" split="v" border="none">
       <pane id="nav"      weight="52" title="Menu"    border="single" class="sidebar"/>
@@ -30,5 +31,5 @@
   <input    id="inp_fv" pane="controls" row="5" label="vpad:" label_width="7" placeholder="0-9" submit="on_fit_pad"/>
   <label    id="lbl_fit_tip" pane="controls" row="7" text="Resize the terminal too." class="muted_label"/>
 
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

@@ -43,7 +43,7 @@ _tui_wx.new() {
 	_TUI_W_VALUE[$id]=""
 	_TUI_W_ACTION[$id]=""
 	_TUI_W_ORDER+=("$id")
-	[[ "$5" == 1 ]] && _TUI_FOCUSABLE+=("$id")
+	_tui_w.changed
 	return 0
 }
 
@@ -142,7 +142,15 @@ tui.list.count() {
 	_tui_wx.arr "$1"
 	printf '%s\n' "${#_WXA[@]}"
 }
-tui.list.selected() { printf '%s\n' "${_WXSEL[$1]:--1}"; }
+# tui.list.selected ID [VAR] - the selected index (-1 = none): printed, or stored in VAR without a subshell
+tui.list.selected() {
+	if [[ -n "${2:-}" ]]; then
+		local -n _ls_out="$2"
+		_ls_out="${_WXSEL[$1]:--1}"
+	else
+		printf '%s\n' "${_WXSEL[$1]:--1}"
+	fi
+}
 tui.list.item() {
 	_tui_wx.arr "$1"
 	local i="${2:-${_WXSEL[$1]:--1}}"
@@ -171,7 +179,7 @@ tui.table.add() { tui.list.add "$@"; }
 tui.table.clear() { tui.list.clear "$1"; }
 tui.table.count() { tui.list.count "$1"; }
 tui.table.select() { tui.list.select "$@"; }
-tui.table.selected() { tui.list.selected "$1"; }
+tui.table.selected() { tui.list.selected "$@"; }
 tui.table.row() { tui.list.item "$@"; }
 tui.select.set() {
 	local id="$1"

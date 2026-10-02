@@ -145,14 +145,14 @@ def latency_groups(rounds):
             continue
         title, kind, budget = GROUP_INFO[gid]
         g = {"id": gid, "title": title, "kind": kind, "budget_ms": budget, "n": len(acts)}
-        for m in ("paint_ms", "settle_ms", "busy_ms", "queue_ms", "cpu_ms", "frames", "bytes"):
+        for m in ("paint_ms", "settle_ms", "busy_ms", "queue_ms", "cpu_ms", "frames", "bytes", "lag_med_ms", "lag_max_ms", "tail_ms", "frame_gap_ms"):
             g[m[:-3] if m.endswith("_ms") else m] = stats([a.get(m) for a in acts])
         g["samples"] = [a.get("settle_ms") for a in acts if a.get("settle_ms") is not None]
         g["frame_src"] = frame_sources(acts)
         g["panes"] = pane_costs(acts)
         g["spans"] = span_costs(acts)
         # the number the rating uses: what the user waits for in this kind of interaction
-        metric = "settle" if kind in ("nav", "resize", "shutdown", "startup") else "paint"
+        metric = "settle" if kind in ("nav", "resize", "shutdown", "startup", "held") else "paint"
         if g.get(metric) is None or g[metric]["n"] < max(1, len(acts) // 4):
             metric = "busy" if g.get("busy") else "settle"
         g["metric"] = metric

@@ -3,14 +3,22 @@
 Besides label, button, checkbox and input, DABT has a multi-line **textarea**, a masked **password** field, a scrollable **list**, a **table**, a **select** (dropdown) and a **progress** bar. They are ordinary widgets: they take part in focus (Tab, arrows), theming (`class=`), hover and click, and `tui.get` / `tui.set` / `tui.update` work on them. API tables: [../api/widgets.md](../api/widgets.md#richer-widgets).
 
 ```xml
-<textarea id="notes"  pane="p" row="0" placeholder="type here..." rows="0" on_change="saved_draft"/>   <!-- rows 0 = fill the pane -->
-<input    id="user"   pane="f" row="0" label="User:" submit="login"/>
-<password id="pass"   pane="f" row="1" label="Pass:" submit="login"/>
-<select   id="mode"   pane="f" row="3" label="Mode:" items="fast|balanced|careful" value="balanced" action="picked"/>
-<progress id="job"    pane="f" row="5" label="Job:" value="0"/>
-<list     id="files"  pane="d" row="0" rows="6" items="a|b|c" action="open_it" on_change="moved"/>
-<table    id="rows"   pane="d" row="7" columns="File|Size" data="a.txt|1k;b.txt|2k" action="open_row"/>
+<pane id="editor" title="Notes" hpad="1">
+  <textarea id="notes" placeholder="type here..." rows="0" on_change="saved_draft"/>   <!-- rows 0 = fill the pane -->
+</pane>
+<pane id="form" title="Login" hpad="1">
+  <input    id="user" label="User:" submit="login"/>
+  <password id="pass" label="Pass:" submit="login"/>
+  <select   id="mode" label="Mode:" items="fast|balanced|careful" value="balanced" action="picked" row="3"/>
+  <progress id="job"  label="Job:" value="0" row="5"/>
+</pane>
+<pane id="data" title="Files" hpad="1">
+  <list  id="files" rows="6" items="a|b|c" action="open_it" on_change="moved"/>
+  <table id="rows" columns="File|Size" data="a.txt|1k;b.txt|2k" action="open_row" row="7"/>
+</pane>
 ```
+
+A widget is written inside its pane and takes the next line; `row="N"` skips ahead (here to leave a gap above the select and the table).
 
 The same widgets exist as calls: `tui.textarea ID PANE ROW [PLACEHOLDER] [ROWS] [SUBMIT_FN]`, `tui.password`, `tui.select`, `tui.progress`, `tui.list`, `tui.table` (see the reference). Data is set at runtime: `tui.list.set files a b c`, `tui.table.set rows "File|Size" "a.txt|1k"`, `tui.progress.set job 40`.
 

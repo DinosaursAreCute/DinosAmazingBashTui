@@ -88,6 +88,10 @@ Markup binds are per page; add `scope="global"` to make one survive page changes
 - `tui.action.focus_pane NAME` focuses a pane (its last widget, or scroll focus): `<bind key="alt+n" action="tui.action.focus_pane nav"/>`.
 - `tui.action.goto page.xml`: `<bind key="alt+2" action="tui.action.goto components.xml"/>`. `tui.get.pages` lists pages seen by nav buttons.
 - Arrow keys move focus **spatially** (`tui.action.focus_dir`), by beam: Left/Right stay on the same screen row (nearest first); Up/Down follow the column beam straight above/below (overlapping columns, nearest row, closest centre). Nothing in that direction = stay put; Tab / shift+tab still walk the whole list.
+- Tab order: `tab_order="1"`, `"2"`, … on widgets sets the order Tab visits them; `0` goes first and `-1` last, widgets without a value follow in document order. `tabbable="false"` skips a widget, `autofocus="true"` starts there. Full list of attributes: [`tui.focus.set`](../api/input/tui.focus.set.md).
+- Groups: widgets sharing `focus_group="mode" focus_nav="arrows"` are one Tab stop and the arrow keys move inside the group.
+- Mouse: a scrollbar reacts in a strip 3 cells wide (the drawn bar plus one cell either side). `hit_pad="N"` and `hitbox="DY DX H W"` enlarge a widget's click area ([`tui.hit.set`](../api/input/tui.hit.set.md)).
+- Behaviour since the hit index: Shift+Tab with nothing focused starts at the last widget; a pane that scrolls only vertically has no bottom-row scrollbar zone; a widget's click area never extends outside its pane.
 
 ## Wheel
 plain: 3 lines | `shift`: 5 chars sideways | `ctrl`: exactly 1 line | `ctrl+shift`: exactly 1 char.

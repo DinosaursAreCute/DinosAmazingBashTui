@@ -96,15 +96,15 @@ tui.register.style_contract() {
 }
 
 # ── style contracts for every existing widget type and chrome element ─────
-tui.register.style_contract button "states:hover focus active disabled"
+tui.register.style_contract button "focusable:yes" "states:hover focus active disabled"
 tui.register.style_contract label "states:"
-tui.register.style_contract checkbox "states:checked unchecked focus hover"
-tui.register.style_contract input "states:focus hover"
-tui.register.style_contract password "states:focus hover"
-tui.register.style_contract textarea "states:focus hover"
-tui.register.style_contract select "states:focus hover"
+tui.register.style_contract checkbox "focusable:yes" "states:checked unchecked focus hover"
+tui.register.style_contract input "focusable:yes" "states:focus hover"
+tui.register.style_contract password "focusable:yes" "states:focus hover"
+tui.register.style_contract textarea "focusable:yes" "states:focus hover"
+tui.register.style_contract select "focusable:yes" "states:focus hover"
 tui.register.style_contract progress "states:" "classes:.progress .progress_fill"
-tui.register.style_contract list "states:focus hover" "classes:.list_sel"
-tui.register.style_contract table "states:focus hover" "classes:.table_head .table_sel"
+tui.register.style_contract list "focusable:yes" "states:focus hover" "classes:.list_sel"
+tui.register.style_contract table "focusable:yes" "states:focus hover" "classes:.table_head .table_sel"
 tui.register.style_contract tabs "states:" "classes:.tab_header .tab_header_compact"
 tui.register.style_contract pane "states:border title focus"

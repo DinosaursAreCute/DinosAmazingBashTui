@@ -61,7 +61,7 @@ source "$REPO/lib/tui.sh"
 # ~300 of those (mostly static config/lookup tables, never mutated by tests)
 # blows the speed budget for no correctness gain. Extend the pattern below
 # as later stages add mutable state modules with their own tests.
-_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP)') 2>/dev/null; }
+_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_HZ|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP|_TUI_ADDON_DIRS|TUI_APP_CONF$)') 2>/dev/null; }
 _T_SNAPSHOT="$(_t_snapshot)"
 # declare -p never emits -g (same gotcha tui_cache.sh's own _tui_cache_restore
 # works around): eval-ing the dump as-is inside this function would declare
@@ -114,7 +114,7 @@ done
 unset _t_file
 
 # t_* = unit tests (flat 2 ms/test budget); ti_* = integration tests (page build/replay,
-# file stamps): exempt from the flat budget, capped in total by TUI_T_INTEG_MS.
+# file stamps): exempt from the flat budget, capped at 60 ms per test on average (TUI_T_INTEG_MS sets the total).
 mapfile -t _T_ALL < <(
 	compgen -A function t_
 	compgen -A function ti_
@@ -163,7 +163,7 @@ printf '%d %d %d\n' "$_T_PASS" "$_T_FAIL" "$_T_MS"
 _T_BUDGET_MS=$((200 * _T_UNIT_N / 100))
 ((_T_UNIT_N > 0 && _T_BUDGET_MS < 1)) && _T_BUDGET_MS=1
 _T_UNIT_MS=$((_T_UNIT_US / 1000))
-_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-1000}
+_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-$((60 * _T_INTEG_N))} # 60 ms per integration test on average (a demo page load alone is ~100-300 ms)
 _T_INTEG_MS=$((_T_INTEG_US / 1000))
 if ((_T_UNIT_N > 0 && _T_UNIT_MS > _T_BUDGET_MS)); then
 	echo "t.sh: speed budget exceeded: ${_T_UNIT_N} tests took ${_T_UNIT_MS}ms, budget ${_T_BUDGET_MS}ms" >&2

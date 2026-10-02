@@ -349,7 +349,7 @@ tui.cache.deps_of() {
 	# while-read in this file.
 	while IFS= read -r -u 8 line; do
 		[[ "$line" == *"<include"* ]] || continue
-		src="$(_markup_attr "$line" src)"
+		_markup_attrv "$line" src src
 		[[ -z "$src" ]] && continue
 		resolved="$src"
 		[[ "$resolved" != /* ]] && resolved="${dir}/${src}"
@@ -386,7 +386,16 @@ tui.cache.record() {
 
 	local -a deps=()
 	tui.cache.deps_of "$file" deps
+	tui_addon.deps deps
 	_TUI_CACHE_SIG["$file"]="$(tui.cache.signature "${deps[@]}")"
+}
+
+# tui.cache.forget FILE - drops everything cached for FILE (an absolute page path): its next visit builds fresh.
+# For a page whose inputs changed while the app runs, where the trusted cache (below) would not look.
+tui.cache.forget() {
+	unset '_TUI_CACHE_PAGE[$1]' '_TUI_CACHE_SIG[$1]' '_TUI_CACHE_SCRIPTS[$1]' \
+		'_TUI_CACHE_ON_VISIT[$1]' '_TUI_CACHE_GOTOS[$1]' '_TUI_CACHE_THEME[$1]' \
+		'_TUI_CACHE_CLASSES[$1]'
 }
 
 # 1 once tui.start_cached has validated and warmed every page: source files are then assumed not to change while the
@@ -593,9 +602,7 @@ tui.cache.load_dir() {
 	_TUI_CACHE_MTIME_FRESH=1
 	for key in "${keys[@]}"; do
 		tui.cache.valid "$key" || {
-			unset '_TUI_CACHE_PAGE[$key]' '_TUI_CACHE_SIG[$key]' '_TUI_CACHE_SCRIPTS[$key]' \
-				'_TUI_CACHE_ON_VISIT[$key]' '_TUI_CACHE_GOTOS[$key]' '_TUI_CACHE_THEME[$key]' \
-				'_TUI_CACHE_CLASSES[$key]'
+			tui.cache.forget "$key"
 		}
 	done
 }

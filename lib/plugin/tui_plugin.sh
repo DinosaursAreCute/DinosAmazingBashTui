@@ -66,6 +66,7 @@ _tui_plugin.release() {   # NAME: undo, newest first
             every)    tui.every.cancel "$v" ;;
             tick)     tui.tick.remove "$v" ;;
             overlay)  tui.overlay.remove "$v" ;;
+            addondir) tui.addon.undir "$v" ;;
             provider) local f; local -a keep=(); for f in "${_TUI_CMD_PROVIDERS[@]}"; do [[ "$f" == "$v" ]] || keep+=("$f"); done; _TUI_CMD_PROVIDERS=("${keep[@]}") ;;
             run)      eval "$v" ;;
         esac

@@ -1,0 +1,10 @@
+<!-- Example addon 5: remove, replace and wrap. Takes parts of the page away, swaps one, and frames another. -->
+<addon id="tidy" target="addons.xml">
+  <remove ref="#lbl_legacy"/>
+  <replace ref="#btn_page">
+    <button id="swapped" text="[ Swapped in by the 'tidy' addon ]" action="on_addon_click" class="danger_button"/>
+  </replace>
+  <wrap ref="#note" type="pane" id="frame"/>
+  <set ref="#tidy_frame" attr="border" value="double"/>
+  <set ref="#tidy_frame" attr="title" value="Wrapped by 'tidy'"/>
+</addon>

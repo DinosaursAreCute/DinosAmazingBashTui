@@ -1,0 +1,7 @@
+<!-- Example addon 2: append. Adds two buttons as the LAST children of #body (ids toolbar_refresh, toolbar_export). -->
+<addon id="toolbar" target="addons.xml">
+  <append ref="#body">
+    <button id="refresh" text="[ Refresh (from toolbar) ]" action="on_addon_click" class="info_button"/>
+    <button id="export" text="[ Export (from toolbar) ]" action="on_addon_click" class="success_button"/>
+  </append>
+</addon>

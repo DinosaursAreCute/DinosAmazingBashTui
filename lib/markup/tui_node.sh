@@ -3,7 +3,7 @@
 # ║    tui_node.sh                                                          ║
 # ╚════════════════════════════════════════════════════════════════════════╝
 # tui_node.create TYPE [ID] [PARENT] -> _N   new node, appended to PARENT's kids
-# tui_node.attr_set N ATTR VALUE             sets one attribute
+# tui_node.attr_set N ATTR VALUE             sets one attribute (always through this: _N_ANAMES lists the names)
 # tui_node.attr_get N ATTR -> _N_ATTR_V       reads one attribute
 # tui_node.children N -> _N_CHILDREN[]        N's kids, in order
 # tui_node.walk N FN                          pre-order: FN NODE for N and every descendant
@@ -23,6 +23,7 @@ declare -ga _N_PARENT=() # node -> parent node number (empty for a root)
 declare -ga _N_KIDS=()   # node -> space-joined child node numbers, in order
 declare -ga _N_ID=()     # node -> markup id (may be empty)
 declare -gA _N_ATTR=()   # "node.attr" -> value
+declare -ga _N_ANAMES=() # node -> space-joined attribute names it has: lets code visit one node's attributes without scanning all of _N_ATTR
 declare -gA _N_BY_ID=()  # markup id -> node number
 
 tui_node.reset() {
@@ -32,6 +33,7 @@ tui_node.reset() {
 	_N_KIDS=()
 	_N_ID=()
 	_N_ATTR=()
+	_N_ANAMES=()
 	_N_BY_ID=()
 }
 
@@ -49,7 +51,17 @@ tui_node.create() {
 	fi
 }
 
-tui_node.attr_set() { _N_ATTR["$1.$2"]="$3"; }
+tui_node.attr_set() {
+	[[ -n "${_N_ATTR["$1.$2"]+x}" ]] || _N_ANAMES[$1]+="${_N_ANAMES[$1]:+ }$2"
+	_N_ATTR["$1.$2"]="$3"
+}
+
+# tui_node.attr_unset_all N - drop every attribute of node N
+tui_node.attr_unset_all() {
+	local name
+	for name in ${_N_ANAMES[$1]:-}; do unset '_N_ATTR["$1.$name"]'; done
+	unset '_N_ANAMES[$1]'
+}
 
 # tui_node.attr_get N ATTR -> _N_ATTR_V ; false and empty when unset.
 tui_node.attr_get() {
@@ -74,7 +86,7 @@ tui_node.walk() {
 # tui_node.dump -> stdout : declare -p of every node table, `source`-able
 # (or tui_node.load-able) to restore this exact state.
 tui_node.dump() {
-	declare -p _N_NEXT _N_TYPE _N_PARENT _N_KIDS _N_ID _N_ATTR _N_BY_ID
+	declare -p _N_NEXT _N_TYPE _N_PARENT _N_KIDS _N_ID _N_ATTR _N_ANAMES _N_BY_ID
 }
 
 # tui_node.load DUMP - restores every node table from tui_node.dump's

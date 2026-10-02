@@ -102,3 +102,26 @@ t_parse_detects_include_cycle_without_hanging() {
 	tui.parse.file "$_PF" 2>/dev/null
 	true
 }
+
+t_parse_greater_than_inside_a_quoted_value_does_not_end_the_tag() {
+	_parse_fixture gt.xml '<label id="a" text="x > y" alt='"'"'p>q'"'"'/><label id="b"/>'
+	tui.parse.file "$_PF"
+	tui_node.attr_get "${_N_BY_ID[a]}" text
+	eq "x > y" "$_N_ATTR_V"
+	tui_node.attr_get "${_N_BY_ID[a]}" alt
+	eq "p>q" "$_N_ATTR_V"
+	ok '[[ -n "${_N_BY_ID[b]:-}" ]]' # the next tag is still found
+}
+
+t_parse_unterminated_tag_is_reported_not_hung_on() {
+	_parse_fixture ut.xml '<tui><label id="a" text="oops'
+	tui.parse.file "$_PF"
+	match "${_P_ERRORS[*]}" "unterminated tag <label>"
+}
+
+t_parse_include_src_with_either_quote_style_is_found() {
+	_parse_fixture inc_q.xml '<label id="viaq"/>'
+	_parse_fixture host_q.xml "<tui><include src='inc_q.xml'/><include src=\"inc_q.xml\"/></tui>"
+	tui.parse.file "$_PF"
+	ok '[[ -n "${_N_BY_ID[viaq]:-}" ]]'
+}

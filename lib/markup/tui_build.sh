@@ -84,6 +84,23 @@ _tui_build.dispatch() {
 	tui.registered tag "$type" || return 0
 	local fn="${_TUI_REGISTERED##* }" # last registration wins, same rule as every other registry kind
 	"$fn" "$node"
+	case "$type" in label | input | button | checkbox | password | textarea | list | table | select | progress) _tui_build.focus_attrs "$node" ;; esac
+}
+
+# focus and hit attributes shared by every widget tag (see lib/input/tui_focus.sh, tui_hit.sh)
+_tui_build.focus_attrs() {
+	local node="$1" id a v
+	_tui_build.attrv "$node" id id
+	[[ -n "$id" ]] || return 0
+	for a in focusable tabbable tab_order focus_group focus_nav focus_wrap focus_next focus_prev autofocus; do
+		_tui_build.attrv "$node" "$a" v
+		[[ -n "$v" ]] && tui.focus.set "$id" "$a" "$v"
+	done
+	for a in hit_pad hitbox; do
+		_tui_build.attrv "$node" "$a" v
+		[[ -n "$v" ]] && tui.hit.set "$id" "$a" "$v"
+	done
+	return 0
 }
 
 # ── <tui> / <script> / <theme> ─────────────────────────────────────────────
@@ -93,8 +110,10 @@ _tui_build.tag.tui() {
 	local visit
 	_tui_build.attrv "$node" on_visit visit
 	[[ -n "$visit" ]] && _TUI_BUILD_ON_VISIT="$visit"
-	local ddef dg
+	local ddef dg fwrap
 	local -a dgs=()
+	_tui_build.attrv "$node" focus_wrap fwrap
+	[[ "$fwrap" == false ]] && _TUI_FOCUS_WRAP=0
 	_tui_build.attrv "$node" defaults ddef
 	if [[ -n "$ddef" ]]; then
 		IFS=',' read -ra dgs <<<"$ddef"
@@ -180,7 +199,7 @@ _tui_build.tag.pane() {
 
 	tui_node.children "$node"
 	local -a kids=("${_N_CHILDREN[@]}")
-	local k ctype pending="" row=1
+	local k ctype pending="" row=0 # the first widget in a pane sits on its first line (rows count from 0, as in an explicit row="0")
 	for k in "${kids[@]}"; do
 		ctype="${_N_TYPE[$k]}"
 		case "$ctype" in
@@ -528,11 +547,10 @@ tui.register tag checkbox _tui_build.tag.checkbox
 # node's own attributes rather than duplicating its five widget bodies here.
 _tui_build.tag.wx() {
 	local node="$1" type="${_N_TYPE[$1]}" line="<$type" k v
-	for k in "${!_N_ATTR[@]}"; do
-		[[ "$k" == "$node."* ]] || continue
-		v="${k#"$node".}"
+	for v in ${_N_ANAMES[$node]:-}; do
 		[[ "$v" == __* ]] && continue
-		line+=" $v=\"${_N_ATTR[$k]//\"/&quot;}\""
+		k="${_N_ATTR["$node.$v"]}"
+		line+=" $v=\"${k//\"/"&quot;"}\"" # quoted replacement: a bare & would stand for the matched quote (bash 5.2+)
 	done
 	line+="/>"
 	local pane row
@@ -620,10 +638,15 @@ tui_build.load() {
 	local file="$1"
 	_tui_perf.begin parse
 	tui.parse.file "$file"
+	_TUI_P_RAW="$(tui_node.dump)" # the tree as written: tui.page.refresh starts from it instead of parsing again
+	tui_addon.apply "$_P_ROOT" "$file"
+	tui_compose.expand "$_P_ROOT"
 	_tui_perf.end parse
 
 	_tui_perf.begin build
 	tui_build.build "$_P_ROOT"
+	_tui_refresh.sign_tree # what was just built, pane by pane: the baseline tui.page.refresh compares against
+	_tui_refresh.adopt
 	_tui_perf.end build
 
 	local n

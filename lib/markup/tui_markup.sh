@@ -29,6 +29,9 @@
 #           min_width="N" max_width="N" label_align="left|center|right" label_width="N" class="name"/>
 #   <button id="x" pane="p" row="N" text="…" action="fn" align="…" valign="…" min_width="N" max_width="N" class="name"/>
 #   <button id="x" pane="p" row="N" text="…" page="other.xml"/>  navigate to another page
+#   Every widget also takes: focusable/tabbable="true|false" tab_order="N" (0 first, -1 last) focus_group="g" focus_nav="arrows|tab|both"
+#   focus_wrap="true|false" focus_next="id" focus_prev="id" autofocus="true" hit_pad="N" hitbox="DY DX H W"  (lib/input/tui_focus.sh, tui_hit.sh);
+#   <tui focus_wrap="false"> stops Tab at the ends of the list.
 #   <password id pane row placeholder label submit/>   <textarea id pane row placeholder rows value submit on_change/>
 #   <list id pane row action rows items="a|b|c" on_change/>   <table id pane row action rows columns="H1|H2" data="a|b;c|d"/>
 #   <select id pane row label action items="a|b|c" value on_change/>   <progress id pane row label value/>   (see docs/guide/widgets.md)
@@ -213,6 +216,11 @@ tui.reset_ui() {
 	_TUI_W_LABEL_WIDTH=()
 	_TUI_W_RETAIN=()
 	_TUI_W_STICKY=()
+	_TUI_W_FOCUSABLE=() _TUI_W_TABBABLE=() _TUI_W_TABORDER=() _TUI_W_FGROUP=() _TUI_W_FNAV=() _TUI_W_FWRAP=()
+	_TUI_W_FNEXT=() _TUI_W_FPREV=() _TUI_W_AUTOFOCUS=() _TUI_W_HITPAD=() _TUI_W_HITBOX=()
+	_TUI_FOCUS_GLAST=() _TUI_FOCUS_WRAP=1 _TUI_FOCUS_AUTO=1 _TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1
+	_tui_hit.extra_clear
+	_tui_refresh.reset
 	_tui_wx.reset
 	_TUI_W_ORDER=()
 	_TUI_FOCUSABLE=()
@@ -305,15 +313,12 @@ tui.goto() {
 	tui.load_cached "$resolved"
 	_TUI_DEFER_RENDER=$_gt_defer
 	if [[ -n "$keep_id" && -n "${_TUI_W_TYPE[$keep_id]:-}" ]]; then
-		local i
-		for ((i = 0; i < ${#_TUI_FOCUSABLE[@]}; i++)); do
-			[[ "${_TUI_FOCUSABLE[$i]}" == "$keep_id" ]] && {
-				_TUI_FOCUS_ID="$keep_id"
-				_TUI_FOCUS_IDX=$i
-				_TUI_CURSOR=$keep_cur
-				break
-			}
-		done
+		_tui_focus.ensure
+		if [[ -n "${_TUI_FOCUS_POS[$keep_id]+x}" ]]; then
+			_TUI_FOCUS_ID="$keep_id"
+			_TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$keep_id]}"
+			_TUI_CURSOR=$keep_cur
+		fi
 	fi
 	if ((_TUI_RUNNING)); then
 		tui.render

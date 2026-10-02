@@ -1,9 +1,10 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd">
+  <include src="_templates.xml"/>
   <script src="demo_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
     <pane id="root1" weight="90" split="h">
       <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
       <pane id="main" split="v" weight="82" border="none">
@@ -28,5 +29,5 @@
 
   <label id="lbl_hint1" pane="hint_demo" row="0" text="Classes live in theme.css: .name { fg; bg; mods } plus :hover :focus :border :title."/>
   <label id="lbl_hint2" pane="hint_demo" row="1" text="Settings switches the whole app to another palette; Components > Theme colors lists every class." class="muted_label"/>
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

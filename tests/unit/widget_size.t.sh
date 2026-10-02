@@ -77,3 +77,26 @@ t_widget_pos_max_width_caps_available_width() {
 	_tui._widget_pos b1
 	eq 3 "$_WSW"
 }
+
+t_get_with_a_variable_name_stores_the_value_without_printing() {
+	_TUI_W_VALUE[gv1]="hello"
+	local out got=""
+	out="$(tui.get gv1)"
+	eq "hello" "$out"
+	tui.get gv1 got
+	eq "hello" "$got"
+	tui.get gv_missing got
+	eq "" "$got"
+}
+
+t_list_selected_with_a_variable_name_stores_the_index() {
+	_WXSEL[ls1]=3
+	local got=""
+	tui.list.selected ls1 got
+	eq 3 "$got"
+	eq 3 "$(tui.list.selected ls1)"
+	tui.list.selected ls_none got
+	eq -1 "$got"
+	tui.table.selected ls1 got
+	eq 3 "$got"
+}

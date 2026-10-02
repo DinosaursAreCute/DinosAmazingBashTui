@@ -44,7 +44,7 @@ declare -A DESCRIPTIONS=(
 
 	# config/
 	["home.xml"]="entry point"
-	["_nav.xml"]="reusable navigation pane"
+	["_templates.xml"]="shared header and menu, as templates"
 	["demo_callbacks.sh"]="base callbacks"
 	["features.xml"]="features page"
 	["styles.xml"]="style page"

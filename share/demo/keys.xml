@@ -1,9 +1,10 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="keys_visit">
+  <include src="_templates.xml"/>
   <script src="keys_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
   <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="82" border="none">
@@ -27,5 +28,5 @@
   <label  id="lbl_k_dirty"  pane="form" row="12" text="" class="warning_button"/>
   <label  id="lbl_k_status" pane="form" row="13" text="Bind f5 to keys_flash, press F5. Saved binds load at start. ctrl+alt+k: keys off  ctrl+alt+p: terminal mode" class="brand"/>
 
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

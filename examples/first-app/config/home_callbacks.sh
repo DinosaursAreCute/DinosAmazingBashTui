@@ -1,80 +1,55 @@
 #!/usr/bin/env bash
 # home_callbacks.sh - the behaviour of home.xml. Only public tui.* calls.
 
-declare -ga TASKS=()                 # the app's state: one array, one task per element: "0|text" (open) or "1|text" (done)
-declare -gA TASK_OF=()               # checkbox id -> index into TASKS (one on_toggle serves every checkbox)
+declare -ga TASKS=()                 # the app's state: one array, one task per element
 TASKS_FILE="$TUI_APP_CONF/tasks.txt" # $TUI_APP_CONF = ~/.config/DABT/apps/tasks (yours to keep files in)
 
 _tasks_save() { printf '%s\n' "${TASKS[@]}" >"$TASKS_FILE"; }
 
-# put the array on the screen: one checkbox per task (class "task": white when open, grey + strike when done), and the counter
+# put the array on the screen: the list widget and the counter
 _tasks_show() {
-	local i t done_n=0
-	tui.factory.clear tk
-	TASK_OF=()
-	for i in "${!TASKS[@]}"; do
-		t="${TASKS[i]}"
-		tui.factory.checkbox tk tasks "$i" "${t#*|}" "$([[ ${t%%|*} == 1 ]] && echo true || echo false)" on_toggle
-		TASK_OF[$_TUI_FACTORY_LAST_ID]=$i
-		tui.class "$_TUI_FACTORY_LAST_ID" task
-		[[ ${t%%|*} == 1 ]] && ((done_n++))
-	done
-	tui.update lbl_count "${#TASKS[@]} task(s), $done_n done"
+	if ((${#TASKS[@]})); then tui.list.set lst_tasks "${TASKS[@]}"; else tui.list.clear lst_tasks; fi
+	tui.update lbl_count "${#TASKS[@]} task(s)"
 }
 
 tasks_visit() { # runs every time the page opens (on_visit=)
 	TASKS=()
-	if [[ -r "$TASKS_FILE" ]]; then
-		local line
-		while IFS= read -r line; do
-			[[ -z "$line" ]] && continue
-			[[ "$line" == [01]\|* ]] || line="0|$line" # older files: plain text = open task
-			TASKS+=("$line")
-		done <"$TASKS_FILE"
-	fi
+	[[ -r "$TASKS_FILE" ]] && mapfile -t TASKS <"$TASKS_FILE"
 	_tasks_show
 	tui.focus inp_task
 }
 
-on_toggle() { # ID VALUE - a checkbox action gets the checkbox id and its new value (0|1)
-	local i="${TASK_OF[$1]}"
-	TASKS[i]="$2|${TASKS[i]#*|}"
-	_tasks_save
-	_tasks_show
-	tui.relayout
-}
-
-on_add() { # button click, or Enter inside the input
+on_add() { # [ Add ] clicked, or Enter pressed in the field
 	local text
-	text="$(tui.get inp_task)"
+	tui.get inp_task text # into a variable: no subshell
 	if [[ -z "${text// /}" ]]; then
 		tui.notify "Type something first" warn 2
 		return
 	fi
-	TASKS+=("0|$text")
+	TASKS+=("$text")
 	_tasks_save
 	_tasks_show
-	tui.relayout
 	tui.update inp_task ""
 	tui.notify "Added: $text" success 2
 }
 
-on_remove() { # drop every checked task
-	local t
-	local -a keep=()
-	for t in "${TASKS[@]}"; do [[ ${t%%|*} == 1 ]] || keep+=("$t"); done
-	((${#keep[@]} == ${#TASKS[@]})) && {
-		tui.notify "Check a task first" warn 2
+on_remove() {
+	local i
+	tui.list.selected lst_tasks i # -1 = nothing selected
+	((i >= 0)) || {
+		tui.notify "Select a task first" warn 2
 		return
 	}
-	TASKS=("${keep[@]}")
+	unset 'TASKS[i]'
+	TASKS=("${TASKS[@]}") # close the gap in the array
 	_tasks_save
 	_tasks_show
-	tui.relayout
 }
 
-on_clear() { ((${#TASKS[@]})) && tui.confirm "Delete all ${#TASKS[@]} tasks?" do_clear --danger --yes Delete --no Keep --title "Clear all"; }
-do_clear() {
+on_clear() { # ask first: a confirmation dialog
+	((${#TASKS[@]})) && tui.confirm "Delete all ${#TASKS[@]} tasks?" do_clear --danger --yes Delete --no Keep --title "Clear all"
+}
+do_clear() { # called only if the user chose "Delete"
 	TASKS=()
 	_tasks_save
 	_tasks_show

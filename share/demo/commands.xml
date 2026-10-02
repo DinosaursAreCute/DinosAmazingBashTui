@@ -3,4 +3,6 @@
   <cmd id="demo.kbd"    title="Debug: keyboard and mouse view" action="tui.action.goto debug_input.xml" group="Debug" desc="Lights every key and mouse button as you press it"/>
   <cmd id="demo.events" title="Debug: input events and hover"  action="tui.action.goto debug.xml"       group="Debug" desc="Input tape, hover and focus readout"/>
   <cmd id="demo.keys"   title="Keys: view and edit my keybinds" action="tui.action.goto keys.xml"       group="Keybinds" desc="Live binding table with Save / Discard"/>
+  <cmd id="demo.addons" title="Addons: try the example addons" action="tui.action.goto addons.xml" group="Layout" desc="Tick example addons and watch the page change"/>
+  <cmd id="demo.generated" title="Generated: a page built from a template and loops" action="tui.action.goto generated.xml" group="Layout" desc="Enter numbers, the page is generated from them"/>
 </cmds>

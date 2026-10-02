@@ -87,17 +87,14 @@ TUI_APP_NAME="tasks"                       # your app's id (see below)
 TUI_APP_TITLE="Tasks"; TUI_APP_DESC="A tiny to-do list"
 source "$TUI_ROOT/lib/tui.sh"
 
-tui.start "$APP_DIR/config/home.xml"       # start, show the page, run until the user quits
+tui.start_cached "$APP_DIR/config/home.xml" # start, show the page, run until the user quits
 ```
 
 Three things are worth understanding here:
 
 1. **`source .../tui.sh`** loads the framework into your script. After that line, all the `tui.*` functions exist.
 2. **`TUI_APP_NAME`** is set *before* that line. It gives your app a private folder, `~/.config/DABT/apps/tasks/`, for its settings and data. (You will use it in step 7.)
-3. **`tui.start_cached FILE`** does everything: prepares the terminal, loads the page, runs the event loop, and - importantly - **puts your terminal back to normal** when the app quits, even if it crashes.
-
-**NOTE**: We recommend to use tui.start_cached in any case. 
-This will lead to much faster loading times. 
+3. **`tui.start_cached FILE`** does everything: prepares the terminal, loads the page, runs the event loop, and - importantly - **puts your terminal back to normal** when the app quits, even if it crashes. The `_cached` part loads all your pages once behind the logo screen and serves page switches from that, so switching pages stays instant; use it always.
 
 
 <h2 id="step-2"><img src="img/app-2.svg" alt="Step 2: A first page" height="30"></h2>
@@ -106,8 +103,9 @@ Create **`config/home.xml`** with the smallest useful page:
 
 ```xml
 <tui>
-  <pane id="root" title="Tasks" border="single" hpad="1"/>
-  <label id="lbl_title" pane="root" row="0" text="Hello, terminal!"/>
+  <pane id="root" title="Tasks" border="single" hpad="1">
+    <label id="lbl_title" text="Hello, terminal!"/>
+  </pane>
 </tui>
 ```
 
@@ -122,23 +120,23 @@ You should see a box with a title and your text inside. Press **`q`** to quit. T
 What the XML says:
 
 - `<pane id="root" .../>` - a pane named `root`. `border="single"` draws a thin box, `hpad="1"` keeps one space between the border and the content.
-- `<label ... pane="root" row="0" .../>` - a text label placed **in** the pane `root`, on **row** 0 (the first line inside it).
+- `<label .../>` - a text label. It is written **inside** the pane, so that is where it appears: on the pane's first line. The next widget you write goes on the next line.
 
-> **Rules of the format** (it is a simple, line-based XML): one tag per line, attribute values in `"double quotes"`, `<!-- comments -->` on their own line.
+> **Rules of the format:** attribute values go in `"double"` or `'single'` quotes, a tag may run over several lines, and `<!-- comments -->` can stand anywhere. If you make a mistake, the app refuses to start and tells you the file, line and column.
 
 <h2 id="step-3"><img src="img/app-3.svg" alt="Step 3: Panes" height="30"></h2>
 
-One box is boring. Let's split the screen. A pane can be **split** into children, either side by side (`split="h"`, *h*orizontal) or stacked (`split="v"`, *v*ertical). Each child gets a **weight** - its share of the space.
+One box is boring. Let's split the screen. A pane can be **split** into children, either side by side (`split="h"`, *h*orizontal) or stacked (`split="v"`, *v*ertical). Each child can say how much room it takes.
 
 Replace the page with the real layout:
 
 ```xml
 <tui>
   <pane id="root" split="v" border="none">
-    <pane id="head" weight="20" title="Tasks" border="single" class="panel" hpad="1"/>
-    <pane id="body" split="h" weight="80" border="none">
-      <pane id="add"   weight="38" title="New task"   border="single" class="panel" hpad="1"/>
-      <pane id="tasks" weight="62" title="Your tasks" border="single" class="panel" hpad="1"/>
+    <pane id="head" height="4" title="Tasks" border="single" class="panel" hpad="1"/>
+    <pane id="body" split="h" border="none">
+      <pane id="add"   width="38%" title="New task"   border="single" class="panel" hpad="1"/>
+      <pane id="tasks" title="Your tasks" border="single" class="panel" hpad="1"/>
     </pane>
   </pane>
 </tui>
@@ -148,34 +146,40 @@ Read it like a tree:
 
 ```
 root (stacked top-to-bottom)
-├── head    20 parts of the height - the title strip
-└── body    80 parts of the height, split side by side
-    ├── add     38 parts of the width - the form
-    └── tasks   62 parts of the width - the list
+├── head    4 lines high - the title strip
+└── body    the rest of the height, split side by side
+    ├── add     38 % of the width - the form
+    └── tasks   the rest of the width - the list
 ```
 
-The weights are *relative*: `38` and `62` mean "about 38% and 62%". Resize your terminal and the boxes follow. `class="panel"` is a hook for styling in step 6.
+A child's size along the split comes from `height` (in a stacked split) or `width` (in a side-by-side split): a number of cells (`4`), a percentage (`38%`), or a share of what is left (`2fr`; a child without a size takes `1fr`). Resize your terminal and the boxes follow. `class="panel"` is a hook for styling in step 6.
 
 <h2 id="step-4"><img src="img/app-4.svg" alt="Step 4: Widgets" height="30"></h2>
 
-Now put widgets into the panes. Add these lines **inside `<tui>`, after the panes**:
+Now put widgets into the panes. A widget is written **inside the pane it belongs to**. Replace the three child panes with these:
 
 ```xml
-  <label id="lbl_title" pane="head" row="0" text="My tasks" class="brand"/>
-  <label id="lbl_count" pane="head" row="1" text="" class="muted_label"/>
-
-  <input  id="inp_task"  pane="add" row="0" label="Task:" label_width="7" placeholder="what needs doing?" submit="on_add"/>
-  <button id="btn_add"   pane="add" row="2" text="[ Add ]"             action="on_add"    class="success_button" align="fill"/>
-  <button id="btn_done"  pane="add" row="4" text="[ Remove selected ]" action="on_remove" class="info_button"    align="fill"/>
-  <button id="btn_clear" pane="add" row="5" text="[ Clear all ]"       action="on_clear"  class="danger_button"  align="fill"/>
-
-  <list id="lst_tasks" pane="tasks" row="0"/>
+    <pane id="head" height="4" title="Tasks" border="single" class="panel" hpad="1">
+      <label id="lbl_title" text="My tasks" class="brand"/>
+      <label id="lbl_count" text="" class="muted_label"/>
+    </pane>
+    <pane id="body" split="h" border="none">
+      <pane id="add" width="38%" title="New task" border="single" class="panel" hpad="1">
+        <input  id="inp_task"  label="Task:" label_width="7" placeholder="what needs doing?" submit="on_add"/>
+        <button id="btn_add"   text="[ Add ]"             action="on_add"    class="success_button" align="fill" row="2"/>
+        <button id="btn_done"  text="[ Remove selected ]" action="on_remove" class="info_button"    align="fill" row="4"/>
+        <button id="btn_clear" text="[ Clear all ]"       action="on_clear"  class="danger_button"  align="fill" row="5"/>
+      </pane>
+      <pane id="tasks" title="Your tasks" border="single" class="panel" hpad="1">
+        <list id="lst_tasks"/>
+      </pane>
+    </pane>
 ```
 
-Every widget has the same three ideas:
+Every widget has the same few ideas:
 
 - **`id`** - its name. You will use `inp_task`, `lst_tasks`, `lbl_count` from bash.
-- **`pane`** and **`row`** - *where*: in which pane, on which line.
+- **Where it is** - the pane it is written in, on the next free line. Writing `row="2"` moves it to line 2 of the pane, which leaves a gap above the buttons.
 - **`action=`** (buttons) / **`submit=`** (inputs) - *what to call*: the name of a bash function. `submit` fires when you press Enter inside the field.
 
 Also add a footer line at the top of the page, which shows the keys that work (here: how to quit):
@@ -216,7 +220,7 @@ tasks_visit() {                            # the page opened
 }
 
 on_add() {                                 # [ Add ] clicked, or Enter pressed in the field
-    local text; text="$(tui.get inp_task)"                 # read the field
+    local text; tui.get inp_task text                      # read the field into $text
     if [[ -z "${text// }" ]]; then tui.notify "Type something first" warn 2; return; fi
     TASKS+=("$text")                                       # change the data
     _tasks_show                                            # redraw from the data
@@ -225,7 +229,7 @@ on_add() {                                 # [ Add ] clicked, or Enter pressed i
 }
 
 on_remove() {
-    local i; i="$(tui.list.selected lst_tasks)"            # which row is highlighted? (-1 = none)
+    local i; tui.list.selected lst_tasks i                 # which row is highlighted? (-1 = none)
     (( i >= 0 )) || { tui.notify "Select a task first" warn 2; return; }
     unset 'TASKS[i]'; TASKS=("${TASKS[@]}")                # remove it, then close the gap in the array
     _tasks_show
@@ -242,14 +246,16 @@ The handful of `tui.*` functions you just met is most of what a small app needs:
 
 | Function | Does |
 |---|---|
-| `tui.get ID` | read a widget's current value (what is typed in an input) |
+| `tui.get ID VAR` | read a widget's current value (what is typed in an input) into the variable `VAR` |
 | `tui.update ID VALUE` | change a widget's text and redraw it |
-| `tui.list.set / .clear / .selected` | fill, empty, or ask a list which row is highlighted |
+| `tui.list.set / .clear / .selected ID VAR` | fill, empty, or ask a list which row is highlighted |
 | `tui.focus ID` | move the keyboard cursor to a widget |
 | `tui.notify MSG [info\|success\|warn\|error] [SECONDS]` | a toast message in the corner |
 | `tui.confirm MSG CALLBACK ...` | a yes/no dialog; `CALLBACK` runs on *yes* |
 
 Run it. Add a few tasks, select one (arrow keys in the list, or click), press **Remove selected**.
+
+> **Why `tui.get inp_task text` and not `text="$(tui.get inp_task)"`?** Both work. The `$( )` form starts a separate process every time, and a callback runs while the user is waiting. Passing a variable name costs nothing, so make it a habit for anything called often (key and mouse handlers, loops).
 
 > **Golden rule of callbacks:** keep the *screen* in the XML and the *logic* in bash. Callbacks read widgets, change data, and update widgets. They never build layout. And they only call public `tui.*` functions - anything starting with `_tui.` is the framework's private business.
 
@@ -415,7 +421,7 @@ The tag starts the workflow: it builds and signs the package and creates a **dra
 | You wrote | What it is | Web equivalent |
 |---|---|---|
 | `tasks.sh` | sets `TUI_APP_NAME`, sources `tui.sh`, calls `tui.start` | the `<script>` that boots the site |
-| `home.xml` | panes (`split`, `weight`, `border`) and widgets (`pane`, `row`, `id`) | HTML |
+| `home.xml` | panes (`split`, `width`/`height`, `border`) with the widgets written inside them | HTML |
 | `home_callbacks.sh` | bash functions named by `action=`, `submit=`, `on_visit=` | JavaScript event handlers |
 | `theme.css` | `.class { fg; bg; mods }` plus `:hover` / `:focus` | CSS |
 | `$TUI_APP_CONF` | your app's private folder for saved data | localStorage |
@@ -426,7 +432,10 @@ The whole loop of a DABT app: **the user does something → DABT calls your func
 
 <h2 id="where-next"><img src="img/app-next.svg" alt="Where next?" height="30"></h2>
 
-- **More pages:** a `<button ... page="settings.xml"/>` opens another page. Shared parts (a menu) go in a fragment pulled in with `<include src="_nav.xml"/>`.
+- **More pages:** a `<button ... page="settings.xml"/>` opens another page.
+- **Parts every page shares** (a menu, a header) are written once as a *template* in a file such as `_templates.xml`, pulled in with `<include src="_templates.xml"/>` and placed with `<use template="menu"/>`. Loops and conditions (`<for>`, `<if>`) work the same way. See [Reusing markup](../guide/markup.md#reusing-markup).
+- **Let others change your pages without editing them:** an *addon* is a small XML file in the `addons` folder of your app's data folder (`$TUI_APP_CONF/addons`) that adds, replaces or removes parts of a page (`<append ref="#add">…</append>`). Call `tui.page.refresh` and the screen follows within a page-switch's time. See [Addons](../guide/markup.md#addons).
+- **Slow things** (a download, a big calculation) run with `tui.job.run`: your function works in the background, a spinner appears if it takes longer than 100 ms, and the result is shown in one go. See [Slow work](../guide/callbacks-and-viewports.md#4-slow-work-keep-the-interface-running).
 - **Live things:** `tui.every SECONDS FN` runs a function on a timer; `tui.clock`, `tui.watch` and `tui.exec` show clocks, command output and live processes.
 - **Keys and the command bar:** `tui.bind ctrl+e on_export`, `tui.cmd.add` (the `ctrl+p` palette).
 - **Extend any app with a plugin:** [Writing Your First Plugin](writing-your-first-plugin.md).

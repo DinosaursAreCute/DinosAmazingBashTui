@@ -24,7 +24,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 | [`tui.input`](widgets/tui.input.md) | Creates a single-line text input. |
 | [`tui.checkbox`](widgets/tui.checkbox.md) | Creates a checkbox. |
 | [`tui.checkbox.toggle`](widgets/tui.checkbox.toggle.md) | Flips a checkbox, redraws it and calls its action as `ACTION ID VALUE`, as a click would. |
-| [`tui.get`](widgets/tui.get.md) | Prints a widget's value, without a trailing newline. |
+| [`tui.get`](widgets/tui.get.md) | Prints a widget's value, without a trailing newline, or with `VAR` stores it in the variable `VAR`. |
 | [`tui.set`](widgets/tui.set.md) | Sets a widget's value without redrawing it. |
 | [`tui.update`](widgets/tui.update.md) | Sets a widget's value and redraws the widget. |
 | [`tui.set_label`](widgets/tui.set_label.md) | Changes the caption of a button or checkbox, or the text of a label, and redraws it. |
@@ -122,7 +122,7 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 | [`tui.list.add`](widgets/tui.list.add.md) | Appends items. Selects the first item when nothing was selected. |
 | [`tui.list.clear`](widgets/tui.list.clear.md) | Removes all items and clears the selection. |
 | [`tui.list.select`](widgets/tui.list.select.md) | Moves the selection to `INDEX` (0-based), clamped to the list. A negative index clears it. |
-| [`tui.list.selected`](widgets/tui.list.selected.md) | Prints the selected index, or `-1` when nothing is selected. |
+| [`tui.list.selected`](widgets/tui.list.selected.md) | Prints the selected index, or `-1` when nothing is selected. With `VAR` the index is stored in that variable instead, which costs no subshell. |
 | [`tui.list.item`](widgets/tui.list.item.md) | Prints the item at `INDEX`, default the selected one. Prints nothing for an index out of range. |
 | [`tui.list.count`](widgets/tui.list.count.md) | Prints the number of items. |
 | [`tui.table.set`](widgets/tui.table.set.md) | Replaces the header and all rows, and selects the first row. |

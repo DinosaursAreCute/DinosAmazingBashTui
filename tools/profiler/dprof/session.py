@@ -32,6 +32,9 @@ WRAP = [
     ("tui.cache.dump_dir", "w"), ("tui.init", "w"), ("tui.load_cached", "w"),
     ("_tui_validate.notify", "w"), ("tui.run", "s"),
     ("tui.cache.replay", "s"), ("_tui_cache_run_on_visit", "s"), ("_tui._draw_pane_buf", "n"),
+    # tui.page.refresh (lib/markup/tui_refresh.sh) and background jobs (lib/tui_job.sh). _tui_job.tick runs on every loop
+    # pass while a job is pending and is deliberately not probed.
+    ("tui.page.refresh", "w"), ("tui.job.run", "w"), ("_tui_job.finish", "w"), ("_tui_job.spinner_draw", "s"),
 ]
 WORK_FNS = {n for n, k in WRAP if k in "wpa"}
 WRAPPED = {n for n, _ in WRAP}
@@ -94,6 +97,8 @@ class Session:
         self.open_work = 0        # currently open work wrappers
         self.last_work_end = 0.0
         self.out_bytes = 0
+        self.last_out = 0.0
+        self.out_times = []   # arrival time of every pty read: the ground truth for "painted", direct draws included
         self.first_out = 0.0
         self.main_pid = None
         self.alive = False
@@ -241,6 +246,8 @@ class Session:
         if len(self.raw) > 400000:
             del self.raw[:-200000]
         self.out_bytes += len(d)
+        self.last_out = now()
+        self.out_times.append(self.last_out)
         if b"\x1b[>0q" in d:
             self.send(XTVERSION_REPLY)
 
@@ -382,16 +389,48 @@ class Session:
                     res.update(ok=False, note=f"'{payload}' not on screen")
                     return res
                 payload = _click(pos[0] + 1, pos[1])
+            t_last, out0, presses = t_send, self.out_bytes, []
             if kind == "resize":
                 self.resize(*payload)
+            elif kind == "repeat":
+                # a held key: one press per repeat interval; the pause keeps reading the app's output like a terminal
+                key, count, gap = payload
+                for i in range(count):
+                    t_last = now()
+                    presses.append(t_last)
+                    self.send(key)
+                    self.pump(gap, until=lambda: not self.alive)
             else:
                 self.send(payload)
             if self.probes:
                 done = lambda: (not self.alive) or (
                     self.open_work == 0 and len(self.events) > mark and self.last_work_end >= t_send - 0.001
-                    and now() - self.last_work_end >= step.quiet)
+                    and now() - self.last_work_end >= step.quiet and (kind != "repeat" or now() - self.last_out >= step.quiet))
                 ok = self.pump(step.timeout, until=done)
                 m = self.measure_since(mark, t_send) or {}
+                if kind == "repeat" and m:
+                    # per press: sent -> handled by the loop (queue) -> first output the terminal receives after it was handled
+                    # (paint). A press the app coalesced into a later one is paired with the handler that took it.
+                    handled = sorted((e for e in self.events[mark:] if e.kind == "E" and e.name == "_tui_input.key_event"), key=lambda e: e.t0)
+                    flushes = sorted(e.t1 for e in self.events[mark:] if e.kind == "E" and e.name == "_tui._flush")
+                    arrivals = [t for t in self.out_times if t >= t_send]   # widgets such as lists and inputs draw outside _tui._flush
+                    queue, lag = [], []
+                    for i, tp in enumerate(presses):
+                        h = handled[min(i, len(handled) - 1)] if handled else None
+                        if h is None:
+                            continue
+                        painted = next((t for t in arrivals if t >= h.t0), h.t1)
+                        queue.append(max(0.0, h.t0 - tp) * 1000)
+                        lag.append(max(0.0, painted - tp) * 1000)
+                    tail = max(0.0, (self.last_out - t_last) * 1000)
+                    if lag:
+                        lag.sort()
+                        m.update(press_n=len(lag), handled_n=len(handled), queue_ms=sum(queue) / len(queue),
+                                 lag_med_ms=lag[len(lag) // 2], lag_max_ms=lag[-1], tail_ms=tail)
+                        m["settle_ms"] = lag[-1]
+                    # render cadence: mean gap between consecutive frames of the hold (the repeat interval when it keeps up)
+                    m["frame_gap_ms"] = ((flushes[-1] - flushes[0]) / (len(flushes) - 1) * 1000) if len(flushes) > 1 else None
+                    m["out_bytes"] = self.out_bytes - out0
                 res.update(m)
                 res["ok"] = bool(m) and ok
                 res["went"] = any(e.kind == "E" and e.name == "tui.goto" for e in self.events[mark:])

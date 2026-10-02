@@ -290,6 +290,8 @@
 .toast_success { fg: #06210f; bg: #33cc66; }
 .toast_warn    { fg: #2b2100; bg: #ecc94b; }
 .toast_error   { fg: #ffffff; bg: #b00020; mods: bold; }
+/* the "something is working" indicator of tui.job.run, top-right of the frame */
+.job_spinner   { fg: #ffffff; bg: #3b5bdb; mods: bold; }
 
 /* Text selection, lists, tables and progress bars (lib/widgets/tui_text.sh, lib/widgets/tui_widgets.sh). Missing classes fall back to built-ins. */
 .selection     { fg: #ffffff; bg: #3e5c8a; }

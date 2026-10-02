@@ -8,7 +8,7 @@
        parse time (the loader is a lightweight bash regex parser) - this file
        exists purely so editors can offer autocompletion/validation.
        Roots: <tui> (a page), <binds> (keybind files), <cmds> (command palette files). <include> fragments with
-       several top-level tags (e.g. _nav.xml) are not well-formed XML and can't be validated on their own. -->
+       several top-level tags (e.g. _templates.xml) are not well-formed XML and can't be validated on their own. -->
 
   <xs:simpleType name="alignType">
     <xs:restriction base="xs:string">
@@ -102,6 +102,14 @@
       <xs:element ref="table"/>
       <xs:element ref="select"/>
       <xs:element ref="progress"/>
+      <xs:element ref="template"/>
+      <xs:element ref="use"/>
+      <xs:element ref="slot"/>
+      <xs:element ref="fill"/>
+      <xs:element ref="for"/>
+      <xs:element ref="if"/>
+      <xs:element ref="component"/>
+      <xs:element ref="addon"/>
     </xs:choice>
   </xs:group>
 
@@ -158,6 +166,29 @@
     </xs:complexType>
   </xs:element>
 
+  <!-- focus and hit attributes every widget accepts (lib/input/tui_focus.sh, tui_hit.sh) -->
+  <xs:attributeGroup name="focusHitAttrs">
+    <xs:attribute name="focusable" type="boolType"/>
+    <xs:attribute name="tabbable" type="boolType"/>
+    <xs:attribute name="tab_order" type="xs:integer"/>
+    <xs:attribute name="focus_group" type="xs:string"/>
+    <xs:attribute name="focus_nav">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="arrows"/>
+          <xs:enumeration value="tab"/>
+          <xs:enumeration value="both"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="focus_wrap" type="boolType"/>
+    <xs:attribute name="focus_next" type="xs:string"/>
+    <xs:attribute name="focus_prev" type="xs:string"/>
+    <xs:attribute name="autofocus" type="boolType"/>
+    <xs:attribute name="hit_pad" type="xs:string"/>
+    <xs:attribute name="hitbox" type="xs:string"/>
+  </xs:attributeGroup>
+
   <xs:element name="tui">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
@@ -166,6 +197,7 @@
       <xs:attribute name="on_visit" type="xs:string"/>
       <!-- comma/space separated default keybind groups to switch off for this page, e.g. "-quit,-scroll" -->
       <xs:attribute name="defaults" type="xs:string"/>
+      <xs:attribute name="focus_wrap" type="boolType"/>
     </xs:complexType>
   </xs:element>
 
@@ -184,6 +216,169 @@
   <xs:element name="include">
     <xs:complexType>
       <xs:attribute name="src" type="xs:string" use="required"/>
+      <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="template">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="use">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="template" type="xs:string" use="required"/>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="slot">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="name" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="fill">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="slot" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="for">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="each" type="xs:string"/>
+      <xs:attribute name="count" type="xs:string"/>
+      <xs:attribute name="as" type="xs:string"/>
+      <xs:attribute name="index" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="if">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+        <xs:element ref="else"/>
+      </xs:choice>
+      <xs:attribute name="test" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="else">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="component">
+    <xs:complexType>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="src" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="addon">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="append"/>
+        <xs:element ref="prepend"/>
+        <xs:element ref="before"/>
+        <xs:element ref="after"/>
+        <xs:element ref="replace"/>
+        <xs:element ref="remove"/>
+        <xs:element ref="set"/>
+        <xs:element ref="wrap"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="target" type="xs:string"/>
+      <xs:attribute name="priority" type="xs:string"/>
+      <xs:attribute name="prefix" type="boolType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="append">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="prepend">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="before">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="after">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="replace">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="remove">
+    <xs:complexType>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="set">
+    <xs:complexType>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+      <xs:attribute name="attr" type="xs:string" use="required"/>
+      <xs:attribute name="value" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="wrap">
+    <xs:complexType>
+      <xs:attribute name="ref" type="xs:string" use="required"/>
+      <xs:attribute name="type" type="xs:string"/>
+      <xs:attribute name="id" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -192,6 +387,7 @@
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:group ref="pageContent"/>
       </xs:choice>
+      <!-- width/height/gap: size tokens - N cells, N%, Nfr, fill, clamp(MIN,PREF,MAX); weight="N" is the same as Nfr -->
       <xs:attribute name="id" type="xs:string" use="required"/>
       <xs:attribute name="split" type="splitType"/>
       <xs:attribute name="weight" type="xs:positiveInteger"/>
@@ -223,6 +419,9 @@
       <!-- direct child of a split="grid" parent only -->
       <xs:attribute name="grid_row" type="xs:nonNegativeInteger"/>
       <xs:attribute name="grid_col" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="gap" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -239,6 +438,10 @@
       <xs:attribute name="hpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="padding" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -261,6 +464,21 @@
       <xs:attribute name="sticky" type="boolType"/>
       <xs:attribute name="label_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="padding" type="xs:string"/>
+      <xs:attribute name="min_height" type="xs:string"/>
+      <xs:attribute name="max_height" type="xs:string"/>
+      <xs:attribute name="expand">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="x"/>
+            <xs:enumeration value="y"/>
+            <xs:enumeration value="both"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -279,6 +497,21 @@
       <xs:attribute name="hpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="padding" type="xs:string"/>
+      <xs:attribute name="min_height" type="xs:string"/>
+      <xs:attribute name="max_height" type="xs:string"/>
+      <xs:attribute name="expand">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="x"/>
+            <xs:enumeration value="y"/>
+            <xs:enumeration value="both"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -297,6 +530,21 @@
       <xs:attribute name="hpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="padding" type="xs:string"/>
+      <xs:attribute name="min_height" type="xs:string"/>
+      <xs:attribute name="max_height" type="xs:string"/>
+      <xs:attribute name="expand">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="x"/>
+            <xs:enumeration value="y"/>
+            <xs:enumeration value="both"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -318,6 +566,7 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -338,6 +587,7 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -357,6 +607,7 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -377,6 +628,7 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -397,6 +649,7 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -415,6 +668,7 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
 

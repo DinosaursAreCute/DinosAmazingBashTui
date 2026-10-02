@@ -138,6 +138,10 @@ class LiveUI:
             bits.append(f"{c(label, 'dim')} {c(fmt_ms(metric), self._rcolor(group, metric), bold=True)}")
             if res.get("paint_ms") is not None and metric is not res["paint_ms"]:
                 bits.append(c(f"first paint {fmt_ms(res['paint_ms'])}", "dim"))
+            if res.get("lag_med_ms") is not None:   # held keys: per-press lag (sent -> painted) and the render cadence
+                gap = res.get("frame_gap_ms")
+                bits.append(c(f"per press: queue {fmt_ms(res['queue_ms'])} · lag med {fmt_ms(res['lag_med_ms'])} max {fmt_ms(res['lag_max_ms'])}"
+                              f" · frame every {fmt_ms(gap) if gap else '-'}", "dim"))
             if res.get("frames") is not None:
                 bits.append(c(f"{res['frames']} fr · {fmt_bytes(res.get('bytes'))}", "dim"))
             if res.get("went") is False and group.startswith("nav"):

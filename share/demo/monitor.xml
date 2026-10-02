@@ -1,9 +1,10 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd" on_visit="on_monitor_visit">
+  <include src="_templates.xml"/>
   <script src="monitor_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
   <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="82">
@@ -34,5 +35,5 @@
   <input  id="inp_mon_interval" pane="ctl_interval" row="0" label="Sec:" label_width="5" placeholder="1" submit="on_monitor_set_interval"/>
   <button id="btn_mon_refresh"  pane="ctl_refresh"  row="0" text="[ Refresh ]" action="on_monitor_refresh" class="success_button" align="fill"/>
 
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

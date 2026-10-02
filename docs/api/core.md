@@ -447,15 +447,48 @@ Read-only. Pane getters return `1` for an unknown pane.
 
 <!-- /api -->
 
+## Background work
+
+Work that takes noticeable time runs in a separate process, so the interface stays responsive; a spinner tells the user something is happening, and the result is shown only once it is complete. Changing a page that is already on screen (addons, generated content) does not go through a process at all: [`tui.page.refresh`](core/tui.page.refresh.md) rebuilds just the panes that changed, within the budget of a page switch.
+
+<!-- api: tui.job.run tui.job.cancel tui.job.running tui.page.refresh tui.page.rebuild -->
+
+| Function | Summary |
+|---|---|
+| [`tui.job.run`](core/tui.job.run.md) | Runs `WORKFN ARG...` in the background and keeps the interface running. When it has finished, `DONEFN ID RC OUTFILE` is called in the main shell. If the work is still going after `MS` milliseconds, a spinner with `TEXT` shows in the top-right corner of the frame, so the user can see that something is happening. |
+| [`tui.job.cancel`](core/tui.job.cancel.md) | Stops the background job `ID` started with [`tui.job.run`](/api/core/tui.job.run.html). Its `DONEFN` is not called, its files are removed, and the spinner goes away if it was the last job. |
+| [`tui.job.running`](core/tui.job.running.md) | Tells whether the background job `ID` is still pending, that is started with [`tui.job.run`](/api/core/tui.job.run.html) and its `DONEFN` not yet called. |
+| [`tui.page.refresh`](core/tui.page.refresh.md) | Re-applies the [addons](/guide/markup.html#addons) on disk (and re-runs templates and loops) on the page that is on screen, and rebuilds only the panes whose content changed. A page switch has 100 ms; so does this. |
+| [`tui.page.rebuild`](core/tui.page.rebuild.md) | Builds the page `FILE` again in the background and shows it when it is complete. The options are those of [`tui.job.run`](/api/core/tui.job.run.html), which runs it. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.job.run.md %}
+
+{% include_relative core/tui.job.cancel.md %}
+
+{% include_relative core/tui.job.running.md %}
+
+{% include_relative core/tui.page.refresh.md %}
+
+{% include_relative core/tui.page.rebuild.md %}
+
+</div>
+
+<!-- /api -->
+
 ## Registry
 
-<!-- api: tui.register tui.registered tui.register.style_contract -->
+<!-- api: tui.register tui.registered tui.register.style_contract tui.addon.dir tui.addon.undir tui.cache.forget -->
 
 | Function | Summary |
 |---|---|
 | [`tui.register`](core/tui.register.md) | Registers one or more handlers `FN` for `NAME` under `KIND`. |
 | [`tui.registered`](core/tui.registered.md) | Looks up `NAME`'s handlers under `KIND` into `$_TUI_REGISTERED` (space-joined, registration order). |
 | [`tui.register.style_contract`](core/tui.register.style_contract.md) | Registers `NAME`'s style contract (registry kind `style`): the pseudo-states it can enter and the framework classes it draws with, e.g. `"states:hover focus"` `"classes:.list_sel"`. |
+| [`tui.addon.dir`](core/tui.addon.dir.md) | Adds a directory whose `*.xml` files hold [addons](/guide/markup.html#addons), so a plugin can ship its own page changes. The app's own `TUI_APP_CONF/addons` is always read. |
+| [`tui.addon.undir`](core/tui.addon.undir.md) | Forgets a folder that was registered with [`tui.addon.dir`](/api/core/tui.addon.dir.html). Its addons stop applying to pages loaded from now on. |
+| [`tui.cache.forget`](core/tui.cache.forget.md) | Drops everything cached for the page `FILE`, so its next visit builds it fresh. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -464,6 +497,12 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.registered.md %}
 
 {% include_relative core/tui.register.style_contract.md %}
+
+{% include_relative core/tui.addon.dir.md %}
+
+{% include_relative core/tui.addon.undir.md %}
+
+{% include_relative core/tui.cache.forget.md %}
 
 </div>
 
@@ -477,6 +516,7 @@ Read-only. Pane getters return `1` for an unknown pane.
 | `TUI_EVENT_KEY` | dispatcher | Normalised key name (`ctrl+q`, `wheel:down`). |
 | `TUI_EVENT_X`, `TUI_EVENT_Y` | mouse | Pointer column / row (1-based). |
 | `TUI_EVENT_PANE`, `TUI_EVENT_WIDGET` | dispatcher | Pane / widget under the pointer or focused. |
+| `TUI_EVENT_ZONE`, `TUI_EVENT_ZONE_ID`, `TUI_EVENT_ZONE_ARG` | dispatcher | Mouse events: kind, id and argument of the topmost hit zone under the pointer (`scrollbar` + pane + `v`/`h`, `widget`/`hitbox` + widget id, `divider`, `handle`, `chevron`, `title`), empty over plain pane area. |
 | `TUI_EVENT_BUTTON`, `TUI_EVENT_RAWBTN` | mouse | Button name / raw SGR button code. |
 | `TUI_EVENT_COUNT` | dispatcher | Number of identical scroll events merged into this dispatch. |
 | `TUI_EVENT_PASTE` | paste | Bracketed-paste text. |

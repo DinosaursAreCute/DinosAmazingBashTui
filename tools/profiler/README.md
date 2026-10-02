@@ -39,6 +39,23 @@ may use Python; the DABT runtime stays pure bash.
 Output: `reports/<timestamp>/{report.json,report.html,report.txt}`, `reports/latest` links the newest run
 (`reports/` is git-ignored).
 
+## Scenarios for addons and generated pages
+
+`--scenario addons` and `--scenario generated` profile `tui.page.refresh` (`lib/markup/tui_refresh.sh`) on the two demo pages that use it. The pages are not in the nav, so the scenarios reach them through the command palette (`ctrl+p`, then the first letters of the command). Every group has the budget of a page switch: **100 ms**, click to the changed panes on screen.
+
+| scenario | groups | what it tells you |
+|---|---|---|
+| `addons` | `addons.open`, `addons.apply1`, `addons.apply5` | opening the Addons page, then click on *Apply* until the changed panes are on screen, with one addon and with all five. Every addon is switched off again afterwards. |
+| `generated` | `generate.small`, `generate.big` | click on *Generate* until the new cards are on screen: 3 cards x 2 items, then 8 x 6. Shows how the rebuild grows with the number of generated widgets. |
+
+A refresh rebuilds only the panes whose content changed (see the header of `tui_refresh.sh`), so `addons.*` should stay far below the budget and `generate.*` grows with what is generated. After the screen is updated, a quiet background job brings the cached copy of the page up to date; the scenarios wait a second for it (a `setup` step) so it does not land in the next measurement. The probes also wrap `tui.page.refresh`, `tui.job.run`, `_tui_job.finish` and `_tui_job.spinner_draw`.
+
+The steps type into the *Cards:* and *Items:* inputs (click, End, backspace, digits) and click the buttons by their on-screen text, so they depend on the labels in `share/demo/addons.xml` and `share/demo/generated.xml`. If a label changes, change the needles at the top of the scenario steps (`ADDON_BOXES`, `APPLY`, `GENERATE` in `dprof/scenarios.py`). `tests/unit/profiler_scenarios.t.sh` checks that every group has a title, a budget and steps.
+
+## Held arrow key
+
+`--scenario held` models a user holding Up/Down: the terminal's key repeat reaches the app as one write of 30 presses, Down then Up, four times each on the Widgets page list (reached with Tab from the first input) and on the nav bar (focus left there by a nav click). Groups `held.list` and `held.nav`, budget **120 ms** for the whole burst (4 ms per repeat, a quarter of the ~33 ms repeat interval of a held key). The rating uses *done*, key to the last repeat on screen, not the first paint: a held key feels laggy when the tail trails behind. The frames-per-action table shows how many of the 30 repeats were coalesced into one paint.
+
 ## Reading it
 
 - **Typical** is the median; **done** is key-to-last-frame, **feedback** is key-to-first-painted-frame.

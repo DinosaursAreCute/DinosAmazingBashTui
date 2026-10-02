@@ -124,3 +124,20 @@ ti_node_walk_over_1000_nodes_is_fast() {
 	eq "1001" "$_T_WALK_COUNT"
 	ok '(( SECONDS - t0 <= 2 ))'
 }
+
+t_node_attribute_names_index_follows_set_clone_and_remove() {
+	tui_node.reset
+	tui_node.create pane p
+	local a=$_N
+	tui_node.attr_set "$a" title "T"
+	tui_node.attr_set "$a" title "T2" # a second set of the same name is not listed twice
+	tui_node.attr_set "$a" border "single"
+	eq "title border" "${_N_ANAMES[$a]}"
+	tui_ops.clone "$a" "x_"
+	eq "${_N_ANAMES[$a]}" "${_N_ANAMES[$_N]}"
+	tui_node.attr_get "$_N" title
+	eq "T2" "$_N_ATTR_V"
+	tui_ops.remove "$a"
+	eq "" "${_N_ANAMES[$a]:-}"
+	eq "" "${_N_ATTR["$a.title"]:-}"
+}

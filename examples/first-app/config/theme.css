@@ -13,8 +13,3 @@
 .danger_button         { fg: white; bg: #b00020; mods: bold; }
 .danger_button:hover   { fg: white; bg: #d4002a; mods: bold; }
 .danger_button:focus   { fg: white; bg: #ff3333; mods: bold; }
-
-/* task checkboxes: open = bright white, done = grey + strike-through */
-.task            { fg: #ffffff; mods: bold; }
-.task:unchecked  { fg: #ffffff; mods: bold; }
-.task:checked    { fg: #808080; mods: strike; }

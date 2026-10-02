@@ -63,6 +63,10 @@ declare -gA _TUI_W_LABEL_WIDTH=()
 declare -ga _TUI_W_ORDER=()
 declare -ga _TUI_FOCUSABLE=()
 
+# _tui_w.changed - the widget list or a widget's type changed: the focus order (tui_focus.sh) and the hit index
+# (tui_hit.sh) are derived from it and rebuild on next use. Every writer of _TUI_W_ORDER/_TUI_W_TYPE calls this.
+_tui_w.changed() { _TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1; }
+
 declare -g _TUI_FOCUS_ID=""
 declare -g _TUI_FOCUS_IDX=-1
 declare -g _TUI_CURSOR=0
@@ -71,7 +75,6 @@ declare -g _TUI_OLD_STTY=""
 declare -g _TUI_ROWS=0
 declare -g _TUI_COLS=0
 declare -g _WSR=0 _WSC=0 _WSW=0 _WSW_AVAIL=0
-declare -g _HIT=""
 
 # Raw-byte pushback FIFO: bytes that were already read from stdin (while
 # peeking ahead to coalesce mouse motion - see _tui._coalesce_mouse_motion)

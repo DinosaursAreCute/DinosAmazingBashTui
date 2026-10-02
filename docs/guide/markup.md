@@ -1,342 +1,314 @@
-# Declarative TUI markup
+# Pages: the markup format
 
-The project includes a lightweight HTML/XML-like config format for building TUIs
-declaratively instead of hand-calling `tui.*` functions. The loader
-(`lib/markup/tui_markup.sh`) is pure **bash + POSIX utilities only**.
-
-It is sourced automatically by `tui.sh`, so `tui.load` and `tui.goto` are
-available anywhere `tui.sh` is sourced.
-
-## Editor autocompletion
-
-[share/tui.xsd](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/tui.xsd) describes the tag/attribute set for
-editors that support XSD-based XML autocompletion and validation (e.g. the
-Red Hat XML extension in VS Code). It's purely an editing aid - the loader
-doesn't read or enforce it. Reference it from a page's root tag:
+A page is an XML file that says what is on the screen: panes, the widgets in them, which function a button calls, which class styles what. The loader is pure bash. This is the reference for the format; for a first page read the tutorial [Writing Your First App](../tutorials/writing-your-first-app.md).
 
 ```xml
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
+<tui on_visit="home_visit">
+  <script src="home_callbacks.sh"/>
+  <theme src="theme.css"/>
 
+  <pane id="root" split="v" border="none">
+    <pane id="head" height="3" title="Tasks" class="panel" hpad="1">
+      <label id="lbl_title" text="My tasks" class="brand"/>
+    </pane>
+    <pane id="body" split="h" border="none">
+      <pane id="add" width="38%" title="New task" class="panel" hpad="1">
+        <input id="inp_task" label="Task:" label_width="7" submit="on_add"/>
+        <button id="btn_add" text="[ Add ]" action="on_add" align="fill"/>
+      </pane>
+      <pane id="tasks" title="Your tasks" class="panel" hpad="1">
+        <list id="lst_tasks"/>
+      </pane>
+    </pane>
+  </pane>
+</tui>
 ```
 
-## Example
+Run a page with `tui.start_cached "config/home.xml"` (or try the bundled demo: `dabt --demo`). `tui.start_cached` is the one to use: it loads every page of the app once behind the logo screen and serves later page switches from that cache, so switching pages takes a fraction of a parse. `tui.start` skips the cache; use it only if your app rewrites its own page files while it runs.
 
-```bash
-source lib/tui.sh
-tui.start "config/home.xml"
+## The rules of the format
 
-```
+- Tags are `<tag attr="value"/>` or `<tag attr="value">…</tag>`. Values can use `"double"` or `'single'` quotes. A tag may span several lines, and comments (`<!-- … -->`) may stand anywhere.
+- `&lt; &gt; &amp; &quot; &apos;` work inside values. A `>` inside a quoted value does not end the tag.
+- The root is `<tui>`. Everything on the page is inside it.
+- **Every pane and every widget gets an `id`.** Bash finds things by id, addons and `tui.page.refresh` match by id, and error messages quote it. Use a prefix by kind (`lbl_`, `inp_`, `btn_`, `lst_`), it keeps ids unique and readable.
+- Pages are checked when the app starts. A mistake is reported with file, line and column (`share/demo/x.xml line 19 col 18: widget id 'foot' is already used at line 17`) and the start is refused; `--ignore-invalid-xml` starts anyway. The same schema is available to your editor: [share/tui.xsd](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/tui.xsd) gives completion and validation in editors that read XSD (reference it from the root tag: `<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">`).
 
-`tui.start` handles the full lifecycle - `tui.init`, `tui.load`, `tui.run`, and
-guaranteed terminal cleanup on exit/error - so a config-driven TUI only needs
-to define its markup file. Use `tui.init` + `tui.load` + `tui.run` directly
-only if you need to run custom setup between those steps. Or run the bundled demo:
+## Panes: the layout
 
-```bash
-bash bin/DABT_demo.sh      # or: dabt --demo
-```
+A pane is a rectangle. It either **holds widgets** or **is split into child panes** - never both. `split` says how the children share the space:
 
-## Format rules
+| `split` | children are |
+|---|---|
+| `h` | side by side (left to right) |
+| `v` | stacked (top to bottom) |
+| `grid` | cells of a grid, see [Grid layouts](grid-layouts-and-tabs.md) |
+| `fixed` | rows of fixed-size cells that wrap, see [Grid layouts](grid-layouts-and-tabs.md) |
 
-* One tag per line. Attributes are `name="value"` (double quotes only).
-* Tags are either self-closing (`<pane .../>`) or open/close pairs (`<pane ...>` … `</pane>`).
-* `<!-- comments -->` on their own line are ignored.
+**Sizes.** A child pane takes its size along the parent's split axis from `width` (in an `h` split) or `height` (in a `v` split). The value is a *size token*:
 
-## Supported tags
+| Token | Meaning |
+|---|---|
+| `24` | 24 cells |
+| `30%` | 30 % of the available space |
+| `2fr` | 2 shares of what is left after the fixed, percent and `auto` children (`fill` = `1fr`) |
+| `clamp(20,30%,50)` | prefer 30 %, but never below 20 or above 50 cells (each part may be any token) |
 
-* `<tui>` – root wrapper (ignored by the parser).
-* `<script src="…"/>` – sources a bash file (callbacks) before its actions are used. Path resolves relative to the file it appears in.
-* `<theme src="…"/>` – loads a CSS-like stylesheet. Path resolves relative to the file it appears in.
-* `<include src="…"/>` – inlines another markup file at parse time. Useful for shared fragments like a nav bar.
-* `<pane id="x" split="h|v|grid" weight="N" title="…" border="…" align="left|center|right|fill" valign="top|middle|bottom" min_width="N" min_height="N" max_width="N" max_height="N" scroll="none|v|h|both" strict_fit="true|false" class="…">` – layout node. `split="h"/"v"` makes it a container; children become the `tui.hsplit`/`tui.vsplit` list. `split="grid"` is documented separately below.
-* `<label id="x" pane="p" row="N" text="…" align="…" valign="…" min_width="N" max_width="N" class="…"/>`
-* `<input id="x" pane="p" row="N" label="…" placeholder="…" submit="fn" align="…" valign="…" min_width="N" max_width="N" label_align="left|center|right" label_width="N" class="…"/>`
-* `<button id="x" pane="p" row="N" text="…" action="fn" align="…" valign="…" min_width="N" max_width="N" class="…"/>`
-* `<button id="x" pane="p" row="N" text="…" page="other.xml"/>` – navigates to another page instead of calling a bash function.
-* `<checkbox id="x" pane="p" row="N" label="…" checked="true|false" action="fn" align="…" valign="…" min_width="N" max_width="N" class="…"/>` – a boolean toggle widget (`[x] Label` / `[ ] Label`), focusable like a button. `action` is called as `fn ID VALUE` (the checkbox id, then the new value "0"/"1") after every toggle, whether triggered by a click or by Enter while focused. `tui.get`/`tui.set`/`tui.update` work on it exactly as on any other widget.
-* `<tabs id="x" header_pane="p1" content_pane="p2"> <tab .../> … </tabs>` – documented separately below.
+`weight="3"` is the same as `3fr` and is fine for simple splits. Space that `max_width`/`max_height` leaves over goes to the other children; `min_width`/`min_height` are honoured, and a pane that still does not fit shows a `min space = WxH` notice instead of its content. `gap="1"` on a split pane leaves cells between its children. `hpad`/`vpad` keep the content away from the border; `border` is `single`, `double`, `heavy` or `none`; `title` goes into the top border.
 
-## Grid layout (`split="grid"`)
-
-A third split mode alongside `h`/`v`, for "several elements side by side"
-without hand-declaring one sub-pane per cell:
+Panes can be given `row`, `col`, `group`, `spacer` and `divider` instead of `pane` when that reads better: `row` is a pane with `split="h"`, `col` one with `split="v"`, `divider` one with a border, and `spacer` an empty pane that takes up space.
 
 ```xml
-<pane id="toolbar" split="grid" rows="1" cols="4" fit="stretch">
-  <pane id="cell_a" border="none"/>
-  <pane id="cell_b" border="none"/>
-  <pane id="cell_c" border="none"/>
-  <pane id="cell_d" border="none"/>
+<col id="root">
+  <pane id="head" height="3" title="Status"/>
+  <row id="body">
+    <pane id="nav"  width="22" title="Menu"/>
+    <spacer id="gap" width="1"/>
+    <pane id="main" width="1fr" title="Work"/>
+  </row>
+</col>
+```
+
+## Widgets: what is in a pane
+
+**Write a widget inside the pane it belongs to.** It is placed on the next free line of that pane, in document order, so there is nothing to number:
+
+```xml
+<pane id="form" title="Login" hpad="1">
+  <input    id="inp_user" label="User:" label_width="7" submit="on_login"/>
+  <password id="inp_pass" label="Pass:" label_width="7" submit="on_login"/>
+  <button   id="btn_login" text="[ Log in ]" action="on_login" align="fill"/>
 </pane>
 ```
 
-Each child `<pane>` becomes one grid cell (an ordinary pane - put one
-widget in it exactly as you would in any other pane), placed either:
+`row="N"` on a widget puts it on line N of its pane instead (lines count from 0); use it to leave a gap. The widgets after it follow document order again, from their own position. If a widget has to live in a pane it is not nested in, `pane="other_id"` places it there; it ties that pane to a full page rebuild (see [Changing a page that is on screen](#changing-a-page-that-is-on-screen)), so reach for it rarely.
 
-* **loosely** - no `grid_row`/`grid_col`: filled into the next open cell,
-  in document order, row-major; or
-* **explicitly** - `grid_row="R" grid_col="C"` on the child pins it to
-  that exact cell.
+| Tag | Shows | Main attributes |
+|---|---|---|
+| `label` | text | `text` |
+| `button` | a button | `text`, `action="fn"` (called as `fn ID`) or `page="other.xml"` |
+| `input` | one-line text field | `label`, `label_width`, `label_align`, `placeholder`, `submit="fn"`, `retain_input_on_submit`, `sticky` |
+| `checkbox` | on/off | `label`, `checked`, `action="fn"` (called as `fn ID VALUE`) |
+| `password`, `textarea`, `select`, `list`, `table`, `progress` | see [Widgets](widgets.md) | `on_change`, `items`, `rows`, `columns`, `data`, `value` |
 
-The two can be mixed freely on one grid; explicit cells are reserved
-first, then loose children fill whatever's left. If there are more loose
-children than empty cells, extra rows are appended automatically (reusing
-the last row's weight) rather than dropping content.
+Attributes every widget has:
 
-**Attributes** (all optional except `split="grid"` itself):
+| Attribute | |
+|---|---|
+| `class` | the style (see [Styling](#styling)) |
+| `align`, `valign` | text position in its row: `left`, `center`, `right`, `fill` (paint the whole row) / `top`, `middle`, `bottom` |
+| `width`, `height` | a size token for the widget itself |
+| `min_width`, `max_width`, `min_height`, `max_height` | limits |
+| `expand` | `x`, `y` or `both`: fill the pane's content area (lists, tables and text areas already fill it vertically) |
+| `padding`, `hpad`, `vpad` | space around the widget's text |
+| `focusable`, `tabbable`, `tab_order`, `focus_group`, `focus_nav`, `focus_wrap`, `focus_next`, `focus_prev`, `autofocus` | keyboard focus, see [Input and key bindings](input-bindings.md) |
+| `hit_pad`, `hitbox` | a bigger area that counts as a mouse hit |
 
-* `rows`, `cols` - grid shape. Either or both may be **omitted**, and are
-  computed from however many children the grid ends up with: only `cols`
-  given → `rows = ceil(N/cols)`; only `rows` given → `cols = ceil(N/rows)`;
-  neither given → a roughly-square grid (`cols = ceil(sqrt(N))`).
-* `fit="pack"` (default) - every row always has the full `cols` cells;
-  an unfilled trailing cell renders as an ordinary empty pane.
-* `fit="stretch"` - a row's empty cells are dropped instead, so its
-  populated cells expand to fill the row evenly. This is what fixes "6
-  items, 4 columns, the last 2 should be full-width, not narrow with two
-  blanks next to them."
-* `row_weights="1 2 1"`, `col_weights="1 1 1 1"` - space-separated weight
-  lists (same weight semantics as `tui.hsplit`/`tui.vsplit`), one entry
-  per row/column; missing entries default to `1`.
-
-The imperative equivalent is `tui.grid PARENT ROWS COLS FIT ROW_WEIGHTS
-COL_WEIGHTS NAME…`, which the markup parser itself is built on - see
-`lib/tui.sh`.
-
-## Tabs
-
-Formalizes "a row of header buttons that swap a content pane" - the
-pattern hand-rolled in earlier demo pages - into one declarative block:
+**Alignment** resolves from the widget's own `align` to its pane's `align` to the built-in default (centred for buttons, left/top for everything else). `valign` reinterprets a widget's row as an offset from the chosen anchor: `top` counts down, `bottom` counts up, `middle` counts from the centre. For an input, `label_width` reserves a fixed box for the label and `label_align` positions the text inside it; the field fills the rest.
 
 ```xml
-<pane id="tabs_header" weight="1"/>
-<pane id="content" weight="9" border="heavy"/>
-
-<tabs id="mytabs" header_pane="tabs_header" content_pane="content">
-  <tab id="tab_doc" text="Document" action="on_tab_doc"/>
-  <tab id="tab_tbl" text="Table" action="on_tab_tbl" default="true"/>
-</tabs>
+<input id="inp_name" label="Name:" label_width="12" label_align="right"/>
 ```
 
-`header_pane` and `content_pane` must already be declared panes (order in
-the file doesn't matter, same as `pane="…"` on any widget). Each `<tab>`
-becomes a header button, laid out as a 1-row grid across `header_pane`
-(so `fit="stretch"`-style equal-width headers come for free). "Active"
-reuses this framework's existing focus styling rather than a second style
-state - the active tab's header button is simply the focused widget, so
-any `.class:focus` rule already styles it. `default="true"` on one `<tab>`
-picks the tab that starts active; if none is marked, the first one does.
-`action` is exactly the callback you'd already write to populate
-`content_pane` via `tui.output` - nothing about its body changes, `<tabs>`
-only removes the button-wiring boilerplate around it. It's called with the
-tab's own id as `$1`, so one shared `action` can serve many tabs (see
-`share/demo/docu_callbacks.sh`'s dynamic tabs below) - existing callbacks that
-take no arguments are unaffected, bash just ignores the extra one.
+## Behaviour
 
-**Two header styles**, set with `style="framed"` (default) or
-`style="compact"` on `<tabs>` (imperative: `tui.tabs.compact TABS_ID
-true` before `tui.tabs.build`):
+| Tag / attribute | Does |
+|---|---|
+| `<script src="x.sh"/>` | sources a bash file (your callbacks). The path is relative to the file the tag is in. It is sourced on every page load. |
+| `<tui on_visit="fn">` | calls `fn` each time the page opens, once everything is built. Initialise things here. |
+| `action`, `submit`, `on_change` | the functions called by a widget, see [Callbacks](callbacks-and-viewports.md) |
+| `<button page="other.xml"/>` | goes to another page (`tui.goto`). `tui.action.back` returns. |
+| `<bind key="ctrl+e" action="fn" desc="Export"/>` | a key for this page |
+| `<footer items="@tui.action.quit"/>` | the key hints in the bottom row |
+| `<theme src="theme.css"/>` | the stylesheet |
 
-* `framed` - each header is its own bordered cell (`.tab_header`
-  class); needs at least 3 rows (top border, label, bottom border).
-* `compact` - no border at all; the active tab is shown purely by a
-  background-color change (`.tab_header_compact:focus` in `theme.css`)
-  instead of a frame, so a 1-row header pane is enough. Use this wherever
-  the header doesn't have 3 rows to spare.
+## Reusing markup
 
-## Dynamic tabs (built at runtime)
+Anything you would otherwise copy between pages is written once and placed. All of the tags below are expanded when the page is loaded, so the built page holds only ordinary panes and widgets and reuse costs nothing while the app runs.
 
-`<tabs>`/`<tab>` need every tab known at parse time. When the set isn't
-known until runtime - e.g. one tab per file discovered in a directory -
-build them from an `on_visit` callback with the same primitives `<tabs>`
-itself is built on:
+### Templates
+
+A template is a named piece of markup with parameters. It is never drawn by itself; each `<use>` makes a copy. The usual home for the parts every page shares (header, menu) is one file, `_templates.xml`, that each page includes - the demo does exactly this:
+
+```xml
+<!-- _templates.xml -->
+<template name="dabt_header">
+  <footer/>
+  <pane id="dabt_hdr" height="5" title="My App"/>
+</template>
+<template name="card" title="Untitled">
+  <pane id="box" title="{{@title}}" border="single">
+    <slot/>
+  </pane>
+</template>
+
+<!-- any page -->
+<tui>
+  <include src="_templates.xml"/>
+  <pane id="root" split="v">
+    <use template="dabt_header"/>
+    <use template="card" id="a" title="Disk"><label id="msg" text="82 % free"/></use>
+    <use template="card" id="b" title="Memory"/>
+  </pane>
+</tui>
+```
+
+- `{{@title}}` is replaced by the `title` given on `<use>`, or by the default written on `<template>`. Any attribute can be a parameter.
+- A `<use>` with an `id` puts that id and an underscore in front of every id in its copy (`a_box`, `b_box`), so several uses can coexist. Without an `id` the ids stay as written.
+- `<slot/>` marks where the content of the `<use>` goes. Name it (`<slot name="body"/>`) and fill it with `<fill slot="body">…</fill>` when a template has several places. Content inside the `<slot>` is the default.
+- A template may `<use>` another template. One that ends up using itself is reported as an error and the `<use>` is dropped.
+- `<include src="f.xml" name="value"/>` splices another file in at parse time; extra attributes are parameters for the `{{@name}}` in it.
+
+### Components
+
+A component is a template kept in its own file and used as a tag:
+
+```xml
+<component name="card" src="card.xml"/>
+<card title="Disk"><label id="msg" text="82 % free"/></card>
+```
+
+`card.xml` holds the template body. The validator accepts `<card>` after the `<component>` line on that page.
+
+### Loops and conditions
+
+```xml
+<pane id="side">
+  <for each="alpha beta gamma" as="name" index="i">
+    <button id="b_{{@name}}" text="{{@name}}" action="on_pick"/>
+  </for>
+</pane>
+<for count="3" index="i"> … </for>
+
+<if test="{{@mode}}==compact"> … <else> … </else></if>
+```
+
+- `<for each="…">` repeats its content once per word; `{{@name}}` (named by `as`, default `item`) is the word and `{{@i}}` (named by `index`) counts from 0. `count="N"` repeats N times.
+- `<if test="…">` keeps its content when the test holds, otherwise the content of `<else>`. A test is `A==B`, `A!=B`, or one value that is false when empty, `false` or `0`. Only one branch survives, but the page is checked before that, so the two branches must not use the same widget id.
+- Loops and conditions run once when the page loads, on values written in the file, passed as parameters, or set by an addon. For values that change while the app runs, see the runtime values below.
+
+### Addons
+
+An addon changes a page without editing its file. A plugin or an app extension uses one to add a button, hide a pane or retitle something; so does the app itself, for content that depends on settings (the demo's *Generated* page).
+
+```xml
+<!-- TUI_APP_CONF/addons/stats.xml -->
+<addon id="stats" target="home.xml" priority="10">
+  <append ref="#sidebar"><button id="go" text="Stats" page="stats.xml"/></append>
+  <set ref="#lbl_title" attr="text" value="Welcome back"/>
+  <remove ref=".legacy"/>
+</addon>
+```
+
+| Tag | Does |
+|---|---|
+| `<append ref>` / `<prepend ref>` | add its content as the last / first child of the match |
+| `<before ref>` / `<after ref>` | add its content next to the match |
+| `<replace ref>` | put its content where the match was |
+| `<remove ref>` | delete every match |
+| `<set ref attr value>` | set an attribute on every match |
+| `<wrap ref type id>` | put the match inside a new `type` (default `pane`) |
+
+- `ref` is a selector: `#id`, `.class`, `tag`, combined as `tag#id.class`; a space means "somewhere below" and `>` "directly below". Add, replace and wrap use the first match; remove and set use all of them. A `ref` that matches nothing is reported.
+- `target` is a page file name or `*` for every page. A lower `priority` runs first, so the higher number has the last word.
+- Added content is copied with every id starting `stats_` (the addon id). `prefix="false"` on `<addon>` keeps ids as written.
+- Addons are read from `TUI_APP_CONF/addons/*.xml` and from every directory given to [`tui.addon.dir`](../api/core/tui.addon.dir.md), before templates and loops are expanded, so addon content can use them and an addon can set the `count` of a `<for>`. An empty file is a switched-off addon.
+- Addon files and their folder count as part of the page for the cache: adding, removing or editing one makes the next load rebuild it.
+
+## Changing a page that is on screen
+
+Everything above is decided when the page loads. To change a page that is already showing (a switched addon, a generated list), call [`tui.page.refresh`](../api/core/tui.page.refresh.md):
 
 ```bash
-on_docu_visit() {
-    local -a tab_ids=()
-    local i file
-    for i in "${!files[@]}"; do
-        file="${files[$i]}"
-        tui.tabs.add "doc_tab_$i" "$(basename "$file")" on_doc_tab_activate
-        tab_ids+=("doc_tab_$i")
-    done
-    tui.tabs.build "doctabs" "tabs_header" "content" "${tab_ids[@]}"
-}
+cp "$APP_DIR/addons/banner.xml" "$TUI_APP_CONF/addons/banner.xml"   # switch an addon on
+: >"$TUI_APP_CONF/addons/old.xml"                                   # switch one off
+tui.page.refresh                                                    # the screen follows
 ```
 
-See `share/demo/docu_callbacks.sh` for the full version (it also derives a
-short label from each file's own heading rather than its filename).
+A refresh does not parse anything. Every page remembers the tree it was built from; the refresh applies the addons to that tree, compares the result with what is on screen pane by pane, and rebuilds only the panes whose content changed, together with everything below them. It stays within the 100 ms a page switch has, and what you typed or ticked in the panes that did not change stays as it is. See [How pages are built and refreshed](../design/pages-templates-addons-refresh.md) for what it does and when it gives up.
 
-## Running a callback once a page is fully loaded (`on_visit`)
+To keep a change refreshable:
 
-```xml
-<tui on_visit="on_docu_visit">
-```
+- give every pane an addon or a refresh may change an `id`;
+- write widgets inside their pane, not elsewhere with `pane="…"`;
+- keep `<tabs>` out of the part that changes (a change in a tab set rebuilds the whole page, in the background, with a spinner).
 
-Calls the named function once the page's panes and widgets are fully
-built - on the page's initial load *and* every time `tui.goto` navigates
-back to it. This is what makes dynamic tabs (above) possible: nothing in
-the page's own markup needs to name the tabs, `on_visit` builds them from
-whatever it finds at that moment.
+Work that is slow in itself belongs to [`tui.job.run`](../api/core/tui.job.run.md): it runs in a separate process, shows a spinner when it takes longer than 100 ms, and hands the result to a function that puts it on screen in one go. See [Slow work](callbacks-and-viewports.md#4-slow-work-keep-the-interface-running).
 
-## Dynamic layouts: the factory API
+## Grid layouts and tabs
 
-For layouts whose shape isn't known until runtime - "however many items
-are in this list" - markup alone isn't enough, since XML has to name
-every id up front. `tui.factory.*` (in `lib/tui.sh`) is the imperative
-counterpart: it auto-generates unique ids under a namespace you choose,
-and `tui.factory.clear NAMESPACE` tears every one of them back down
-(widgets, and any panes from `tui.factory.grid`) in one call, so a
-callback can rebuild a layout from scratch each time its data changes:
+`split="grid"` and `split="fixed"` lay out several elements side by side without one hand-written pane per cell; `<tabs>` is a row of header buttons that swap a content pane. Both have their own page: [Grid layouts and tabs](grid-layouts-and-tabs.md).
 
-```bash
-rebuild_item_list() {
-    tui.factory.clear "items"                 # drop whatever was there
-    tui.factory.grid "items" "list_pane" "${#my_items[@]}"   # size from count
-    local i
-    for i in "${!my_items[@]}"; do
-        tui.factory.button "items" "${_TUI_FACTORY_GRID_CELLS[$i]}" 0 \
-            "${my_items[$i]}" on_item_clicked
-    done
-    tui.render
-}
-```
+## Fully dynamic content
 
-* `tui.factory.label|button|input|checkbox NAMESPACE PANE ROW …` - same
-  arguments as the plain `tui.label`/etc. constructors, minus the id (one
-  is generated and left in `_TUI_FACTORY_LAST_ID` - read it right after
-  the call if you need it: `tui.factory.button …; id="$_TUI_FACTORY_LAST_ID"`.
-  These deliberately don't print the id: in a TUI, stdout is the screen,
-  and a constructor called in a loop without wrapping it in `$(...)` would
-  otherwise leak raw id text straight onto the terminal.
-* `tui.factory.grid NAMESPACE PARENT COUNT [COLS] [FIT] [ROW_WEIGHTS] [COL_WEIGHTS]`
-  - the dynamic-sizing counterpart to `<pane split="grid">`: takes an item
-  **count** rather than a fixed shape, and leaves the resulting cell ids,
-  in order, in `_TUI_FACTORY_GRID_CELLS` for you to populate.
-* `tui.factory.clear NAMESPACE` - removes everything tagged under that
-  namespace. Independent namespaces (different callbacks, different parts
-  of a page) never collide with each other's ids.
+When the shape of a page depends on data that only exists at run time (one row per file found, one pane per connected device), there are three tools, from cheapest to most flexible:
 
-This is deliberately not a templating engine - just id-management and
-bulk teardown wrapped around the same constructors the markup parser
-itself calls.
+1. **A list or table widget.** One widget, any number of rows: `tui.list.set ID ITEM...`, `tui.table.set`. Use this whenever the thing is a list of lines.
+2. **Generate the markup.** Write an addon that sets the `count` of a `<for>` or the parameters of a `<use>`, then `tui.page.refresh`. The structure stays declarative and only the changed pane is rebuilt.
+3. **`tui.factory.*`.** Create widgets from a callback under a namespace and drop them again with `tui.factory.clear NAMESPACE`. Use it for panes and widgets that are created and destroyed from code.
 
-## Automatic content-fit checking
-
-Besides the explicit `min_width`/`min_height` a pane can declare, its
-actual content is also checked automatically on every full render (page
-load and every terminal resize): the furthest widget row and longest
-widget text placed in it, or - for a `tui.output`-fed pane - the line
-count and max line width already tracked for scrolling. If the pane is
-smaller than what its own content needs, the same `min space = …` warning
-used for an explicit `min_width`/`min_height` violation appears, without
-you having to declare one by hand. A pane with `scroll` enabled is exempt
-(content taller/wider than the viewport is the normal, intended state for
-one); set `strict_fit="false"` on a specific pane to opt it back out
-entirely and rely on explicit `min_width`/`min_height` only.
-
-## Performance tracking
-
-Off by default. A page can opt in with `_TUI_PERF_TRACKING=1` (e.g. at the
-top of its `<script>` file) to have every frame `tui.render` and friends
-flush get timestamped; `tui.perf.mean_render_ms SECONDS` then returns the
-mean render duration, in milliseconds, over the trailing window - useful
-for watching your own layout's cost live instead of guessing. See
-`share/demo/debug.xml` / `share/demo/debug_callbacks.sh` for a working example,
-alongside a live tape of dispatched input events (set
-`_TUI_ON_INPUT_EVENT` to a function to receive one) and hover/focus state.
-
-## Scrolling Viewports
-
-Panes can act as high-performance scrolling viewports by adding the `scroll` attribute.
-
-* `scroll="v"`: Enables vertical scrolling.
-* `scroll="h"`: Enables horizontal scrolling.
-* `scroll="both"`: Enables multi-axis scrolling.
-
-Content is injected into a scrollable pane using `tui.output "pane_id" "content"` in a callback script. Scrolling is processed via a high-performance AWK shader and utilizes the "Jump-to-Click" pattern for immediate responsiveness. Users can navigate via the mouse wheel, Shift+Mouse Wheel (horizontal), clicking directly on the generated scrollbar tracks, or using Vim bindings (`hjkl`) and Shift+Arrow keys.
-
-## Alignment
-
-`align` (horizontal) and `valign` (vertical) control how a widget's text is
-positioned within its row.
-
-* Per node (pane): `align`/`valign` on a `<pane>` set the default for every widget placed in it (`tui.pane_align`, `tui.pane_valign`).
-* Per element: `align`/`valign` on a `<label>`/`<input>`/`<button>` override that default for just that widget (`tui.align`, `tui.valign`).
-* Precedence: widget's own value > its pane's value > built-in default (center horizontally for buttons, left/top for everything else).
-* `align="fill"` paints the entire row width with the element's fg/bg/mods instead of only the text.
-* `valign` reinterprets a widget's row as an offset from the chosen anchor instead of an absolute line: `top` counts down, `bottom` counts up, and `middle` offsets from the vertical center.
-
-### Aligning a widget's sub-components (input label vs. field)
-
-Use `label_width` to reserve a fixed-width box for the label and `label_align`
-to position the label text within that box; the field then fills the
-remaining row width:
-
-```xml
-<input id="inp_name" pane="form" row="0" label="Name:" label_width="12" label_align="right"/>
-
-```
-
-## Minimum / maximum sizes
-
-* `min_width`/`min_height` on a `<pane>`, and `min_width` on a widget, declare the smallest space something is allowed to render into. If the actual available space is smaller, a warning is shown in place of the normal content: `min space = WxH` for panes, `min space = N` for a widget's row.
-* `max_width`/`max_height` cap how large it is allowed to grow - extra space is simply left blank.
+Tabs known only at run time are built from `on_visit` with `tui.tabs.add` and `tui.tabs.build`; see [Grid layouts and tabs](grid-layouts-and-tabs.md#dynamic-tabs).
 
 ## Styling
 
-`lib/style/tui_style.sh` adds a CSS-like theme system, loaded with `<theme src="theme.css"/>`:
+`<theme src="theme.css"/>` loads a stylesheet; `class="name"` applies a class:
 
 ```css
 .danger_button        { fg: white; bg: #b00020; mods: bold; }
 .danger_button:focus  { fg: white; bg: #ff3333; mods: bold; }
-
+.danger_button:hover  { bg: #d4002a; }
 ```
 
-`fg`/`bg` accept a `colors.sh` name (e.g. `red`) or a `#RRGGBB` hex value;
-`mods` is a space-separated list of `style.*` modifiers (e.g. `bold underline`).
-`:focus`/`:border`/`:title`/`:hover` are optional pseudo-state variants.
+`fg`/`bg` take a name from `colors.sh` or `#RRGGBB`; `mods` is a space-separated list (`bold underline`). A widget or pane with no class takes the look of the pane it is in, so you only style what should stand out.
 
-`:hover` applies to a *widget* (button/input) while the mouse pointer sits
-over it; a class with no `:hover` rule leaves hovering that widget with no
-visual effect. It has no effect on panes.
+| Pseudo-state | Applies to |
+|---|---|
+| `:focus` | a widget while it has keyboard focus; a pane's border while a widget in it does |
+| `:hover` | a widget while the mouse is over it (a class without `:hover` shows no hover) |
+| `:checked`, `:unchecked` | a checkbox by its value; `:focus` and `:hover` win while they apply |
+| `:border`, `:title` | a pane's border ring and title |
 
-`:checked` / `:unchecked` style a *checkbox* by its value (on / off). They replace the normal look; `:focus` and `:hover` still win while the checkbox is focused or hovered, and any field the state leaves out falls back to the normal look. A checkbox with no such rules is drawn as before.
+Prefer a class over anything inline: classes are resolved once and cached, and a theme switch (`tui.theme.set`) restyles every page, cached ones included.
 
-A pane's border instead reacts to `:focus`: it switches to the class's
-`:focus` style (falling back to `:border`) while any widget inside that
-pane currently has keyboard focus, and reverts the moment focus moves
-elsewhere - recoloring just the border ring, never the interior or any
-scrolled content.
+## Values that change while the app runs
 
-Apply a class with `class="danger_button"`.
-
-## Runtime text expressions
-
-`text`/`label` attributes on `<label>`/`<button>` may embed
-`${command args…}` - resolved by running that shell command and substituting its stdout, every time the widget is redrawn:
-
-```xml
-<label id="lbl_rule" pane="output" row="0" text="${terminal_renderer.sh divider 'Section'}"/>
-
-```
-
-Content isn't re-resolved automatically on a timer; call `tui.redraw` (an alias for `tui.render`) to force a full repaint on demand.
-
-## Multi-page TUIs
-
-Each markup file is a self-contained page (its own `<tui>…</tui>`). A button's `page` attribute (instead of `action`) wires up an internal handler that calls:
+Widgets hold their values; read and write them from bash, not from the markup:
 
 ```bash
-tui.goto "other.xml"
-
+on_save() {
+    local name
+    tui.get inp_name name          # into a variable: no subshell
+    tui.update lbl_status "Saved $name"
+}
 ```
 
-`tui.goto` clears all panes/widgets, resets to a full-screen root pane, loads
-the target file, and re-renders.
+`tui.get ID VAR` stores the value in `VAR`; `$(tui.get ID)` starts a subshell on every call, which matters in key and mouse handlers. `tui.update ID VALUE` changes a value and redraws the widget, `tui.set_label ID TEXT` changes a caption, `tui.set_text PANE TEXT` and `tui.output PANE TEXT` fill a pane.
 
-## Callback sourcing
+`text` on a label or button may embed `${command}`, run each time the widget is drawn:
 
-`<script>` files are sourced as plain bash - `tui.sh` is already loaded by the
-time they run, so they can call `tui.get`, `tui.update`, `tui.exec`, `tui.stop`,
-etc. directly.
+```xml
+<label id="lbl_rule" text="${terminal_renderer.sh divider 'Section'}"/>
+```
+
+Every redraw starts a process for it, so it suits static text like a divider. For anything that changes, call `tui.update`.
+
+## Scrolling
+
+`scroll="v"`, `"h"` or `"both"` on a pane makes it a scrolling viewport. Such a pane must be a leaf (no child panes, no widgets); fill it with `tui.output PANE TEXT` or `tui.output_append`. Wheel, drag on the scrollbar (the bar is drawn one cell wide, and reacts three cells wide) and the page keys scroll it. Details: [Callbacks and viewports](callbacks-and-viewports.md#3-building-scrolling-viewports).
+
+## Content fit
+
+Besides explicit `min_width`/`min_height`, a pane's content is checked on every full render: the furthest widget line and the longest widget text, or for an output pane the line count and widest line. A pane that is too small for its own content shows the same `min space` notice. A pane with `scroll` is exempt; `strict_fit="false"` opts a pane out.
+
+## Several pages
+
+Each file is a page with its own `<tui>`. `<button page="other.xml"/>` or `tui.goto other.xml` switches to it; the UI is reset, the page loaded (from the cache when possible) and drawn in one frame. Focus stays on the same widget id when a page is reloaded. `tui.action.back` returns to the previous page.
+
+## Tools
+
+| | |
+|---|---|
+| `dabt --demo` | the bundled demo; its pages are the best examples of everything above |
+| `share/tui.xsd` | schema for editor completion |
+| `tools/frame.sh PAGE [COLSxROWS]` | renders a page to text without a terminal (`--sgr` keeps the styles) |
+| `tools/profiler/profile.sh` | times page switches, input and the addon scenarios against the 100 ms budget |

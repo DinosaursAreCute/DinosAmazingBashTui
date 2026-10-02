@@ -26,7 +26,7 @@ _b_focus_move() {
 	_TUI_FOCUS_ID="$_BENCH_WID"
 	_tui._draw_pane_borders_now "$_BENCH_PANE" >/dev/null
 }
-_b_mouse_hit() { _tui._locate_pane "$((_TUI_COLS / 2))" "$((_TUI_ROWS / 2))"; }
+_b_mouse_hit() { _tui_hit.at "$((_TUI_COLS / 2))" "$((_TUI_ROWS / 2))"; }
 _b_resize_relayout() { _tui._layout root; }
 _b_scroll_burst() {
 	_tui._scroll_kb down

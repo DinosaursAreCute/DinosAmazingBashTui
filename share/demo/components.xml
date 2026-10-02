@@ -1,9 +1,10 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="sc_tab_renderers">
+  <include src="_templates.xml"/>
   <script src="showcase_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
   <pane id="root1" weight="90" split="h">
     <pane id="sidebar" weight="18" split="v" border="none">
       <pane id="nav"      weight="58" title="Menu"     border="single" class="sidebar"/>
@@ -80,5 +81,5 @@
   <!-- rows 4-8: options for the current view, built at runtime (_sc_controls) -->
   <button   id="btn_clear"   pane="controls" row="10" text="[ Clear ]" action="on_clear" class="danger_button" align="fill"/>
 
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

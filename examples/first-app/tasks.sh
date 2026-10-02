@@ -21,4 +21,4 @@ TUI_APP_DESC="A tiny to-do list"
 TUI_APP_ENTRY="tasks.sh"
 source "$TUI_ROOT/lib/tui.sh"
 
-tui.start "$APP_DIR/config/home.xml"
+tui.start_cached "$APP_DIR/config/home.xml"

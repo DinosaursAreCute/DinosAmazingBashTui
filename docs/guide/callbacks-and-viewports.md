@@ -13,13 +13,14 @@ Never write imperative layout code inside a callback. All UI structural definiti
 3. Widget/Pane updates (`tui.update`, `tui.output`).
 
 ### Interacting with Widgets
-To read the current value of a text `<input>` field when a button is clicked, use `tui.get "widget_id"`. To push a change back to the screen, use `tui.update "widget_id" "new value"`. `tui.update` automatically triggers a localized redraw of just that component, ensuring maximum efficiency.
+To read the current value of a text `<input>` field when a button is clicked, use `tui.get widget_id VAR` (the value lands in the variable `VAR` without starting a subshell; plain `tui.get widget_id` prints it). To push a change back to the screen, use `tui.update "widget_id" "new value"`. `tui.update` automatically triggers a localized redraw of just that component, ensuring maximum efficiency.
 
 ```bash
 # Example: Form Submission Callback
 on_submit_user_form() {
     # 1. Retrieve data
-    local username="$(tui.get "inp_username")"
+    local username
+    tui.get inp_username username      # into a variable: no subshell
     
     # 2. Mutate state or validate
     if [[ -z "$username" ]]; then
@@ -81,7 +82,7 @@ on_generate_report() {
 `tui.init` enables xterm any-motion mouse tracking (`\e[?1003h`), so the
 framework receives a stream of position reports even when no button is
 pressed. On every report, `_tui._handle_mouse` recomputes which pane
-(`_tui._pane_at`) and which focusable widget (`_tui._hit_test`) sit under the
+and which widget (both from one lookup, `_tui_hit.at`) sit under the
 pointer and hands each to a setter (`_tui._set_hovered_pane` /
 `_tui._set_hovered_widget`).
 
@@ -156,3 +157,24 @@ When `tui.output` is called, the framework instantly computes the text boundarie
 2. **Memory Considerations:** Do not pipe infinite streams directly into memory unless managing them. The `tui.exec` module manages memory automatically via a capped ring-buffer, but manual `tui.output_append` loops will grow memory indefinitely.
 3. **Triggering Formats:** Always ensure your dynamically generated strings resolve their literal escape characters before injection. Use `printf '%b' "$your_string"` before passing it into `tui.output` so the AWK shader can correctly evaluate newlines (`\n`) and ANSI colors.
 
+
+## 4. Slow Work: Keep the Interface Running
+
+A callback that takes a second freezes the screen: the loop cannot read keys or move the mouse until it returns. For anything that can be slow, hand the work to [`tui.job.run`](../api/core/tui.job.run.md). It runs your function in a separate process, the interface keeps running, and a small spinner appears in the top-right corner if the work takes longer than 100 ms. Quick work never shows a spinner; the 100 ms is the usual point at which people notice a delay, and you can change it per job with `--delay`.
+
+```bash
+build_report() { sleep 2; printf 'sales: 42\n'; }            # runs in the background: print the result, change nothing
+show_report()  { tui.set_text report "$(<"$3")"; }          # runs in the main shell when the work is finished
+on_refresh()   { tui.job.run --label "Building report..." report build_report show_report; }
+```
+
+The two functions have different jobs because they run in different places:
+
+| | Runs in | Can change screen and variables | Gets its result by |
+|---|---|---|---|
+| work function | a separate process | no | it **prints** the result |
+| done function | the main shell | yes | being handed the job id, the exit status, and a file with what the work printed |
+
+Nothing is drawn until the done function runs, so a list, a table or a whole page built in the background appears in one redraw instead of building up in front of the user. Pressing the button again while the job is pending replaces the earlier job; [`tui.job.cancel`](../api/core/tui.job.cancel.md) stops one, and [`tui.job.running`](../api/core/tui.job.running.md) asks whether one is pending.
+
+Changing the page that is already on screen is a different problem, and a process does not help: the new widgets have to be created in the running program. [`tui.page.refresh`](../api/core/tui.page.refresh.md) does that for [addon](markup.md#addons) changes, rebuilding only the panes that changed, in the time of a page switch. The *Addons* and *Generated* pages of the demo use it; [`tui.page.rebuild`](../api/core/tui.page.rebuild.md) is its fallback for changes it cannot apply in place.

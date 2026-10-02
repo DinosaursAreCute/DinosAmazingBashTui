@@ -6,6 +6,9 @@
 tui.validate.container tui pane tabs
 tui.validate.widget label input button checkbox password textarea list table select progress
 tui.validate.tag script theme include footer bind tab
+# composition (lib/markup/tui_compose.sh) and addons (tui_addon.sh): expanded away before the build
+tui.validate.container template use slot fill for if else addon append prepend before after replace
+tui.validate.tag component remove set wrap
 tui.validate.self_closing script theme include footer bind tab \
 	label input button checkbox password textarea list table select progress
 
@@ -14,11 +17,25 @@ tui.validate.require pane id
 tui.validate.require script src
 tui.validate.require theme src
 tui.validate.require include src
+tui.validate.require template name
+tui.validate.require use template
+tui.validate.require fill slot
+tui.validate.require if test
+tui.validate.require component name src
+tui.validate.require addon id
+tui.validate.require append ref
+tui.validate.require prepend ref
+tui.validate.require before ref
+tui.validate.require after ref
+tui.validate.require replace ref
+tui.validate.require remove ref
+tui.validate.require set ref attr value
+tui.validate.require wrap ref
 tui.validate.require bind key action
 tui.validate.require tabs id header_pane content_pane
 tui.validate.require tab id
 for _tv_t in label input button checkbox password textarea list table select progress; do
-	tui.validate.require "$_tv_t" id pane row
+	tui.validate.require "$_tv_t" id
 done
 unset _tv_t
 
@@ -32,6 +49,8 @@ tui.validate.enum pane scroll "none|v|h|both"
 tui.validate.enum pane fit "pack|stretch"
 tui.validate.enum tabs style "framed|compact"
 tui.validate.enum bind scope "global"
+tui.validate.enum '*' focus_nav "arrows|tab|both"
+for _tv_a in focusable tabbable focus_wrap autofocus; do tui.validate.enum '*' "$_tv_a" "true|false"; done
 for _tv_a in pane.strict_fit pane.newline input.retain_input_on_submit input.sticky checkbox.checked \
 	tab.default bind.pass bind.always; do
 	tui.validate.enum "${_tv_a%%.*}" "${_tv_a#*.}" "true|false"
@@ -41,6 +60,7 @@ unset _tv_a
 # -- numbers -------------------------------------------------------------
 for _tv_a in min_width min_height max_width max_height hpad vpad label_width rows; do tui.validate.int '*' "$_tv_a" 0; done
 tui.validate.int '*' row -9999
+tui.validate.int '*' tab_order -1
 for _tv_a in weight rows cols size_w size_h span; do tui.validate.int pane "$_tv_a" 1; done
 tui.validate.int pane grid_row 0
 tui.validate.int pane grid_col 0
@@ -62,15 +82,46 @@ tui.validate.parent tab tabs
 
 # ═══ custom rules ═══════════════════════════════════════════════════════
 declare -gA _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=()
+declare -gA _TVR_TABORD_N=() _TVR_TABORD_AT=()
 
-_tui_vrule.reset() { _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=(); }
+# a <component name="box"/> makes <box> a known tag for the rest of that page
+declare -ga _TVR_COMP=()
+_tui_vrule.component_reset() {
+	local n
+	for n in "${_TVR_COMP[@]}"; do unset '_TV_TAGS[$n]' '_TV_CONTAINER[$n]'; done
+	_TVR_COMP=()
+}
+tui.validate.rule page _tui_vrule.component_reset
+_tui_vrule.component() {
+	if [[ "$TUI_V_TAG" == component ]] && tui.validate.attr name; then
+		_TV_TAGS[$REPLY]=1 _TV_CONTAINER[$REPLY]=1
+		_TVR_COMP+=("$REPLY")
+	fi
+	return 0
+}
+tui.validate.rule element _tui_vrule.component
+
+_tui_vrule.reset() { _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=() _TVR_TABORD_N=() _TVR_TABORD_AT=(); }
 tui.validate.rule page _tui_vrule.reset
+
+# a widget written directly under <tui> (or in an included fragment) names its pane and row; one written inside a
+# <pane> takes both from where it stands, and inside a template/for/if/addon it may land anywhere, so it is not checked
+_tui_vrule.widget_place() {
+	[[ -n "${_TV_WIDGET[$TUI_V_TAG]:-}" ]] || return 0
+	[[ -z "$TUI_V_PARENT_TAG" || "$TUI_V_PARENT_TAG" == tui ]] || return 0
+	local a
+	for a in pane row; do
+		tui.validate.attr "$a" && [[ -n "$REPLY" ]] || tui.validate.error "<$TUI_V_TAG> is missing the required attribute '$a'"
+	done
+	return 0
+}
+tui.validate.rule element _tui_vrule.widget_place
 
 # <tui> wraps the whole page, once
 _tui_vrule.root() {
 	if [[ "$TUI_V_TAG" == tui ]]; then
 		((TUI_V_DEPTH == 0)) || tui.validate.error "<tui> cannot be nested inside <$TUI_V_PARENT_TAG>"
-	elif ((TUI_V_DEPTH == 0)) && [[ "$TUI_V_FILE" == "$TUI_V_PAGE" ]]; then
+	elif ((TUI_V_DEPTH == 0)) && [[ "$TUI_V_FILE" == "$TUI_V_PAGE" && "$TUI_V_TAG" != addon ]]; then # an addon file is its own document
 		tui.validate.error "<$TUI_V_TAG> is outside <tui>…</tui> - everything in a page belongs inside the <tui> root"
 	fi
 }
@@ -188,3 +239,37 @@ _tui_vrule.refs() {
 	return 0
 }
 tui.validate.rule end _tui_vrule.refs
+
+# focus: tabbable needs focusable; tab_order values 1..N should each appear once (gaps and duplicates are warnings)
+_tui_vrule.focus() {
+	[[ -n "${_TV_WIDGET[$TUI_V_TAG]:-}" ]] || return 0
+	local n="${_TV_A[tab_order]:-}"
+	if [[ "${_TV_A[tabbable]:-}" == true ]]; then
+		local can=1
+		if [[ "${_TV_A[focusable]:-}" == false ]]; then
+			can=0
+		elif [[ -z "${_TV_A[focusable]:-}" ]]; then
+			_tui_focus.default_focusable "$TUI_V_TAG" || can=0
+		fi
+		((can)) || tui.validate.error "'${_TV_A[id]:-?}' is tabbable but not focusable - add focusable=\"true\" or drop tabbable" tabbable
+	fi
+	[[ "$n" =~ ^[1-9][0-9]*$ ]] || return 0
+	n=$((10#$n))
+	((_TVR_TABORD_N[$n]++))
+	tui.validate.here tab_order
+	_TVR_TABORD_AT[$n]="${_TVR_TABORD_AT[$n]:-$REPLY}"
+}
+tui.validate.rule element _tui_vrule.focus
+
+_tui_vrule.tab_order_end() {
+	local n max=0 k
+	for n in "${!_TVR_TABORD_N[@]}"; do
+		((n > max)) && max=$n
+		((_TVR_TABORD_N[$n] > 1)) && tui.validate.warn_at "${_TVR_TABORD_AT[$n]}" "tab_order=\"$n\" is used by ${_TVR_TABORD_N[$n]} widgets - ties fall back to document order"
+	done
+	for ((k = 1; k < max; k++)); do
+		[[ -n "${_TVR_TABORD_N[$k]:-}" ]] || tui.validate.warn_at "${_TVR_TABORD_AT[$max]}" "tab_order skips $k (the page uses up to $max) - Tab still follows the numeric order"
+	done
+	return 0
+}
+tui.validate.rule end _tui_vrule.tab_order_end

@@ -33,6 +33,10 @@ source "${SCRIPT_DIR}/render/tui_canvas.sh"
 source "${SCRIPT_DIR}/render/tui_paint.sh"
 # shellcheck source=render/tui_rowcache.sh
 source "${SCRIPT_DIR}/render/tui_rowcache.sh"
+# shellcheck source=input/tui_hit.sh
+source "${SCRIPT_DIR}/input/tui_hit.sh"
+# shellcheck source=input/tui_focus.sh
+source "${SCRIPT_DIR}/input/tui_focus.sh"
 # shellcheck source=colors.sh
 source "${SCRIPT_DIR}/colors.sh"
 # shellcheck source=tui_home.sh
@@ -50,8 +54,16 @@ source "${SCRIPT_DIR}/markup/tui_validate.sh"
 source "${SCRIPT_DIR}/style/tui_style.sh"
 # shellcheck source=tui_registry.sh
 source "${SCRIPT_DIR}/tui_registry.sh"
+# shellcheck source=markup/tui_ops.sh
+source "${SCRIPT_DIR}/markup/tui_ops.sh"
+# shellcheck source=markup/tui_compose.sh
+source "${SCRIPT_DIR}/markup/tui_compose.sh"
+# shellcheck source=markup/tui_addon.sh
+source "${SCRIPT_DIR}/markup/tui_addon.sh"
 # shellcheck source=markup/tui_build.sh
 source "${SCRIPT_DIR}/markup/tui_build.sh"
+# shellcheck source=markup/tui_refresh.sh
+source "${SCRIPT_DIR}/markup/tui_refresh.sh"
 # shellcheck source=tui_api.sh
 source "${SCRIPT_DIR}/tui_api.sh"
 # shellcheck source=input/tui_input.sh
@@ -64,6 +76,8 @@ source "${SCRIPT_DIR}/chrome/tui_cmd.sh"
 source "${SCRIPT_DIR}/chrome/tui_footer.sh"
 # shellcheck source=chrome/tui_dialog.sh
 source "${SCRIPT_DIR}/chrome/tui_dialog.sh"
+# shellcheck source=tui_job.sh
+source "${SCRIPT_DIR}/tui_job.sh"
 # shellcheck source=widgets/tui_text.sh
 source "${SCRIPT_DIR}/widgets/tui_text.sh"
 # shellcheck source=widgets/tui_widgets.sh
@@ -570,6 +584,7 @@ _tui._collect_leaves() {
 # top-level call is timed, so a span's begin/end pair is never clobbered by
 # a nested begin overwriting the outer call's start time.
 _tui._layout() {
+	_TUI_HZ_DIRTY=1
 	_tui_perf.begin layout
 	_tui._layout_r "$1"
 	_tui_perf.end layout
@@ -818,6 +833,7 @@ tui.label() {
 	_TUI_W_LABEL[$id]="$4"
 	_TUI_W_VALUE[$id]="$4"
 	_TUI_W_ORDER+=("$id")
+	_tui_w.changed
 }
 
 tui.button() {
@@ -833,7 +849,7 @@ tui.button() {
 	_TUI_W_VALUE[$id]=""
 	_TUI_W_ACTION[$id]="${5:-}"
 	_TUI_W_ORDER+=("$id")
-	_TUI_FOCUSABLE+=("$id")
+	_tui_w.changed
 }
 
 tui.input() {
@@ -852,7 +868,7 @@ tui.input() {
 	_TUI_W_ACTION[$id]=""
 	_TUI_W_SUBMIT[$id]="${submit_fn}"
 	_TUI_W_ORDER+=("$id")
-	_TUI_FOCUSABLE+=("$id")
+	_tui_w.changed
 }
 
 tui.checkbox() {
@@ -872,7 +888,7 @@ tui.checkbox() {
 	esac
 	_TUI_W_ACTION[$id]="${6:-}"
 	_TUI_W_ORDER+=("$id")
-	_TUI_FOCUSABLE+=("$id")
+	_tui_w.changed
 }
 
 # tui.checkbox.toggle ID - flips a checkbox's value, redraws it, and calls
@@ -1103,7 +1119,7 @@ tui.factory.grid() {
 }
 
 # tui.factory.clear NAMESPACE - tears down every widget/pane created under
-# NAMESPACE (removing it from _TUI_W_ORDER/_TUI_FOCUSABLE and its widget
+# NAMESPACE (removing it from _TUI_W_ORDER and its widget
 # or pane state entirely) and resets any grid parent it built back to a
 # plain, childless leaf pane, ready for a fresh build. Safe to call on a
 # namespace that was never used, or has already been cleared.
@@ -1113,7 +1129,7 @@ tui.factory.clear() {
 	read -ra ids <<<"${_TUI_FACTORY_IDS[$ns]:-}"
 
 	if ((${#ids[@]} > 0)); then
-		local -a keep_order=() keep_focus=()
+		local -a keep_order=()
 		local w drop id
 		for w in "${_TUI_W_ORDER[@]}"; do
 			drop=0
@@ -1123,35 +1139,18 @@ tui.factory.clear() {
 			}; done
 			((drop)) || keep_order+=("$w")
 		done
-		for w in "${_TUI_FOCUSABLE[@]}"; do
-			drop=0
-			for id in "${ids[@]}"; do [[ "$w" == "$id" ]] && {
-				drop=1
-				break
-			}; done
-			((drop)) || keep_focus+=("$w")
-		done
 		_TUI_W_ORDER=("${keep_order[@]}")
-		_TUI_FOCUSABLE=("${keep_focus[@]}")
+		_tui_w.changed
 
 		for id in "${ids[@]}"; do
 			[[ "${_TUI_FOCUS_ID:-}" == "$id" ]] && {
 				_TUI_FOCUS_ID=""
 				_TUI_FOCUS_IDX=-1
 			}
-			unset '_TUI_W_TYPE[$id]' '_TUI_W_PANE[$id]' '_TUI_W_ROW[$id]' '_TUI_W_LABEL[$id]' \
-				'_TUI_W_VALUE[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
-				'_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
-				'_TUI_W_MINH[$id]' '_TUI_W_MAXH[$id]' '_TUI_W_EXPAND[$id]' \
-				'_TUI_W_WIDTH[$id]' '_TUI_W_HEIGHT[$id]' \
-				'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]'
-			_tui_wx.forget "$id"
-			unset '_TUI_P_ROW[$id]' '_TUI_P_COL[$id]' '_TUI_P_H[$id]' '_TUI_P_W[$id]' \
-				'_TUI_P_DIR[$id]' '_TUI_P_CHILDREN[$id]' '_TUI_P_WEIGHTS[$id]' '_TUI_P_CELLW[$id]' '_TUI_P_CELLH[$id]' '_TUI_P_SPAN[$id]' '_TUI_P_NEWLINE[$id]' \
-				'_TUI_P_TITLE[$id]' '_TUI_P_BORDER[$id]' '_TUI_P_ALIGN[$id]' '_TUI_P_VALIGN[$id]' \
-				'_TUI_P_MINW[$id]' '_TUI_P_MINH[$id]' '_TUI_P_MAXW[$id]' '_TUI_P_MAXH[$id]' \
-				'_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]'
+			_tui_engine.forget_widget "$id"
+			_tui_engine.forget_pane "$id"
 		done
+		_tui_engine.forget_styles "${ids[@]}"
 	fi
 
 	local -a parents=()
@@ -1170,7 +1169,15 @@ tui.factory.clear() {
 	fi
 }
 
-tui.get() { printf '%s' "${_TUI_W_VALUE[$1]:-}"; }
+# tui.get ID [VAR] - the widget's value: printed, or (with VAR) stored in VAR, which costs no subshell
+tui.get() {
+	if [[ -n "${2:-}" ]]; then
+		local -n _tg_out="$2"
+		_tg_out="${_TUI_W_VALUE[$1]:-}"
+	else
+		printf '%s' "${_TUI_W_VALUE[$1]:-}"
+	fi
+}
 tui.set() { _TUI_W_VALUE[$1]="$2"; }
 tui.update() {
 	if [[ -z "$1" || -z "${_TUI_W_TYPE[$1]:-}" ]]; then
@@ -1421,7 +1428,7 @@ _tui._pane_too_small() {
 	return 1
 }
 
-# While _TUI_WP_REUSE=1 (set only around loops that touch no geometry: tui.render's widget pass, _tui._hit_test)
+# While _TUI_WP_REUSE=1 (set only around loops that touch no geometry: tui.render's widget pass, _tui_hit.rebuild)
 # consecutive widgets of one pane share that pane's inset instead of recomputing it per widget.
 declare -gi _TUI_WP_REUSE=0 _TUI_WP_IV=0 _TUI_WP_IH=0
 declare -g _TUI_WP_LAST=""
@@ -2148,6 +2155,8 @@ _tui.frame_present() {
 tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
 	_TUI_FRAME_REQ=0
+	_TUI_HZ_DIRTY=1
+	((_TUI_FOCUS_AUTO)) && _tui_focus.autofocus
 	_tui_perf.begin render
 	_tui_perf.count full_renders
 	# Refresh every leaf pane's content-fit cache up front: _tui._draw_pane_buf
@@ -2218,43 +2227,6 @@ tui.clear_pane() {
 # ═══════════════════════════════════════════════════════════════════════
 #  Scrolling
 # ═══════════════════════════════════════════════════════════════════════
-
-declare -g _HIT_PANE=""
-
-# Full linear scan over every leaf pane, resolving into _HIT_PANE (empty if
-# none matched) rather than printing - a caller capturing the old printf
-# via `$(...)` was forking a subshell on every single mouse event, the one
-# unconditional per-event cost hover-crossing a pane ever had left after
-# borders stopped reacting to hover. Called directly only on the first
-# resolution and after _tui._locate_pane's cache below has confirmed the
-# pointer actually left the previously hovered pane.
-_tui._pane_at() {
-	local mx="$1" my="$2"
-	_HIT_PANE=""
-	for p in "${_TUI_P_ALL[@]}"; do
-		[[ -z "${_TUI_P_CHILDREN[$p]:-}" ]] || continue
-		if ((my >= _TUI_P_ROW[$p] && my < _TUI_P_ROW[$p] + _TUI_P_H[$p] && \
-			mx >= _TUI_P_COL[$p] && mx < _TUI_P_COL[$p] + _TUI_P_W[$p])); then
-			_HIT_PANE="$p"
-			return
-		fi
-	done
-}
-
-# _tui._locate_pane MX MY - resolves the pane under the pointer into
-# _HIT_PANE, short-circuiting the full scan above: as long as the pointer
-# is still inside whichever pane was hovered last, this is four integer
-# comparisons and nothing else - no loop, no function call into the scan,
-# no fork. The O(panes) scan only runs at an actual boundary crossing.
-_tui._locate_pane() {
-	local mx="$1" my="$2" cur="$_TUI_HOVERED_PANE"
-	if [[ -n "$cur" ]] && ((my >= _TUI_P_ROW[$cur] && my < _TUI_P_ROW[$cur] + _TUI_P_H[$cur] && \
-	mx >= _TUI_P_COL[$cur] && mx < _TUI_P_COL[$cur] + _TUI_P_W[$cur])); then
-		_HIT_PANE="$cur"
-		return
-	fi
-	_tui._pane_at "$mx" "$my"
-}
 
 _tui._scroll_kb() {
 	local dir="$1"
@@ -2397,27 +2369,6 @@ _tui._calc_bounds() {
 #  FOCUS & INPUT MANAGEMENT
 # ═══════════════════════════════════════════════════════════════════════
 
-tui.focus() {
-	local id="$1" old="$_TUI_FOCUS_ID" oldpf="$_TUI_PANE_FOCUS" newpane="${_TUI_W_PANE[$1]:-}"
-	_TUI_FOCUS_ID="$id"
-	_TUI_PANE_FOCUS="$newpane" # the keyboard pane follows widget focus
-	[[ -n "$newpane" ]] && _TUI_PANE_LAST_WIDGET[$newpane]="$id"
-
-	for ((i = 0; i < ${#_TUI_FOCUSABLE[@]}; i++)); do
-		[[ "${_TUI_FOCUSABLE[$i]}" == "$id" ]] && {
-			_TUI_FOCUS_IDX=$i
-			break
-		}
-	done
-
-	_tui_text.is_text "$id" && _tui_text.on_focus "$id"
-
-	_tui._draw_widgets_now "$old" "$id"
-	local oldpane=""
-	[[ -n "$old" ]] && oldpane="${_TUI_W_PANE[$old]:-}"
-	_tui._draw_pane_borders_now "$oldpane" "$newpane" "$oldpf"
-}
-
 _tui._unfocus() {
 	local old="$_TUI_FOCUS_ID"
 	_TUI_FOCUS_ID=""
@@ -2426,36 +2377,6 @@ _tui._unfocus() {
 	local oldpane=""
 	[[ -n "$old" ]] && oldpane="${_TUI_W_PANE[$old]:-}"
 	_tui._draw_pane_borders_now "$oldpane"
-}
-
-_tui._focus_next() {
-	((${#_TUI_FOCUSABLE[@]} == 0)) && return
-	_TUI_FOCUS_IDX=$(((_TUI_FOCUS_IDX + 1) % ${#_TUI_FOCUSABLE[@]}))
-	tui.focus "${_TUI_FOCUSABLE[$_TUI_FOCUS_IDX]}"
-}
-
-_tui._focus_prev() {
-	((${#_TUI_FOCUSABLE[@]} == 0)) && return
-	_TUI_FOCUS_IDX=$(((_TUI_FOCUS_IDX - 1 + ${#_TUI_FOCUSABLE[@]}) % ${#_TUI_FOCUSABLE[@]}))
-	tui.focus "${_TUI_FOCUSABLE[$_TUI_FOCUS_IDX]}"
-}
-
-_tui._hit_test() {
-	local mx="$1" my="$2"
-	_HIT=""
-	_TUI_WP_LAST=""
-	_TUI_WP_REUSE=1
-	for wid in "${_TUI_W_ORDER[@]}"; do
-		[[ "${_TUI_W_TYPE[$wid]}" == "label" ]] && continue
-		_tui._widget_pos "$wid"
-		if ((my >= _WSR && my < _WSR + _WSH && mx >= _WSC && mx < _WSC + _WSW)); then
-			_HIT="$wid"
-			_TUI_WP_REUSE=0
-			return 0
-		fi
-	done
-	_TUI_WP_REUSE=0
-	return 1
 }
 
 _tui._input_key() {
@@ -2638,11 +2559,9 @@ _tui._handle_mouse() {
 
 	IFS=';' read -r btn mx my <<<"$seq"
 
-	_tui._locate_pane "$mx" "$my"
-	_tui._set_hovered_pane "$_HIT_PANE"
-
 	local hover_widget=""
-	_tui._hit_test "$mx" "$my" && hover_widget="$_HIT"
+	_tui_hit.at "$mx" "$my" && hover_widget="$_HIT"
+	_tui._set_hovered_pane "$_HIT_PANE"
 	_tui._set_hovered_widget "$hover_widget"
 
 	if [[ -n "$_TUI_ON_INPUT_EVENT" ]]; then

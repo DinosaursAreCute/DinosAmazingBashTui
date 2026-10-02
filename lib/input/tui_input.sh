@@ -32,6 +32,7 @@
 #   TUI_EVENT_TYPE   key | mouse         TUI_EVENT_KEY     canonical name ("ctrl+c")
 #   TUI_EVENT_X/Y    pointer col/row     TUI_EVENT_PANE    pane (focused / under pointer)
 #   TUI_EVENT_WIDGET widget id           TUI_EVENT_BUTTON  left|middle|right|""
+#   TUI_EVENT_ZONE   hit-zone kind (mouse: scrollbar|widget|hitbox|divider|handle|chevron|title), _ID its id, _ARG v|h
 #
 # Built-in actions (all bound by default, all rebindable):
 #   tui.action.quit  focus_next  focus_prev  activate  unfocus  click
@@ -43,6 +44,7 @@ declare -gA _TUI_BIND_DEF=()      # key -> command                (built-in defa
 declare -gA _TUI_BIND_PASS=() _TUI_BIND_ALWAYS=() _TUI_BIND_PAGE=() _TUI_BIND_DESC=()
 declare -g  TUI_EVENT_TYPE="" TUI_EVENT_KEY="" TUI_EVENT_X=0 TUI_EVENT_Y=0
 declare -g  TUI_EVENT_PANE="" TUI_EVENT_WIDGET="" TUI_EVENT_BUTTON="" TUI_EVENT_RAWBTN=0
+declare -g  TUI_EVENT_ZONE="" TUI_EVENT_ZONE_ID="" TUI_EVENT_ZONE_ARG=""   # mouse events: the zone under the pointer (tui_hit.sh)
 declare -g  _KEY=""
 declare -g  TUI_EVENT_COUNT=1 _TUI_REPEAT=1        # >1: that many identical scroll events were merged into this one
 declare -g  _TUI_KEYS_SUSPENDED=0 _TUI_SUSPEND_NAME="ctrl+alt+k"
@@ -460,6 +462,7 @@ _tui_input.mouse_event() {
     TUI_EVENT_TYPE=mouse; TUI_EVENT_X="$3"; TUI_EVENT_Y="$4"; TUI_EVENT_RAWBTN="$1"
     TUI_EVENT_PANE="${_TUI_HOVERED_PANE:-}"
     TUI_EVENT_WIDGET="${_TUI_HOVERED_WIDGET:-}"
+    TUI_EVENT_ZONE="$_HIT_KIND" TUI_EVENT_ZONE_ID="$_HIT_ID" TUI_EVENT_ZONE_ARG="$_HIT_ARG"
     TUI_EVENT_COUNT=$_TUI_REPEAT; _TUI_REPEAT=1
     if [[ -n "$_TUI_ON_KEY_EVENT" ]]; then "$_TUI_ON_KEY_EVENT" "${name:-move}" "$TUI_EVENT_COUNT"; fi
     [[ -z "$name" ]] && return 1
@@ -478,8 +481,8 @@ tui.action.quit()       {
     else tui.stop; fi
 }
 tui.action.quit_now()   { tui.stop; }
-tui.action.focus_next() { _tui._focus_next; }
-tui.action.focus_prev() { _tui._focus_prev; }
+tui.action.focus_next() { _tui_focus.step 1; }
+tui.action.focus_prev() { _tui_focus.step -1; }
 tui.action.unfocus()    { [[ -n "$_TUI_FOCUS_ID" ]] && _tui._unfocus; }
 
 # Enter on the focused widget: press a button, toggle a checkbox, submit an input.
@@ -591,19 +594,9 @@ tui.action.click() {
 
     # Scrollbar jump: only while the left button is actually down (press or
     # drag), never on bare hover.
-    if [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != "none" ]] && (( (btn & 3) == 0 )); then
-        if (( mx == _TUI_P_COL[$p] + _TUI_P_W[$p] - 1 )); then
-            local rel_y=$(( my - _TUI_P_ROW[$p] )) total_lines=${_TUI_P_LINES[$p]:-1}
-            _TUI_P_SOFF_V[$p]=$(( (rel_y * total_lines) / _TUI_P_H[$p] ))
-            _tui._queue_render "$p"
-            return
-        fi
-        if (( my == _TUI_P_ROW[$p] + _TUI_P_H[$p] - 1 )); then
-            local rel_x=$(( mx - _TUI_P_COL[$p] )) max_w=${_TUI_P_MAX_W[$p]:-1}
-            _TUI_P_SOFF_H[$p]=$(( (rel_x * max_w) / _TUI_P_W[$p] ))
-            _tui._queue_render "$p"
-            return
-        fi
+    if [[ "$TUI_EVENT_ZONE" == scrollbar ]] && (( (btn & 3) == 0 )); then
+        _tui_hit.scrollbar_jump "$TUI_EVENT_ZONE_ID" "$TUI_EVENT_ZONE_ARG" "$mx" "$my"
+        return
     fi
 
     if [[ "$TUI_EVENT_KEY" == drag:* ]]; then          # a drag selects text in the focused text widget; otherwise it only moves scrollbars
@@ -877,6 +870,7 @@ tui.get.pane_focus() { printf '%s\n' "$_TUI_PANE_FOCUS"; }
 # widgets (a menu, a form). Single-widget cells - toolbar buttons, tab headers - are reached with Tab / arrows.
 _tui_input.nav_panes() {
     local -A has=(); local w p
+    _tui_focus.ensure
     for w in "${_TUI_FOCUSABLE[@]}"; do (( has[${_TUI_W_PANE[$w]:-}]++ )); done
     _NAVP=()
     for p in "${_TUI_P_LEAVES[@]}"; do
@@ -898,6 +892,7 @@ _tui_input.pane_current() {
 tui.action.focus_pane() {
     local p="$1" w first="" last="${_TUI_PANE_LAST_WIDGET[$1]:-}"
     [[ -n "${_TUI_P_H[$p]:-}" ]] || return 1
+    _tui_focus.ensure
     for w in "${_TUI_FOCUSABLE[@]}"; do
         [[ "${_TUI_W_PANE[$w]:-}" == "$p" ]] || continue
         [[ -z "$first" ]] && first="$w"
@@ -946,6 +941,16 @@ tui.action.pane_dir() {
 }
 
 # ── spatial widget navigation ───────────────────────────────────────────
+# _tui_input.rect ID -> _WSR _WSC _WSW: the widget's rect from the hit index; a widget the index skips (a label without a
+# hit area) falls back to _tui._widget_pos
+_tui_input.rect() {
+    if [[ -n "${_TUI_HZ_WR[$1]+x}" ]]; then
+        _WSR=${_TUI_HZ_WR[$1]} _WSC=${_TUI_HZ_WC[$1]} _WSW=${_TUI_HZ_WW[$1]}
+    else
+        _tui._widget_pos "$1"
+    fi
+}
+
 # tui.action.focus_dir up|down|left|right - move focus to the widget you would EXPECT in that direction.
 # "Beam" model, so uneven grids (rows with different column counts, panes of different widths) behave:
 #   left/right: only widgets on the SAME screen row, nearest first. Nothing to the right = stay put.
@@ -957,17 +962,21 @@ tui.action.pane_dir() {
 #  same row whenever the columns didn't line up, which made repeated Right hop between rows.)
 tui.action.focus_dir() {
     local dir="$1" w cr cc cw r c wd dr s ccx cx best="" bs=999999999
+    _tui_focus.arrow "$dir" && return 0
+    _tui_focus.ensure
     (( ${#_TUI_FOCUSABLE[@]} )) || return 0
     if [[ -z "$_TUI_FOCUS_ID" ]]; then
         case "$dir" in down|right) tui.focus "${_TUI_FOCUSABLE[0]}" ;; *) tui.focus "${_TUI_FOCUSABLE[-1]}" ;; esac
         return 0
     fi
-    _tui._widget_pos "$_TUI_FOCUS_ID"; cr=$_WSR; cc=$_WSC; cw=$_WSW
+    # rects come from the hit index (rebuilt only when the layout or a widget changed), not one _widget_pos per widget per press
+    (( _TUI_HZ_DIRTY )) && _tui_hit.rebuild
+    _tui_input.rect "$_TUI_FOCUS_ID"; cr=$_WSR; cc=$_WSC; cw=$_WSW
     (( ccx = cc * 2 + cw ))                                  # doubled centre: integer math
     for w in "${_TUI_FOCUSABLE[@]}"; do
         [[ "$w" == "$_TUI_FOCUS_ID" ]] && continue
         (( ${_TUI_P_H[${_TUI_W_PANE[$w]}]:-0} < 1 )) && continue
-        _tui._widget_pos "$w"; r=$_WSR; c=$_WSC; wd=$_WSW
+        _tui_input.rect "$w"; r=$_WSR; c=$_WSC; wd=$_WSW
         (( dr = r - cr ))
         case "$dir" in
             right) (( dr == 0 && c > cc )) || continue; s=$(( c - cc )) ;;

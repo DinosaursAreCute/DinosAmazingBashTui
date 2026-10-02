@@ -50,6 +50,27 @@ An example is in [../../examples/plugins/hello.plugin.sh](https://github.com/Din
 
 `tui.hook.on EVENT FN` / `tui.hook.off` / `tui.hook.fire EVENT ARGS`. Events: `init` (tui.init done), `ready` (before the first frame), `page FILE` (after each page switch), `resize ROWS COLS`, `key NAME` (before bindings; `FN` returns 0 to **consume** the key), `quit`, `exit` (the terminal is being restored: give things back), `plugin_enabled NAME`, `plugin_disabled NAME`.
 
+## Changing pages from a plugin: addons
+
+A plugin can add to, change or remove parts of any page without touching its file. It ships addon XML files and registers their folder when it is enabled:
+
+```bash
+# plugin: stats
+plugin.stats.on_enable() {
+    tui.addon.dir "$(tui.plugin.dir stats)/addons"     # removed again when the plugin is disabled
+    tui.page.refresh                                    # make the page that is showing pick it up
+}
+```
+
+```xml
+<!-- stats/addons/menu.xml -->
+<addon id="stats" target="*">
+  <append ref="#nav"><button id="go" text="Stats" page="stats.xml"/></append>
+</addon>
+```
+
+Addon content gets the addon's id as a prefix on its ids (`stats_go`), so a plugin cannot collide with the page. Which parts of a page can be targeted is the page author's choice: ids on panes are the contract. The format is in [Reusing markup](markup.md#addons). `tui.page.refresh` rebuilds only the panes the addon changed, within the 100 ms of a page switch.
+
 ## Managing plugins
 
 - **Settings > Plugins** (command bar: "DABT: Plugins"): every detected plugin with state and version. Select one to see its details (state, source, location, file count, folders, size, lines, functions, and what it registered: commands, keybinds, hooks, timers), a **file tree** and, when you pick a file, its **content** (with line numbers). Enter / double-click on a plugin moves into its files; Enter on a folder collapses it. Buttons: enable / disable, reload, install (from a file or folder), remove.

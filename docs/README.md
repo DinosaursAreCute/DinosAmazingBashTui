@@ -26,6 +26,7 @@ This page is the map: how the framework is put together, and where to look for w
 
 ## News
 
+- **Markup v2: pages are data** (unreleased). Templates, loops and conditions; addons that change a page without editing it; `tui.page.refresh`, which rebuilds only the panes that changed (an addon switches in about 45 ms); `tui.job.run` for slow work with a spinner after 100 ms; focus order and mouse zones; row-diffed redraws. Start with [Pages: the markup format](guide/markup.md) and [Pages, templates, addons and refresh](design/pages-templates-addons-refresh.md).
 - **DevEx Update 1.93,75: Grinding the cleanup rubble to dust** (unreleased). A page switch between trivial pages is 86 ms instead of 136: the render cache now hits across pages, the page snapshot is rewritten once instead of on every replay, and the footer, the terminal-size read and the relayout only run when something changed. [Release notes](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/release-notes/devex-update-1.93,75.md) · [Performance explorer](design/performance-explorer.html) · [The performance journey](design/performance-journey.md)
 - **DevEx Update 1.87,5: Don't redo what you already know** (v0.0.21). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. [Release notes](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/release-notes/devex-update-1.87,5.md) · [Designing fast apps](guide/performance.md) · [Performance explorer](design/performance-explorer.html)
 - **DevEx Update 1.75: Blowing up a mountain** (v0.0.20). Page switches twice as fast, idle repaints down 90%. [Release notes](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/release-notes/devex-update-1.75.md) · [The performance journey](design/performance-journey.md)
@@ -37,7 +38,7 @@ This page is the map: how the framework is put together, and where to look for w
 | **New here?**  Build a working app step by step | [tutorials/writing-your-first-app.md](tutorials/writing-your-first-app.md) |
 | **New here?**  Write a plugin step by step | [tutorials/writing-your-first-plugin.md](tutorials/writing-your-first-plugin.md) |
 | Structure, package and ship an application (technical guide) | [guide/writing-an-app.md](guide/writing-an-app.md) |
-| Build a page from XML (panes, grids, tabs, includes, themes) | [guide/markup.md](guide/markup.md) |
+| Build a page from XML (panes, widgets, templates, addons, themes) | [guide/markup.md](guide/markup.md) |
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
 | Make pages and callbacks fast: budgets, fork-free callbacks, memoising, what the caches do | [guide/performance.md](guide/performance.md) |
@@ -60,20 +61,25 @@ Real-world example app: [DABT File Explorer](https://github.com/DinosaursAreCute
 
 ```mermaid
 flowchart TB
-  app["<b>Your app</b><br/>page.xml, theme.css, page_callbacks.sh"]
-  markup["<b>markup/tui_markup.sh</b><br/>XML parser + page cache"]
+  app["<b>Your app</b><br/>pages (.xml), theme.css, callbacks (.sh), addons"]
+  markup["<b>markup/</b><br/>parse, addons, templates, build, cache, refresh"]
   styl["<b>style/tui_style.sh</b><br/>theme.css to colours"]
-  core["<b>tui.sh + state.sh</b><br/>layout, input, render loop"]
-  helpers["<b>Topic dirs</b><br/>input/, chrome/, widgets/<br/>config/, plugin/, apps/"]
+  core["<b>tui.sh + state.sh</b><br/>panes, widgets, render loop"]
+  topic["<b>layout/ render/ input/</b><br/>sizing, paint pipeline, hit and focus index"]
+  helpers["<b>chrome/ widgets/ config/ plugin/ apps/</b><br/>dialogs, palette, widgets, settings, plugins"]
+  job["<b>tui_job.sh</b><br/>background work + spinner"]
   rend["<b>terminal_renderer.sh</b><br/>box, table, charts<br/>(usable standalone)"]
   ctl["<b>terminal_controls.sh + colors.sh</b><br/>raw ANSI, no state"]
   tty(["Terminal"])
 
-  app -->|"tui.load / tui.goto"| markup
+  app -->|"tui.start_cached / tui.goto"| markup
   app -->|"theme"| styl
-  markup -->|"tui.* builder calls"| core
+  app -->|"tui.job.run"| job
+  markup -->|"tag handlers build panes and widgets"| core
   styl --> core
+  topic --> core
   helpers --> core
+  job --> core
   core -->|"action callbacks"| app
   core --> ctl
   rend --> ctl
@@ -87,17 +93,24 @@ flowchart TB
 | Layer | File | Job |
 |---|---|---|
 | Terminal primitives | `terminal_controls.sh`, `colors.sh` | Cursor, erase, SGR, modes, mouse, OSC. Stateless one-liners that print escape sequences. |
-| State | `state.sh` | `tui.sh`'s global state (pane geometry, widget registries, background-exec instances) extracted into one file. |
-| Markup | `markup/tui_markup.sh` | Parses XML pages into `tui.*` calls. `tui.start FILE` = init + load + run + cleanup. `tui.goto` switches page. |
-| Validation | `markup/tui_validate.sh`, `markup/tui_validate_rules.sh` | Checks pages (and includes) before an app starts: file/line/col errors, rules registered as tables or functions. |
+| State and measurement | `state.sh`, `perf.sh` | `tui.sh`'s global state (pane geometry, widget registries, background-exec instances); spans, counters and the `tui.perf.*` report. |
+| Layout | `layout/tui_layout.sh` | Size tokens (`24`, `30%`, `2fr`, `clamp()`), largest-remainder distribution, min/max with redistribution. |
+| Render | `render/tui_emit.sh`, `tui_paint.sh`, `tui_canvas.sh`, `tui_rowcache.sh` | Everything is drawn into one frame buffer; changed rows are diffed against the last flush; one glyph and junction table for every border style; composed fragments are cached on their inputs. |
+| Hit and focus | `input/tui_hit.sh`, `input/tui_focus.sh` | A per-row index of mouse zones (scrollbar, title, widget, extra hit areas, pane); the Tab order, groups and `autofocus`. |
+| Page tree | `markup/tui_node.sh`, `tui_ops.sh`, `tui_parse.sh` | The node store and its operations; the tokenizer that fills it. |
+| Reuse | `markup/tui_compose.sh`, `tui_addon.sh` | `<template>`, `<use>`, `<for>`, `<if>`, `<component>`; addon files applied to a tree. |
+| Build | `markup/tui_build.sh`, `markup/tui_markup.sh`, `tui_registry.sh` | One registered handler per tag turns nodes into panes and widgets; `tui.load` and `tui.goto`; the registry of tags, widgets and style contracts. |
+| Refresh | `markup/tui_refresh.sh` | `tui.page.refresh`: sign what was built, compare after a change, rebuild only the changed panes. |
+| Validation | `markup/tui_validate.sh`, `tui_validate_rules.sh` | Checks pages (and includes) before an app starts: file/line/col errors, rules registered as tables or functions. |
 | Style | `style/tui_style.sh` | `theme.css` (`.class`, `:focus`, `:hover`, `:border`, `:title`) resolved to fg/bg/mods per pane/widget. |
-| Core | `tui.sh` | Pane tree + layout engine (`hsplit`/`vsplit`/`grid`/`fixed`), widgets, focus, mouse routing, render (AWK "shader" viewports), main loop, `tui.exec`. |
-| Input | `input/tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`share/defaults/keybinds.xml`), paste, focus movement, user keybind persistence. |
+| Core | `tui.sh` | Pane tree, widgets, mouse routing, the render driver, main loop, `tui.exec`. |
+| Input | `input/tui_input.sh` | Key/mouse binding tables, dispatch, defaults (`share/defaults/keybinds.xml`), paste, user keybind persistence. |
 | Commands | `chrome/tui_cmd.sh`, `chrome/tui_modal.sh`, `chrome/tui_footer.sh`, `chrome/tui_dialog.sh` | Command registry + palette, overlay/modal layer, `<footer/>` key-hint bar, dialogs and toasts. |
+| Background work | `tui_job.sh` | `tui.job.run`, `tui.page.rebuild`, the spinner. |
 | Widgets | `widgets/tui_widgets.sh`, `widgets/tui_text.sh` | Widget constructors and the shared text-editing engine (input, password, textarea). |
 | Home + plugins | `tui_home.sh`, `plugin/tui_plugin.sh` | Where files live (`~/.config/DABT/`), app metadata, and the plugin system with hooks. |
 | Config | `config/tui_config.sh` | Persisted framework settings (`~/.config/DABT/apps/<app>/dabt.conf`). |
-| Cache | `markup/tui_cache.sh` | Page record/replay cache, stylesheet memo, on-disk cache, warm-up. |
+| Cache | `markup/tui_cache.sh` | Page snapshot cache, stylesheet memo, on-disk cache, parallel warm-up. |
 | App lifecycle | `apps/tui_apps.sh`, `apps/tui_install.sh`, `apps/tui_sync.sh`, `apps/tui_update.sh`, `apps/tui_scan.sh` | `dabt app`/`dabt update` install, sync and security-scan machinery. |
 | Public helpers | `tui_api.sh` | Getters, live helpers (`tui.every`, `tui.clock`, `tui.watch`, `tui.monitor`), theme overlay, style helpers. |
 | Renderers | `terminal_renderer.sh` | `box`, `table`, `hbar`, `linechart`, `banner`... each with a printing and a `_string` form. Usable with no TUI at all. |
@@ -105,11 +118,12 @@ flowchart TB
 
 ### What happens when a page loads
 
-1. `tui.goto page.xml` (or `tui.start`) → `tui.load_cached`. If the page's call log is cached and its files (page + includes) are unchanged it is **replayed**; otherwise the XML is parsed once and recorded.
-2. The parser/replay issues builder calls: `tui.hsplit`, `tui.label`, `tui.button`, `tui.pane_border`, `tui.footer.set`, `tui.bind`... Nothing is drawn yet.
-3. `<script>` files are sourced, the theme is applied, then layout runs (`_tui._layout`) and `on_visit` fires.
-4. `tui.render` draws every pane, widget and content buffer inside one synchronized-output frame (`mode.sync_start/end`).
-5. Overlays (footer, modal/palette, kill-switch box) are drawn on top after each flushed frame.
+1. `tui.goto page.xml` (or `tui.start_cached`) → `tui.load_cached`. If the page has a snapshot and its files (page, includes, addon files) are unchanged, it is **restored**: one `eval` of the saved engine state, then the dynamic parts are replayed (`<script>` sourcing, nav handlers, classes, `on_visit`). Otherwise the page is built and recorded for next time.
+2. Building: the file is tokenized into a node tree, addons are applied, templates and loops are expanded, and every node is handed to the handler registered for its tag, which creates the panes and widgets. Nothing is drawn yet. The raw tree and a signature per pane are kept with the snapshot.
+3. Layout runs (`_tui._layout`) and `on_visit` fires.
+4. `tui.render` draws every pane, widget and content buffer into one frame inside a synchronized-output block (`mode.sync_start/end`). Later partial redraws (hover, focus) are diffed against the previous flush row by row, so only changed rows are written.
+5. Overlays (footer, modal/palette, toasts, the job spinner) are drawn on top after each flushed frame.
+6. To change a page that is showing, `tui.page.refresh` rebuilds only the panes that changed ([design](design/pages-templates-addons-refresh.md)); slow work goes through `tui.job.run`.
 
 ### The main loop (`tui.run`)
 
@@ -126,20 +140,23 @@ One loop iteration reads input (`read -t`, keyboard + SGR mouse), decodes it int
 - **Redraw only what changed.** Content is change-detected (`tui.set_text`), scroll/content redraws are debounced, and overlays redraw only after a real frame.
 - **Public vs private.** `tui.*`, `mode.*`, `cur.*` ... are public. Anything starting with `_` (`_tui.*`, `_exec_*`, `_tr_*`, `_tui_input.*`) is private: never call it from callbacks or config.
 - **Multi-instance `tui.exec`.** Never assume one process per pane; instances are keyed `e1`, `e2`, ...
-- **Page-level work uses `tui.tick.add`.** `_TUI_TICK_FN` is a legacy single slot; overwriting it breaks concurrent `tui.exec`.
-- **Callbacks stay thin.** A callback is a plain bash function that calls public `tui.*` functions.
+- **Page-level work uses `tui.tick.add`.** Never assign `_TUI_TICK_FN`: it is a single slot and overwriting it breaks concurrent `tui.exec`.
+- **Callbacks stay thin, and fast.** A callback is a plain bash function that calls public `tui.*` functions; anything that can take longer than a blink goes through `tui.job.run`. Read widgets into variables (`tui.get ID VAR`).
+- **A page is data.** Write widgets inside their pane, give panes an `id`, share parts as templates, change pages with addons and `tui.page.refresh`.
 
 ## App layout
 
 ```
 my_app/
-  bin/run.sh                 TUI_APP_NAME=my_app; source tui.sh; tui.start config/home.xml
+  bin/run.sh                 TUI_APP_NAME=my_app; source tui.sh; tui.start_cached config/home.xml
   config/
-    home.xml  other.xml      pages (HTML-like)
-    _nav.xml                 shared fragment, <include src="_nav.xml"/>
+    home.xml  other.xml      pages (XML)
+    _templates.xml           shared parts as <template>s, <include src="_templates.xml"/>
     home_callbacks.sh        functions referenced by action="..." / on_visit="..."
     theme.css                <theme src="theme.css"/>
     themes/*.css             optional app-wide theme overlays (Settings / palette pick from here)
+~/.config/DABT/apps/my_app/
+    addons/*.xml             addons: changes to pages without editing them
 ```
 
 `share/demo/` is a complete working app. The framework's own defaults live in `share/defaults/` (`keybinds.xml`, `commands.xml`, `theme.css`, `pages/` for the built-in Settings and Keybinds pages); override the directory with `TUI_DEFAULTS_DIR`.
@@ -169,7 +186,8 @@ Long-form explanations of the non-obvious performance decisions. Read them befor
 | [design/viewport-scrolling.md](design/viewport-scrolling.md) | Why scrolling is an AWK "shader" and how to keep wheel/drag fast. |
 | [design/pointer-tracking-and-hover.md](design/pointer-tracking-and-hover.md) | Low-latency mouse tracking and hover resolution. |
 | [design/grid-geometry-and-widget-factories.md](design/grid-geometry-and-widget-factories.md) | Grid geometry, container abstractions and runtime widget factories. |
-| [design/write-ahead-logging-and-replay.md](design/write-ahead-logging-and-replay.md) | The page cache: recording builder calls and replaying them deterministically. |
+| [design/write-ahead-logging-and-replay.md](design/write-ahead-logging-and-replay.md) | The page cache: why a built page is snapshotted and replayed, and how it is kept honest. |
+| [design/pages-templates-addons-refresh.md](design/pages-templates-addons-refresh.md) | How a page is built, reused and changed: node tree, templates, addons, `tui.page.refresh`, background jobs. |
 | [design/rebindable-input-and-developer-ergonomics.md](design/rebindable-input-and-developer-ergonomics.md) | The 0.0.6 UX/DevX decisions: bindings as data, opt-out defaults, command bar, overlays, focus, live helpers. |
 
 ## Debugging and tooling

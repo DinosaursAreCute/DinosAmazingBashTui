@@ -1,10 +1,11 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="dbg_input_visit">
+  <include src="_templates.xml"/>
   <script src="debug_tabs.sh"/>
   <script src="debug_input_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
   <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="82" border="none">
@@ -26,5 +27,5 @@
     <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
   </tabs>
 
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

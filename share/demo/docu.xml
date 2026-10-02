@@ -1,9 +1,10 @@
 <tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd" on_visit="on_docu_visit">
+  <include src="_templates.xml"/>
   <script src="docu_callbacks.sh"/>
   <theme src="theme.css"/>
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <include src="_header.xml"/>
+    <use template="dabt_header"/>
   <pane id="root1" weight="90" split="h">
     <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
     <pane id="main" split="v" weight="82">
@@ -17,5 +18,5 @@
   <label id="lbl_inst" pane="header" row="0" text="Read Dinos Amazing Bash Tui Documentation." align="center"/>
   <label id="lbl_inst2" pane="header" row="1" text="The README, docs index, guides, API reference and design write-ups each get a tab here." align="center" class="muted_label"/>
 
-  <include src="_nav.xml"/>
+  <use template="dabt_nav"/>
 </tui>

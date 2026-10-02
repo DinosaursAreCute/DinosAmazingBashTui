@@ -18,6 +18,8 @@ page already visited was not being shown that page. The page was being
 reconstructed from source material in front of them, because nothing
 about its first construction had been retained.
 
+> **How this page relates to the code today.** The reasoning below is why the page cache exists, and it still holds. The mechanism changed twice since it was written. The first version logged every builder call and replayed the log with `eval`. Since markup-v2 stage 1 the loader tokenizes a page into a node tree and builds it through registered tag handlers, and the cache stores the *result*: a `declare -p` snapshot of exactly the variables a build touches, restored with one `eval`. The "Implementing the Log" section describes that, and what stayed a logged call. Page changes made while the app runs (addons, generated content) no longer go through the cache at all: they are applied to the page on screen, see [Pages, templates, addons and refresh](pages-templates-addons-refresh.md).
+
 ## The First Hypothesis: Cache the Rendered Image
 
 The most immediate remedy presents itself because `tui.render` already
@@ -122,79 +124,16 @@ markup tag by tag in order to call `tui.hsplit`, `tui.label`, and
 
 ## Implementing the Log
 
-`lib/markup/tui_cache.sh` renames every builder function `tui.load` invokes,
-`tui.hsplit`, `tui.label`, `tui.button`, and roughly twenty others, to
-`_tui_cache_orig.$fn`, and redefines the original name as a thin wrapper
-that appends a `printf %q`-quoted record of its own invocation to a
-buffer before delegating to the renamed original. This is not
-equivalent to `declare -p` of the arrays those calls eventually
-populate; it is a transcript of the calls themselves, each already a
-proven, already idempotent element of the public interface, comparable
-to logging `INSERT INTO panes VALUES (...)` rather than reproducing the
-table's underlying storage pages and hoping they reattach correctly
-elsewhere. Replay consists of `eval` applied to the saved lines, in
-order, with no markup parsing and no disk access beyond reading the log
-itself.
+The first implementation did what the analogy suggests: `lib/markup/tui_cache.sh` renamed about twenty builder functions (`tui.hsplit`, `tui.label`, `tui.button`, ...), wrapped each so that it appended a `printf %q` record of its own call to a buffer, and replayed a page by `eval`-ing the recorded lines. It worked, and it taught three lessons that shaped what replaced it. Nested calls (`tui.grid` calls `tui.vsplit`) had to be recorded once, at the outermost level, or replay divided a pane twice. Anything with a side effect that did not go through a wrapped function (a `<button page=...>` handler defined by a bare `eval`) was missing after a replay, and the button existed but failed with `command not found`. And every new builder had to be added to the wrapper list by hand, or its calls were silently absent from the log.
 
-A write-ahead log must define what constitutes a single operation, and
-must define that boundary correctly, or replaying the log corrupts the
-state it exists to recover. `tui.grid` calls `tui.vsplit` and
-`tui.hsplit` internally in the course of constructing itself; absent a
-nesting guard, recording the outer `tui.grid` invocation together with
-its inner `tui.vsplit` and `tui.hsplit` invocations as three independent
-log entries causes replay to execute the split three times over, the
-same pane divided again against its own already-divided children. This
-is equivalent to a log that recorded both a transaction's net effect and
-every statement composing it as separate, independently replayable
-entries. `_TUI_CACHE_DEPTH` addresses this by recording only the
-outermost call in any nested chain, precisely the granularity at which
-`tui.load`'s own dispatch loop already operates, no finer, which is also
-where a correctly bounded log's transaction boundary belongs. The same
-depth guard preserves dynamic content as dynamic without additional
-mechanism: `on_visit` and `<script src>` sourcing are themselves logged
-as single operations, instructing replay to "execute this," so their own
-internal widget-construction calls, occurring one level deeper, are
-never individually logged and therefore never individually replayed.
-Replay executes the operation live on every occasion, in the manner of a
-trigger that fires afresh on every transaction satisfying its condition,
-rather than one whose historical output has been recorded permanently
-into the log.
+All three come from recording calls. Since markup-v2 stage 1.3 the cache records **state** instead, and the second hypothesis above, rejected as a naive idea, is the one that works, once its objections are answered one by one:
 
-Two defects arose from the inverse error: an operation with a genuine,
-observable side effect that never entered the log at all, the
-write-ahead-log equivalent of a schema alteration applied manually,
-outside the migration history, of which recovery retains no record. A
-`<button page="...">` element's click handler had been defined by a raw
-`eval` situated directly within `tui_markup.sh`'s dispatch loop, entirely
-outside any logged call, invisible to the recording mechanism in the
-same manner that an unlogged `ALTER TABLE` is invisible to a replica
-replaying a log that never mentioned it. Replaying a cached page
-correctly reconstructed the button itself. It retained no record of the
-handler the button was meant to invoke, since that handler had never
-been written to the log; the button existed, and invoking it failed with
-`command not found`, the recovered schema referencing a migration that
-had never been logged. The correction follows the same pattern as
-before: the `eval` is wrapped in `_tui_cache_define_goto`, which is added
-to the set of recorded functions, so that the operation creating a
-page's navigation becomes a logged operation like any other. The second
-defect concerned not what was logged but whether the log's own
-bookkeeping could subsequently be read. `_markup_expand` tracks which
-files it has already visited during a given load, specifically to detect
-`<include>` cycles, a mechanism entirely correct for that purpose and
-entirely unusable by anything attempting to read that tracking data from
-outside, because `_markup_expand` executes inside `<(_markup_expand
-"$file")`, a process substitution, which is a subshell. A subshell's
-variable assignments are genuine and internally consistent, and vanish
-completely the instant it exits; the data existed correctly for exactly
-as long as nothing outside that one execution context could observe it,
-which resembles a replication stream captured from a session that
-disconnects before its writes are flushed to disk: technically produced,
-practically unrecoverable. The correction was not to make the existing
-tracking mechanism visible from outside, since its purpose was correctly
-scoped to a single load and altering that scope would have compromised
-cycle detection in order to repair an unrelated read. The correction was
-to traverse the same information by a separate method, executed within
-the caller's own shell, where the result remains observable.
+- The loader builds the page from a node tree, so what a build changes is a known, finite set of variables: everything whose name starts with `_TUI_P_`, `_TUI_W_`, `_TUI_STYLE_`, `_TUI_TABS_`, `_WX`, `_TX` and a few exact names (`_TUI_FOCUS_ID`, `_TUI_FOCUSABLE`, ...). They are found by prefix, so a new widget's arrays are covered without a list to maintain.
+- Their `declare -p` form is rewritten **once, at record time**, to `declare -g`, so a replay is a single `eval` of a prepared string.
+- The objections to snapshotting state do not apply. Pane output (`tui.output`) is produced at run time by callbacks, after the replay, so the per-pane content arrays that were namerefs are not part of a snapshot. The factory counter is reset with the page and consistent with the snapshot. A running `tui.exec` instance belongs to the page it was started on, is dismissed when the page is left and is never part of a snapshot.
+- What cannot be state stays a recorded **call**, individually replayed and fresh on every hit: sourcing the page's `<script>` files, running `on_visit`, defining the handlers of `<button page=...>`, and applying classes (`tui.class ID CLASS`, so that a theme switch reaches the baked colours of a cached page). That is the write-ahead log that remains: a handful of entries per page, each a call that must run again because its effect is not a pure function of the markup.
+
+The snapshot also carries what [`tui.page.refresh`](../api/core/tui.page.refresh.md) needs to change the page later without parsing it: the raw node tree and the per-pane signatures of what was built.
 
 ## Checkpoints, and the Conditions Under Which They May Be Distrusted
 
@@ -205,9 +144,9 @@ file that no longer exists, and replaying that log faithfully reproduces
 an incorrect page, faithfully. Every recorded page's log carries a
 signature: the modification time of the page file itself, together with
 the modification time of every `<include>` it drew upon, discovered
-through a dedicated traversal (`tui.cache.deps_of`) rather than by
-reusing the tracking mechanism described above, which remains
-unobservable outside its own subshell. Before a replay proceeds, this
+through a dedicated traversal (`tui.cache.deps_of`), plus every addon
+file and the addon folders (a directory's modification time changes when
+a file is added or removed, which is how a new addon is noticed). Before a replay proceeds, this
 signature is compared against the filesystem (since DevEx Update 1.87,5 this happens
 at start-up only: once every page is validated and warmed the cache is trusted for
 the rest of the run, and files are assumed not to change while the app is running,
@@ -225,9 +164,10 @@ one.
 
 This same signature is what justifies persisting the log to disk rather
 than reconstructing it once per process. `tui.start_cached` loads
-whatever has already been checkpointed in `.cache/tui_pages/`, validates
-each entry against current modification times, and warms, in a
-background worker, behind a banner and a progress indicator (the only
+whatever has already been checkpointed in `$TUI_HOME/cache/pages/`, validates
+each entry against current modification times, and warms, in a pool of
+background workers (one per stale page, as many at once as there are
+cores), behind a banner and a progress indicator (the only
 component of this design intended to be observed rather than forgotten),
 only those pages found to be missing or invalid. A session in which
 nothing has changed loads its entire log from disk in well under a

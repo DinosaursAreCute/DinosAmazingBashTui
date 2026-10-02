@@ -12,7 +12,7 @@ PAGES = [("home", "Home"), ("components", "Components"), ("settings", "Settings"
          ("terminal", "Terminal"), ("scrolling", "Scrolling"), ("case_study", "Case Study"), ("docs", "Docs"),
          ("layout", "Layout"), ("widgets", "Widgets")]
 LABEL = dict(PAGES)
-# alt+N bindings of the demo's _nav.xml (alt+0 is the tenth page)
+# alt+N bindings of the demo's nav template (_templates.xml) (alt+0 is the tenth page)
 KEY_PAGE = {"1": "home", "2": "components", "3": "settings", "4": "monitor", "5": "terminal", "6": "scrolling",
             "7": "case_study", "8": "docs", "9": "layout", "0": "widgets"}
 
@@ -21,6 +21,24 @@ KEY_PAGE = {"1": "home", "2": "components", "3": "settings", "4": "monitor", "5"
 FOCUS_ROOTS = ("tui.goto", "tui.reset_ui", "tui.load_cached", "tui.cache.replay", "_tui_cache_restore",
                "_tui_cache_run_on_visit", "_tui_cache_source", "tui.render", "_tui._draw_pane_buf",
                "_tui._draw_widget_buf", "_tui._render_output_buf", "_tui_overlay.draw_all", "_tui._flush")
+
+REPEAT_S = 0.033        # key repeat of a held key: ~30 per second (X11 default 25/s, macOS/Windows ~30/s)
+HELD_BUDGET_MS = 50     # key release to last frame painted
+DOWN, UP, LEFT, RIGHT = ESC + b"[B", ESC + b"[A", ESC + b"[D", ESC + b"[C"
+HOLD_SECONDS = (0.1, 0.3, 0.6, 1.0)   # how long a finger stays on the key: a tap to a long hold
+HOLD_SECONDS_QUICK = (0.1, 0.6)
+# (group, title, key there, key back, max repeats (rows to move before the widget ends), preparation): every widget or binding where holding a key
+# does something. None = no limit. The preparation is a list of setup labels/keys to reach and focus the widget.
+HELD = [
+    ("held.nav", "Held Up/Down on the nav bar", DOWN, UP, None, ["Home"]),
+    ("held.list", "Held Up/Down on a list", DOWN, UP, 9, ["Widgets", "User:", "\t" * 5]),
+    ("held.table", "Held Up/Down on a table", DOWN, UP, 6, ["Widgets", "User:", "\t" * 6]),
+    ("held.type", "Held character key in an input", b"a", b"\x7f", None, ["Widgets", "User:"]),
+    ("held.cursor", "Held Left/Right in an input", LEFT, RIGHT, None, ["Widgets", "User:"]),
+    ("held.tab", "Held Tab (focus cycling)", b"\t", ESC + b"[Z", None, ["Components"]),
+    ("held.scroll", "Held Down/Up on a page of widgets (spatial focus)", DOWN, UP, None, ["Scrolling", "@mid"]),
+    ("held.page", "Held PgDn/PgUp (queued pane render)", ESC + b"[6~", ESC + b"[5~", None, ["Scrolling"]),
+]
 
 GROUP_INFO = {
     # group: (title, kind, budget_ms)  budget = the perceived-instant line for that interaction
@@ -37,11 +55,21 @@ GROUP_INFO = {
     "scroll.step": ("Wheel scroll, single", "input", 60),
     "scroll.burst": ("Wheel scroll, burst", "input", 150),
     "scroll.page": ("Page Down", "input", 100),
+    # a held key repeats at ~30/s (REPEAT_S). "done" = last repeat sent to the last frame painted: the lag the user sees
+    # trailing behind their finger after releasing the key. A repeat interval plus a frame still reads as instant.
+    **{group: (title, "held", HELD_BUDGET_MS) for group, title, *_ in HELD},
     "palette.open": ("Command palette open", "input", 100),
     "palette.type": ("Command palette typing", "input", 50),
     "palette.close": ("Command palette close", "input", 100),
     "theme.first": ("Theme switch, first use", "nav", 250),
     "theme.again": ("Theme switch, repeat", "nav", 150),
+    # addons applied to the page on screen (tui.page.refresh): the same 100 ms as a page switch. "done" is click to the
+    # changed panes on screen.
+    "addons.open": ("Addons page, open by command palette", "nav", 150),
+    "addons.apply1": ("Addons: apply 1 addon (tui.page.refresh)", "nav", 100),
+    "addons.apply5": ("Addons: apply 5 addons (tui.page.refresh)", "nav", 100),
+    "generate.small": ("Generated page: 3 cards x 2 items (template + loops)", "nav", 100),
+    "generate.big": ("Generated page: 8 cards x 6 items (template + loops)", "nav", 100),
     "resize": ("Terminal resize", "resize", 250),
     "idle": ("Idle (3 s, nothing happening)", "idle", 0),
     "shutdown": ("Quit", "shutdown", 500),
@@ -79,9 +107,12 @@ SCENARIOS = [
     ("floor", "Warm switches between the three lightest pages, repeated: what a page switch costs with no page code (read the \"Page-switch floor\" section of the trace)", {"nav.floor"}),
     ("input", "Focus, hover and click", {"focus.next", "focus.prev", "hover.move", "click"}),
     ("scroll", "Wheel, burst and Page Down scrolling", {"scroll.step", "scroll.burst", "scroll.page"}),
+    ("held", "Held keys at the real repeat rate (~30/s): arrows on nav bar, list, table, inputs, scrolling; Tab. Measures key release to last frame", {h[0] for h in HELD}),
     ("palette", "Command palette open, typing, close", {"palette.open", "palette.type", "palette.close"}),
     ("theme", "Theme switching on the Settings page", {"theme.first", "theme.again"}),
     ("resize", "Terminal resize", {"resize"}),
+    ("addons", "Addons demo page: open it, apply one addon, apply all five (tui.page.refresh: only the changed panes are rebuilt)", {"addons.open", "addons.apply1", "addons.apply5"}),
+    ("generated", "Generated demo page: a small and a big page made from a template and loops (tui.page.refresh)", {"generate.small", "generate.big"}),
     ("idle", "Idle: what the app does when nothing happens", {"idle"}),
 ]
 SCENARIO_NAMES = [n for n, _, _ in SCENARIOS]
@@ -111,6 +142,28 @@ def _setup(label):
     return Step("setup", label, "click_text", label, quiet=0.15)
 
 
+def _palette_goto(word):
+    """Setup steps that reach a page the nav does not list: ctrl+p, the first letters of its command, but not Enter
+    (the caller sends Enter as the measured step)."""
+    S = [Step("setup", "palette", "key", b"\x10", quiet=0.2)]
+    S += [Step("setup", f"type {ch}", "key", ch.encode(), quiet=0.08) for ch in word]
+    return S
+
+
+def _fill(label, value):
+    """Setup steps that put VALUE into the input labelled LABEL: click it, go to the end, erase, type."""
+    S = [_setup(label), Step("setup", f"end {label}", "key", ESC + b"[F", quiet=0.08),
+         Step("setup", f"clear {label}", "key", b"\x7f" * 8, quiet=0.1)]
+    S += [Step("setup", f"{label} {ch}", "key", ch.encode(), quiet=0.06) for ch in str(value)]
+    return S
+
+
+# Needles that find the demo's own labels on screen (the profiler clicks the text it sees)
+ADDON_BOXES = ["banner  - prepend", "toolbar - append", "retitle - set", "shout   - set", "tidy    - remove"]
+APPLY = "[ Apply and rebuild"
+GENERATE = "[ Generate"
+
+
 def interaction_steps(rows, cols, quick=False, wanted=None):
     """Everything after startup. Coordinates scale with the terminal size.
     wanted: set of groups to keep (None = all); needed preparation is added automatically."""
@@ -125,7 +178,7 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                     add(Step(group, name, "click_text", label, quiet=0.15))
                 add(Step(group, "home", "click_text", "Home", quiet=0.15))
         if want("nav.key"):
-            # alt+1..9 and alt+0 are bound in _nav.xml: every page once by key, so the median is over all pages and each
+            # alt+1..9 and alt+0 are bound in the nav template (_templates.xml): every page once by key, so the median is over all pages and each
             # can be compared with clicking the same page (nav.first/nav.revisit details). The run before ends on home, so
             # the sequence starts at alt+2 (alt+1 would be a switch to the page already shown) and ends with alt+1.
             keys = ("2", "7") if quick else ("2", "3", "4", "5", "6", "7", "8", "9", "0", "1")
@@ -167,6 +220,24 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
         for i in range(3):
             if want("scroll.page"):
                 add(Step("scroll.page", f"pgdn {i + 1}", "key", ESC + b"[6~", quiet=0.15))
+    for group, _title, there, back, count, prep in HELD:
+        if not want(group):
+            continue
+        for label in prep:
+            if label == "@mid":
+                add(Step("setup", "focus pane", "key", _click(mx, my), quiet=0.15))
+            elif label.startswith("\t"):
+                for i in range(len(label)):   # one Tab per step: five in one write would be coalesced into fewer moves
+                    add(Step("setup", f"tab {i + 1}", "key", b"\t", quiet=0.08))
+            else:
+                add(_setup(label))
+        for secs in (HOLD_SECONDS_QUICK if quick else HOLD_SECONDS):
+            n = 1 + int(secs / REPEAT_S)   # the first press lands at once, then one per repeat interval
+            if count:
+                n = min(n, count)
+            add(Step(group, f"{secs:g}s hold", "repeat", (there, n, REPEAT_S), quiet=0.1, timeout=8.0))
+            add(Step(group, f"{secs:g}s back", "repeat", (back, n, REPEAT_S), quiet=0.1, timeout=8.0))
+        add(_setup("Home"))
     if want("palette.open", "palette.type", "palette.close"):
         add(_setup("Home"))
         add(Step("palette.open", "ctrl+p", "key", b"\x10", quiet=0.15))
@@ -179,6 +250,37 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
             if want(group):
                 for label in THEME_BUTTONS:
                     add(Step(group, label, "click_text", label, quiet=0.2, timeout=8.0))
+        add(_setup("Home"))
+    if want("addons.open", "addons.apply1", "addons.apply5"):
+        S.extend(_palette_goto("Addons"))
+        if want("addons.open"):
+            add(Step("addons.open", "palette", "key", b"\r", quiet=0.4, timeout=8.0))
+        else:
+            add(Step("setup", "open Addons", "key", b"\r", quiet=0.4, timeout=8.0))
+        if want("addons.apply1"):
+            add(_setup(ADDON_BOXES[0]))
+            add(Step("addons.apply1", "banner", "click_text", APPLY, quiet=0.3, timeout=10.0))
+        if want("addons.apply5"):
+            for needle in ADDON_BOXES[(0 if not want("addons.apply1") else 1):]:
+                add(_setup(needle))
+            add(Step("addons.apply5", "all five", "click_text", APPLY, quiet=0.3, timeout=10.0))
+        for needle in ADDON_BOXES:   # leave the page as found: every addon off
+            add(_setup(needle))
+        add(Step("setup", "apply none", "click_text", APPLY, quiet=0.3, timeout=10.0))
+        add(Step("setup", "cache refresh ends", "idle", 1.0))   # the quiet rebuild of the cached page runs in the background
+        add(_setup("Home"))
+    if want("generate.small", "generate.big"):
+        S.extend(_palette_goto("Generated"))
+        add(Step("setup", "open Generated", "key", b"\r", quiet=0.4, timeout=8.0))
+        if want("generate.small"):
+            S.extend(_fill("Cards:", 3))
+            S.extend(_fill("Items:", 2))
+            add(Step("generate.small", "3x2", "click_text", GENERATE, quiet=0.3, timeout=10.0))
+        if want("generate.big"):
+            S.extend(_fill("Cards:", 8))
+            S.extend(_fill("Items:", 6))
+            add(Step("generate.big", "8x6", "click_text", GENERATE, quiet=0.3, timeout=10.0))
+        add(Step("setup", "cache refresh ends", "idle", 1.5))   # the quiet rebuild of the cached page runs in the background
         add(_setup("Home"))
     if want("resize"):
         for r, c in ((max(20, rows - 6), max(70, cols - 24)), (rows + 8, cols + 30), (rows, cols)):

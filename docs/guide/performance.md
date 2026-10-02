@@ -10,6 +10,7 @@ A page switch under 100 ms and input feedback under 50 ms feel instant. These ar
 |---|---|
 | hover, focus, click | 30 to 100 ms |
 | page switch | 100 to 150 ms |
+| an addon switched on or off, content regenerated (`tui.page.refresh`) | 100 ms, the same as a page switch |
 | palette, dialog open or close | 100 ms |
 | resize | 250 ms |
 | idle | 2 repaints per second at most |
@@ -53,7 +54,16 @@ A trivial page still costs about 120 ms to revisit in the profiler: about 23 ms 
 
 "Hot" means: `on_visit`, tick callbacks (`tui.every`, `_TUI_TICK_FN`), input handlers, anything that runs per keystroke or per refresh.
 
-### 4.1 Use `tui.capture` instead of `$( )`
+### 4.1 Read widgets into variables, and use `tui.capture` instead of `$( )`
+
+The getters you use most have a variable form that costs nothing:
+
+```bash
+tui.get inp_name name              # not: name="$(tui.get inp_name)"
+tui.list.selected lst_tasks i      # not: i="$(tui.list.selected lst_tasks)"
+```
+
+For any other command whose output you need, `tui.capture`:
 
 ```bash
 # slow: a subshell per call
@@ -164,10 +174,13 @@ Text derived from a setting that changes rarely (a refresh interval, a label) do
 - **Update, do not rebuild.** `tui.update ID TEXT` changes one widget. Rebuilding a tab strip or grid (`tui.tabs.build`, `tui.grid`) on every visit costs tens of milliseconds; build once and keep it when the content is unchanged.
 - **Output panes.** Lines with colour are measured and sliced in bash and memoised per line, so scrolling back is cheap. Very large outputs (thousands of lines) still cost to split into lines; page or truncate long documents when the user does not need all of it at once.
 
+- **Change pages in place.** When an addon is switched or generated content changes, call `tui.page.refresh` instead of `tui.goto` the same page: it rebuilds only the changed panes, in a fraction of the time (section 12).
+
 ## 7. Timers, ticks and background work
 
 - A tick callback runs every iteration of the main loop. Keep it to a few builtins, and do the real work every N ticks (`_mon_tick` refreshes every 20 ticks). Make the work fork-free (section 4).
 - `tui.every SEC FN ID` and `tui.after` are cheaper than a polling loop in a tick callback. Always cancel with `tui.every.cancel` when the page is left; a leaked timer is permanent idle cost.
+- **Slow work goes to `tui.job.run`.** It runs in a separate process, so it may fork as much as it likes; the main loop stays free for keys and the mouse, shows a spinner when the work passes 100 ms (`--delay` changes that) and calls your done function, the one place the result is drawn, when it is finished. Nothing appears half-finished. `tui.page.rebuild` is the same idea for a whole page.
 - Nothing should repaint while the app is idle. A clock that updates once per second is fine; a blinking cursor or an animation timer is not. Idle must stay under 2 repaints per second.
 - Processes started with `tui.exec` are killed when the page is left. An interactive shell ignores SIGTERM; the framework now follows up with SIGHUP, which turns a 55 ms wait into 11 ms. If you launch your own long-lived child, make it exit on SIGHUP or SIGTERM promptly.
 
@@ -180,6 +193,7 @@ Text derived from a setting that changes rarely (a refresh interval, a label) do
 | widget geometry memo | recomputing positions | a changed placement or size attribute, a resized pane |
 | line-slice and width memos | re-measuring and re-slicing coloured output lines | new line text (it is a miss, not an error) |
 | `tui.modal.dismiss` | re-rendering the page under a closing overlay (palette close 38 ms to 14 ms) | anything painting, restyling or resizing while the overlay is open (it falls back to the full repaint) |
+| page refresh (`tui.page.refresh`) | a full rebuild (parse, build, layout) when an addon or generated content changes: only the changed panes are rebuilt, from a tree the page remembers | a change outside the panes, a pane without an `id`, `<tabs>` or a widget that points at its pane with `pane="..."` in the changed part: it falls back to a background rebuild with a spinner |
 | `TUI_ROWCACHE=0`, `TUI_DISMISS_REPLAY=0` | switch the caches off to check whether one causes a problem | |
 
 Use `tui.modal.dismiss` for esc and click-outside. Use `tui.modal.close` when a command runs after the close, because the saved page cannot know what the command changes.
@@ -211,7 +225,9 @@ In the demo, each of these paid off most:
 
 Before you ship a page, run the profiler on it and check:
 
-- [ ] No `$( )`, `date`, `cat`, `awk`, `sed`, `basename` or `nproc` in `on_visit`, tick callbacks or input handlers. Use `tui.capture` and builtins.
+- [ ] No `$( )`, `date`, `cat`, `awk`, `sed`, `basename` or `nproc` in `on_visit`, tick callbacks or input handlers. Use `tui.get ID VAR`, `tui.capture` and builtins.
+- [ ] Anything that can take longer than ~50 ms runs through `tui.job.run`; changes to the page on screen go through `tui.page.refresh`.
+- [ ] Panes that addons or a refresh may change have an `id`, and their widgets are written inside them.
 - [ ] Static output is memoised on every input that affects it; `declare -gA memo` without `=()`.
 - [ ] Nothing expensive at the top level of a `<script>` (it runs on every visit).
 - [ ] No `${expr}` text in widgets that redraw often; no `tui.style` in tick callbacks.
@@ -230,3 +246,25 @@ Measured on the trivial pages (home, layout, case study), where no page code run
 - **Do the rewrite once, where the data is produced.** The page snapshot was reformatted line by line on every replay; moving that step to record time cut the restore from 9.5 to 2.6 ms. Look for transformations of data that never changes.
 - **Do not repeat work whose inputs did not change.** The footer row, its key-hint map, the terminal size and the layout of a replayed page are all functions of inputs that rarely change; each is now skipped (or rebuilt) when its inputs differ, compared by content.
 - **Price a suspect untraced before you fix it.** `xtrace` inflates in-shell time unevenly: it blamed 6 ms on re-sourcing page scripts that costs 0.5 ms. Use the trace to find candidates, a timed loop to price them, and `tools/profiler/profile.sh --scenario floor` to see the breakdown of one switch.
+
+## 12. What an addon or a refresh costs
+
+`tui.page.refresh` has the same 100 ms as a page switch, and most of that is the redraw. The work before the redraw (loading the page's remembered tree, applying the addons, expanding templates, comparing, rebuilding the changed panes) measured on the Addons demo page at 150 x 45, bash 5.3:
+
+| | time before the redraw |
+|---|---|
+| nothing changed since the last refresh | 27 ms |
+| one addon switched on | 43 ms |
+| five addons switched on at once | 70 to 105 ms |
+| all five off again | 42 ms |
+| Generated page, 3 cards x 2 items | 59 ms |
+| Generated page, 8 cards x 6 items | 209 ms |
+| Generated page, 20 cards x 9 items | 556 ms |
+
+The floor is about 27 ms. Above it, a rebuild costs roughly **1.5 to 3 ms per widget it creates**, so the time follows what changed, not how big the page is. Three habits keep it low:
+
+- **Keep what changes small.** An addon that adds one widget to a pane rebuilds that pane; an addon on the root pane rebuilds the page.
+- **Do not generate hundreds of widgets.** Past 30 to 40 new widgets a refresh no longer fits the budget. For long lists use one `list` or `table` widget; for big generated pages expect the time in the table above.
+- **Change only what you must.** An addon that sets an attribute to the value it already has changes nothing and costs the floor only.
+
+The redraw is a full frame today (about 15 ms at this size). The framework times the refresh with the `page_refresh` span; `tui.perf.report` shows it, and the profiler scenarios `addons` and `generated` rate it against the 100 ms budget.

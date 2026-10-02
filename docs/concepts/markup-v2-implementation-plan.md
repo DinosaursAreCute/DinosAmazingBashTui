@@ -23,8 +23,8 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 1.4 Parallel warm-up | `lib/markup/tui_cache.sh` | medium | done |
 | 2A Layout | `lib/layout/tui_layout.sh` | medium | done |
 | 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | done |
-| 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | todo |
-| 2D Node ops | `lib/markup/tui_ops.sh` | medium | todo |
+| 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | wip |
+| 2D Node ops | `lib/markup/tui_ops.sh`, `tui_compose.sh`, `tui_addon.sh`, `tui_refresh.sh` | medium | wip |
 | 3A Fused/resize/collapse | `lib/layout/tui_frame.sh` | medium | todo |
 | 3B Layers | `lib/chrome/tui_layer.sh` | medium | todo |
 | 3C Scroll widgets | `lib/layout/tui_scroll.sh` | medium | todo |
@@ -54,7 +54,7 @@ Orchestration (stage start, gate review, cross-track decisions) runs at high eff
 | Gate | Check |
 |---|---|
 | G1 Tests | `bats tests/ tests/dapk/` and `tools/t.sh` pass |
-| G2 Test speed | Unit (`t_*`) suite < 200 ms per 100 tests; integration (`ti_*`, page build/replay) exempt from the flat budget, capped at 1 s total (`TUI_T_INTEG_MS`); both enforced by the runner |
+| G2 Test speed | Unit (`t_*`) suite < 200 ms per 100 tests; integration (`ti_*`, page build/replay) exempt from the flat budget, capped at 60 ms per test on average (`TUI_T_INTEG_MS` sets the total); both enforced by the runner |
 | G3 Performance | `tools/bench/run.sh --compare baseline` shows no bench more than 5 % slower in mean; the stage's target benches improve |
 | G4 Frames | Golden frames of every `share/demo/*.xml` page and of DABT_someApp are identical, unless the stage changes them on purpose (changes are reviewed and re-recorded) |
 | G5 Docs | `tools/gen_api_docs.sh --check` passes; guide and XSD are updated for new tags and attributes |
@@ -228,7 +228,7 @@ Depends on 1. Four independent tracks: each owns its own module and they don't t
   - `focusable`, `tabbable`, `tab_order` (0 first, -1 last, gaps and duplicates warn), `focus_group`, `focus_nav`, `focus_wrap`, `autofocus`, `focus_next`/`focus_prev`.
   - id→index map for focus.
 - **Deletes:** the linear widget scan and the linear focus index search.
-- **Done when:** hit and focus-order unit tests pass (including the scrollbar edges); the mouse-hit bench is O(1) in widget count (bench at 10 and 500 widgets); the validator warns on tab order gaps and duplicates.
+- **Done when:** hit and focus-order unit tests pass (including the scrollbar edges); a mouse hit costs the zones crossing the pointer's row, not the widgets on the page (bench at 10 and 500 widgets in one column; the index is rebuilt once per layout); the validator warns on tab order gaps and duplicates.
 
 ### 2D Node ops and composition (roadmap J)
 - **Owner:** `lib/markup/tui_ops.sh` (new). **Also touches:** `tui_build.sh` (registers op tags).
@@ -236,10 +236,11 @@ Depends on 1. Four independent tracks: each owns its own module and they don't t
   - Ops: clone, insert (append/prepend/before/after), replace, remove, set, wrap, move.
   - Minimal selectors: `#id`, `.class`, `tag`, `>`.
   - Built on the ops: `<template>`/`<use>`/`<slot>`/`<fill>`, `<component>`, parametrised `<include>`, `<for>`/`<if>`.
-  - Addon XML: discovery, priority, id prefixing, `tui.addon.load`/`unload` rebuilding only the affected subtree.
+  - Addon XML: discovery, priority, id prefixing. **Delivered** (`lib/markup/tui_addon.sh`). Load and unload while the app runs are `tui.page.refresh` (`lib/markup/tui_refresh.sh`): it re-applies the addons on disk and rebuilds only the panes whose signature changed, within the 100 ms page-switch budget; `tui.addon.load`/`unload` as separate calls were not needed.
   - Factories rewritten on top of the ops.
 - **Deletes:** the factory bookkeeping in `tui.sh`.
 - **Done when:** unit tests cover each op, selector and addon conflict; factory API behaviour is unchanged (existing callers pass).
+- **Status:** ops, selectors, templates, components, loops, conditions, parameterised includes, addons and `tui.page.refresh` are done and tested (`ops`, `compose`, `addon`, `refresh` unit tests; a refreshed page equals a full load). Also delivered next to this task: background jobs with a spinner (`lib/tui_job.sh`, `tui.page.rebuild`). **Open:** rewriting `tui.factory.*` on the ops and deleting its bookkeeping in `lib/tui.sh` (the teardown it needs now exists as `_tui_engine.forget_widget/forget_pane/forget_below`).
 
 **Stage 2 gates:** G1–G8. Every track has passed its own done criteria. Rerun the benches and record them as the new baseline.
 

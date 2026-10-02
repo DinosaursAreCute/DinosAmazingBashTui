@@ -224,12 +224,15 @@ plugin.stretch.on_disable() { ... }     # optional; registrations are undone aut
 | do something every N seconds / once later | `tui.every SEC FN NAME` / `tui.after SEC FN NAME` |
 | react to events (page change, resize, quit) | `tui.hook.on EVENT FN` |
 | show a message | `tui.notify MSG [LEVEL] [SEC]` |
+| change a page without editing it (add a button, hide a pane) | ship an addon file, then `tui.addon.dir DIR` in `on_enable` and `tui.page.refresh` |
+| do slow work without freezing the screen | `tui.job.run ID WORKFN DONEFN` |
 | remember a setting | `tui.plugin.config ID KEY VALUE` / `tui.config.get plugin.ID.KEY DEFAULT` |
 | undo something DABT cannot see | `tui.plugin.own run 'undo command'` |
 
 <h2 id="where-next"><img src="img/plugin-next.svg" alt="Where next?" height="30"></h2>
 
 - **Hooks:** `tui.hook.on page my_fn` runs `my_fn FILE` after every page switch; also `init`, `ready`, `resize`, `key`, `quit`, `exit`. A `key` hook that returns 0 *consumes* the key. Full list: [../guide/plugins.md](../guide/plugins.md#hooks).
+- **Change pages:** a plugin can add to any page with an *addon*, a small XML file that appends, replaces or removes parts of a page; the page author decides what can be changed by giving panes an `id`. See [Changing pages from a plugin](../guide/plugins.md#changing-pages-from-a-plugin-addons).
 - **A plugin with files:** make a folder `NAME/plugin.sh` and keep assets next to it (find them with `tui.plugin.dir NAME`).
 - **Read real ones:** [`examples/plugins/hello.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/plugins/hello.plugin.sh) (the smallest possible) and [`share/plugins/terminal_shortcuts.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/plugins/terminal_shortcuts.plugin.sh).
 - **Write your own app:** [Writing Your First App](writing-your-first-app.md), and the technical guide [../guide/writing-an-app.md](../guide/writing-an-app.md).

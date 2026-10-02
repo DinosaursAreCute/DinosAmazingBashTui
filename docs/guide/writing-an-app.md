@@ -36,11 +36,13 @@ my_app/
 ├── plugins/                 optional: plugins that belong to this app (discovered automatically)
 └── config/
     ├── home.xml  other.xml  pages
-    ├── _nav.xml             a fragment: <include src="_nav.xml"/> (a leading _ keeps it out of the page cache warm-up)
+    ├── _templates.xml       parts every page shares (header, menu) as <template>s; a leading _ keeps it out of the page cache warm-up
     ├── home_callbacks.sh    functions for action= / submit= / on_visit=
     ├── theme.css            classes for class="..."
     └── themes/*.css         optional app-wide theme overlays
 ```
+
+Addons - small XML files that change a page without editing it - live in your data folder, `$TUI_APP_CONF/addons/` (see below), not next to the pages.
 
 Three kinds of files, three responsibilities - keep them apart:
 
@@ -100,20 +102,27 @@ Files DABT keeps in `$TUI_APP_CONF`: `dabt.conf` (framework + plugin settings), 
 
 ## Pages
 
-A page is an XML file (one tag per line, `"double quoted"` attributes). Root `<tui>`:
+A page is an XML file with the root `<tui>`; the complete format is in [Pages: the markup format](markup.md).
 
 ```xml
 <tui on_visit="home_visit">                       <!-- called every time the page opens -->
   <script src="home_callbacks.sh"/>               <!-- sourced; relative to THIS file -->
   <theme src="theme.css"/>
+  <include src="_templates.xml"/>                 <!-- defines the shared templates; draws nothing itself -->
   <footer items="@tui.action.quit"/>
-  <include src="_nav.xml"/>                       <!-- shared fragment, inlined at parse time -->
   <bind key="alt+1" action="tui.action.goto home.xml" desc="Home"/>     <!-- page-scoped key -->
-  ...panes, then widgets...
+
+  <pane id="root" split="v" border="none">
+    <use template="app_header"/>                  <!-- the shared header, placed here -->
+    <pane id="main" title="Home" hpad="1">
+      <label id="lbl_hello" text="Hello"/>        <!-- widgets are written inside their pane -->
+      <button id="btn_go" text="[ Go ]" action="on_go"/>
+    </pane>
+  </pane>
 </tui>
 ```
 
-**Panes** form a tree; **widgets** attach to a pane by `pane="id"` and a `row`. Splits: `split="h"` (children side by side), `split="v"` (stacked), `split="grid"`, `split="fixed"`; children size by `weight`. Scrolling text panes: `scroll="v|h|both"` and must be leaf panes ([callbacks-and-viewports.md](callbacks-and-viewports.md)). Tabs and grids: [grid-layouts-and-tabs.md](grid-layouts-and-tabs.md). Widgets: `label`, `button`, `input`, `checkbox`, `list`, `table`, `select`, `textarea`, `progress` ([widgets.md](widgets.md)).
+**Panes** form a tree and **widgets** are written inside the pane they belong to, one per line. Splits: `split="h"` (children side by side), `split="v"` (stacked), `split="grid"`, `split="fixed"`; a child takes its size from `width`/`height` (`24`, `30%`, `2fr`, `clamp(...)`). Scrolling text panes: `scroll="v|h|both"` and must be leaf panes ([callbacks-and-viewports.md](callbacks-and-viewports.md)). Tabs and grids: [grid-layouts-and-tabs.md](grid-layouts-and-tabs.md). Widgets: `label`, `button`, `input`, `checkbox`, `list`, `table`, `select`, `textarea`, `progress` ([widgets.md](widgets.md)).
 
 **Navigation.** `<button ... page="other.xml"/>` goes to a page; from code `tui.goto other.xml`, or bind `tui.action.goto other.xml`. `tui.action.back` returns. Switching resets the UI (`tui.reset_ui`: panes, widgets, timers, footer and page binds are wiped and rebuilt) but keeps history.
 
@@ -131,8 +140,8 @@ Consequences: `<script>` files are sourced **on every page load** - top-level co
 A callback is a bash function named in `action=`, `submit=`, `on_change=`, `on_visit=` or bound to a key. Contract:
 
 - It is called with the widget id (buttons: `fn ID`; checkboxes: `fn ID VALUE`; list/table `action` and `on_change`: see [widgets.md](widgets.md)). Ignore arguments you do not need.
-- Exit status has no protocol. Return quickly: the UI is single-threaded, a slow callback freezes the screen. Long work goes to `tui.exec` / `tui.watch` (below).
-- Read: `tui.get ID`, `tui.list.selected ID`, `tui.table.row ID`. Write: `tui.update ID VALUE`, `tui.set_text PANE TEXT` (change-detected, use in loops), `tui.output`/`tui.output_append PANE TEXT` (scroll panes), `tui.list.set|add|clear`, `tui.table.set`. Move focus: `tui.focus ID`.
+- Exit status has no protocol. Return quickly: the UI is single-threaded, a slow callback freezes the screen. Anything that can take longer than a blink goes to `tui.job.run` (below), a long-running process to `tui.exec` / `tui.watch`.
+- Read: `tui.get ID VAR`, `tui.list.selected ID VAR` (into a variable: no subshell; the plain forms print), `tui.table.row ID`. Write: `tui.update ID VALUE`, `tui.set_text PANE TEXT` (change-detected, use in loops), `tui.output`/`tui.output_append PANE TEXT` (scroll panes), `tui.list.set|add|clear`, `tui.table.set`. Move focus: `tui.focus ID`.
 - Only public `tui.*` (and `mode.*`, `cur.*`, renderers). Never `_tui.*`, `_exec_*`, `_tr_*`.
 - Inside a key/mouse handler `TUI_EVENT_TYPE|KEY|X|Y|PANE|WIDGET|BUTTON` describe the event (`tui.get.event`).
 - Rendered strings: use the `*_string` renderer variants (`table_string`, `alert_string` ...) and pass `printf '%b'` output to `tui.output`.
@@ -141,7 +150,7 @@ The recurring shape: **mutate state → re-render from state.**
 
 ```bash
 on_add() {
-    local t; t="$(tui.get inp_task)"
+    local t; tui.get inp_task t
     [[ -n "${t// }" ]] || { tui.notify "Type something" warn 2; return; }
     TASKS+=("$t"); _save; _show          # data first, then screen
     tui.update inp_task ""
@@ -165,9 +174,11 @@ on_add() {
 | a shell command's output in a pane, refreshed | `tui.watch PANE CMD [SEC]` (runs off-thread) |
 | a long-running/streaming process | `tui.exec` (PTY-backed, multi-instance, capped ring buffer) |
 | CPU/mem/disk gauges | `tui.monitor` |
+| work that takes longer than a blink | `tui.job.run ID WORKFN DONEFN`: runs off the main loop, a spinner after 100 ms, the result shown in one go ([Slow work](callbacks-and-viewports.md#4-slow-work-keep-the-interface-running)) |
+| the page on screen has to change (addon switched, generated content) | `tui.page.refresh`: rebuilds only the panes that changed, within the budget of a page switch |
 | your own per-frame work | `tui.tick.add FN` |
 
-`tui.every`, `tui.clock`, `tui.watch`, `tui.monitor` and `tui.exec` share one tick listener. Never overwrite `_TUI_TICK_FN` (legacy single slot); use `tui.tick.add`. Do not add direct `tui.render` calls in hot paths - `tui.update`/`tui.set_text` already redraw only what changed.
+`tui.every`, `tui.clock`, `tui.watch`, `tui.monitor` and `tui.exec` share one tick listener. Add your own per-frame work with `tui.tick.add`, never by assigning `_TUI_TICK_FN`. Do not add direct `tui.render` calls in hot paths - `tui.update`/`tui.set_text` already redraw only what changed.
 
 ## Input, commands, footer
 
@@ -194,7 +205,7 @@ Dialogs are asynchronous: the call returns immediately and your callback runs la
 
 ## Themes
 
-`theme.css` defines `.class { fg; bg; mods }` plus `:hover` (widgets), `:focus` (widgets and pane borders), `:border`, `:title`. Colors: a `colors.sh` name or `#RRGGBB`. `mods`: `bold underline ...`. Themes stack: framework defaults → page theme → `_TUI_THEME_OVERLAY` (a whole-app overlay, e.g. the user's pick from `themes/*.css`). Unknown classes are harmless. Runtime: `tui.class.style|sgr CLASS [STATE]`. See [markup.md](markup.md#tui_stylesh) and [callbacks-and-viewports.md](callbacks-and-viewports.md#2-hover-and-focus-feedback).
+`theme.css` defines `.class { fg; bg; mods }` plus `:hover` (widgets), `:focus` (widgets and pane borders), `:border`, `:title`. Colors: a `colors.sh` name or `#RRGGBB`. `mods`: `bold underline ...`. Themes stack: framework defaults → page theme → `_TUI_THEME_OVERLAY` (a whole-app overlay, e.g. the user's pick from `themes/*.css`). Unknown classes are harmless. Runtime: `tui.class.style|sgr CLASS [STATE]`. See [markup.md](markup.md#styling) and [callbacks-and-viewports.md](callbacks-and-viewports.md#2-hover-and-focus-feedback).
 
 ## Plugins in your app
 
@@ -236,11 +247,10 @@ cat "$H/c/DABT/apps/myapp/tasks.txt"        # assert on the files the app wrote
 Assert on **state** (files, config) rather than on screen text. A terminal shorter than your layout needs (about 24 rows is a sensible minimum) clips panes: size weights so that `head`-style strips still have room for their rows at 24×80. Framework tests: `bats tests/`.
 
 ## Rules and pitfalls
-- **A cached start is almost always bettter than a non cached start**: 
-  Using tui.start_cached is almost always faster than just using tui.start,since the chaching skips the parsing of the xml files. The only time 
-  tui.start might be prefferable if you have a tui that dynamically changes 
-  the actual xml files on runtime. 
-
+- **Start with `tui.start_cached`.** It loads every page once behind the logo screen and serves page switches from the cache, which skips parsing entirely. `tui.start` is only right if your app rewrites its own page files while it runs.
+- **Read widgets into variables.** `tui.get ID VAR` and `tui.list.selected ID VAR` cost nothing; `$(tui.get ID)` starts a process on every call. It matters in key and mouse handlers and in loops.
+- **Nest widgets in their pane and give panes an `id`.** That is what lets addons and `tui.page.refresh` change a page in place.
+- **One thing at a time on the main loop.** If a callback can take more than ~50 ms, make it a `tui.job.run`.
 - **Private is private.** `_tui.*`, `_exec_*`, `_tr_*`, `_tui_input.*` and anything with a leading underscore in the framework may change between releases.
 - **Set `TUI_APP_NAME` before `source tui.sh`**, or your state lands in the default `dabt` folder and mixes with other apps.
 - **`tui.every` fires once immediately** - guard if the first call would be wrong.

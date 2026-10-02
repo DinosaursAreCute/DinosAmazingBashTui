@@ -24,6 +24,8 @@
 # that dispatch is lib/markup/tui_build.sh's job (stage 1.2).
 
 declare -g _P_ROOT=""
+# a whole tag: <name, then any run of non-quote non-> characters and quoted strings, then >
+declare -g _P_TAG_RE="^<[a-zA-Z_][a-zA-Z0-9_-]*(([^>\"']|\"[^\"]*\"|'[^']*')*)>"
 declare -gA _P_SEEN=()
 declare -ga _P_ERRORS=()
 
@@ -116,18 +118,9 @@ _tui_parse.scan() {
 		if [[ "$rest" =~ ^\<([a-zA-Z_][a-zA-Z0-9_-]*) ]]; then
 			local tagname="${BASH_REMATCH[1]}"
 			local start_line=$line
-			local i=1 n=${#rest} qc=""
-			while ((i < n)); do
-				local c="${rest:i:1}"
-				if [[ -n "$qc" ]]; then
-					[[ "$c" == "$qc" ]] && qc=""
-				elif [[ "$c" == '"' || "$c" == "'" ]]; then
-					qc="$c"
-				elif [[ "$c" == '>' ]]; then
-					break
-				fi
-				((i++))
-			done
+			local n=${#rest} i
+			# the tag ends at the first > outside quotes: one regex match instead of a loop over its characters
+			if [[ "$rest" =~ $_P_TAG_RE ]]; then i=$((${#BASH_REMATCH[0]} - 1)); else i=$n; fi
 			if ((i >= n)); then
 				_P_ERRORS+=("$file:$start_line: unterminated tag <$tagname>")
 				pos=$((pos + n))
@@ -141,11 +134,12 @@ _tui_parse.scan() {
 
 			if [[ "$tagname" == "include" ]]; then
 				local src
-				src="$(_tui_parse.attr_value "$attrtext" src)"
+				_tui_parse.attr_valuev "$attrtext" src src
 				if [[ -n "$src" ]]; then
-					local resolved="$src"
+					local resolved="$src" kids_before="${_N_KIDS[${stack[-1]}]:-}"
 					[[ "$resolved" != /* ]] && resolved="${dir}/${src}"
 					_tui_parse.include "$resolved" "${stack[-1]}"
+					_tui_parse.include_params "$attrtext" "${stack[-1]}" "$kids_before"
 				fi
 			else
 				tui_node.create "$tagname" "" "${stack[-1]}"
@@ -174,6 +168,23 @@ _tui_parse.scan() {
 	done
 }
 
+# _tui_parse.include_params ATTRTEXT PARENT KIDS_BEFORE - the other attributes of an <include> are parameters: every
+# {{@name}} in the attribute values of the nodes the include added to PARENT (its kids after KIDS_BEFORE) is replaced.
+_tui_parse.include_params() {
+	local attrtext="$1" parent="$2" before="$3" added tmp k
+	tui_node.create include
+	tmp=$_N
+	_tui_parse.attrs "$tmp" "$attrtext"
+	_OP_PARAMS=()
+	tui_ops.params "$tmp" src
+	if ((${#_OP_PARAMS[@]})); then
+		added="${_N_KIDS[$parent]:-}"
+		added="${added:${#before}}"
+		for k in $added; do tui_ops.subst "$k"; done
+	fi
+	tui_ops.remove "$tmp"
+}
+
 # _tui_parse.attrs NODE ATTRTEXT - parses every name="value"/name='value'
 # pair in ATTRTEXT (both quote styles, XML entities decoded) and stores
 # each with tui_node.attr_set.
@@ -192,17 +203,16 @@ _tui_parse.attrs() {
 	done
 }
 
-# _tui_parse.attr_value ATTRTEXT NAME -> stdout : single-attribute lookup,
+# _tui_parse.attr_valuev ATTRTEXT NAME VAR : single-attribute lookup into VAR (a nameref, no fork),
 # used only for <include src="…"> before its target node (it has none) exists.
-_tui_parse.attr_value() {
+_tui_parse.attr_valuev() {
 	local body="$1" name="$2"
+	local -n _pav_out="$3"
+	_pav_out=""
 	if [[ "$body" =~ $name[[:space:]]*=[[:space:]]*(\"([^\"]*)\"|\'([^\']*)\') ]]; then
-		if [[ "${BASH_REMATCH[1]:0:1}" == '"' ]]; then
-			printf '%s' "${BASH_REMATCH[2]}"
-		else
-			printf '%s' "${BASH_REMATCH[3]}"
-		fi
+		if [[ "${BASH_REMATCH[1]:0:1}" == '"' ]]; then _pav_out="${BASH_REMATCH[2]}"; else _pav_out="${BASH_REMATCH[3]}"; fi
 	fi
+	return 0
 }
 
 _tui_parse.decode_entities() {

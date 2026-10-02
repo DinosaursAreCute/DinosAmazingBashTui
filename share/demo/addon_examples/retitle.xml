@@ -1,0 +1,5 @@
+<!-- Example addon 3: set, priority 10. Changes attributes of nodes the page already has. -->
+<addon id="retitle" target="addons.xml" priority="10">
+  <set ref="#body" attr="title" value="Retitled by the 'retitle' addon (priority 10)"/>
+  <set ref="#lbl_hello" attr="text" value="Hello from the 'retitle' addon"/>
+</addon>

@@ -27,10 +27,9 @@
   <label  id="divider_debug"     pane="nav" row="11" text="--- Debugging Tools---"  class="nav_divider" align="left"/>
   <button id="btn_keys"          pane="nav" row="12" text="     Keys"       page="keys.xml"       class="nav_link" align="left"/>
   <button id="btn_debug"         pane="nav" row="13" text="     Debug"      page="debug.xml"      class="nav_link" align="left"/>
-  <button id="btn_generated"     pane="nav" row="14" text="     Generated"  page="generated.xml" class="nav_link" align="left"/>
-  <button id="btn_addons"        pane="nav" row="15" text="     Addons"     page="addons.xml"    class="nav_link" align="left"/>
-  <button id="btn_lab"           pane="nav" row="16" text="     Feature lab" page="debug_lab.xml" class="nav_link" align="left"/>
-  <button id="btn_quit"          pane="nav" row="17" text="     Quit"       action="tui.action.quit"      class="danger_button" align="left"/>
+  <button id="btn_compose"       pane="nav" row="14" text="     Compose"    page="compose.xml"   class="nav_link" align="left"/>
+  <button id="btn_lab"           pane="nav" row="15" text="     Feature lab" page="debug_lab.xml" class="nav_link" align="left"/>
+  <button id="btn_quit"          pane="nav" row="16" text="     Quit"       action="tui.action.quit"      class="danger_button" align="left"/>
   <!-- q / ctrl+q quit, tab/arrows/f6, scrolling and paste come from share/defaults/keybinds.xml.
        App-specific: jump to a page with alt+1..9, focus the menu with alt+n. -->
   <bind key="alt+n" action="tui.action.focus_pane nav"                 desc="Focus the menu"/>
@@ -44,5 +43,5 @@
   <bind key="alt+8" action="tui.action.goto docu.xml"                  desc="Docs"/>
   <bind key="alt+9" action="tui.action.goto features.xml"              desc="Layout"/>
   <bind key="alt+0" action="tui.action.goto widgets.xml"               desc="Widgets"/>
-  <bind key="alt+-" action="tui.action.goto generated.xml"             desc="Generated"/>
+  <bind key="alt+-" action="tui.action.goto compose.xml"               desc="Compose"/>
 </template>

@@ -249,7 +249,7 @@ Measured on the trivial pages (home, layout, case study), where no page code run
 
 ## 12. What an addon or a refresh costs
 
-`tui.page.refresh` has the same 100 ms as a page switch, and most of that is the redraw. The work before the redraw (loading the page's remembered tree, applying the addons, expanding templates, comparing, rebuilding the changed panes) measured on the Addons demo page at 150 x 45, bash 5.3:
+`tui.page.refresh` has the same 100 ms as a page switch, and most of that is the redraw. The work before the redraw (loading the page's remembered tree, applying the addons, expanding templates, comparing, rebuilding the changed panes) measured on the Addons tab of the Compose demo page at 150 x 45, bash 5.3:
 
 | | time before the redraw |
 |---|---|
@@ -257,9 +257,9 @@ Measured on the trivial pages (home, layout, case study), where no page code run
 | one addon switched on | 43 ms |
 | five addons switched on at once | 70 to 105 ms |
 | all five off again | 42 ms |
-| Generated page, 3 cards x 2 items | 59 ms |
-| Generated page, 8 cards x 6 items | 209 ms |
-| Generated page, 20 cards x 9 items | 556 ms |
+| Compose page (Board tab), 3 cards x 2 items | 59 ms |
+| Compose page (Board tab), 8 cards x 6 items | 209 ms |
+| Compose page (Board tab), 20 cards x 9 items | 556 ms |
 
 The floor is about 27 ms. Above it, a rebuild costs roughly **1.5 to 3 ms per widget it creates**, so the time follows what changed, not how big the page is. Three habits keep it low:
 
@@ -267,4 +267,13 @@ The floor is about 27 ms. Above it, a rebuild costs roughly **1.5 to 3 ms per wi
 - **Do not generate hundreds of widgets.** Past 30 to 40 new widgets a refresh no longer fits the budget. For long lists use one `list` or `table` widget; for big generated pages expect the time in the table above.
 - **Change only what you must.** An addon that sets an attribute to the value it already has changes nothing and costs the floor only.
 
-The redraw is a full frame today (about 15 ms at this size). The framework times the refresh with the `page_refresh` span; `tui.perf.report` shows it, and the profiler scenarios `addons` and `generated` rate it against the 100 ms budget.
+The redraw is a full frame today (about 15 ms at this size). The framework times the refresh with the `page_refresh` span; `tui.perf.report` shows it, and the profiler scenarios `addons` and `generated` were written to rate it against the 100 ms budget.
+
+## 13. Held keys
+
+A held key repeats about every 33 ms, so each press has a third of the 100 ms budget at most. Rules from making focus moves cheap:
+
+- **A focus move knows its dirty set.** The old and new widget (and the pane borders only when the keyboard pane changes) are drawn as one raw frame, without the row diff.
+- **Search structures read the hit index, not per-widget geometry.** Arrow-key focus search reads the rects the hit index already holds (`_TUI_HZ_WR/WC/WW`) instead of one `_tui._widget_pos` per focusable per press: 80 -> 8 ms per hold action on the Scrolling page.
+- **Measure held keys at the real repeat rate:** `tools/profiler/profile.sh --scenario held`. Lag is key sent to first output; judge the worst press.
+- **`tui.set` stores a value, `tui.update` stores it and redraws.** A visit callback that calls `tui.set` on a visible checkbox or input shows the old state until the next hover; use `tui.update`.

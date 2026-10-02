@@ -1,5 +1,5 @@
 <!-- Example addon 1: prepend. Adds a label as the FIRST child of the page's #body pane. Its id becomes banner_msg. -->
-<addon id="banner" target="addons.xml">
+<addon id="banner" target="compose.xml">
   <prepend ref="#body">
     <label id="msg" text="* A banner added by the 'banner' addon *" class="brand"/>
   </prepend>

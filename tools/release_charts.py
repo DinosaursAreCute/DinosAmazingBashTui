@@ -109,6 +109,31 @@ RELEASES = [
         "pages_title": "PAGE REVISIT, PER PAGE",
         "pages_sub": "page switch on a revisit, median milliseconds &#183; v0.0.21 against 1.93,75",
     },
+    {
+        "slug": "devex-2",
+        "name": "DevEx Update 2",
+        # held keys (new profiler groups, 30 presses per second): the same build without and with the focus work,
+        # deep runs 20261002-222307 -> 20261002-223527. Work = app busy time per 1 s hold of the key.
+        "improvements": [
+            ("HELD UP/DOWN, NAV BAR: WORK", 478.0, 47.0, "ms"),
+            ("HELD TAB: WORK", 420.0, 60.0, "ms"),
+            ("HELD UP/DOWN, NAV BAR: LAG", 8.5, 4.5, "ms"),
+            ("HELD TAB: LAG", 33.2, 21.2, "ms"),
+        ],
+        "processes": [
+            ("NAV BAR HOLD", 49.5, 4.3, "KB"),
+            ("TAB HOLD", 60.7, 15.9, "KB"),
+        ],
+        "processes_title": "FAR LESS PAINTED PER HELD KEY",
+        "processes_sub": "bytes written to the terminal per hold: a focus move redraws only the two widgets that changed",
+        "improvements_sub": "lower is better &#183; app work per hold and per-press lag, before and after the focus work",
+        "pages": [  # per-press lag of a held key, median ms
+            ("nav bar", 8.5, 4.5), ("tab", 33.2, 21.2), ("table", 7.3, 6.6), ("page keys", 4.8, 4.6),
+            ("list", 4.5, 4.4), ("cursor", 2.7, 2.6), ("typing", 2.5, 4.3),
+        ],
+        "pages_title": "HELD KEY LAG, PER WIDGET",
+        "pages_sub": "key sent to first output received, median milliseconds &#183; a held key repeats every 33 ms",
+    },
 ]
 
 

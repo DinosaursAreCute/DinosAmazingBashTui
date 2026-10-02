@@ -23,7 +23,7 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 1.4 Parallel warm-up | `lib/markup/tui_cache.sh` | medium | done |
 | 2A Layout | `lib/layout/tui_layout.sh` | medium | done |
 | 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | done |
-| 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | wip |
+| 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | done |
 | 2D Node ops | `lib/markup/tui_ops.sh`, `tui_compose.sh`, `tui_addon.sh`, `tui_refresh.sh` | medium | wip |
 | 3A Fused/resize/collapse | `lib/layout/tui_frame.sh` | medium | todo |
 | 3B Layers | `lib/chrome/tui_layer.sh` | medium | todo |
@@ -240,7 +240,7 @@ Depends on 1. Four independent tracks: each owns its own module and they don't t
   - Factories rewritten on top of the ops.
 - **Deletes:** the factory bookkeeping in `tui.sh`.
 - **Done when:** unit tests cover each op, selector and addon conflict; factory API behaviour is unchanged (existing callers pass).
-- **Status:** ops, selectors, templates, components, loops, conditions, parameterised includes, addons and `tui.page.refresh` are done and tested (`ops`, `compose`, `addon`, `refresh` unit tests; a refreshed page equals a full load). Also delivered next to this task: background jobs with a spinner (`lib/tui_job.sh`, `tui.page.rebuild`). **Open:** rewriting `tui.factory.*` on the ops and deleting its bookkeeping in `lib/tui.sh` (the teardown it needs now exists as `_tui_engine.forget_widget/forget_pane/forget_below`).
+- **Status:** ops, selectors, templates, components, loops, conditions, parameterised includes, addons and `tui.page.refresh` are done and tested (`ops`, `compose`, `addon`, `refresh` unit tests; a refreshed page equals a full load); the Compose demo page (`share/demo/compose.xml`) exercises all of it. Also delivered next to this task: background jobs with a spinner (`lib/tui_job.sh`, `tui.page.rebuild`). **Open:** rewriting `tui.factory.*` on the ops and deleting its bookkeeping in `lib/tui.sh` (the teardown it needs now exists as `_tui_engine.forget_widget/forget_pane/forget_below`).
 
 **Stage 2 gates:** G1–G8. Every track has passed its own done criteria. Rerun the benches and record them as the new baseline.
 

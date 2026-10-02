@@ -1,5 +1,5 @@
 <!-- Example addon 4: priority. Sets the SAME title as 'retitle'. Lower priority runs first, so with both on,
      the higher number (20) has the last word. Switch 'retitle' on and off to see it. -->
-<addon id="shout" target="addons.xml" priority="20">
+<addon id="shout" target="compose.xml" priority="20">
   <set ref="#body" attr="title" value="RETITLED BY THE 'SHOUT' ADDON (PRIORITY 20 WINS)"/>
 </addon>

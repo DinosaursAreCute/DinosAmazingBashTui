@@ -108,4 +108,4 @@ A page's signature is the modification time of every file it depends on: the pag
 - `<tabs>` and anything not in the plain set force the background rebuild. Supporting them in place means giving them signatures and teardown of their own state.
 - Anonymous panes cannot be targets; the answer is an id.
 - Factories (`tui.factory.*`) still use their own bookkeeping to create and drop widgets; they are the natural next client of the node operations.
-- A generated page is bound by what bash can create per widget. A list or table widget holds any number of rows in one widget; use it for long lists.
+- A generated page (see the Board tab of the Compose demo page, `share/demo/compose.xml`) is bound by what bash can create per widget. A list or table widget holds any number of rows in one widget; use it for long lists.

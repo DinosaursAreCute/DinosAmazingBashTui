@@ -221,7 +221,7 @@ function dtxt(p) { return (p > 0 ? "+" : "") + Math.round(p) + "%"; }
 // ---- metric access
 var KPIS = [["nav.first", "Page switch · first visit"], ["nav.revisit", "Page switch · revisit"],
   ["palette.close", "Command palette close"], ["scroll.step", "Wheel scroll"],
-  ["startup.warm", "Warm start"], ["startup.cold", "Cold start"], ["idle.fps", "Idle repaints / s"], ["theme.first", "Theme switch"]];
+  ["held.nav", "Held Up/Down, nav bar"], ["startup.warm", "Warm start"], ["startup.cold", "Cold start"], ["idle.fps", "Idle repaints / s"], ["theme.first", "Theme switch"]];
 function titleOf(key) {
   if (key === "idle.fps") return "Idle repaints per second";
   if (key === "pages.mean") return "Page switch · mean of all pages";
@@ -252,7 +252,7 @@ function allKeys() {
   return out;
 }
 var ORDER = ["nav.first", "nav.revisit", "nav.key", "startup.cold", "startup.warm", "palette.close", "palette.open", "palette.type",
-  "scroll.step", "scroll.burst", "scroll.page", "hover.move", "click", "focus.next", "focus.prev", "theme.first", "theme.again", "resize", "shutdown"];
+  "scroll.step", "scroll.burst", "scroll.page", "hover.move", "click", "focus.next", "focus.prev", "held.nav", "held.tab", "held.list", "held.table", "held.type", "held.cursor", "held.page", "held.scroll", "theme.first", "theme.again", "resize", "shutdown"];
 function sortedKeys() {
   var k = allKeys();
   return k.sort(function (a, b) {

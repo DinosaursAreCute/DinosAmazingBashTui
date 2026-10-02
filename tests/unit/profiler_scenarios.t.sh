@@ -27,25 +27,25 @@ PY
 	eq "" "$out"
 }
 
-ti_profiler_addon_and_generated_scenarios_exist_and_probe_the_refresh() {
+ti_profiler_compose_scenario_exists_and_probes_the_refresh() {
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(cd "$REPO/tools/profiler" && python3 -c '
 from dprof import scenarios as sc, session
 names = [n for n, _, _ in sc.SCENARIOS]
-need = {"addons", "generated"} - set(names)
+need = {"compose"} - set(names)
 probes = {n for n, _ in session.WRAP}
 need |= {"tui.page.refresh", "_tui_job.finish"} - probes
 print(" ".join(sorted(need)))')"
 	eq "" "$out"
 }
 
-ti_profiler_apply_groups_have_the_page_switch_budget() {
+ti_profiler_compose_groups_have_the_page_switch_budget() {
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(cd "$REPO/tools/profiler" && python3 -c '
 from dprof import scenarios as sc
-bad = [g for g in ("addons.apply1", "addons.apply5", "generate.small", "generate.big") if sc.GROUP_INFO[g][2] != 100]
+bad = [g for g in ("compose.add", "compose.tab", "compose.cond", "compose.addons") if sc.GROUP_INFO[g][2] != 100]
 print(" ".join(bad))')"
-	eq "" "$out" # an addon is allowed what a page switch is allowed: 100 ms
+	eq "" "$out" # a refresh is allowed what a page switch is allowed: 100 ms
 }

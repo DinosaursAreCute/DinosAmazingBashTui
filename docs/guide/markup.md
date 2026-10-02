@@ -187,6 +187,8 @@ A component is a template kept in its own file and used as a tag:
 - `<if test="…">` keeps its content when the test holds, otherwise the content of `<else>`. A test is `A==B`, `A!=B`, or one value that is false when empty, `false` or `0`. Only one branch survives, but the page is checked before that, so the two branches must not use the same widget id.
 - Loops and conditions run once when the page loads, on values written in the file, passed as parameters, or set by an addon. For values that change while the app runs, see the runtime values below.
 
+See it live: the Conditionals tab of the Compose demo page (`dabt --demo`, `alt+-`; source `share/demo/compose.xml`).
+
 ### Addons
 
 An addon changes a page without editing its file. A plugin or an app extension uses one to add a button, hide a pane or retitle something; so does the app itself, for content that depends on settings (the demo's *Generated* page).
@@ -308,7 +310,7 @@ Each file is a page with its own `<tui>`. `<button page="other.xml"/>` or `tui.g
 
 | | |
 |---|---|
-| `dabt --demo` | the bundled demo; its pages are the best examples of everything above |
+| `dabt --demo` | the bundled demo; its pages are the best examples of everything above (templates, conditions and addons: the Compose page, `alt+-`) |
 | `share/tui.xsd` | schema for editor completion |
 | `tools/frame.sh PAGE [COLSxROWS]` | renders a page to text without a terminal (`--sgr` keeps the styles) |
 | `tools/profiler/profile.sh` | times page switches, input and the addon scenarios against the 100 ms budget |

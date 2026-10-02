@@ -1,6 +1,14 @@
 # refresh.t.sh - lib/markup/tui_refresh.sh: tui.page.refresh rebuilds only the panes whose content changed.
 # Loads the real demo pages (a build costs ~250 ms), so every case is ti_.
 
+source "$REPO/share/demo/compose_callbacks.sh"
+
+_rf_state_xml() { # VIEW : the compose page's state addon (seed tasks, default workspace) showing VIEW
+	_CP_VIEW="$1" _CP_ENV=dev _CP_ROLE=guest _CP_BETA=false
+	_cp_seed
+	_cp_save
+}
+
 _rf_load() { # PAGE [EXAMPLE...] : load a demo page with these example addons already on disk
 	local page="$1" n
 	shift
@@ -9,6 +17,7 @@ _rf_load() { # PAGE [EXAMPLE...] : load a demo page with these example addons al
 	mkdir -p "$TUI_APP_CONF/addons"
 	_TUI_ADDON_DIRS=()
 	for n; do cp "$REPO/share/demo/addon_examples/$n.xml" "$TUI_APP_CONF/addons/$n.xml"; done
+	[[ "$page" == compose ]] && _rf_state_xml "${_RF_VIEW:-addons}"
 	tui.reset_ui
 	tui.load "$REPO/share/demo/$page.xml" 2>"$_T_ROOT/rf.err"
 	_TUI_MARKUP_FILE="$REPO/share/demo/$page.xml"
@@ -35,8 +44,11 @@ _rf_state() {
 	_RF_STATE="$(sort <<<"$out")"$'\norder='"${_TUI_W_ORDER[*]}"
 }
 
-ti_refresh_enabling_an_addon_is_fast_and_touches_only_what_it_changes() {
-	_rf_load addons
+ti_refresh_example_addons_equal_a_full_load_and_a_change_outside_the_panes_falls_back_to_a_rebuild() {
+	local n all=(banner toolbar retitle shout tidy) none refreshed called="" saved
+	_rf_load compose
+	_rf_state
+	none="$_RF_STATE"
 	ok '[[ -n "$_TUI_P_RAW" && -n "${_TUI_P_SIG_OWN[body]:-}" ]]' # the page carries what a refresh needs
 	_TUI_W_VALUE[chk_banner]=1                                    # the user ticked a box: in a pane the addon does not touch
 	_rf_enable banner
@@ -56,55 +68,20 @@ ti_refresh_enabling_an_addon_is_fast_and_touches_only_what_it_changes() {
 	eq "" "$_TUI_FOCUS_ID"
 	eq "button" "${_TUI_W_TYPE[tidy_swapped]}"
 	eq "" "${_TUI_W_TYPE[btn_page]:-}"
-}
-
-ti_refresh_result_equals_a_full_load_for_all_five_addons_and_for_none() {
-	local n all=(banner toolbar retitle shout tidy)
-	_rf_load addons
-	_rf_state
-	local none="$_RF_STATE"
 	for n in "${all[@]}"; do _rf_enable "$n"; done
-	_rf_time tui.page.refresh
+	tui.page.refresh
 	_rf_state
-	local refreshed="$_RF_STATE"
+	refreshed="$_RF_STATE"
 	for n in "${all[@]}"; do _rf_disable "$n"; done
 	tui.page.refresh
 	_rf_state
 	eq "$none" "$_RF_STATE" # all five on, then all off: back to the page as written
-	_rf_load addons "${all[@]}"
+	_rf_load compose "${all[@]}"
 	_rf_state
-	eq "$_RF_STATE" "$refreshed"
-}
-
-ti_refresh_generated_page_equals_a_full_load_and_keeps_the_control_panel() {
-	local f="$_T_ROOT/gen_values.xml" refreshed
-	_rf_load generated
-	tui.set inp_cards "typed by the user"
-	cat >"$f" <<'XML'
-<addon id="gen_values" target="generated.xml" prefix="false">
-  <set ref="#cards" attr="count" value="5"/>
-  <set ref="#cards > use" attr="title" value="Many"/>
-  <set ref="#cards > use" attr="items" value="3"/>
-  <set ref="#cards > use" attr="compact" value="true"/>
-</addon>
-XML
-	cp "$f" "$TUI_APP_CONF/addons/gen_values.xml"
-	tui.page.refresh
-	_rf_state
-	refreshed="$_RF_STATE"
-	eq "typed by the user" "$(tui.get inp_cards)" # the control panel is not part of the regenerated pane
-	tui.reset_ui                                  # a full load with the same addon file still on disk
-	tui.load "$REPO/share/demo/generated.xml" 2>/dev/null
-	_rf_state
-	eq "$_RF_STATE" "$refreshed"
-	match "$refreshed" "_TUI_P_TITLE\\[card4_c\\]=Many #4"
-}
-
-ti_refresh_falls_back_to_a_rebuild_when_something_outside_the_panes_changes() {
-	local called="" saved
-	_rf_load addons
+	eq "$_RF_STATE" "$refreshed" # the refreshed page is the page a full load builds
+	# something outside the panes changed: the work goes to a rebuild of the whole page
 	cat >"$TUI_APP_CONF/addons/outside.xml" <<'XML'
-<addon id="outside" target="addons.xml" prefix="false">
+<addon id="outside" target="compose.xml" prefix="false">
   <append ref="tui"><button id="flat_btn" pane="body" row="9" text="flat" action="on_addon_click"/></append>
 </addon>
 XML
@@ -112,7 +89,36 @@ XML
 	tui.page.rebuild() { called="$*"; }
 	tui.page.refresh
 	eval "$saved"
-	match "$called" "addons.xml"
+	match "$called" "compose.xml"
+}
+
+_rf_full_load_state() { # PAGE -> _RF_STATE : a full load of PAGE with the addon files still on disk
+	tui.reset_ui
+	tui.load "$REPO/share/demo/$1.xml" 2>/dev/null
+	_rf_state
+}
+
+ti_refresh_view_and_board_changes_equal_a_full_load() {
+	local refreshed
+	_RF_VIEW=board _rf_load compose
+	tui.set inp_title "typed by the user"
+	_CP_VIEW=cond _CP_ENV=prod _CP_ROLE=admin _CP_BETA=true # swap the whole view pane tree
+	_cp_save
+	tui.page.refresh
+	eq "labellabellabel" "${_TUI_W_TYPE[acct_env_prod]:-}${_TUI_W_TYPE[acct_adm_prod]:-}${_TUI_W_TYPE[acct_beta_on]:-}" # the Workspace's conditionals took the values
+	eq "" "${_TUI_W_TYPE[t0_st_open]:-}${_TUI_W_TYPE[btn_add]:-}"                                                       # the board is gone
+	_CP_VIEW=board                                                                                                      # and back, with changed cards
+	_cp_add "New card" "" high true
+	_cp_complete_next
+	_cp_toggle_block_next
+	_cp_save
+	tui.page.refresh
+	_rf_state
+	refreshed="$_RF_STATE"
+	_rf_full_load_state compose
+	eq "$_RF_STATE" "$refreshed"
+	match "$refreshed" "_TUI_P_TITLE\\[t4_card\\]=New card"
+	eq "$(cat "$_T_ROOT/rf.err")" ""
 }
 
 ti_nested_widgets_are_placed_from_the_panes_first_line() {

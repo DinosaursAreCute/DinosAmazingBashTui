@@ -35,7 +35,7 @@ xychart-beta
 
 ## The journey
 
-Twenty changes, each followed by a measurement. The page switch fell in steps; no single change did it.
+22 changes, each followed by a measurement. The page switch fell in steps; no single change did it.
 
 ```mermaid
 xychart-beta
@@ -48,6 +48,21 @@ xychart-beta
 ```
 
 *Pink: mean over all pages. Blue: first visit. Yellow: revisit. The bump at change 10 is the known first-visit run-to-run swing, not a regression. The first-visit points for changes 14 and 15-16 (199, 204 ms) are slightly above change 13: the fragment cache pays to build and store a key on a first visit and only wins on repeats.*
+
+### Held keys
+
+Holding an arrow key repeats it about every 33 ms, so each press has to be cheap, not just the first. `tools/profiler/profile.sh --scenario held` sends held keys at that rate (holds of 0.1 to 1 s) and measures, per press, the time from the key sent to the first output the terminal receives. Two changes: `tui.focus` draws the widgets it knows changed as one raw frame without the row diff (change 21), and arrow-key focus search reads the hit index instead of recomputing every widget's position (change 22; 80 → 8 ms per hold action on the Scrolling page).
+
+| Held key (nav bar), same build | Before | After |
+|---|---|---|
+| App work per 1 s hold | 478 ms | 47 ms |
+| Bytes written | 49.5 KB | 4.3 KB |
+| Per-press lag | 8.5 ms | 4.5 ms |
+| Tab hold: work / lag | 420 ms / 33.2 ms | 60 ms / 21.2 ms |
+
+List, table, page keys and cursor holds were already cheap (2.6 to 7.3 ms) and are unchanged. All held groups are inside their 50 ms budget except `held.scroll`, a measurement artefact (it lands on a textarea and pairs presses that paint nothing with the next unrelated frame).
+
+Stage 2 of markup v2 (templates, addons, `tui.page.refresh`) was not free: against v0.0.22, page-switch revisit went 125 → 141 ms, first visit 143 → 151 ms, warm start 290 → 347 ms and cold start 2.8 → 3.4 s (+6 to +20%; the machine was not idle for the newer run). The addon files in the cache signature and composition on every build account for it. The At-a-glance table above is the v0.0.22 state; getting the page-switch and start-up costs back is the next work.
 
 ## Where the time went
 

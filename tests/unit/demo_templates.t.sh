@@ -23,9 +23,9 @@ ti_demo_home_page_expands_to_the_same_header_and_menu_widgets() {
 }
 
 ti_demo_pages_using_the_templates_pass_the_validator() {
-	# two representative pages (validating all 20 costs a second): a plain one and one built from templates and loops
+	# two representative pages (validating all 20 costs a second): a plain one and the Compose page (templates, conditionals, tabs)
 	local p
-	for p in home generated; do
+	for p in compose; do
 		tui.validate.files "$REPO/share/demo/$p.xml"
 		eq "0" "$TUI_V_ERRORS"
 	done

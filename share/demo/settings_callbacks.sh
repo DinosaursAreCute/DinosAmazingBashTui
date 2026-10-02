@@ -95,9 +95,9 @@ _st_clock() {
 _st_labels() {
 	tui.set_label btn_border "Border: ${ST[border]}  (click to cycle)"
 	tui.set_label btn_font "Font: ${ST[font]}  (click to cycle)"
-	tui.set inp_hpad "${ST[hpad]}"
-	tui.set inp_vpad "${ST[vpad]}"
-	tui.set inp_text "${ST[text]}"
+	tui.update inp_hpad "${ST[hpad]}"
+	tui.update inp_vpad "${ST[vpad]}"
+	tui.update inp_text "${ST[text]}"
 	tui.update chk_clock "${ST[clock]}"
 	tui.update chk_notify "${ST[notify]}"
 	local t mark

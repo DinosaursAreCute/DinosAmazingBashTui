@@ -42,7 +42,7 @@ my_app/
     └── themes/*.css         optional app-wide theme overlays
 ```
 
-Addons - small XML files that change a page without editing it - live in your data folder, `$TUI_APP_CONF/addons/` (see below), not next to the pages.
+Addons - small XML files that change a page without editing it - live in your data folder, `$TUI_APP_CONF/addons/` (see below), not next to the pages. A working example is the Compose page of the demo (`share/demo/compose.xml`, `compose_callbacks.sh`).
 
 Three kinds of files, three responsibilities - keep them apart:
 

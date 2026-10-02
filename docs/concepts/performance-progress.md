@@ -4,7 +4,7 @@ Status: living overview. First entry 2026-09-30, commit 8274c7f plus uncommitted
 
 ## 1. Summary
 
-Fourteen changes have been made so far (in `lib/tui.sh`, `lib/chrome/tui_modal.sh`, `lib/markup/tui_cache.sh`, `lib/markup/tui_build.sh` and `lib/render/tui_rowcache.sh`):
+22 changes have been made so far (changes 15 to 20 are described in their own sections below and not repeated in this table; changes 21 and 22 are the last two rows; in `lib/tui.sh`, `lib/chrome/tui_modal.sh`, `lib/markup/tui_cache.sh`, `lib/markup/tui_build.sh` and `lib/render/tui_rowcache.sh`):
 
 | change | what it does | outcome |
 |---|---|---|
@@ -22,6 +22,8 @@ Fourteen changes have been made so far (in `lib/tui.sh`, `lib/chrome/tui_modal.s
 | Fork-free page build, `_tui_cache_class`, process-tree kill (`/proc` children, one grace period) | Removes about 9,000 forks from the cache build and 250 ms of sleeps from leaving the Terminal page | Cold start 5.54 → 3.11 s (−44%); `scrolling` page switch 426 → 261 ms (−39%) |
 | Remaining cold-start forks in the cache recording (`deps_of`, goto records, `_markup_wx` attributes, spinner clock) | Removes 872 more forks from the cold start | Cold start 3.11 → 2.87 s, warm start 303 → 287 ms |
 | Content-addressed fragment cache (`lib/render/tui_rowcache.sh`) | Caches the bytes of bordered panes and label/button/checkbox widgets, keyed on geometry, state, resolved text and a style epoch | Render span −27% in the 40-switch bench; palette close −30%, resize −24%, revisits −15%; first visits slightly slower, output bytes unchanged |
+| Held keys: `tui.focus` draws its known dirty set as one raw frame (change 21) | No row diff on a focus move; pane borders only when the keyboard pane changes | Nav bar hold: work per 1 s 478 → 47 ms, bytes 49.5 → 4.3 KB, per-press lag 8.5 → 4.5 ms; tab hold: work 420 → 60 ms, lag 33.2 → 21.2 ms |
+| Arrow-key focus search reads the hit index (change 22) | `tui.action.focus_dir` uses `_TUI_HZ_WR/WC/WW` instead of one `_tui._widget_pos` per focusable per press | `focus_dir` 80 → 8 ms per hold action (Scrolling page) |
 
 The profile also changed what we think matters. Colour and theme work is worth about 5% of a page switch at best. The remaining time is the full repaint: Flush, Layout, Render and Style together are about 160 ms of a ~270 ms page switch. The frame-source investigation (section 17) showed that the extra frames per action are small (one 40 KB render plus ~15 KB across the rest), so dirty flags are no longer the lead item; redundant chrome drawing and page loading are.
 
@@ -883,6 +885,54 @@ Headless switch loop (reset + load_cached + render, home and case study): 30.3 m
 
 Full scenario, 5 rounds, idle machine, with the floor group (the earlier deep run `225547` overlapped with test runs on the same machine and was not used). Medians: page switch first visit 142.9 ms (budget 150: inside), revisit 125.1 ms (budget 100), switch by key over all ten pages 100.6 ms (budget 100), mean over all pages 137.0 ms, trivial-page floor 86.5 ms, palette close 13.7, theme first 229.6, warm start 289.7 ms. Per page, revisit: home 91, case study 86, layout 94, settings 121, widgets 124, components 125, terminal 129, scrolling 143, monitor 161, docs 188 ms. Against the v0.0.21 nav run `204153` (first 180.3, revisit 152.1, key 124.0): -21%, -18%, -19%. Noise to know: the resize median swings between 145 and 203 ms because its three targets swap between two timing modes (unchanged by this work); palette close shows two samples at 78 ms in two runs because a clock tick lands in the settle window (busy 3 ms in every sample).
 
+## 15j. Change 21-22: held keys, and what stage 2 cost
+
+New measurement first: `--scenario held` sends a held key at the real repeat rate (33 ms between presses, holds of 0.1 to 1 s). Per-press lag is the key sent to the first output the terminal receives; groups `held.nav`, `held.list`, `held.table`, `held.type`, `held.cursor`, `held.tab`, `held.scroll`, `held.page`, budget 50 ms, rated on the worst press.
+
+- **Change 21.** `tui.focus` knows its dirty set (old and new widget, plus the pane borders only when the keyboard pane changes) and draws it as one raw frame, without the row diff.
+- **Change 22.** `tui.action.focus_dir` reads the widget rects from the hit index (`_TUI_HZ_WR/WC/WW`, filled by `_tui_hit.rebuild`) instead of one `_tui._widget_pos` per focusable per press. Trace attribution, Scrolling page: `focus_dir` 80 → 8 ms per hold action.
+
+Real, same stage-2 build without and with the work (runs `20261002-222307` and `20261002-223527`, deep, 5 rounds, 150x45, medians in ms):
+
+| hold | app work per 1 s | bytes | per-press lag |
+|---|---|---|---|
+| nav bar | 478 → 47 | 49.5 → 4.3 KB | 8.5 → 4.5 |
+| tab | 420 → 60 | 60.7 → 15.9 KB | 33.2 → 21.2 |
+| list | – | – | 4.5 → 4.4 |
+| table | – | – | 7.3 → 6.6 |
+| page keys | – | – | 4.8 → 4.6 |
+| cursor | – | – | 2.7 → 2.6 |
+| typing | – | – | 2.5 → 4.3 (noise at this scale) |
+
+Verdict: nav bar and tab holds improved by a factor of 10 (work) and 1.6 to 2 (lag); the other widgets are unchanged within noise. All held groups are inside the 50 ms budget except `held.scroll` (109 ms): it lands on a textarea, and the lag measure pairs presses that paint nothing with the next unrelated frame. That is a measurement artefact, not a slow press.
+
+Bug found on the way: `tui.set` stores a value without redrawing, so a visit callback that used it on a visible checkbox or input showed stale state until hover. The demos use `tui.update` there.
+
+### Not improved, or worse: stage 2 against v0.0.22
+
+Deep run `20261001-230749` (v0.0.22) against `20261002-223527`. The machine was not guaranteed idle in the newer run (the demo was being edited and tested), so treat single-digit percentages as soft. Medians, ms:
+
+| metric | v0.0.22 | now | change |
+|---|---|---|---|
+| Page switch, first visit (budget 150) | 142.9 | 150.9 | +6% |
+| Page switch, revisit (budget 100) | 125.1 | 141.3 | +13% |
+| Page switch by key | 100.6 | 107.8 | +7% |
+| Trivial-page floor | 86.5 | 97.3 | +12% |
+| Warm start | 289.7 | 346.6 | +20% |
+| Cold start | 2825 | 3382 | +20% |
+| Terminal resize | 202.8 | 144.8 | −29% |
+| Wheel scroll | 18.0 | 15.7 | −13% |
+| Theme switch, first use | 229.6 | 253.2 | +10% |
+| Idle repaints | 2.0 /s | 2.0 /s | unchanged |
+
+Page switches and start-up cost 6 to 20% more than at v0.0.22. The cause is the stage-2 pipeline, not the focus work: addon files are part of the cache signature and composition runs on every build (floor about 27 ms, see `pages-templates-addons-refresh.md`). Winning this back is the next work.
+
+Open points:
+
+- Palette close reads 47 ms in both A/B runs against 13 ms at v0.0.22; a clock tick inside the profiler's settle window inflates samples. Unresolved.
+- `held.scroll` 109 ms is the measurement artefact above; the lag metric needs to skip presses that paint nothing.
+- The `addons` and `generated` profiler scenarios still target the removed demo pages (now the Compose page) and measure nothing until rewritten.
+
 ## 16. Standing against the budgets
 
 Budgets are the perceived-instant lines in `tools/profiler/dprof/scenarios.py`. Baseline is the first deep run (`20260930-193435`); current is the latest deep run (`20260930-214915`). Theme switching and alt+2 are compared with their first measured values where they exist (the baseline alt+2 was a no-op).
@@ -961,6 +1011,20 @@ Each column is the state of the code after that change (changes that were measur
 | Theme switch, first use (ms) | – | 380 | 349 | (349) | 306 | (306) | (306) | (306) | (306) | (306) | (306) | ` █▅▅▁▁▁▁▁▁▁` | -19% |
 
 Note: the change-10 first-visit value (245 ms) is the known first-visit swing, not a regression (its attributed time did not change; see change 10). Reading guide: the page-switch rows are the ones to watch for user impact; the mean row is the most sensitive to page-code changes because the median sits on the light pages. Idle repaints is frames per second with nothing happening. Resize is shown for completeness but its three targets swing between runs.
+
+### Held keys (change 21-22)
+
+Separate table: the held groups did not exist before this change. Medians of per-press lag (ms), same stage-2 build.
+
+| group | before | after |
+|---|---|---|
+| `held.nav` | 8.5 | 4.5 |
+| `held.tab` | 33.2 | 21.2 |
+| `held.list` | 4.5 | 4.4 |
+| `held.table` | 7.3 | 6.6 |
+| `held.page` | 4.8 | 4.6 |
+| `held.cursor` | 2.7 | 2.6 |
+| `held.type` | 2.5 | 4.3 (noise) |
 
 ### Charts
 

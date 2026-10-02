@@ -63,13 +63,13 @@ GROUP_INFO = {
     "palette.close": ("Command palette close", "input", 100),
     "theme.first": ("Theme switch, first use", "nav", 250),
     "theme.again": ("Theme switch, repeat", "nav", 150),
-    # addons applied to the page on screen (tui.page.refresh): the same 100 ms as a page switch. "done" is click to the
-    # changed panes on screen.
-    "addons.open": ("Addons page, open by command palette", "nav", 150),
-    "addons.apply1": ("Addons: apply 1 addon (tui.page.refresh)", "nav", 100),
-    "addons.apply5": ("Addons: apply 5 addons (tui.page.refresh)", "nav", 100),
-    "generate.small": ("Generated page: 3 cards x 2 items (template + loops)", "nav", 100),
-    "generate.big": ("Generated page: 8 cards x 6 items (template + loops)", "nav", 100),
+    # the Compose demo page: every change goes through an addon file and tui.page.refresh, so it gets the budget of a page
+    # switch. "done" is click to the changed panes on screen.
+    "compose.open": ("Compose page, open by command palette", "nav", 150),
+    "compose.add": ("Compose: add a task card (template + <if>, tui.page.refresh)", "nav", 100),
+    "compose.tab": ("Compose: switch tab (whole view swapped by tui.page.refresh)", "nav", 100),
+    "compose.cond": ("Compose: change a conditional (environment, tui.page.refresh)", "nav", 100),
+    "compose.addons": ("Compose: apply 5 example addons (tui.page.refresh)", "nav", 100),
     "resize": ("Terminal resize", "resize", 250),
     "idle": ("Idle (3 s, nothing happening)", "idle", 0),
     "shutdown": ("Quit", "shutdown", 500),
@@ -111,8 +111,7 @@ SCENARIOS = [
     ("palette", "Command palette open, typing, close", {"palette.open", "palette.type", "palette.close"}),
     ("theme", "Theme switching on the Settings page", {"theme.first", "theme.again"}),
     ("resize", "Terminal resize", {"resize"}),
-    ("addons", "Addons demo page: open it, apply one addon, apply all five (tui.page.refresh: only the changed panes are rebuilt)", {"addons.open", "addons.apply1", "addons.apply5"}),
-    ("generated", "Generated demo page: a small and a big page made from a template and loops (tui.page.refresh)", {"generate.small", "generate.big"}),
+    ("compose", "Compose demo page: open it, add a task, switch tabs, change a conditional, apply the five example addons (tui.page.refresh: only the changed panes are rebuilt)", {"compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"}),
     ("idle", "Idle: what the app does when nothing happens", {"idle"}),
 ]
 SCENARIO_NAMES = [n for n, _, _ in SCENARIOS]
@@ -161,7 +160,9 @@ def _fill(label, value):
 # Needles that find the demo's own labels on screen (the profiler clicks the text it sees)
 ADDON_BOXES = ["banner  - prepend", "toolbar - append", "retitle - set", "shout   - set", "tidy    - remove"]
 APPLY = "[ Apply and rebuild"
-GENERATE = "[ Generate"
+ADD_TASK = "[ Add task"
+REMOVE_TASK = "[ Remove last"
+CYCLE_ENV = "[ Cycle environment"
 
 
 def interaction_steps(rows, cols, quick=False, wanted=None):
@@ -251,36 +252,32 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                 for label in THEME_BUTTONS:
                     add(Step(group, label, "click_text", label, quiet=0.2, timeout=8.0))
         add(_setup("Home"))
-    if want("addons.open", "addons.apply1", "addons.apply5"):
-        S.extend(_palette_goto("Addons"))
-        if want("addons.open"):
-            add(Step("addons.open", "palette", "key", b"\r", quiet=0.4, timeout=8.0))
+    if want("compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"):
+        S.extend(_palette_goto("Compose"))
+        if want("compose.open"):
+            add(Step("compose.open", "palette", "key", b"\r", quiet=0.4, timeout=8.0))
         else:
-            add(Step("setup", "open Addons", "key", b"\r", quiet=0.4, timeout=8.0))
-        if want("addons.apply1"):
-            add(_setup(ADDON_BOXES[0]))
-            add(Step("addons.apply1", "banner", "click_text", APPLY, quiet=0.3, timeout=10.0))
-        if want("addons.apply5"):
-            for needle in ADDON_BOXES[(0 if not want("addons.apply1") else 1):]:
-                add(_setup(needle))
-            add(Step("addons.apply5", "all five", "click_text", APPLY, quiet=0.3, timeout=10.0))
-        for needle in ADDON_BOXES:   # leave the page as found: every addon off
-            add(_setup(needle))
-        add(Step("setup", "apply none", "click_text", APPLY, quiet=0.3, timeout=10.0))
+            add(Step("setup", "open Compose", "key", b"\r", quiet=0.4, timeout=8.0))
+        if want("compose.add"):
+            S.extend(_fill("Title:", "Review"))
+            add(Step("compose.add", "new task", "click_text", ADD_TASK, quiet=0.3, timeout=10.0))
+            add(_setup(REMOVE_TASK))   # leave the board as found
+        if want("compose.cond", "compose.tab", "compose.addons"):
+            add(Step("compose.tab" if want("compose.tab") else "setup", "conditionals", "click_text", "Conditionals", quiet=0.3, timeout=10.0))
+            if want("compose.cond"):
+                for i in range(3):   # dev -> staging -> prod -> dev
+                    add(Step("compose.cond", f"environment {i + 1}", "click_text", CYCLE_ENV, quiet=0.3, timeout=10.0))
+            if want("compose.addons"):
+                add(Step("compose.tab" if want("compose.tab") else "setup", "addons", "click_text", "Addons", quiet=0.3, timeout=10.0))
+                for needle in ADDON_BOXES:
+                    add(_setup(needle))
+                add(Step("compose.addons", "all five", "click_text", APPLY, quiet=0.3, timeout=10.0))
+                for needle in ADDON_BOXES:   # leave the page as found: every addon off
+                    add(_setup(needle))
+                add(Step("setup", "apply none", "click_text", APPLY, quiet=0.3, timeout=10.0))
+            if want("compose.tab"):
+                add(Step("compose.tab", "board", "click_text", "Board", quiet=0.3, timeout=10.0))
         add(Step("setup", "cache refresh ends", "idle", 1.0))   # the quiet rebuild of the cached page runs in the background
-        add(_setup("Home"))
-    if want("generate.small", "generate.big"):
-        S.extend(_palette_goto("Generated"))
-        add(Step("setup", "open Generated", "key", b"\r", quiet=0.4, timeout=8.0))
-        if want("generate.small"):
-            S.extend(_fill("Cards:", 3))
-            S.extend(_fill("Items:", 2))
-            add(Step("generate.small", "3x2", "click_text", GENERATE, quiet=0.3, timeout=10.0))
-        if want("generate.big"):
-            S.extend(_fill("Cards:", 8))
-            S.extend(_fill("Items:", 6))
-            add(Step("generate.big", "8x6", "click_text", GENERATE, quiet=0.3, timeout=10.0))
-        add(Step("setup", "cache refresh ends", "idle", 1.5))   # the quiet rebuild of the cached page runs in the background
         add(_setup("Home"))
     if want("resize"):
         for r, c in ((max(20, rows - 6), max(70, cols - 24)), (rows + 8, cols + 30), (rows, cols)):

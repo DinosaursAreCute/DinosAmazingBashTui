@@ -6,17 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-Markup v2, stage 2: pages become data that can be reused, extended and changed while the app runs.
+## [0.0.23] - 2026-10-02
+
+DevEx Update 2: Cleaned house, now off to the next venture ([release notes](release-notes/devex-update-2.md)). Markup v2, stage 2: pages become data that can be reused, extended and changed while the app runs.
 
 ### News
 
-* **Holding an arrow key feels instant.** Moving focus with Up/Down on the nav bar paints about 8× fewer bytes and takes about 4 ms per repeat instead of about 13 ms, well under the ~33 ms a held key repeats at.
-* **Arrow-key focus on busy pages is about 10× cheaper.** Finding the neighbouring widget no longer recomputes every widget's position on each press.
-* **The profiler now measures a held key the way a finger feels it.** New `held` scenario: real key-repeat pacing, hold lengths from a tap to a long hold, per-press lag and render cadence for the nav bar, lists, tables, inputs, Tab and PgDn.
+* **Holding an arrow key feels instant.** Up/Down on the nav bar costs 47 ms of work per second of hold instead of 478 and paints 4.3 KB instead of 49.5; Tab 60 ms instead of 420. Every held key is under the 50 ms budget.
+* **Pages are data now.** Templates, loops, conditionals, components, addons and `tui.page.refresh` (only the changed panes rebuild) are in, and the demo shows them in one realistic page, *Compose*, a project board with three tabs.
+* **The profiler measures a held key the way a finger feels it:** `--scenario held` at the real 33 ms repeat, per-press lag and render cadence, and `--scenario compose` for the refresh paths.
+* **Honest cost:** stage 2 made page switches and start-up 6 to 20% slower (first visit 151 ms against a 150 ms budget). Winning that back is the next venture.
 
 ### Added
 
 * Profiler `--scenario held` (`tools/profiler/dprof/scenarios.py`, group kind `held`, 50 ms budget): sends one press every 33 ms (the ~30/s repeat of a held key) for holds of 0.1 s to 1 s, Down then Up, on the nav bar, a list, a table, an input (typing and cursor), Tab cycling, a page of widgets and PgDn/PgUp. Per press it reports queue time (sent to handled) and lag (sent to the first output the terminal receives, so widgets that draw outside `_tui._flush` count), plus the mean gap between frames. The rating uses the worst press, not the first paint.
+* Release assets for DevEx Update 2: title header `assets/headers/devex-update-2.svg`, version header `assets/headers/v0-0-23.svg`, charts `assets/release/devex-2-improvements.svg` and `-pages.svg` (`tools/release_charts.py` `RELEASES` entry); the explorer page gains the runs `20261002-222307` and `20261002-223527`.
 * Tests: a focus move draws no border inside one pane, does no row diff and flushes once; `tui.action.focus_dir` direction, stale-index and no-position-recompute tests.
 * Reuse in pages: `<template>`/`<use>`/`<slot>`/`<fill>`, `<component name src>`, `<for each|count>`, `<if test>`/`<else>`, and `<include src p="v"/>` with `{{@p}}` parameters. They are expanded when a page loads (`lib/markup/tui_compose.sh`), so the built page has only plain tags.
 * Addons: `<addon id target priority>` files with `append`, `prepend`, `before`, `after`, `replace`, `remove`, `set` and `wrap` ops, read from `$TUI_APP_CONF/addons` and from folders given to `tui.addon.dir` (plugin-owned, `tui.addon.undir` removes one). Addon files and folders are part of a page's cache signature.
@@ -25,9 +29,9 @@ Markup v2, stage 2: pages become data that can be reused, extended and changed w
 * `tui.get ID VAR` and `tui.list.selected ID VAR` store into a variable instead of printing (no subshell).
 * Focus and hit zones (`lib/input/tui_focus.sh`, `tui_hit.sh`): `tab_order`, `tabbable`, `focusable`, `focus_group`, `focus_nav`, `focus_wrap`, `focus_next`, `focus_prev`, `autofocus`, `hit_pad`, `hitbox`, a per-row zone index, mouse events carry `TUI_EVENT_ZONE`, `_ZONE_ID`, `_ZONE_ARG`; pane titles are zones; `tui.focus.set`, `tui.hit.set`.
 * Paint pipeline: targeted redraws are diffed against the last flush row by row (`bytes_suppressed`), `tui.frame.request` coalesces redraws to one flush per loop pass, the line canvas has a junction table for every border style.
-* Demo: the *Addons* page (five example addons in `share/demo/addon_examples/`) and the *Generated* page (cards from one template and two loops, driven by a control panel); both reachable from the command bar. The header and menu are templates in `share/demo/_templates.xml`.
+* Demo: the *Compose* page (`share/demo/compose.xml`, `compose_callbacks.sh`, `alt+-`, command bar entry *Compose*): a project board that replaces the earlier *Addons* and *Generated* pages. Tabs *Board* (task cards from one template with nested `<if>`/`<else>` for status, owner and priority; add, complete, block, remove and reset a task), *Conditionals* (`==`, `!=`, truthy value, `<else>` and nesting, live, next to the markup that does it) and *Addons* (the five example addons in `share/demo/addon_examples/`). Every action rewrites an addon file and calls `tui.page.refresh`; switching tabs swaps the whole view pane tree the same way. The header and menu are templates in `share/demo/_templates.xml`.
 * Validator and schema: the composition and addon tags, `<component>` makes `<name>` a known tag on its page, and the sizing attributes (`width`, `height`, `gap`, `padding`, `expand`, `min_height`, `max_height`) are in `share/tui.xsd`. Addon files validate as documents of their own.
-* Tooling: profiler scenarios `addons` and `generated` (100 ms budgets), `tools/bench/hit.sh`; the unit runner splits `t_*` unit tests (2 ms each) from `ti_*` integration tests (60 ms each on average) and caches its state restore.
+* Tooling: profiler scenario `compose` (groups `compose.open`, `.add`, `.tab`, `.cond`, `.addons`; 100 ms budgets), `tools/bench/hit.sh`; the unit runner splits `t_*` unit tests (2 ms each) from `ti_*` integration tests (60 ms each on average) and caches its state restore.
 * Docs: a rewritten markup guide, grid and tabs guide, app guide, performance guide (new costs and rules), a new design page ([pages, templates, addons and refresh](docs/design/pages-templates-addons-refresh.md)), and updated tutorials; the first-app example is the tutorial's final state. A unit test validates the page examples in the guides.
 
 ### Changed
@@ -38,10 +42,12 @@ Markup v2, stage 2: pages become data that can be reused, extended and changed w
 * Shift+Tab with nothing focused starts at the last widget. A pane that scrolls only vertically has no bottom-row scrollbar zone, and a widget's click area is clipped to its pane. Scrollbars react three cells wide.
 * `tui.cache.deps_of` and the parser's `<include>` lookup no longer fork, and the parser finds the end of a tag with one regex instead of a loop over its characters.
 * Node store: `_N_ANAMES` lists each node's attribute names, so clone, remove, parameter substitution and the `wx` widget builder visit only the attributes they need.
+* Performance (deep runs `20261001-230749` v0.0.22 -> `20261002-223527`, 150x45): page switch first visit 143 -> 151 ms, revisit 125 -> 141, by key 101 -> 108, trivial pages 87 -> 97, warm start 290 -> 347, cold start 2.83 -> 3.38 s. These are up 6 to 20% from the stage 2 pipeline (addon files in the cache signature, composition on every build, see `docs/concepts/pages-templates-addons-refresh.md`); resize 203 -> 145 ms and wheel scroll 18 -> 16 ms are better. Held keys, same build without and with the focus work (`20261002-222307` -> `-223527`): Up/Down on the nav bar 478 -> 47 ms of work per second of hold, 49.5 -> 4.3 KB painted; Tab 420 -> 60 ms, 60.7 -> 15.9 KB. The newest run was taken while the demo was being edited and tested, so treat the page-switch rows as an upper bound.
 * Demo pages use `<include src="_templates.xml"/>` and `<use template=...>` instead of the `_header.xml` and `_nav.xml` fragments (removed).
 
 ### Fixed
 
+* A visit callback that set a visible checkbox or input with `tui.set` showed stale state until the mouse hovered it (`tui.set` stores the value, `tui.update` stores and redraws): on the Addons page the boxes of addons applied in an earlier run looked unchecked and flipped to checked on hover. The Compose page and the Settings page inputs use `tui.update`; two regression tests.
 * `${v//a/&...}` on bash 5.2+ treats `&` as "the matched text": template parameters containing `&` and the `wx` widget attribute rebuild now quote the replacement.
 * `<if>` branches sharing a widget id removed the kept branch from the id index.
 * An addon folder that was both registered and the app's own was read twice and reported as an include cycle.

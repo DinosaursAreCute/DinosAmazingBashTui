@@ -6,8 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-## [0.0.23] - 2026-10-02
-
 DevEx Update 2: Cleaned house, now off to the next venture ([release notes](release-notes/devex-update-2.md)). Markup v2, stage 2: pages become data that can be reused, extended and changed while the app runs.
 
 ### News

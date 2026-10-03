@@ -44,6 +44,12 @@ t_parse_decodes_xml_entities_in_attribute_values() {
 	eq 'a <b> & c' "$_N_ATTR_V"
 }
 
+t_parse_decodes_entities_into_a_variable_in_the_calling_shell() {
+	_ENT=""
+	_tui_parse.decode_entities "a &lt;b&gt; &amp;amp; &quot;q&quot; &apos;r&apos;"
+	eq "a <b> &amp; \"q\" 'r'" "$_ENT" # no $( ) around the call: a fork per attribute value that holds an ampersand
+}
+
 t_parse_handles_multi_line_tag() {
 	_parse_fixture a.xml $'<pane id="p1"\n      title="Multi"\n      border="single"/>'
 	tui.parse.file "$_PF"

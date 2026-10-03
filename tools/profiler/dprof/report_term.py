@@ -262,6 +262,57 @@ def call_graph(rep, W, n=14):
     return lines
 
 
+def machine_block(rep, W):
+    """Specs of the machine (no names) and how loaded it was while each unit ran."""
+    m = rep.get("machine")
+    if not m:
+        return []
+    cpu = f"{m['cpu_model'] or 'unknown CPU'} · {m['logical_cpus']} threads" + (f" / {m['physical_cores']} cores" if m.get("physical_cores") else "")
+    if m.get("cpu_max_mhz"):
+        cpu += f" · up to {m['cpu_max_mhz']} MHz"
+    lines = [c(f"machine {m['id']}", "dim") + "  " + c(cpu, "white"),
+             c("  " + " · ".join(str(x) for x in (f"{m['ram_gb']} GB RAM" if m.get("ram_gb") else None, m.get("distro"), f"kernel {m['kernel']}",
+                                               m.get("virtualization"), f"governor {m['cpu_governor']}" if m.get("cpu_governor") else None,
+                                               f"tmp on {m['tmp_fs']}" if m.get("tmp_fs") else None, f"bash {m['bash']}" if m.get("bash") else None,
+                                               f"python {m['python']}") if x), "dim")]
+    res = rep.get("resources") or []
+    if res:
+        lines.append("")
+        lines.append(pad(c("unit", "dim"), 16) + pad(c("wall", "dim"), 8, "r") + pad(c("app cpu", "dim"), 9, "r") + pad(c("app rss", "dim"), 9, "r")
+                     + pad(c("machine cpu", "dim"), 13, "r") + pad(c("other", "dim"), 11, "r") + pad(c("MHz", "dim"), 8, "r") + pad(c("mem max", "dim"), 10, "r"))
+        for u in res:
+            oc = u.get("other_cores")
+            col = "red" if oc is not None and u.get("jobs", 1) == 1 and oc >= 0.5 else "text"
+            f = lambda k, fmt: fmt % u[k] if u.get(k) is not None else "–"
+            lines.append(pad(c(u["unit"], "white"), 16) + pad(c(f("wall_s", "%.1f s"), "text"), 8, "r")
+                         + pad(c(f"{u['app_cores'] * 100:.0f}%" if u.get("app_cores") is not None else "–", "text"), 9, "r")
+                         + pad(c(f("app_rss_mb_max", "%.0f MB"), "text"), 9, "r")
+                         + pad(c(f("sys_cpu_pct_mean", "%.0f%%"), "text"), 13, "r")
+                         + pad(c(f"{oc:.1f} core" if oc is not None else "–", col), 11, "r")
+                         + pad(c(f("freq_mhz_mean", "%.0f"), "text"), 8, "r") + pad(c(f("mem_used_mb_max", "%.0f MB"), "text"), 10, "r"))
+        if res[0].get("jobs", 1) > 1:
+            lines.append(c(f"  {res[0]['jobs']} units ran side by side: the machine columns include the other units.", "yellow"))
+    return lines
+
+
+def setup_block(rep, W):
+    """What it costs to reach each unit's start state. Not part of any measured group above."""
+    rows = rep.get("setup") or []
+    if not rows:
+        return []
+    lines = [c("getting from the default page to where each test begins (profiled, but not counted in the results above)", "dim"),
+             pad(c("unit", "dim"), 16) + pad(c("steps", "dim"), 7, "r") + pad(c("start app", "dim"), 11, "r") + pad(c("total", "dim"), 10, "r") + "  " + c("slowest step", "dim")]
+    for u in rows:
+        st = [x for x in u["steps"][1:] if x["ms"] is not None]
+        slow = max(st, key=lambda x: x["ms"]) if st else None
+        lines.append(pad(c(u["unit"], "white"), 16) + pad(c(str(len(u["steps"]) - 1), "text"), 7, "r")
+                     + pad(c(fmt_ms(u["start_ms"]) if u.get("start_ms") is not None else "–", "text"), 11, "r")
+                     + pad(c(fmt_ms(u["total_ms"]), "white"), 10, "r") + "  "
+                     + (c(f"{slow['detail']} {fmt_ms(slow['ms'])}", "dim") if slow else "")
+                     + (c(f"  {u['failed']} step(s) failed", "red") if u.get("failed") else ""))
+    return lines
+
+
 def subprocs(rep, W):
     attr = rep["attr"]
     lines = []
@@ -504,6 +555,14 @@ def render(rep, W=None, deep=True):
     out += panel("HOW WORK FLOWS", flows(rep, W - 4), W, "blue")
     out.append("")
     out += panel("FINDINGS", findings(rep, W - 4), W, "orange", f"{len(rep['insights'])} total")
+    mb = machine_block(rep, W - 4)
+    if mb:
+        out.append("")
+        out += panel("MACHINE & RESOURCES", mb, W, "dim", "specs only, no host or user names")
+    sb = setup_block(rep, W - 4)
+    if sb:
+        out.append("")
+        out += panel("SETUP", sb, W, "dim", "getting to the start state")
     cb = compare_block(rep, W - 4)
     if cb:
         out.append("")

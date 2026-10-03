@@ -24,3 +24,14 @@ t_palette_draw_appends_nothing_when_not_active() {
 	_tui_cmd.palette_draw
 	eq "prefix:" "$_TUI_FRAME"
 }
+
+t_theme_list_is_built_in_the_calling_shell_sorted_by_name_with_the_app_winning() {
+	local d="$_T_ROOT/themes" saved_def="${TUI_DEFAULTS_DIR:-}" saved_app="${TUI_THEMES_DIR:-}" out
+	mkdir -p "$d/def/themes" "$d/app"
+	: >"$d/def/themes/sunset.css" && : >"$d/def/themes/ocean.css" && : >"$d/app/ocean.css" && : >"$d/app/forest.css"
+	TUI_DEFAULTS_DIR="$d/def" TUI_THEMES_DIR="$d/app"
+	_tui_api.theme_list # fills _TA_THEMES here: no $( ) and no sort process
+	out="${_TA_THEMES[*]}"
+	TUI_DEFAULTS_DIR="$saved_def" TUI_THEMES_DIR="$saved_app"
+	eq "forest	$d/app/forest.css ocean	$d/app/ocean.css sunset	$d/def/themes/sunset.css" "$out"
+}

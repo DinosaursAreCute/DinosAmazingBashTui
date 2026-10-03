@@ -33,8 +33,9 @@ WRAP = [
     ("_tui_validate.notify", "w"), ("tui.run", "s"),
     ("tui.cache.replay", "s"), ("_tui_cache_run_on_visit", "s"), ("_tui._draw_pane_buf", "n"),
     # tui.page.refresh (lib/markup/tui_refresh.sh) and background jobs (lib/tui_job.sh). _tui_job.tick runs on every loop
-    # pass while a job is pending and is deliberately not probed.
-    ("tui.page.refresh", "w"), ("tui.job.run", "w"), ("_tui_job.finish", "w"), ("_tui_job.spinner_draw", "s"),
+    # pass while a job is pending and is deliberately not probed. _tui_job.finish is a span only: a job lands when it is
+    # done, not as part of the click that started it, so it must not stretch that click's settle time.
+    ("tui.page.refresh", "w"), ("tui.job.run", "w"), ("_tui_job.finish", "s"), ("_tui_job.spinner_draw", "s"),
 ]
 WORK_FNS = {n for n, k in WRAP if k in "wpa"}
 WRAPPED = {n for n, _ in WRAP}
@@ -294,17 +295,22 @@ class Session:
         self.events.append(ev)
 
     def locate(self, text):
-        """(col, row) of the last on-screen occurrence of `text`, read from the cursor-addressed output."""
+        """(col, row) of the last on-screen occurrence of `text`, read from the cursor-addressed output.
+        A word edge of the needle must also be a word edge on screen: 'default' is not found in 'defaults'."""
         found, row, col = None, 1, 1
         needle = text
+        edge = lambda c: c.isalnum() or c == "_"
         for m in _TOKEN.finditer(self.raw.decode("utf-8", "replace")):
             cup, chunk = m.group(1), m.group(3)
             if cup is not None:
                 row, col = int(cup), int(m.group(2) or 1)
             elif chunk:
                 i = chunk.find(needle)
-                if i >= 0:
-                    found = (col + i, row)
+                while i >= 0:
+                    j = i + len(needle)
+                    if not ((edge(needle[0]) and i and edge(chunk[i - 1])) or (edge(needle[-1]) and j < len(chunk) and edge(chunk[j]))):
+                        found = (col + i, row)
+                    i = chunk.find(needle, i + 1)
                 col += len(chunk)
         return found
 
@@ -441,6 +447,8 @@ class Session:
                 # traced: no probes, so wait a multiple of what the untraced run needed
                 self.pump(step.wait, until=lambda: not self.alive)
                 res["ok"] = True
+        if step.expect and res.get("ok") is not False and self.locate(step.expect) is None:
+            res.update(ok=False, note=f"expected '{step.expect}' on screen after the step, not found")
         res["cpu_ms"] = (self.cpu_seconds() - cpu0) * 1000
         res["rss_kb"] = self.rss_kb()
         res["alive"] = self.alive

@@ -11,7 +11,10 @@
     <pane id="main" split="v" weight="82" border="none">
       <pane id="tabs_header" weight="5" border="none"/>
       <pane id="interactive_demo" weight="42" title="Interactive Elements (dynamic grid)" border="heavy" class="panel"/>
-      <pane id="controls" weight="14" border="single"/>
+      <pane id="controls" weight="14" border="single">
+        <button id="btn_rebuild" text="[ Rebuild grid - random item count ]" action="on_rebuild_grid" class="info_button" align="fill"/>
+        <button id="btn_clear_tape" text="[ Clear tape ]" action="on_clear_tape" class="danger_button" align="fill"/>
+      </pane>
       <pane id="warn_demo" weight="6" title="Size warning demo" border="heavy" class="panel" min_width="999" min_height="999"/>
       <pane id="tape" weight="24" title="Input Tape (mouse + keyboard)" border="heavy" class="panel" scroll="v"/>
       <pane id="status" weight="18" title="Status" border="heavy" class="panel"/>
@@ -25,8 +28,6 @@
     <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
   </tabs>
 
-  <button id="btn_rebuild" pane="controls" row="0" text="[ Rebuild grid - random item count ]" action="on_rebuild_grid" class="info_button" align="fill"/>
-  <button id="btn_clear_tape" pane="controls" row="1" text="[ Clear tape ]" action="on_clear_tape" class="danger_button" align="fill"/>
 
   <use template="dabt_nav"/>
 </tui>

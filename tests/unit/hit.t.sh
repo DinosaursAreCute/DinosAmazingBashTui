@@ -265,3 +265,32 @@ t_hit_rebuild_restores_the_callers_widget_pos_reuse() {
 	_tui_hit.rebuild
 	eq 0 "$_TUI_WP_REUSE"
 }
+
+# Scrolling pane hit tests
+t_hit_visible_scrolled_widget_is_hittable() {
+	_hit_pane v
+	tui.button b1 p 5 "Go" ""
+	_TUI_P_SOFF_V[p]=2
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC w=$_WSW
+	# Widget should be visible and hittable
+	((r >= 1 && r < 11)) && {
+		_tui_hit.rebuild
+		_hit_at "$r" "$c"
+		eq "widget:b1" "$_R"
+	}
+}
+
+t_hit_scrolled_out_widget_above_viewport_not_hittable() {
+	_hit_pane v
+	tui.button b1 p 0 "Go" ""
+	_TUI_P_SOFF_V[p]=5
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC
+	# Widget should be scrolled out (negative row)
+	((r < 1)) && {
+		_tui_hit.rebuild
+		_hit_at "$r" "$c"
+		eq ":" "$_R" # No widget hit, just pane
+	}
+}

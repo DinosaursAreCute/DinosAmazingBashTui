@@ -674,8 +674,19 @@ tui.theme.reload() {
 # TUI_THEMES_DIR (tui.start sets it to <app dir>/themes when that exists); an app theme with the same
 # name wins. The Settings page and the command palette both list exactly this.
 tui.theme.list() {
-	local dir f name
+	local line
+	_tui_api.theme_list
+	for line in "${_TA_THEMES[@]}"; do printf '%s\n' "$line"; done
+}
+
+# _tui_api.theme_list -> _TA_THEMES: "NAME<TAB>FILE" per selectable overlay, sorted by name. Built here, not in a
+# $( ) | sort: the command palette lists themes on every open.
+declare -ga _TA_THEMES=()
+_tui_api.theme_list() {
+	local dir f name i j
 	local -A files=()
+	local -a names=()
+	_TA_THEMES=()
 	for dir in "${TUI_DEFAULTS_DIR:-}/themes" "${TUI_THEMES_DIR:-}"; do
 		[[ -n "$dir" && -d "$dir" ]] || continue
 		for f in "$dir"/*.css; do
@@ -684,25 +695,35 @@ tui.theme.list() {
 			files[${name%.css}]="$f"
 		done
 	done
-	((${#files[@]})) || return 0
-	for name in "${!files[@]}"; do printf '%s\t%s\n' "$name" "${files[$name]}"; done | sort
+	names=("${!files[@]}")
+	for ((i = 1; i < ${#names[@]}; i++)); do # insertion sort: a handful of names
+		name="${names[i]}"
+		for ((j = i - 1; j >= 0; j--)); do
+			[[ "${names[j]}" > "$name" ]] || break
+			names[j + 1]="${names[j]}"
+		done
+		names[j + 1]="$name"
+	done
+	for name in "${names[@]}"; do _TA_THEMES+=("$name"$'\t'"${files[$name]}"); done
 }
 
 tui.theme.pick() {
-	local want="${1:-}" name f
+	local want="${1:-}" name f line
 	tui.log.debug "tui.theme.pick: name=${want:-<default>}"
 	if [[ -z "$want" ]]; then
 		tui.config.unset theme
 		tui.theme.clear
 		return 0
 	fi
-	while IFS=$'\t' read -r name f; do
+	_tui_api.theme_list
+	for line in "${_TA_THEMES[@]}"; do
+		name="${line%%$'\t'*}" f="${line#*$'\t'}"
 		[[ "$name" == "$want" ]] || continue
 		tui.log.debug "tui.theme.pick: resolved $want -> $f, persisting to config"
 		tui.config.set theme "$f"
 		tui.theme.set "$f"
 		return 0
-	done < <(tui.theme.list)
+	done
 	tui.log.warn "tui.theme.pick: no theme named '$want'"
 	return 1
 }

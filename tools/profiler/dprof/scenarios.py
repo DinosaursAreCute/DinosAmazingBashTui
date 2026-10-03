@@ -77,9 +77,10 @@ GROUP_INFO = {
 
 
 class Step:
-    def __init__(self, group, detail, kind, payload=None, quiet=0.12, timeout=6.0, all_work=False):
+    def __init__(self, group, detail, kind, payload=None, quiet=0.12, timeout=6.0, all_work=False, expect=None):
         self.group, self.detail, self.kind, self.payload = group, detail, kind, payload
         self.quiet, self.timeout, self.all_work = quiet, timeout, all_work
+        self.expect = expect   # text that must be on screen after the step, or the step is reported as failed
         self.wait = 0.5  # traced runs: fixed wait, set from the untraced medians (see runner)
 
     def describe(self):
@@ -253,11 +254,12 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                     add(Step(group, label, "click_text", label, quiet=0.2, timeout=8.0))
         add(_setup("Home"))
     if want("compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"):
+        add(Step("setup", "close dialogs", "key", ESC, quiet=0.1))   # an earlier step may have left a dialog open; it would swallow every key below
         S.extend(_palette_goto("Compose"))
         if want("compose.open"):
-            add(Step("compose.open", "palette", "key", b"\r", quiet=0.4, timeout=8.0))
+            add(Step("compose.open", "palette", "key", b"\r", quiet=0.4, timeout=8.0, expect=ADD_TASK))
         else:
-            add(Step("setup", "open Compose", "key", b"\r", quiet=0.4, timeout=8.0))
+            add(Step("setup", "open Compose", "key", b"\r", quiet=0.4, timeout=8.0, expect=ADD_TASK))
         if want("compose.add"):
             S.extend(_fill("Title:", "Review"))
             add(Step("compose.add", "new task", "click_text", ADD_TASK, quiet=0.3, timeout=10.0))
@@ -288,3 +290,50 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
     if wanted is None:
         add(Step("shutdown", "ctrl+q", "key", b"\x11", quiet=0.05, timeout=8.0, all_work=True))
     return S
+
+
+class Unit:
+    """One independent profiling unit: a fresh app started from the same warmed cache on the default page, then its steps.
+    The steps are `setup` steps (navigate to the page, put it in its start state; not measured) followed by the
+    measured ones. Units share nothing, so they can run side by side."""
+
+    def __init__(self, name, groups, steps):
+        self.name, self.groups, self.steps = name, set(groups), steps
+
+
+DEFAULT_PAGE = "Home"   # nav label of the page the demo app opens on
+
+
+# Which groups share a start state. Every group is in exactly one unit; startup.* is measured on its own (see runner).
+UNIT_GROUPS = [
+    ("nav", ["nav.first", "nav.revisit", "nav.key"]),
+    ("floor", ["nav.floor"]),
+    ("input", ["focus.next", "focus.prev", "hover.move", "click"]),
+    ("scroll", ["scroll.step", "scroll.burst", "scroll.page"]),
+] + [(h[0], [h[0]]) for h in HELD] + [
+    ("palette", ["palette.open", "palette.type", "palette.close"]),
+    ("theme", ["theme.first", "theme.again"]),
+    ("compose", ["compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"]),
+    ("resize", ["resize"]),
+    ("idle", ["idle"]),
+    ("shutdown", ["shutdown"]),
+]
+
+
+def units(rows, cols, quick=False, wanted=None):
+    """The units a run needs for the wanted groups (None = all), in a fixed order."""
+    out = []
+    for name, groups in UNIT_GROUPS:
+        gs = set(groups) if wanted is None else set(groups) & wanted
+        if not gs:
+            continue
+        if name == "shutdown":
+            steps = [Step("shutdown", "ctrl+q", "key", b"\x11", quiet=0.05, timeout=8.0, all_work=True)]
+        else:
+            steps = interaction_steps(rows, cols, quick, gs)
+            while steps and steps[0].group == "setup" and steps[0].detail == DEFAULT_PAGE:   # the unit already starts there
+                steps.pop(0)
+            while steps and steps[-1].group == "setup":   # putting the page back is for the next step of one long run; a unit just ends
+                steps.pop()
+        out.append(Unit(name, gs, steps))
+    return out

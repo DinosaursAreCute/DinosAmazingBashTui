@@ -131,25 +131,45 @@ _tui_focus.rebuild() {
 # tui.focus ID - Focuses a widget; its pane becomes the keyboard pane.
 # The dirty set is known: the old and the new widget, plus the border of every pane whose keyboard focus changed. So the
 # frame goes out raw in one flush, without the row diff of _tui_paint.flush (a hold of Up/Down pays this per repeat).
+# When scroll_into_view is enabled (default) for the widget's pane and the pane scrolls vertically, calls
+# _tui_scroll.reveal to ensure the widget is visible; if reveal changes the offset, redraws the entire pane's
+# widgets, border, and scrollbar instead of just the focus indicator.
 tui.focus() {
 	local id="$1" old="$_TUI_FOCUS_ID" oldpf="$_TUI_PANE_FOCUS" newpane="${_TUI_W_PANE[$1]:-}" oldpane="" x seen=" "
 	[[ -n "$old" ]] && oldpane="${_TUI_W_PANE[$old]:-}"
 	_tui_focus.set "$id"
 	local saved_frame="$_TUI_FRAME"
 	_TUI_FRAME=""
-	for x in "$old" "$id"; do
-		[[ -z "$x" || "$seen" == *" $x "* ]] && continue
-		seen+="$x "
-		_tui._draw_widget_buf "$x"
-	done
-	if [[ "$oldpane" != "$newpane" || "$oldpf" != "$newpane" ]]; then
-		seen=" "
-		for x in "$oldpane" "$newpane" "$oldpf"; do
+
+	# Check if scroll_into_view should trigger a pane redraw
+	local pane_full_redraw=0
+	if [[ -n "$newpane" ]]; then
+		local scroll="${_TUI_P_SCROLL[$newpane]:-none}"
+		if [[ "$scroll" == "v" || "$scroll" == "both" ]] && [[ "${_TUI_P_NOREVEAL[$newpane]:-0}" != 1 ]]; then
+			_tui_scroll.reveal "$id" && pane_full_redraw=1 # rc 0 = the offset moved: the whole pane repaints
+		fi
+	fi
+
+	# If reveal changed the offset, redraw the entire pane
+	if ((pane_full_redraw)); then
+		_tui._draw_pane_full_buf "$newpane"
+	else
+		# Normal fast path: draw only the old and new widget
+		for x in "$old" "$id"; do
 			[[ -z "$x" || "$seen" == *" $x "* ]] && continue
 			seen+="$x "
-			_tui._draw_pane_border_buf "$x"
+			_tui._draw_widget_buf "$x"
 		done
+		if [[ "$oldpane" != "$newpane" || "$oldpf" != "$newpane" ]]; then
+			seen=" "
+			for x in "$oldpane" "$newpane" "$oldpf"; do
+				[[ -z "$x" || "$seen" == *" $x "* ]] && continue
+				seen+="$x "
+				_tui._draw_pane_border_buf "$x"
+			done
+		fi
 	fi
+
 	local buf="$_TUI_FRAME"
 	_TUI_FRAME="$saved_frame"
 	[[ -n "$buf" ]] && _tui._flush "$buf"

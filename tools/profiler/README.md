@@ -39,6 +39,21 @@ may use Python; the DABT runtime stays pure bash.
 Output: `reports/<timestamp>/{report.json,report.html,report.txt}`, `reports/latest` links the newest run
 (`reports/` is git-ignored).
 
+## Units, machine and resources
+
+Every run builds one **warmed template** first (a cold start fills the cache, a second start proves it is warm; both are measured as `startup.cold` / `startup.warm`). Each **unit** (`UNIT_GROUPS` in `dprof/scenarios.py`: nav, floor, input, scroll, one per held key, palette, theme, compose, resize, idle, shutdown) then runs on its own: a private copy of the template HOME, a fresh app that lands on the default page, `setup` steps (navigate to the page, put it in its start state; timed and shown in the report's *Setup* panel, but never counted in a measured group), then the measured steps. Units share nothing, so what one does to the app (a dialog left open, a setting changed) cannot reach another, and they can run side by side: `--jobs N`. Parallel runs compete for the CPU, so the report says so and the timings are only comparable with runs made with the same `--jobs`. The traced pass always runs one unit at a time.
+
+The report names the machine, specs only: CPU model, threads and cores, max MHz and governor, RAM, distro, kernel, virtual or bare metal, filesystem of the temp dir, bash and Python versions, plus a short id (a hash of those specs) to tell two machines apart. No host name, user name, path or address is read. While the run goes, a sampler reads `/proc` every 250 ms; per unit the report shows wall time, app CPU and memory, machine CPU, CPU used by **other work** (a finding when it is 0.5 core or more on a single-job run: the timings are inflated), mean frequency and peak memory use. Linux only; elsewhere those fields are empty.
+
+## Explorer
+
+`tools/profiler/explorer/index.html` is an offline explorer for every run in `reports/`: open the file, nothing to install or serve. `profile.py` refreshes its data after each run (`explore.py` writes `reports/index.js` and a `report.js` beside each `report.json`, only for new or changed runs); `tools/profiler/explorer.sh` does the same on demand and opens the page. If the data files are missing, the page asks for the reports folder (or dropped `report.json` files) and reads them directly.
+
+* **Overview** (first page): the progression of every group of every scenario on one log-scale chart (as multiples of budget, % of the first run, or absolute ms), filterable by machine, mode and window, with a legend to hide or isolate groups and one tile per group: latest value, change against the previous and first run, and a sparkline. Groups that no longer exist are left out unless asked for.
+* **Runs:** all runs in one sortable, filterable table (machine, branch, mode, scenario); open one, or tick several to compare.
+* **One run:** summary and scorecard, latency with every statistic, samples, per-step timelines, frame sources, panes and spans; startup phases; setup; machine and resources; functions, layers, call edges, layer flow, hot lines, processes; zoomable flame graph; calibration; findings; the raw JSON as a tree.
+* **Compare (2 or more runs):** latency, startup phases, functions, layers, setup and resources side by side with the change against the first run, distributions per group, and a context table that marks what differs between runs (including the machine).
+
 ## Scenario for the Compose page
 
 `--scenario compose` profiles `tui.page.refresh` (`lib/markup/tui_refresh.sh`) on the **Compose** demo page (`share/demo/compose.xml`, `compose_callbacks.sh`; tabs Board, Conditionals, Addons; `alt+-`). The page is not in the nav's first ten pages, so the scenario opens it through the command palette (`ctrl+p`, then the first letters of its command). Every change on it is an addon file plus a refresh, so every group has the budget of a page switch: **100 ms**, click to the changed panes on screen (the page itself 150 ms).

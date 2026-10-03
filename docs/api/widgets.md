@@ -15,7 +15,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 ## Widgets
 
-<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
+<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.pin tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
 
 | Function | Summary |
 |---|---|
@@ -41,6 +41,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 | [`tui.label_align`](widgets/tui.label_align.md) | Aligns an input label inside its label column. |
 | [`tui.label_width`](widgets/tui.label_width.md) | Gives an input label a fixed column width, so fields in a form line up. |
 | [`tui.expand`](widgets/tui.expand.md) | Grows a widget to fill the rest of its pane's content height, width, or both. |
+| [`tui.pin`](widgets/tui.pin.md) | Pin a widget to the top of its scrolling pane. When `VALUE` is `top`, the widget scrolls with content until it would leave the viewport top, then stays pinned on the first viewport row (sticky header). |
 | [`tui.input.retain`](widgets/tui.input.retain.md) | Sets whether an input keeps focus after Enter. |
 | [`tui.input.blur_on_submit`](widgets/tui.input.blur_on_submit.md) | Old name for `tui.input.retain ID false`. |
 | [`tui.input.sticky`](widgets/tui.input.sticky.md) | With `true` (default), clicking empty space no longer takes focus away from the input; Esc and Tab still do. |
@@ -91,6 +92,8 @@ Every widget callback gets the widget id first, so one function can serve severa
 {% include_relative widgets/tui.label_width.md %}
 
 {% include_relative widgets/tui.expand.md %}
+
+{% include_relative widgets/tui.pin.md %}
 
 {% include_relative widgets/tui.input.retain.md %}
 

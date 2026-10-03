@@ -37,6 +37,8 @@ source "${SCRIPT_DIR}/render/tui_rowcache.sh"
 source "${SCRIPT_DIR}/input/tui_hit.sh"
 # shellcheck source=input/tui_focus.sh
 source "${SCRIPT_DIR}/input/tui_focus.sh"
+# shellcheck source=layout/tui_scroll.sh
+source "${SCRIPT_DIR}/layout/tui_scroll.sh"
 # shellcheck source=colors.sh
 source "${SCRIPT_DIR}/colors.sh"
 # shellcheck source=tui_home.sh
@@ -64,6 +66,8 @@ source "${SCRIPT_DIR}/markup/tui_addon.sh"
 source "${SCRIPT_DIR}/markup/tui_build.sh"
 # shellcheck source=markup/tui_refresh.sh
 source "${SCRIPT_DIR}/markup/tui_refresh.sh"
+# shellcheck source=markup/tui_factory.sh
+source "${SCRIPT_DIR}/markup/tui_factory.sh"
 # shellcheck source=tui_api.sh
 source "${SCRIPT_DIR}/tui_api.sh"
 # shellcheck source=input/tui_input.sh
@@ -587,6 +591,11 @@ _tui._layout() {
 	_TUI_HZ_DIRTY=1
 	_tui_perf.begin layout
 	_tui._layout_r "$1"
+	# Settle scroll offsets for all leaf panes with vertical scroll after geometry is final
+	local _lp
+	for _lp in "${_TUI_P_LEAVES[@]}"; do
+		[[ "${_TUI_P_SCROLL[$_lp]:-none}" == @(v|both) ]] && _tui_scroll.settle "$_lp"
+	done
 	_tui_perf.end layout
 }
 
@@ -817,6 +826,15 @@ tui.pane_scroll() {
 	_TUI_P_SOFF_H[$1]=0
 }
 
+# tui.pane_scroll_into_view PANE true|false - sets whether focus scrolls vertically scrolling pane to reveal focused widget.
+tui.pane_scroll_into_view() {
+	local pane="$1" enable="$2"
+	case "$enable" in
+		false) _TUI_P_NOREVEAL[$pane]=1 ;;
+		true | "") _TUI_P_NOREVEAL[$pane]=0 ;;
+	esac
+}
+
 # ═══════════════════════════════════════════════════════════════════════
 #  WIDGETS
 # ═══════════════════════════════════════════════════════════════════════
@@ -1011,164 +1029,6 @@ tui.tabs.activate() {
 	[[ -n "$action" ]] && "$action" "$tab_id"
 }
 
-# ═══════════════════════════════════════════════════════════════════════
-#  FACTORY - namespace-scoped construction and bulk teardown for layouts
-#  whose shape isn't known until runtime. Generalizes the one dynamic-
-#  widget-group pattern that already existed in this file (tui.exec's own
-#  "_x"-prefixed controls, built by _exec_setup_controls and torn down by
-#  _exec_remove_widgets) into a reusable primitive keyed by a caller-
-#  chosen namespace instead of a hardcoded prefix, so independent dynamic
-#  groups can coexist without id collisions. Deliberately not a
-#  templating engine - just auto-id generation plus bulk teardown wrapped
-#  around the existing imperative constructors (tui.label/button/input/
-#  checkbox/grid).
-# ═══════════════════════════════════════════════════════════════════════
-
-declare -gA _TUI_FACTORY_IDS=()          # namespace -> "id1 id2 ..." (widgets + panes)
-declare -gA _TUI_FACTORY_GRID_PARENTS=() # namespace -> "parent1 ..." (split state to reset, not remove)
-declare -gA _TUI_FACTORY_COUNTER=()      # namespace -> next auto-id suffix
-declare -ga _TUI_FACTORY_GRID_CELLS=()   # last tui.factory.grid call's cell ids, in order
-
-# Sets _TUI_FACTORY_LAST_ID rather than printing its result: this
-# increments _TUI_FACTORY_COUNTER as a side effect, and a command
-# substitution (id="$(...)") runs in a subshell, which would silently
-# discard that increment - every id in a loop would come back identical.
-# Same fork-free convention as _HIT/_HIT_PANE elsewhere in this file.
-declare -g _TUI_FACTORY_LAST_ID=""
-_tui._factory_next_id() {
-	local ns="$1" n="${_TUI_FACTORY_COUNTER[$ns]:-0}"
-	_TUI_FACTORY_COUNTER[$ns]=$((n + 1))
-	_TUI_FACTORY_LAST_ID="__f_${ns}_${n}"
-}
-
-_tui._factory_track() {
-	local ns="$1" id="$2"
-	_TUI_FACTORY_IDS[$ns]="${_TUI_FACTORY_IDS[$ns]:+${_TUI_FACTORY_IDS[$ns]} }${id}"
-}
-
-# Each tui.factory.* constructor leaves the id it generated in
-# _TUI_FACTORY_LAST_ID: `tui.factory.button ...; id="$_TUI_FACTORY_LAST_ID"`.
-# Deliberately does NOT also print it. In a TUI, stdout is the screen - a
-# constructor typically called in a loop the caller doesn't wrap in a
-# command substitution (see tui.factory.grid's own usage pattern) would
-# otherwise leak raw id text straight onto the terminal outside any pane's
-# clipping the moment someone forgets the `$(...)`, which is exactly the
-# failure mode this avoids by only ever writing to a variable.
-tui.factory.label() {
-	local ns="$1" pane="$2" row="$3" text="$4"
-	_tui._factory_next_id "$ns"
-	local id="$_TUI_FACTORY_LAST_ID"
-	_tui._factory_track "$ns" "$id"
-	tui.label "$id" "$pane" "$row" "$text"
-}
-
-tui.factory.button() {
-	local ns="$1" pane="$2" row="$3" text="$4" action="$5"
-	_tui._factory_next_id "$ns"
-	local id="$_TUI_FACTORY_LAST_ID"
-	_tui._factory_track "$ns" "$id"
-	tui.button "$id" "$pane" "$row" "$text" "$action"
-}
-
-tui.factory.input() {
-	local ns="$1" pane="$2" row="$3" placeholder="$4" label="${5:-}" submit="${6:-}"
-	_tui._factory_next_id "$ns"
-	local id="$_TUI_FACTORY_LAST_ID"
-	_tui._factory_track "$ns" "$id"
-	tui.input "$id" "$pane" "$row" "$placeholder" "$label" "$submit"
-}
-
-tui.factory.checkbox() {
-	local ns="$1" pane="$2" row="$3" label="$4" checked="${5:-}" action="${6:-}"
-	_tui._factory_next_id "$ns"
-	local id="$_TUI_FACTORY_LAST_ID"
-	_tui._factory_track "$ns" "$id"
-	tui.checkbox "$id" "$pane" "$row" "$label" "$checked" "$action"
-}
-
-# tui.factory.grid NAMESPACE PARENT COUNT [COLS] [FIT] [ROW_WEIGHTS] [COL_WEIGHTS]
-# The dynamic-sizing counterpart to <pane split="grid">: takes an item
-# COUNT rather than a fixed shape (COLS optional - auto-square if
-# omitted), builds it via tui.grid with COUNT freshly auto-generated,
-# namespace-tracked ids, and leaves them in order in
-# _TUI_FACTORY_GRID_CELLS for the caller to populate:
-#   for i in "${!items[@]}"; do
-#       tui.factory.button "$ns" "${_TUI_FACTORY_GRID_CELLS[$i]}" 0 "${items[$i]}" my_action
-#   done
-tui.factory.grid() {
-	local ns="$1" parent="$2" count="$3" cols="${4:-}" fit="${5:-pack}"
-	local roww="${6:-}" colw="${7:-}"
-
-	_TUI_FACTORY_GRID_PARENTS[$ns]="${_TUI_FACTORY_GRID_PARENTS[$ns]:+${_TUI_FACTORY_GRID_PARENTS[$ns]} }${parent}"
-
-	local -a cell_ids=()
-	local i
-	for ((i = 0; i < count; i++)); do
-		_tui._factory_next_id "$ns"
-		_tui._factory_track "$ns" "$_TUI_FACTORY_LAST_ID"
-		cell_ids+=("$_TUI_FACTORY_LAST_ID")
-	done
-
-	tui.grid "$parent" "" "$cols" "$fit" "$roww" "$colw" "${cell_ids[@]}"
-
-	local r
-	for r in "${_TUI_LAST_GRID_ROWS[@]}"; do
-		_tui._factory_track "$ns" "$r"
-	done
-	_TUI_FACTORY_GRID_CELLS=("${cell_ids[@]}")
-}
-
-# tui.factory.clear NAMESPACE - tears down every widget/pane created under
-# NAMESPACE (removing it from _TUI_W_ORDER and its widget
-# or pane state entirely) and resets any grid parent it built back to a
-# plain, childless leaf pane, ready for a fresh build. Safe to call on a
-# namespace that was never used, or has already been cleared.
-tui.factory.clear() {
-	local ns="$1"
-	local -a ids=()
-	read -ra ids <<<"${_TUI_FACTORY_IDS[$ns]:-}"
-
-	if ((${#ids[@]} > 0)); then
-		local -a keep_order=()
-		local w drop id
-		for w in "${_TUI_W_ORDER[@]}"; do
-			drop=0
-			for id in "${ids[@]}"; do [[ "$w" == "$id" ]] && {
-				drop=1
-				break
-			}; done
-			((drop)) || keep_order+=("$w")
-		done
-		_TUI_W_ORDER=("${keep_order[@]}")
-		_tui_w.changed
-
-		for id in "${ids[@]}"; do
-			[[ "${_TUI_FOCUS_ID:-}" == "$id" ]] && {
-				_TUI_FOCUS_ID=""
-				_TUI_FOCUS_IDX=-1
-			}
-			_tui_engine.forget_widget "$id"
-			_tui_engine.forget_pane "$id"
-		done
-		_tui_engine.forget_styles "${ids[@]}"
-	fi
-
-	local -a parents=()
-	read -ra parents <<<"${_TUI_FACTORY_GRID_PARENTS[$ns]:-}"
-	local p
-	for p in "${parents[@]}"; do
-		unset '_TUI_P_DIR[$p]' '_TUI_P_CHILDREN[$p]' '_TUI_P_WEIGHTS[$p]'
-	done
-
-	unset '_TUI_FACTORY_IDS[$ns]' '_TUI_FACTORY_GRID_PARENTS[$ns]'
-
-	if ((${#ids[@]} > 0 || ${#parents[@]} > 0)); then
-		_TUI_P_LEAVES=()
-		_TUI_P_ALL=()
-		_tui._collect_leaves "root"
-	fi
-}
-
 # tui.get ID [VAR] - the widget's value: printed, or (with VAR) stored in VAR, which costs no subshell
 tui.get() {
 	if [[ -n "${2:-}" ]]; then
@@ -1206,6 +1066,11 @@ tui.maxsize() {
 # opt a textarea back out to a fixed row count). "x" is currently a no-op (width already fills by
 # default) - accepted for forward compatibility, per the doc.
 tui.expand() { _TUI_W_EXPAND[$1]="$2"; }
+# tui.pin ID VALUE - pin a widget to the top of its scrolling pane. When VALUE is "top", the widget
+# scrolls with content until it would leave the viewport top, then stays pinned on the first viewport
+# row (sticky header). Only "top" is recognized; other values are ignored. At most one pinned widget
+# is stuck at a time; if multiple pass the scroll threshold, the one with the largest row wins.
+tui.pin() { [[ "$2" == "top" ]] && _TUI_W_PIN[$1]="$2"; }
 # tui.width/tui.height ID SPEC - an explicit 2A unit-token size (cells, %, clamp(...); auto/fill/fr
 # resolve to the widget's default fill size) for _tui._widget_pos, resolved through the same
 # _tui.layout_resolve panes use. Applied before min_*/max_* clamp further.
@@ -1451,7 +1316,16 @@ _tui._widget_pos() {
 	# Content-addressed: the key holds every input the arithmetic below reads (pane rect and inset, the widget's
 	# placement and size attributes, both valigns), so a changed attribute is a different key and nothing needs
 	# invalidating. Equal keys recur across pages (the shared nav and header panes), not only across redraws.
-	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}"
+	# For leaf panes with vertical scroll, include the offset in the key so changes to it invalidate the cache.
+	local scroll_off="" stuck_id=""
+	if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
+		local scroll="${_TUI_P_SCROLL[$pane]:-none}"
+		if [[ "$scroll" == "v" || "$scroll" == "both" ]]; then
+			scroll_off="|${_TUI_P_SOFF_V[$pane]:-0}"
+			stuck_id="|${_TUI_P_STUCK[$pane]:-}"
+		fi
+	fi
+	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}$scroll_off$stuck_id"
 	if [[ -n "${_TUI_WPC[$_wk]+x}" ]]; then
 		set -- "$1" ${_TUI_WPC[$_wk]}
 		_WSR=$2 _WSC=$3 _WSW=$4 _WSH=$5 _WSW_AVAIL=$6
@@ -1490,6 +1364,10 @@ _tui._widget_pos() {
 		avail_h=$((content_top + content_h - _WSR))
 		((avail_h < 1)) && avail_h=1
 		_WSH=${_TUI_W_ROWSPAN[$1]:-0}
+		# rows= is a real height in a scrolling pane: the space left in the viewport does not cap it (the widget may sit below the fold)
+		if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" && "${_TUI_P_SCROLL[$pane]:-none}" == @(v|both) ]]; then
+			((_WSH > 0)) && avail_h=$_WSH
+		fi
 		((_WSH <= 0 || _WSH > avail_h)) && _WSH=$avail_h
 		((_WSH < 1)) && _WSH=1
 	fi
@@ -1510,6 +1388,27 @@ _tui._widget_pos() {
 	if [[ -n "$maxw" ]] && ((_WSW > maxw)); then _WSW=$maxw; fi
 	if [[ -n "$minw" ]] && ((_WSW < minw)); then _WSW=$minw; fi
 	((_WSW < 1)) && _WSW=1
+	# For leaf panes with vertical scroll, subtract the offset from the calculated screen row
+	local first_viewport_row=""
+	if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
+		local scroll="${_TUI_P_SCROLL[$pane]:-none}"
+		if [[ "$scroll" == "v" || "$scroll" == "both" ]]; then
+			_WSR=$(((_WSR) - ${_TUI_P_SOFF_V[$pane]:-0}))
+			first_viewport_row=$((pr + _IV + wvp))
+		fi
+	fi
+	# Handle pinned widgets: if this widget is stuck, place it at the first viewport row;
+	# if another widget lands on that row, hide it by setting _WSR = -1
+	if [[ -n "$first_viewport_row" && "${_TUI_P_STUCK[$pane]:-}" == "$1" ]]; then
+		_WSR=$first_viewport_row
+	elif [[ -n "$first_viewport_row" && -n "${_TUI_P_STUCK[$pane]:-}" && $_WSR -eq $first_viewport_row ]]; then
+		_WSR=-1
+	fi
+	# a widget taller than what is left of the viewport is cut at its bottom edge, so it never paints over the border
+	if [[ -n "$first_viewport_row" ]]; then
+		local _vend=$((pr + ph - _IV))
+		((_WSR >= 0 && _WSR < _vend && _WSR + _WSH > _vend)) && _WSH=$((_vend - _WSR))
+	fi
 	if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
 	_TUI_WPC[$_wk]="$_WSR $_WSC $_WSW $_WSH $_WSW_AVAIL"
 	_TUI_WPC_N+=1
@@ -1841,6 +1740,22 @@ _tui._draw_pane_border_buf() {
 	_tui.emit_repeat "$hz" "$inner"
 	_tui.emit "$br"
 	_tui.emit_reset
+
+	# Redraw scrollbar for widget panes that need it (border overwrites the right column)
+	local scroll="${_TUI_P_SCROLL[$id]:-none}"
+	if [[ "$scroll" == "v" || "$scroll" == "both" ]]; then
+		local content_h="${_TUI_P_CONTENT_H[$id]:-0}"
+		_tui._content_rect "$id"
+		if ((content_h > _CR_H)); then
+			local soff="${_TUI_P_SOFF_V[$id]:-0}"
+			_tui._style_v "${id}_normal"
+			local sty="$_SGR"
+
+			local _SC_BAR
+			_tui_scroll.bar_v "$id" "$content_h" "$soff" "$sty"
+			_TUI_FRAME+="$_SC_BAR"
+		fi
+	fi
 }
 
 # _tui._draw_widget ID - draws one widget, standalone (see _tui._draw_pane
@@ -2191,6 +2106,7 @@ tui.render() {
 		_tui._draw_widget_buf "$wid"
 	done
 	_TUI_WP_REUSE=0
+	_tui_scroll.bars_buf
 	for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
 		[[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output_buf "$_oid"
 	done
@@ -2310,6 +2226,34 @@ _tui._draw_ids_now() {
 # _TUI_FRAME itself, once, for every id.
 _tui._draw_widgets_now() { _tui._draw_ids_now _tui._draw_widget_buf "$@"; }
 _tui._draw_pane_borders_now() { _tui._draw_ids_now _tui._draw_pane_border_buf "$@"; }
+
+# _tui._draw_pane_full_buf PANE - appends to _TUI_FRAME a full redraw of the
+# pane's border, all its widgets, and its scrollbar. Used by scroll_into_view
+# to redraw everything after an offset change from reveal.
+_tui._draw_pane_full_buf() {
+	local pane="$1" wid
+	# the whole pane (border and a blank interior), so rows a scroll moved away from are not left behind
+	_tui._draw_pane_buf "$pane"
+	# Redraw all widgets in this pane
+	for wid in "${_TUI_W_ORDER[@]}"; do
+		[[ "${_TUI_W_PANE[$wid]:-}" == "$pane" ]] && _tui._draw_widget_buf "$wid"
+	done
+	# Redraw scrollbar for this pane
+	local scroll="${_TUI_P_SCROLL[$pane]:-none}"
+	if [[ "$scroll" != "v" && "$scroll" != "both" ]]; then
+		return
+	fi
+	local content_h="${_TUI_P_CONTENT_H[$pane]:-0}"
+	_tui._content_rect "$pane"
+	if ((content_h > _CR_H)); then
+		local soff="${_TUI_P_SOFF_V[$pane]:-0}"
+		_tui._style_v "${pane}_normal"
+		local sty="$_SGR"
+		local _SC_BAR
+		_tui_scroll.bar_v "$pane" "$content_h" "$soff" "$sty"
+		_TUI_FRAME+="$_SC_BAR"
+	fi
+}
 
 # _tui._vwidth_v LINE -> _VW: the display width of LINE with CSI, OSC and two-character escape sequences removed (what the awk
 # pass here used to measure). Pure in LINE, so memoised on it; bounded like _TUI_SGR_MEMO.
@@ -3333,19 +3277,9 @@ _tui._render_output_buf() {
 
 	# 3. Draw Scrollbars - printf -v into frame_buf (no command substitution, so no fork per cell).
 	if [[ "$scroll" == "v" || "$scroll" == "both" ]] && ((total_lines > ct_h)); then
-		local track_x=$((pc + pw - 1))
-		local thumb_h=$((ct_h * ct_h / total_lines))
-		((thumb_h < 1)) && thumb_h=1
-		local thumb_y=$((ct_row + (v_off * (ct_h - thumb_h) / (total_lines - ct_h))))
-
-		for ((i = 0; i < ct_h; i++)); do
-			if ((ct_row + i >= thumb_y && ct_row + i < thumb_y + thumb_h)); then
-				printf -v seg '\033[%d;%dH%s\033[7m \033[0m' $((ct_row + i)) "$track_x" "$sty"
-			else
-				printf -v seg '\033[%d;%dH%s\033[2m│\033[0m' $((ct_row + i)) "$track_x" "$sty"
-			fi
-			frame_buf+="$seg"
-		done
+		local _SC_BAR
+		_tui_scroll.bar_v "$pane" "$total_lines" "$v_off" "$sty"
+		frame_buf+="$_SC_BAR"
 	fi
 
 	if [[ "$scroll" == "h" || "$scroll" == "both" ]] && ((max_w > ct_w)); then

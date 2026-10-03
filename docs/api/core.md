@@ -1,6 +1,6 @@
 # Core: lifecycle, layout & runtime
 
-The always-loaded core (`lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh`): starting the app, building the pane tree, tabs, runtime (factory) widgets, output, background process streaming, live updates, getters, logging and the event/result variables everything else reads. ← [API index](README.md) for the full module list and a task-oriented tour with examples.
+The always-loaded core (`lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh`, `lib/markup/tui_factory.sh`): starting the app, building the pane tree, tabs, runtime (factory) widgets, output, background process streaming, live updates, getters, logging and the event/result variables everything else reads. ← [API index](README.md) for the full module list and a task-oriented tour with examples.
 
 Each function has its own page; the summary tables link to them, and the full entries follow each table. Functions return `0` unless their entry says otherwise. Getters print to stdout, so call them in `$(...)`; the fork-free alternatives that set variables are noted on each entry.
 
@@ -53,7 +53,7 @@ Each function has its own page; the summary tables link to them, and the full en
 
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
-<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
+<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_scroll_into_view tui.scroll.to tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
 
 | Function | Summary |
 |---|---|
@@ -70,6 +70,8 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 | [`tui.pane_minsize`](core/tui.pane_minsize.md) | Sets the smallest size at which the pane shows its content. Below it, the pane shows a `min space = WxH` notice instead. |
 | [`tui.pane_maxsize`](core/tui.pane_maxsize.md) | Caps the size a split gives the pane. |
 | [`tui.pane_scroll`](core/tui.pane_scroll.md) | Enables scrolling of the pane's output and resets its scroll position to the top left. |
+| [`tui.pane_scroll_into_view`](core/tui.pane_scroll_into_view.md) | Sets whether focus scrolls a vertically scrolling pane to reveal the focused widget. Default: `true`. |
+| [`tui.scroll.to`](core/tui.scroll.to.md) | Scrolls the pane that holds widget `TARGET` (or the pane `TARGET` itself) so the widget sits at the specified viewport position. |
 | [`tui.pane_strict_fit`](core/tui.pane_strict_fit.md) | Turns the automatic content-fit check of a leaf pane on (default) or off. |
 | [`tui.pane_size`](core/tui.pane_size.md) | Stores the usable content size of a pane (inside border and padding) in variables, without a subshell. |
 | [`tui.capture`](core/tui.capture.md) | Runs `CMD` and stores its standard output in `VAR`, like `VAR="$(CMD ARGS...)"` but without a subshell. |
@@ -108,6 +110,10 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.pane_maxsize.md %}
 
 {% include_relative core/tui.pane_scroll.md %}
+
+{% include_relative core/tui.pane_scroll_into_view.md %}
+
+{% include_relative core/tui.scroll.to.md %}
 
 {% include_relative core/tui.pane_strict_fit.md %}
 

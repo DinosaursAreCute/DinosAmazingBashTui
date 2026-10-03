@@ -193,3 +193,12 @@ t_page_rebuild_failure_keeps_the_page_and_reports_why() {
 	TUI_JOB_PREFIX=""
 	eq "Could not build rb3.xml: unterminated tag|error;" "$toasts" # no GOTO: the old page stays
 }
+
+ti_job_runs_in_the_foreground_when_background_jobs_are_off() {
+	_jb_reset
+	TUI_JOB_BACKGROUND=0 tui.job.run j9 _jb_work_fail _jb_done
+	TUI_JOB_BACKGROUND=0 tui.job.run j8 _jb_work_state _jb_done
+	eq "done:j9:3:partial;done:j8:0:x;" "$_JB_LOG" # finished before tui.job.run returned, same arguments to DONEFN
+	ok '! tui.job.running j9'
+	eq "" "$_JB_STATE" # still a child process: the work cannot change this shell
+}

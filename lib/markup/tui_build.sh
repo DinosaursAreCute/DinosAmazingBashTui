@@ -159,7 +159,7 @@ _tui_build.tag.pane() {
 		_N_ID[$node]="$id"
 	fi
 
-	local split weight title border align valign minw minh maxw maxh class scroll strictfit
+	local split weight title border align valign minw minh maxw maxh class scroll strictfit scroll_into_view
 	local rows cols fit roww colw sizew sizeh hpad vpad gap
 	_tui_build.attrv "$node" split split
 	_tui_build.attrv "$node" weight weight
@@ -173,6 +173,7 @@ _tui_build.tag.pane() {
 	_tui_build.attrv "$node" max_height maxh
 	_tui_build.attrv "$node" class class
 	_tui_build.attrv "$node" scroll scroll
+	_tui_build.attrv "$node" scroll_into_view scroll_into_view
 	_tui_build.attrv "$node" strict_fit strictfit
 	_tui_build.attrv "$node" rows rows
 	_tui_build.attrv "$node" cols cols
@@ -195,6 +196,7 @@ _tui_build.tag.pane() {
 	tui.pane_gap "$id" "$gap"
 	_tui_cache_class "$id" "$class"
 	tui.pane_scroll "$id" "$scroll"
+	tui.pane_scroll_into_view "$id" "$scroll_into_view"
 	[[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 
 	tui_node.children "$node"
@@ -387,8 +389,9 @@ _tui_build.tag.label() {
 	_tui_build.attrv "$node" min_width lminw
 	_tui_build.attrv "$node" max_width lmaxw
 	_tui_build.attrv "$node" class lclass
-	local ltext
+	local ltext lpin
 	_tui_build.attrv "$node" text ltext
+	_tui_build.attrv "$node" pin lpin
 	tui.label "$lid" "$lpane" "$lrow" "$ltext"
 	tui.align "$lid" "$lalign"
 	tui.valign "$lid" "$lvalign"
@@ -400,6 +403,7 @@ _tui_build.tag.label() {
 	_tui_build.attrv "$node" padding lpadding
 	[[ -n "$lwidth" ]] && tui.width "$lid" "$lwidth"
 	[[ -n "$lheight" ]] && tui.height "$lid" "$lheight"
+	[[ -n "$lpin" ]] && tui.pin "$lid" "$lpin"
 	_tui_cache_class "$lid" "$lclass"
 	local lhpad lvpad
 	_tui_build.attrv "$node" hpad lhpad
@@ -421,10 +425,11 @@ _tui_build.tag.input() {
 	_tui_build.attrv "$node" label_align ilalign
 	_tui_build.attrv "$node" label_width ilwidth
 	_tui_build.attrv "$node" class iclass
-	local iminh imaxh iexpand
+	local iminh imaxh iexpand ipin
 	_tui_build.attrv "$node" min_height iminh
 	_tui_build.attrv "$node" max_height imaxh
 	_tui_build.attrv "$node" expand iexpand
+	_tui_build.attrv "$node" pin ipin
 	local iph ilabel isubmit
 	_tui_build.attrv "$node" placeholder iph
 	_tui_build.attrv "$node" label ilabel
@@ -435,6 +440,7 @@ _tui_build.tag.input() {
 	tui.minsize "$iid" "$iminw" "$iminh"
 	tui.maxsize "$iid" "$imaxw" "$imaxh"
 	[[ -n "$iexpand" ]] && tui.expand "$iid" "$iexpand"
+	[[ -n "$ipin" ]] && tui.pin "$iid" "$ipin"
 	local iwidth iheight ipadding
 	_tui_build.attrv "$node" width iwidth
 	_tui_build.attrv "$node" height iheight
@@ -471,10 +477,11 @@ _tui_build.tag.button() {
 	_tui_build.attrv "$node" min_width bminw
 	_tui_build.attrv "$node" max_width bmaxw
 	_tui_build.attrv "$node" class bclass
-	local bminh bmaxh bexpand
+	local bminh bmaxh bexpand bpin
 	_tui_build.attrv "$node" min_height bminh
 	_tui_build.attrv "$node" max_height bmaxh
 	_tui_build.attrv "$node" expand bexpand
+	_tui_build.attrv "$node" pin bpin
 
 	if [[ -n "$bpage" && -z "$baction" ]]; then
 		local fn="_tui_goto_${bid//[^A-Za-z0-9_]/_}"
@@ -488,6 +495,7 @@ _tui_build.tag.button() {
 	tui.minsize "$bid" "$bminw" "$bminh"
 	tui.maxsize "$bid" "$bmaxw" "$bmaxh"
 	[[ -n "$bexpand" ]] && tui.expand "$bid" "$bexpand"
+	[[ -n "$bpin" ]] && tui.pin "$bid" "$bpin"
 	local bwidth bheight bpadding
 	_tui_build.attrv "$node" width bwidth
 	_tui_build.attrv "$node" height bheight
@@ -516,10 +524,11 @@ _tui_build.tag.checkbox() {
 	_tui_build.attrv "$node" min_width kminw
 	_tui_build.attrv "$node" max_width kmaxw
 	_tui_build.attrv "$node" class kclass
-	local kminh kmaxh kexpand
+	local kminh kmaxh kexpand kpin
 	_tui_build.attrv "$node" min_height kminh
 	_tui_build.attrv "$node" max_height kmaxh
 	_tui_build.attrv "$node" expand kexpand
+	_tui_build.attrv "$node" pin kpin
 
 	tui.checkbox "$kid" "$kpane" "$krow" "$klabel" "$kchecked" "$kaction"
 	tui.align "$kid" "$kalign"
@@ -527,6 +536,7 @@ _tui_build.tag.checkbox() {
 	tui.minsize "$kid" "$kminw" "$kminh"
 	tui.maxsize "$kid" "$kmaxw" "$kmaxh"
 	[[ -n "$kexpand" ]] && tui.expand "$kid" "$kexpand"
+	[[ -n "$kpin" ]] && tui.pin "$kid" "$kpin"
 	local kwidth kheight kpadding
 	_tui_build.attrv "$node" width kwidth
 	_tui_build.attrv "$node" height kheight
@@ -556,7 +566,7 @@ _tui_build.tag.wx() {
 	local pane row
 	_tui_build.pane_ofv "$node" pane
 	_tui_build.row_ofv "$node" row
-	[[ "$line" == *' pane='* ]] || line="${line/ $type/ $type pane=\"$pane\"}"
+	[[ "$line" == *' pane='* ]] || line="${line/<$type/<$type pane=\"$pane\"}"
 	[[ "$line" == *' row='* ]] || line="${line/ pane=/ row=\"$row\" pane=}"
 	_markup_wx "$type" "$line"
 }
@@ -634,14 +644,22 @@ tui.register tag tab : # consumed by the tabs handler above; nothing to do stand
 
 # ── entry point tui.load calls (see tui_markup.sh) ─────────────────────
 
+# 1 for the next tui_build.load only: the node store already holds FILE's expanded tree and _TUI_P_RAW its raw tree (set
+# by the background rebuild that tui.page.refresh starts), so parse, addons and templates are not run a second time.
+declare -gi _TUI_BUILD_REUSE_TREE=0
+
 tui_build.load() {
 	local file="$1"
-	_tui_perf.begin parse
-	tui.parse.file "$file"
-	_TUI_P_RAW="$(tui_node.dump)" # the tree as written: tui.page.refresh starts from it instead of parsing again
-	tui_addon.apply "$_P_ROOT" "$file"
-	tui_compose.expand "$_P_ROOT"
-	_tui_perf.end parse
+	if ((_TUI_BUILD_REUSE_TREE)); then
+		_TUI_BUILD_REUSE_TREE=0
+	else
+		_tui_perf.begin parse
+		tui.parse.file "$file"
+		_TUI_P_RAW="$(tui_node.dump)" # the tree as written: tui.page.refresh starts from it instead of parsing again
+		tui_addon.apply "$_P_ROOT" "$file"
+		tui_compose.expand "$_P_ROOT"
+		_tui_perf.end parse
+	fi
 
 	_tui_perf.begin build
 	tui_build.build "$_P_ROOT"

@@ -318,3 +318,85 @@ t_focus_dir_sees_a_widget_that_moved() {
 	tui.action.focus_dir down >/dev/null
 	eq b "$_TUI_FOCUS_ID"
 }
+
+# scroll_into_view tests: when focus moves to a widget in a scrolling pane,
+# the pane should reveal the widget (by default)
+_foc_scroll_pane_setup() {
+	_TUI_ROWS=24 _TUI_COLS=80
+	_TUI_P_ROW[p]=1 _TUI_P_COL[p]=1 _TUI_P_H[p]=10 _TUI_P_W[p]=24
+	unset '_TUI_P_CHILDREN[p]'
+	_TUI_P_BORDER[p]=none _TUI_P_BORDER_EXPL[p]=1
+	_TUI_P_HPAD[p]=0 _TUI_P_VPAD[p]=0
+	_TUI_P_SCROLL[p]="${1:-v}" # default to vertical scroll
+	_TUI_P_SOFF_V[p]=0
+	_TUI_P_CONTENT_H[p]=0
+	_TUI_P_ALL=(p) _TUI_P_LEAVES=(p)
+	_CR_H=10 # viewport height
+}
+
+t_focus_scroll_into_view_focuses_below_viewport() {
+	_foc_scroll_pane_setup v
+	# Create widgets: a at row 0, b at row 5, c at row 15
+	tui.button a p 0 "a" ""
+	_TUI_W_ROW[a]=0 _TUI_W_HEIGHT[a]=2
+	tui.button b p 5 "b" ""
+	_TUI_W_ROW[b]=5 _TUI_W_HEIGHT[b]=2
+	tui.button c p 15 "c" ""
+	_TUI_W_ROW[c]=15 _TUI_W_HEIGHT[c]=2
+	_TUI_P_CONTENT_H[p]=18
+	# Focus on widget c (below viewport); reveal should scroll to show it
+	_TUI_P_SOFF_V[p]=0
+	tui.focus a
+	tui.focus c
+	# reveal should have scrolled to position 7 to show widget c at row 15
+	# with viewport height 10, widget needs to end before offset+10 (15+2 > 7+10 is false)
+	eq 7 "${_TUI_P_SOFF_V[p]}"
+}
+
+t_focus_scroll_into_view_disabled_leaves_offset_unchanged() {
+	_foc_scroll_pane_setup v
+	tui.button a p 0 "a" ""
+	_TUI_W_ROW[a]=0 _TUI_W_HEIGHT[a]=2
+	tui.button c p 15 "c" ""
+	_TUI_W_ROW[c]=15 _TUI_W_HEIGHT[c]=2
+	_TUI_P_CONTENT_H[p]=18
+	# Disable scroll_into_view
+	_TUI_P_NOREVEAL[p]=1
+	# Focus on widget c with scroll_into_view disabled
+	tui.focus a
+	tui.focus c
+	# Offset should remain 0 (unchanged)
+	eq 0 "${_TUI_P_SOFF_V[p]}"
+}
+
+t_focus_scroll_into_view_widget_in_non_scrolling_pane() {
+	_foc_scroll_pane_setup none
+	tui.button a p 0 "a" ""
+	_TUI_W_ROW[a]=0 _TUI_W_HEIGHT[a]=2
+	tui.button c p 15 "c" ""
+	_TUI_W_ROW[c]=15 _TUI_W_HEIGHT[c]=2
+	_TUI_P_CONTENT_H[p]=18
+	# Focus on widget c in non-scrolling pane
+	tui.focus a
+	tui.focus c
+	# Offset should remain 0 (no scrolling in non-scrolling pane)
+	eq 0 "${_TUI_P_SOFF_V[p]}"
+}
+
+# a focus move that scrolls repaints the whole pane (the scrollbar column too); one that does not scroll only touches the two widgets
+t_focus_scroll_into_view_repaints_the_pane_only_when_it_scrolled() {
+	_foc_scroll_pane_setup v
+	tui.button a p 0 "a" ""
+	tui.button c p 15 "c" ""
+	_TUI_W_ROW[c]=15
+	_TUI_P_CONTENT_H[p]=18
+	_TUI_P_SOFF_V[p]=0
+	tui.focus a
+	local out
+	out="$(tui.focus c)"
+	match "$out" '│'
+	_TUI_P_SOFF_V[p]=0
+	tui.focus a
+	out="$(tui.focus a)"
+	ok '[[ "$out" != *│* ]]'
+}

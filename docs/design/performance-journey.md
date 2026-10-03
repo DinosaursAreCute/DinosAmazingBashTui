@@ -151,6 +151,31 @@ xychart-beta
 
 *Pink: cold start. Blue: warm start.*
 
+## Winning back time
+
+The page-templates and addons release (bcc526b) added features and cost some speed: page switches are 12 to 14 ms slower, warm start 37 ms, cold start 370 ms. Refreshing a Compose page takes 130 to 260 ms and walks the whole page about five times, then rebuilds it a sixth time in the background. The plan below is what the profile of the latest deep run points at. "Expected" figures come from attributing the trace to the untraced timings, so they are estimates; "Real gain" is filled in as each change lands and is measured.
+
+| # | Change | Where the time goes today | Expected return | Real gain |
+|---|---|---|---|---|
+| 1 | Build the cache entry in the background job from the tree the refresh just expanded, instead of re-parsing the page (not from the live screen state, which would freeze typed input and focus into the cache) | The job repeats the whole pipeline (55 to 60 % of the traced work of a click) and forks about 9 processes | No background CPU competing with the next click; about 9 forks fewer per click | Cache job 422 → 211 ms (5 runs, 417 to 425 vs 207 to 217). Parse time in the compose groups 20 to 37 → 1 to 7 ms; fork time of tab and conditional clicks −60 %. Foreground click unchanged (as expected) |
+| 2 | Memoise template expansion. Measured on the Compose page (82 ms of expansion): the walk over the tree is not the cost (a flat list of directives gave 61 vs 62 ms and was dropped). The cost is the 7 template uses (46 ms: 23 ms cloning, 8 ms substituting) and the 22 `if`s with their removes and re-indexing (about 28 ms) | Expansion is 25 to 61 % of the refresh pipeline (103 ms for adding a task) | Rebuilding an instance from a stored subtree skips substitution, collecting and the nested `if`s: about −25 ms of 82 | |
+| 2b | Skip unchanged template uses altogether: a use whose template, parameters and recursion mark are unchanged stays a placeholder in the refresh, and its signature is the one stored from the last build; it is expanded only when its pane has to be rebuilt (the cache job always expands fully). Goes together with item 5 | Every use is cloned and substituted again on every click, though one card in five changes | Add task: expansion 82 → about 20 ms, signing of the unchanged cards free | |
+| 3 | Parse each addon file once (keyed on path and mtime) and cache the selector targets | Every refresh re-reads and re-parses all addon files. Measured: the example addons take 1 to 4 ms each, but the file that changes on every click (Compose's state addon, 986 bytes) takes 9 ms and cannot be cached | At most 10 ms, and only while the example addons are on; nothing for add, tab and conditional clicks. Not worth a relocatable-subtree cache; dropped | Not done: no gain on the clicks that matter |
+| 4 | Decode entities with parameter expansion in the attribute parser (`tui_parse.sh:200`) | 6 forks per click | 6 forks per click; at about 0.2 ms a fork, 1 to 2 ms | 6 forks per click gone. Parsing the state addon: 10.3 → 9.1 ms (8 runs each, 10.2 to 10.5 vs 9.06 to 9.12) |
+| 5 | Sign only the nodes an operation touched and their ancestors; store only `OWN` signatures or hashes, derive `FULL` when needed | The whole tree is signed per click (7 to 16 ms), and the signatures in the cache grow with page size times depth | About 12 ms per click; smaller cache | |
+| 6 | Repaint only rebuilt panes and panes whose rectangle changed | Every click repaints the whole screen: 38 to 53 KB, 28 to 58 ms | Render 58 → about 20 ms; 53 KB → a few KB | |
+| 7 | Skip relayout, hit-index and focus-index work for panes whose size and weight did not change | Layout, hit and focus indexes are rebuilt for the whole page after every refresh | A few ms per click, more on large pages | |
+| 8 | Build the hit index lazily on the first pointer event (or cache it per terminal size in the page snapshot) | Eager hit and focus index: +12 ms on every page switch | Page switch back to about 127 (first visit) and 113 ms (revisit) | |
+| 9 | Invalidate the focus index once per batch of widget changes | Rebuilt about three times per page switch | Part of item 8, about 2 ms | |
+| 10 | Load only the first page's snapshot at start and check the others when visited | Loading the cache takes 59 ms, up from 35 | Warm start 327 → about 290 ms | |
+| 11 | Keep theme parsing and style collision checks out of page refresh | 4 to 7 ms per click in the style layer, though a refresh cannot change the theme | About 5 ms per click | |
+| 12 | Prebuild the closed sets in idle time: the three Compose tabs and three environments, then replay them like a page visit; memoise addon combinations on demand | Tab switch rebuilds a whole view (41 ms of build) | Tab switch 193 → about 100 ms | |
+| 13 | Create the `tui.capture` temp files without `mktemp`, `mkfifo` and `rm`, or after the first frame | 3 processes (about 14 ms) on first use in a session | Dropped: the temp directory and fifo belong to `tui.watch` (the Monitor page), are already created lazily on first use, and the fifo is the feature | Not done: already lazy, needed by the feature |
+| 14 | Cache the theme list per session; keep the config save and terminal width without `mkdir`, `mv` and `tput` | 3 forks to open the palette, about 10 ms per theme switch | Palette open: 3 forks gone (about 1 ms). Config save and `tput` still open | Palette theme list built in the shell, no `$( )` and no `sort`: 3 forks per open gone. Config save and terminal width not yet done |
+| 15 | Run page validation once per file change and keep the verdict in the cache; validate templates lazily | Cold start spends 1.33 s validating (up 253 ms) | Cold start 3.2 → about 2.9 s | |
+
+Compose "add task" should go from about 226 to about 100 ms and "change conditional" from about 134 to about 80 ms once items 1 to 7 are in. Items 8 to 10 give back the page-switch and warm-start loss, and items 12 to 15 reach further.
+
 ## Lessons
 
 - **Measure from the outside, then from the inside.** Probes inside the app give trustworthy latency; a bash trace gives attribution but runs about three times slower. Scaling the trace back to untraced speed per scenario kept the attribution within about 6% of the probes.

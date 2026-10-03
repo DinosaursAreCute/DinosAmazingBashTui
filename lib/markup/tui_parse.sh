@@ -197,7 +197,10 @@ _tui_parse.attrs() {
 		else
 			val="${BASH_REMATCH[4]}"
 		fi
-		[[ "$val" == *"&"* ]] && val="$(_tui_parse.decode_entities "$val")"
+		if [[ "$val" == *"&"* ]]; then
+			_tui_parse.decode_entities "$val"
+			val="$_ENT"
+		fi
 		tui_node.attr_set "$node" "$name" "$val"
 		body="${body:${#BASH_REMATCH[0]}}"
 	done
@@ -215,12 +218,13 @@ _tui_parse.attr_valuev() {
 	return 0
 }
 
+# _tui_parse.decode_entities TEXT -> _ENT (a variable, not stdout: a $( ) per value would fork)
+declare -g _ENT=""
 _tui_parse.decode_entities() {
 	local v="$1"
 	v="${v//&lt;/<}"
 	v="${v//&gt;/>}"
 	v="${v//&quot;/\"}"
 	v="${v//&apos;/\'}"
-	v="${v//&amp;/\&}" # unescaped & in a replacement is a bash no-op, not a literal ampersand
-	printf '%s' "$v"
+	_ENT="${v//&amp;/\&}" # unescaped & in a replacement is a bash no-op, not a literal ampersand
 }

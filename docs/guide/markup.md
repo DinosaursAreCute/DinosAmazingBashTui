@@ -296,7 +296,22 @@ Every redraw starts a process for it, so it suits static text like a divider. Fo
 
 ## Scrolling
 
-`scroll="v"`, `"h"` or `"both"` on a pane makes it a scrolling viewport. Such a pane must be a leaf (no child panes, no widgets); fill it with `tui.output PANE TEXT` or `tui.output_append`. Wheel, drag on the scrollbar (the bar is drawn one cell wide, and reacts three cells wide) and the page keys scroll it. Details: [Callbacks and viewports](callbacks-and-viewports.md#3-building-scrolling-viewports).
+`scroll="v"`, `"h"` or `"both"` on a pane makes it a scrolling viewport. Such a pane must be a leaf (no child panes); fill it with `tui.output PANE TEXT` or `tui.output_append`, or with widgets (see [Scrolling widgets](#scrolling-widgets)). Wheel, drag on the scrollbar (the bar is drawn one cell wide, and reacts three cells wide) and the page keys scroll it. Details: [Callbacks and viewports](callbacks-and-viewports.md#3-building-scrolling-viewports).
+
+## Scrolling widgets
+
+A pane with `scroll="v"`, `"h"` or `"both"` can also hold widgets. The content height comes from the arranged widgets; scroll follows the mouse wheel and the page keys, and Tab moves it along with the focus. The innermost widget under the pointer gets the scroll event first. When Tab focuses a widget, it is scrolled into view automatically (unless `scroll_into_view="false"` on the pane). Mark a row with `pin="top"` to keep it stuck to the first viewport row (a pinned header):
+
+```xml
+<pane id="form" weight="85" border="single" scroll="v" hpad="1">
+  <label id="hdr" pin="top" text="Account details" class="brand"/>
+  <input id="inp_email"    label="Email:"        label_width="15" submit="on_save"/>
+  <input id="inp_phone"    label="Phone:"        label_width="15" submit="on_save"/>
+  <checkbox id="chk_news" label="Newsletter"    checked="true" action="on_toggle"/>
+</pane>
+```
+
+Scroll programmatically with `tui.scroll.to TARGET [top|center|bottom]` where `TARGET` is a widget or pane id (it scrolls the nearest ancestor pane that can scroll to show the target).
 
 ## Content fit
 

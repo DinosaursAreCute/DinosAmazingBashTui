@@ -8,7 +8,14 @@
   <pane id="root1" weight="90" split="h">
     <pane id="sidebar" weight="18" split="v" border="none">
       <pane id="nav"      weight="58" title="Menu"  border="single" class="sidebar"/>
-      <pane id="controls" weight="42" title="Theme" border="single" class="sidebar" hpad="1"/>
+      <pane id="controls" weight="42" title="Theme" border="single" class="sidebar" hpad="1">
+        <label  id="lbl_th_hd" text="Switch overlay:" class="muted_label"/>
+        <button id="btn_sc_th_default" row="2" text="Default" action="sc_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_sc_th_ocean" row="3" text="Ocean"   action="sc_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_sc_th_forest" row="4" text="Forest"  action="sc_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_sc_th_sunset" row="5" text="Sunset"  action="sc_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_sc_th_light" row="6" text="Light"   action="sc_theme_pick" class="nav_link" align="fill"/>
+      </pane>
     </pane>
     <pane id="main" split="v" border="single" weight="82" class="panel" hpad="1">
       <pane id="tabs_header" weight="5" border="none"/>
@@ -24,12 +31,6 @@
     <tab id="tab_live"      text="Live"         action="sc_goto_live"/>
   </tabs>
 
-  <label  id="lbl_th_hd" pane="controls" row="0" text="Switch overlay:" class="muted_label"/>
-  <button id="btn_sc_th_default" pane="controls" row="2" text="Default" action="sc_theme_pick" class="nav_link" align="fill"/>
-  <button id="btn_sc_th_ocean"   pane="controls" row="3" text="Ocean"   action="sc_theme_pick" class="nav_link" align="fill"/>
-  <button id="btn_sc_th_forest"  pane="controls" row="4" text="Forest"  action="sc_theme_pick" class="nav_link" align="fill"/>
-  <button id="btn_sc_th_sunset"  pane="controls" row="5" text="Sunset"  action="sc_theme_pick" class="nav_link" align="fill"/>
-  <button id="btn_sc_th_light"   pane="controls" row="6" text="Light"   action="sc_theme_pick" class="nav_link" align="fill"/>
 
   <use template="dabt_nav"/>
 </tui>

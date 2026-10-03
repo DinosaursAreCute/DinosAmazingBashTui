@@ -158,6 +158,10 @@ def latency_groups(rounds):
         g["metric"] = metric
         g["value"] = g[metric]["med"] if g.get(metric) else None
         g["rating"] = rate(g["value"], budget)
+        notes = [a["note"] for a in acts if a.get("ok") is False and a.get("note")]
+        g["failed"] = len(notes)
+        if notes:   # a step that did not do its job: its timing says nothing, so never rate it good
+            g["rating"], g["note"] = "slow", f"{len(notes)} of {len(acts)} steps failed: {notes[0]}"
         g["no_effect"] = sum(1 for a in acts if a.get("ok") is False and not a.get("went", True))
         g["went_false"] = sum(1 for a in acts if a.get("went") is False) if kind == "nav" else 0
         g["details"] = _details(acts)
@@ -575,12 +579,48 @@ def calibration_check(rounds, attr):
             "n": len(scored)}
 
 
+def resource_view(rounds):
+    """Per unit, the machine load while it ran, averaged over the rounds (numbers only; max stays a max)."""
+    by = {}
+    for r in rounds:
+        for u in r.get("resources", []):
+            by.setdefault(u["unit"], []).append(u)
+    out = []
+    for name, us in by.items():
+        row = {"unit": name, "rounds": len(us), "jobs": us[0].get("jobs", 1)}
+        for k in set().union(*us):
+            vals = [u[k] for u in us if isinstance(u.get(k), (int, float)) and k not in ("jobs",)]
+            if vals:
+                row[k] = max(vals) if k.endswith("_max") else sum(vals) / len(vals)
+        out.append(row)
+    return out
+
+
+def setup_view(rounds):
+    """Per unit, what it cost to get from the default page to the start state (not part of any measured group):
+    the steps in order with their median time over the rounds, and the total."""
+    by = {}
+    for r in rounds:
+        for u in r.get("setup", []):
+            by.setdefault(u["unit"], []).append(u["steps"])
+    out = []
+    for name, runs in by.items():
+        steps = []
+        for i, st in enumerate(runs[0]):
+            vals = [run[i]["ms"] for run in runs if i < len(run) and run[i].get("ms") is not None]
+            steps.append({"detail": st["detail"], "ms": med(vals) if vals else None, "ok": all(run[i].get("ok", True) for run in runs if i < len(run))})
+        out.append({"unit": name, "steps": steps, "total_ms": sum(x["ms"] or 0 for x in steps),
+                    "start_ms": steps[0]["ms"] if steps else None, "failed": sum(1 for x in steps if not x["ok"])})
+    return out
+
+
 def build_report(meta, rounds, traces, baseline=None):
     from . import insights
     lat = latency_groups(rounds)
     start = startup_view(rounds)
     attr = attribution(traces, lat, None)
     report = {"meta": meta, "latency": lat, "startup": start, "attr": attr, "warnings": meta.get("warnings", []),
+              "machine": meta.get("machine"), "resources": resource_view(rounds), "setup": setup_view(rounds),
               "calibration": calibration_check(rounds, attr) if traces else None}
     # trees for the flame graphs: one per scenario group, plus everything the user triggered
     trees, paths = {}, {}

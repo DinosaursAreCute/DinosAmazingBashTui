@@ -12,13 +12,14 @@ from datetime import datetime
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import explore                                           # noqa: E402
 from dprof import term                                  # noqa: E402
 from dprof.analyze import build_report, med, pct        # noqa: E402
 from dprof.live import LiveUI                           # noqa: E402
 from dprof.runner import latency_round, traced_session  # noqa: E402
-from dprof.scenarios import SCENARIOS, interaction_steps, resolve_scenarios   # noqa: E402
+from dprof.scenarios import SCENARIOS, resolve_scenarios, units   # noqa: E402
 from dprof.session import REPO, kill_all                # noqa: E402
-from dprof import report_term, report_html              # noqa: E402
+from dprof import report_term, report_html, sysinfo              # noqa: E402
 
 REPORTS = os.path.join(HERE, "reports")
 
@@ -29,6 +30,7 @@ def parse():
     p.add_argument("--deep", action="store_true", help="5 rounds and a traced cold start too (~10 min)")
     p.add_argument("--rounds", type=int, help="untraced latency rounds (default 2)")
     p.add_argument("--size", default="150x45", help="terminal COLSxROWS the app runs in (default 150x45)")
+    p.add_argument("--jobs", type=int, default=1, metavar="N", help="run N independent units side by side (default 1; faster, but they compete for the machine and the timings show it)")
     p.add_argument("--no-trace", action="store_true", help="latency only: skip the xtrace attribution pass")
     p.add_argument("--cold-trace", action="store_true", help="also trace a cold start (2M+ lines, ~2 min)")
     p.add_argument("--compare", metavar="REPORT", help="report.json (or run dir) to diff against; default: the latest run")
@@ -140,11 +142,12 @@ def main():
     cfg = Cfg()
     cfg.wanted = wanted
     cfg.rows, cfg.cols, cfg.quick, cfg.rounds = a.rows, a.cols, a.quick, a.rounds
-    cfg.start_timeout, cfg.hints, cfg.app = 120, {}, a.app
-    per_round = len(interaction_steps(cfg.rows, cfg.cols, cfg.quick, wanted)) + 2
+    cfg.start_timeout, cfg.hints, cfg.app, cfg.jobs = 120, {}, a.app, max(1, a.jobs)
+    todo = units(cfg.rows, cfg.cols, cfg.quick, wanted)
+    per_round = sum(len(u.steps) + 1 for u in todo) + 2
     phases = [("latency", "Latency", 1, per_round * cfg.rounds)]
     if not a.no_trace:
-        phases.append(("trace", "Attribution trace", 2.5, per_round - 1))
+        phases.append(("trace", "Attribution trace", 2.5, per_round))
         if a.cold_trace and (wanted is None or "startup.cold" in wanted):
             phases.append(("cold", "Cold-start trace", 60, 1))
     phases += [("analyze", "Analysis", 2, 1), ("report", "Report", 2, 1)]
@@ -164,10 +167,12 @@ def main():
     ])
 
     rounds, traces, warnings = [], [], []
+    machine = sysinfo.machine(cfg.rows, cfg.cols)
+    sampler = sysinfo.Sampler().start()
     try:
         for i in range(cfg.rounds):
             live.phase("latency", f"round {i + 1}/{cfg.rounds}", per_round)
-            r = latency_round(cfg, live, i)
+            r = latency_round(cfg, live, i, sampler)
             rounds.append(r)
             warnings += r.get("warnings", [])
         # how long an action needs untraced tells the traced run how long to wait for it
@@ -182,15 +187,16 @@ def main():
         cfg.hints = {g: pct(v, 95) for g, v in by.items()}
         if not a.no_trace:
             live.phase("trace", "warm session")
-            traces.append(traced_session(cfg, live, cold=False))
-            warnings += traces[-1].get("warnings", [])
+            traces += traced_session(cfg, live, cold=False)
+            warnings += [w for t in traces for w in t.get("warnings", [])]
             if a.cold_trace and (wanted is None or "startup.cold" in wanted):
                 live.phase("cold", "empty cache")
-                traces.append(traced_session(cfg, live, cold=True))
+                traces += traced_session(cfg, live, cold=True)
         live.phase("analyze")
         meta = {"when": datetime.now().strftime("%Y-%m-%d %H:%M"), "commit": commit, "branch": branch, "dirty": dirty,
                 "rows": cfg.rows, "cols": cfg.cols, "rounds": cfg.rounds, "mode": mode, "scenario": ",".join(scenario_names), "warnings": sorted(set(warnings)),
-                "duration_s": time.time() - t_start, "traced": not a.no_trace}
+                "duration_s": time.time() - t_start, "traced": not a.no_trace, "jobs": cfg.jobs, "machine": machine,
+                "load": sampler.summary(t_start, time.time())}
         base = None
         if not a.no_compare:
             bp = a.compare or latest_report()
@@ -211,6 +217,10 @@ def main():
             with open(html_path, "w") as f:
                 f.write(report_html.render(rep))
         if not a.out:
+            try:
+                explore.update()   # the explorer sees every new run without being told
+            except OSError:
+                pass
             latest = os.path.join(REPORTS, "latest")
             try:
                 if os.path.islink(latest) or os.path.exists(latest):
@@ -224,6 +234,7 @@ def main():
         print("\naborted.", file=sys.stderr)
         return 130
     finally:
+        sampler.stop()
         live.finish()
 
     print()

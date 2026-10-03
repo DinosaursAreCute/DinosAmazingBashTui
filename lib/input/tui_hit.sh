@@ -71,6 +71,35 @@ _tui_hit.clip() {
 	return 0
 }
 
+# _tui_hit.clip_content ROW COL H W PANE - for scrolling panes, clip to content rect
+# (inside border/padding), not the outer rect. For non-scrolling panes, same as clip.
+_tui_hit.clip_content() {
+	local pane=$5
+	local scroll="${_TUI_P_SCROLL[$pane]:-none}"
+	# Only use content clipping for scrolling panes; others use regular clip
+	if [[ "$scroll" != "v" && "$scroll" != "both" ]]; then
+		_tui_hit.clip "$@"
+		return
+	fi
+
+	local r0=$1 c0=$2 r1=$(($1 + $3)) c1=$(($2 + $4))
+	# Get pane's content rect (inside border/padding)
+	_tui._inset "$pane"
+	local pr=$((${_TUI_P_ROW[$pane]} + _IV))
+	local pc=$((${_TUI_P_COL[$pane]} + _IH))
+	local r1_max=$((pr + ${_TUI_P_H[$pane]} - 2 * _IV))
+	local c1_max=$((pc + ${_TUI_P_W[$pane]} - 2 * _IH))
+
+	((r0 < pr)) && r0=$pr
+	((c0 < pc)) && c0=$pc
+	((r1 > r1_max)) && r1=$r1_max
+	((c1 > c1_max)) && c1=$c1_max
+	_HR=$r0 _HC=$c0 _HH=$((r1 - r0)) _HW=$((c1 - c0))
+	((_HH < 0)) && _HH=0
+	((_HW < 0)) && _HW=0
+	return 0
+}
+
 # the bar is drawn 1 cell wide; its zone is 3 wide (3 high for the horizontal bar), clamped to the pane
 _tui_hit.zones_scrollbars() {
 	local p mode pr pc ph pw
@@ -119,7 +148,7 @@ _tui_hit.zones_widgets() {
 		[[ "${_TUI_W_TYPE[$id]}" == label && -z "$hp" && -z "$hb" ]] && continue
 		_tui._widget_pos "$id"
 		_TUI_HZ_WR[$id]=$_WSR _TUI_HZ_WC[$id]=$_WSC _TUI_HZ_WW[$id]=$_WSW
-		_tui_hit.clip "$_WSR" "$_WSC" "$_WSH" "$_WSW" "$p"
+		_tui_hit.clip_content "$_WSR" "$_WSC" "$_WSH" "$_WSW" "$p"
 		_tui_hit.add widget "$id" "" "$_HR" "$_HC" "$_HH" "$_HW"
 		if [[ -n "$hb" ]]; then
 			read -r dy dx hh hw <<<"$hb"
@@ -180,13 +209,15 @@ _tui_hit.at() {
 
 # _tui_hit.scrollbar_jump PANE v|h COL ROW - scroll PANE so the pointer's position on the bar becomes the offset
 _tui_hit.scrollbar_jump() {
-	local p="$1"
+	local p="$1" total
+	_SC_OLD=${_TUI_P_SOFF_V[$p]:-0}
 	if [[ "$2" == v ]]; then
-		_TUI_P_SOFF_V[$p]=$((($4 - _TUI_P_ROW[$p]) * ${_TUI_P_LINES[$p]:-1} / _TUI_P_H[$p]))
+		if _tui_scroll.is_output "$p"; then total=${_TUI_P_LINES[$p]:-1}; else total=${_TUI_P_CONTENT_H[$p]:-1}; fi # tui.output lines, or the widgets' rows
+		_TUI_P_SOFF_V[$p]=$((($4 - _TUI_P_ROW[$p]) * total / _TUI_P_H[$p]))
 	else
 		_TUI_P_SOFF_H[$p]=$((($3 - _TUI_P_COL[$p]) * ${_TUI_P_MAX_W[$p]:-1} / _TUI_P_W[$p]))
 	fi
-	_tui._queue_render "$p"
+	_tui_scroll.apply "$p"
 }
 
 # tui.hit.set ID hit_pad|hitbox VALUE - widen the area that counts as a hit on widget ID

@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+- XML Markup now supports adding widgets within pane tags. When placed within pane tags the `pane` attribute is automatically inferred. Use the `Pane` attribute for templates and includes.
+- `Row` attribute for widgets is no longer required and is inferred based on its position in the markup. If row is specified it will be ensured.  
+- Widgets can now be added to scrollable panes. (beta arrow key navigation conflicts between scrolling and changing focus)
+
+### Added
+
+* `tui.scroll.to TARGET [top|center|bottom]`: public API to scroll a widget or pane to a position in its viewport (top, center, bottom, or minimal move if position is omitted).
+* Scrollable widget panes: a pane with `scroll="v"`, `"h"` or `"both"` now holds widgets; content height is from the widgets, scroll offset follows wheel/keys (innermost widget first, then the pane), a scrollbar is drawn in the right border column, and Tab automatically scrolls focused widgets into view.
+* `pin="top"` attribute: marks a widget row in a scrolling pane to stay pinned to the first viewport row (e.g., a header label that does not scroll with the content).
+* `scroll_into_view="true|false"` pane attribute to control whether Tab focus scrolls widgets into view (default true).
+* Profiler explorer (`tools/profiler/explorer/index.html`): an offline page to browse, filter, chart and compare every run in `reports/`, with all collected data. It is kept current automatically after each run (`explore.py`; `explorer.sh` to refresh and open).
+* Switches to measure what the background hides: `TUI_JOB_BACKGROUND=0` runs every `tui.job.run` job to its end (DONEFN included) before the call returns; `TUI_REFRESH_CACHE_JOB=0` skips the cache job that follows `tui.page.refresh`. Both are for profiling; the profiler passes the environment through.
+
+### Changed
+
+* The Scrolling demo page now showcases scrolling widgets next to the two `tui.output` viewports: a form with a pinned heading, a `select`, checkboxes and a `list` (the wheel scrolls the list first, then the form), Tab scrolling the focused field into view, and buttons that call `tui.scroll.to`. A widget taller than what is left of a scrolling pane's viewport is now cut at the pane's bottom edge instead of painting over its border.
+
+* The `tui.factory.*` constructors and `tui.factory.clear` moved out of `lib/tui.sh` into `lib/markup/tui_factory.sh` (state in `lib/state.sh`); a shared `make` helper replaces the four copies of the id-and-track code. Same API and behaviour; `lib/tui.sh` is 157 lines shorter.
+
+* Fewer forks in the user-facing and refresh paths: the attribute parser decodes entities into a variable (6 forks per Compose click, state-addon parse 10.3 → 9.1 ms), and the command palette builds its theme list in the shell instead of `$(tui.theme.list)` with `sort` (3 forks per open). `tui.theme.list` prints the same lines.
+
+* `tui.page.refresh` brings the cached copy of the page up to date from the expanded tree it just made (`tui.page.rebuild --quiet --expanded`) instead of parsing the page, the addons and the templates again in the background job. The Compose cache job takes 210 instead of 420 ms of CPU and forks roughly half as much.
+
+* Profiler: every unit (nav, input, scroll, each held key, palette, theme, compose, ...) now starts from the same warmed cache in a fresh app on the default page, runs its `setup` steps, then is measured. Units are independent, so `--jobs N` runs them side by side. The traced pass uses the same units, one at a time.
+* Profiler: the steps that get a unit to its start state are timed too and shown as their own *Setup* category (app start, then each step, per unit); they are not part of any measured group. A unit no longer navigates to the default page it already starts on.
+* Profiler: the report names the machine (specs only, no host or user names) and shows CPU, memory and frequency per unit, with a finding when other work was using the CPU.
+
+### Fixed
+
+* Profiler: in a full run the `theme` steps clicked `[ Reset to defaults ]` instead of the *Default* theme button (the needle `default` matched `defaults`), leaving a confirm dialog open that swallowed every later step, so all `compose` groups failed. Text lookup now matches whole words.
+* Profiler: a step that cannot do its job (text not on screen, `compose.open` not landing on the page) is now a warning and a red *steps failed* finding, and its group is never rated good. Unit tests for both.
+
 ## [0.0.23] - 2026-10-02
 
 DevEx Update 2: Cleaned house, now off to the next venture ([release notes](release-notes/devex-update-2.md)). Markup v2, stage 2: pages become data that can be reused, extended and changed while the app runs.

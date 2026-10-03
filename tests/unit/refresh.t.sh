@@ -127,3 +127,64 @@ ti_nested_widgets_are_placed_from_the_panes_first_line() {
 	tui.load "$_T_ROOT/nested.xml" 2>/dev/null
 	eq "0 1 5 3" "${_TUI_W_ROW[a]} ${_TUI_W_ROW[b]} ${_TUI_W_ROW[c]} ${_TUI_W_ROW[d]}" # an explicit row wins; the next one follows document order
 }
+
+ti_nested_textarea_password_select_progress_list_table_are_built_like_the_four_basic_widgets() {
+	printf '<tui><pane id="p"><label id="a" text="A"/><textarea id="t"/><password id="pw" label="P:"/><select id="s" items="x|y"/><progress id="pr" value="0"/><list id="li" items="a|b"/><table id="tb" columns="A|B" data="1|2"/></pane></tui>' >"$_T_ROOT/nested_wx.xml"
+	tui.reset_ui
+	tui.load "$_T_ROOT/nested_wx.xml" 2>"$_T_ROOT/nested_wx.err"
+	eq "a t pw s pr li tb" "${_TUI_W_ORDER[*]}"
+	eq "0 1 2 3 4 5 6" "${_TUI_W_ROW[a]} ${_TUI_W_ROW[t]} ${_TUI_W_ROW[pw]} ${_TUI_W_ROW[s]} ${_TUI_W_ROW[pr]} ${_TUI_W_ROW[li]} ${_TUI_W_ROW[tb]}"
+	eq "p p" "${_TUI_W_PANE[t]} ${_TUI_W_PANE[tb]}"
+	eq "" "$(cat "$_T_ROOT/nested_wx.err")" # no "missing id or pane" warning
+}
+
+ti_refresh_hands_its_expanded_tree_to_the_cache_rebuild_which_equals_a_full_build_without_parsing() {
+	local file="$_T_ROOT/small.xml" marks="$_T_ROOT/parse.marks" called="" saved rebuild_saved tree full
+	cat >"$file" <<'XML'
+<tui>
+  <template name="card"><label id="l" text="{{@t}}"/><if test="{{@t}}==b"><label id="only_b" text="b"/></if></template>
+  <pane id="root" split="v">
+    <pane id="a" weight="50"><for each="a b" as="t"><use template="card" id="c_{{@t}}" t="{{@t}}"/></for></pane>
+    <pane id="z" weight="50"><label id="zl" text="before"/></pane>
+  </pane>
+</tui>
+XML
+	TUI_APP_CONF="$_T_ROOT/small"
+	mkdir -p "$TUI_APP_CONF/addons"
+	_TUI_ADDON_DIRS=()
+	tui.reset_ui
+	tui.load "$file" 2>/dev/null
+	_TUI_MARKUP_FILE="$file"
+	printf '<addon id="x" target="small.xml" prefix="false"><set ref="#zl" attr="text" value="after"/></addon>' >"$TUI_APP_CONF/addons/x.xml"
+	saved="$(declare -f tui.page.rebuild)"
+	tui.page.rebuild() { called="$*"; }
+	_TUI_RUNNING=1 tui.page.refresh >/dev/null
+	_TUI_RUNNING=0
+	eval "$saved"
+	eq "--quiet --expanded $file" "$called" # the refresh hands over the tree it just expanded
+	: >"$marks"
+	tree="$( # the background job's work, forked from this state, must not parse again
+		tui.parse.file() { echo parsed >>"$marks"; }
+		TUI_JOB_PREFIX="$_T_ROOT/tree."
+		_tui_job.page_rebuild_expanded "$file" 2>/dev/null
+		cat "${TUI_JOB_PREFIX}blob"
+	)"
+	eq "" "$(<"$marks")"
+	full="$( # the entry a build from the page files makes
+		TUI_JOB_PREFIX="$_T_ROOT/full."
+		_tui_job.page_build "$file" 2>/dev/null
+		cat "${TUI_JOB_PREFIX}blob"
+	)"
+	ok '[[ -n "$tree" ]]'
+	eq "$full" "$tree"
+	called=""
+	rebuild_saved="$(declare -f tui.page.rebuild)"
+	tui.page.rebuild() { called="$*"; }
+	printf '<addon id="y" target="small.xml" prefix="false"><set ref="#zl" attr="text" value="again"/></addon>' >"$TUI_APP_CONF/addons/y.xml"
+	_TUI_RUNNING=1 TUI_REFRESH_CACHE_JOB=0 tui.page.refresh >/dev/null
+	_TUI_RUNNING=0
+	eval "$rebuild_saved"
+	eq "" "$called" # TUI_REFRESH_CACHE_JOB=0: no background job, the screen is still updated
+	eq "again" "${_TUI_W_VALUE[zl]:-${_TUI_W_LABEL[zl]:-}}"
+	rm -f "$TUI_APP_CONF/addons/y.xml"
+}

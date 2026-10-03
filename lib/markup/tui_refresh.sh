@@ -31,6 +31,10 @@ declare -ga _RF_TOPKEYS=() _RF_TARGETS=()
 declare -g _RF_S="" _RF_TOP="" _RF_BAD=0
 declare -gi _RF_ANON=0
 
+# 0 skips the background job that brings the cached page up to date after a refresh (the page then rebuilds from its
+# files on the next visit): for measuring the refresh without it
+declare -gi TUI_REFRESH_CACHE_JOB="${TUI_REFRESH_CACHE_JOB:-1}"
+
 # tags the incremental build knows how to rebuild (panes are handled by their own rule)
 _RF_PLAIN_TAGS=" label button input checkbox password textarea list table select progress text "
 
@@ -208,7 +212,7 @@ _tui_engine.forget_widget() {
 		'_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
 		'_TUI_W_MINH[$id]' '_TUI_W_MAXH[$id]' '_TUI_W_EXPAND[$id]' \
 		'_TUI_W_WIDTH[$id]' '_TUI_W_HEIGHT[$id]' \
-		'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]' \
+		'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_PIN[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]' \
 		'_TUI_W_FOCUSABLE[$id]' '_TUI_W_TABBABLE[$id]' '_TUI_W_TABORDER[$id]' '_TUI_W_FGROUP[$id]' '_TUI_W_FNAV[$id]' '_TUI_W_FWRAP[$id]' \
 		'_TUI_W_FNEXT[$id]' '_TUI_W_FPREV[$id]' '_TUI_W_AUTOFOCUS[$id]' '_TUI_W_HITPAD[$id]' '_TUI_W_HITBOX[$id]'
 	_tui_wx.forget "$id"
@@ -221,8 +225,8 @@ _tui_engine.forget_pane() {
 		'_TUI_P_DIR[$id]' '_TUI_P_CHILDREN[$id]' '_TUI_P_WEIGHTS[$id]' '_TUI_P_CELLW[$id]' '_TUI_P_CELLH[$id]' '_TUI_P_SPAN[$id]' '_TUI_P_NEWLINE[$id]' \
 		'_TUI_P_TITLE[$id]' '_TUI_P_BORDER[$id]' '_TUI_P_ALIGN[$id]' '_TUI_P_VALIGN[$id]' \
 		'_TUI_P_MINW[$id]' '_TUI_P_MINH[$id]' '_TUI_P_MAXW[$id]' '_TUI_P_MAXH[$id]' \
-		'_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]' \
-		'_TUI_P_GAP[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]'
+		'_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_STUCK[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]' '_TUI_P_NOREVEAL[$id]' \
+		'_TUI_P_GAP[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]' '_TUI_P_CONTENT_H[$id]'
 }
 
 # _tui_engine.forget_styles ID... - the class styles baked for these ids (keys "ID_normal", "ID_hover", ...)
@@ -322,7 +326,7 @@ tui.page.refresh() {
 	tui.cache.forget "$file" # the cached page predates this change: a visit before the refresh below lands rebuilds it
 	_tui_perf.end page_refresh
 	tui.relayout
-	((_TUI_RUNNING)) && tui.page.rebuild --quiet "$file" # bring the cache up to date in the background
+	((_TUI_RUNNING && TUI_REFRESH_CACHE_JOB)) && tui.page.rebuild --quiet --expanded "$file" # the cache catches up in the background, from the tree just expanded
 	return 0
 }
 

@@ -24,10 +24,10 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 2A Layout | `lib/layout/tui_layout.sh` | medium | done |
 | 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | done |
 | 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | done |
-| 2D Node ops | `lib/markup/tui_ops.sh`, `tui_compose.sh`, `tui_addon.sh`, `tui_refresh.sh` | medium | wip |
+| 2D Node ops | `lib/markup/tui_ops.sh`, `tui_compose.sh`, `tui_addon.sh`, `tui_refresh.sh` | medium | done |
 | 3A Fused/resize/collapse | `lib/layout/tui_frame.sh` | medium | todo |
 | 3B Layers | `lib/chrome/tui_layer.sh` | medium | todo |
-| 3C Scroll widgets | `lib/layout/tui_scroll.sh` | medium | todo |
+| 3C Scroll widgets | `lib/layout/tui_scroll.sh` | medium | done |
 | 3D Page state | `lib/state/tui_store.sh` | medium | todo |
 | 4.1 Cascade | `lib/style/tui_cascade.sh` | medium | todo |
 | 4.2 Reactive | `lib/state/tui_reactive.sh` | medium | todo |
@@ -39,6 +39,35 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 7 Release | `dabt migrate`, changelog | low | todo |
 
 Orchestration (stage start, gate review, cross-track decisions) runs at high effort. Docs entries, XSD lines and rule lines are low-effort work.
+
+## Progress (2026-10-03)
+
+Done and unit-tested (suite: 500 pass, 0 fail). Gates G1–G8, benches, golden frames and visual checks are run by hand, not by the implementer; see "Owed" below.
+
+| What | Where | Notes |
+|---|---|---|
+| 2D closed: factories | `lib/markup/tui_factory.sh`, state in `lib/state.sh` | Moved out of `lib/tui.sh` (-157 lines); a shared `make` helper replaces four copies of the id-and-track code. API unchanged. They stay imperative (they build engine state at runtime, not nodes). |
+| 3C: scrolling widgets | `lib/layout/tui_scroll.sh` | Content height, offset applied in `_tui._widget_pos` (part of its cache key), hit zones clipped to the content rect, scrollbar for widget panes (shared with `tui.output` panes), `scroll_into_view` on focus, `tui.scroll.to`, `pin="top"`, wheel routing (widget under the pointer, then its pane); a widget taller than the rest of the viewport is cut at the bottom edge. The Scrolling demo page (`scrolling.xml`) is the showcase: widget form + `tui.scroll.to` buttons + two `tui.output` viewports. |
+| Nested widgets: engine fix | `lib/markup/tui_build.sh` | Nested `textarea`, `password`, `select`, `progress`, `list` and `table` were silently dropped ("missing id or pane"); only label/button/input/checkbox worked nested. Fixed, with a regression test. |
+| Demo pages on nested widgets | `share/demo/*.xml` | 16 pages converted (see "Demo migration"). New page `scroll_form.xml`, nav entry "Scroll form". |
+| Tooling | `tools/page_state.sh` | Headless dump of the built engine state (panes, widgets, tab order). `diff` of two spellings of one page proves a markup rewrite changed nothing the engine sees. Reusable for `dabt migrate` (stage 7). |
+
+**Deviations from the stage 3 spec**
+- Pinned rows use `pin="top"`, not `sticky="top"`: `sticky` already names the input focus policy (`_TUI_W_STICKY`).
+- Public API added: `tui.scroll.to`, `tui.pin`, `tui.pane_scroll_into_view` (each with an API entry).
+
+**Demo migration.** A page counts as migrated when `tools/page_state.sh` is identical before and after, or identical except `_TUI_W_ORDER` (same widgets, other order).
+- Identical: case_study, docu, features, home, keys, settings, styles, scrolling, widgets (+ monitor apart from its live clock label).
+- Tab order changed (nested widgets follow pane order; the first-focused widget may differ): components, components_fit, components_theme, debug, debug_lab.
+- Not converted: `_templates.xml` (its widgets target panes that live in each page), `compose.xml` (no legacy widgets), `share/defaults/pages/*.xml` (not demo pages).
+
+**Owed by the user (not run by the implementer)**
+- Golden frames (G4): re-record the five pages whose Tab order changed, and every demo page (the nav gained "Scroll form").
+- G3 benches: paint cost on `scroll_form.xml` bounded by the viewport; no regression elsewhere.
+- Visual check (G7) of 3C: Tab through `scroll_form.xml`, wheel and pinned heading, scrollbar thumb, click after scrolling, the Scrolling demo's `tui.output` panes unchanged.
+- Known and left alone by request: `tests/unit/cache.t.sh` (replay re-reads the real terminal size) and two `updater.bats` tests fail only with a controlling tty, because `tui.update.cli` silences stderr for good via a bare `exec 3<… 2>/dev/null`.
+
+**Next:** 3A, then 3D, then 3B (3B's `persist="layout"` needs the 3D store). `DABT_someApp` is migrated at the very end as the user's validation step, not as part of any feature.
 
 ## How this plan is built
 
@@ -240,7 +269,7 @@ Depends on 1. Four independent tracks: each owns its own module and they don't t
   - Factories rewritten on top of the ops.
 - **Deletes:** the factory bookkeeping in `tui.sh`.
 - **Done when:** unit tests cover each op, selector and addon conflict; factory API behaviour is unchanged (existing callers pass).
-- **Status:** ops, selectors, templates, components, loops, conditions, parameterised includes, addons and `tui.page.refresh` are done and tested (`ops`, `compose`, `addon`, `refresh` unit tests; a refreshed page equals a full load); the Compose demo page (`share/demo/compose.xml`) exercises all of it. Also delivered next to this task: background jobs with a spinner (`lib/tui_job.sh`, `tui.page.rebuild`). **Open:** rewriting `tui.factory.*` on the ops and deleting its bookkeeping in `lib/tui.sh` (the teardown it needs now exists as `_tui_engine.forget_widget/forget_pane/forget_below`).
+- **Status:** ops, selectors, templates, components, loops, conditions, parameterised includes, addons and `tui.page.refresh` are done and tested (`ops`, `compose`, `addon`, `refresh` unit tests; a refreshed page equals a full load); the Compose demo page (`share/demo/compose.xml`) exercises all of it. Also delivered next to this task: background jobs with a spinner (`lib/tui_job.sh`, `tui.page.rebuild`). Factories: moved into `lib/markup/tui_factory.sh` with their state in `lib/state.sh`, bookkeeping removed from `lib/tui.sh`; they stay imperative (they build engine state at runtime, not nodes), so they were not rebuilt on the node ops.
 
 **Stage 2 gates:** G1–G8. Every track has passed its own done criteria. Rerun the benches and record them as the new baseline.
 
@@ -257,6 +286,12 @@ Depends on 2. Independent tracks. The "Uses" line lists the stage 2 modules each
   - `resizable`/`handle` drag state machine with keyboard resize mode, `on_resize`, double-click reset.
   - `collapsible`/`collapsed`/`collapse_to`, `<details>`, `<accordion>`, `tui.collapse`, `on_toggle`.
 - **Done when:** golden frames cover nested fused panes and mixed borders; drag unit tests respect min/max; collapse restores the previous size.
+- **Agreed details:**
+  - `resizable="x|y|both"` works on any pane (normal, fused or layer). `handle="corner|edge|divider|none"`, default `none`: with no handle there are no mouse zones, only keyboard resize.
+  - On a normal pane in a split, `edge`/`divider` drag the border it shares with its next sibling (weight moves between the two, proportional to the weights they hold now); `corner` moves the nearest ancestor h-split edge horizontally and the nearest v-split edge vertically. All drags respect `min_*`/`max_*`.
+  - Keys: `alt+r` enters resize mode (arrows ±1, shift+arrows ±5, Enter/Esc leaves); `alt+shift+r` resets the page (`tui.page.reset`, from 3D). Footer items show only when they apply (the footer already supports `KEY|LABEL|WHEN_FN`; add the focus and mode to its rebuild stamp).
+  - Collapse: `default="expanded|collapsed"` (default `expanded`) is the first-build state and what a reset returns to; `collapsed="true"` is an alias (conflicting values are a validator error). `keep_collapsed="true"` keeps the state across page switches; it is parsed here and wired to the store in 3D. `collapse_to="title|0|rail"`: `rail` shrinks the pane to its buttons' `collapsed_text` (button attribute) along the parent's split axis, widgets without one are hidden.
+- **Showcase page:** `share/demo/workspace.xml` (an on-call incident console: collapsible services rail, fused log viewer with draggable dividers, resizable command pane; 3B adds the detachable log and metrics windows) replaces `share/demo/styles.xml`. The Styles page (button classes, colour swatches) is dropped, not moved, and its nav entry goes in the same change that adds Workspace, so the nav never has a hole.
 
 ### 3B Layers: floating and detachable (roadmap F)
 - **Uses:** 2A, 2B, 2C, 2D. **Owner:** `lib/chrome/tui_layer.sh` (new). **Seam:** `lib/chrome/tui_modal.sh` becomes a layer preset.
@@ -266,6 +301,9 @@ Depends on 2. Independent tracks. The "Uses" line lists the stage 2 modules each
   - `detachable`: detach and dock are implemented as the `move` op, with a dock-target layer, `dock_group`, `leave=`, `on_detach`/`on_dock`, `persist="layout"`.
   - Overlay tags: `<window>`, `<modal>`, `<dialog>`, `<popup>`, `<tooltip>`, `<contextmenu>`, `<toast>`; zoom.
   - Focus scopes (trap and restore).
+- **Agreed details:**
+  - Floating windows get a header row: title left, two-column buttons right (reset position `↺`; fullscreen `⛶` only with `fullscreen="true"`; close/minimize use the same slots). Layers draw a drop shadow (one column right, one row below, glyph `▒`, class `.layer_shadow`; `shadow="false"` turns it off); the shadow counts in the damage rect.
+  - `tui.page.refresh` leaves detached layers untouched; `tui.goto` closes non-persistent layers. Detach/dock work on the engine tree (not the node-store `move` op). `persist="layout"` is the last 3B task (needs the 3D store).
 - **Deletes:** the overlay function registry and its full redraw after every render.
 - **Done when:** the command palette and dialogs work unchanged on top of layers; golden frames cover overlapping layers; damage repaints only the rect a layer vacated.
 
@@ -276,6 +314,7 @@ Depends on 2. Independent tracks. The "Uses" line lists the stage 2 modules each
   - `scroll_into_view` on focus, `tui.scroll.to`, `sticky="top"`, wheel routed to the innermost pane that can still scroll.
 - **Deletes:** the output-only special cases in the scroll path.
 - **Done when:** a form taller than its pane scrolls with Tab; the bench shows paint cost bounded by the viewport, not by content size.
+- **Status:** done. Pinned rows use `pin="top"` instead of `sticky="top"` (`sticky` already names the input focus policy). Panes with `scroll="v"`, `"h"` or `"both"` hold widgets; content height comes from widgets, scroll offset follows wheel/keys (innermost widget first, then pane), a scrollbar is drawn in the right border column, Tab scrolls focused widgets into view (controlled by `scroll_into_view="true|false"`, default true). `tui.scroll.to TARGET [top|center|bottom]`; `pin="top"` (one pinned widget sticks at a time). Demo page `share/demo/scroll_form.xml`. The paint-cost bench is still to be run by hand.
 
 ### 3D Page state and shells (roadmap I)
 - **Uses:** 2C, 2D. **Owner:** `lib/state/tui_store.sh` (new).
@@ -284,9 +323,11 @@ Depends on 2. Independent tracks. The "Uses" line lists the stage 2 modules each
   - `keep_focus`, `focus_on_enter`, `keep_value`, `keep_state`, `persist="session|disk"`.
   - `tui.page.reset`, `tui.page.reset_field`, `tui.page.reset_all`, exposed as actions and palette commands.
   - Shells: `shell=` + `<outlet/>`; shell nodes are never torn down.
+  - From 3A: a `collapsed` field in the store (honours `keep_collapsed`, `keep_state` and `default` on reset), `alt+shift+r` bound to `tui.page.reset`, and the footer predicate "page has resettable state".
+  - Disk format: a data-only file (one escaped `page TAB id TAB field TAB value` line per entry, read with `read`; nothing is sourced), so `TUI_HOME` is not a code-execution boundary.
 - **Done when:** unit tests cover save and restore for each widget type; switching pages in a shell is faster than the full `tui.goto` baseline.
 
-**Stage 3 gates:** G1–G8. DABT_someApp is migrated to shells, fused panes and nested widgets as the real-world check; its XML shrinks noticeably.
+**Stage 3 gates:** G1–G8. `DABT_someApp` (separate repo) is migrated to shells, fused panes and nested widgets as the real-world check; its XML shrinks noticeably. This is the user's validation step at the end of the stage, not part of any feature task.
 
 ---
 

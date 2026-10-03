@@ -561,16 +561,26 @@ tui.action.scroll_or_pane() {
 }
 
 tui.action.scroll() {
-    _tui_wx.wheel "$1" "${2:-}" && return 0            # wheel over a textarea / list / table scrolls that widget
+    # For mouse wheel on widgets, try widget scroll first
+    if [[ "$TUI_EVENT_TYPE" == mouse ]]; then
+        if _tui_wx.wheel "$1" "${2:-}"; then
+            return 0
+        fi
+    fi
+
     _tui_input.scroll_target || return 0
     local p="$_ST" n="${2:-}" c=${TUI_EVENT_COUNT:-1}   # c > 1 when repeats were merged
+
+    # Save old offset before mutation
+    _SC_OLD="${_TUI_P_SOFF_V[$p]:-0}"
+
     case "$1" in
         up)    (( _TUI_P_SOFF_V[$p] -= ${n:-3} * c )) ;;
         down)  (( _TUI_P_SOFF_V[$p] += ${n:-3} * c )) ;;
         left)  (( _TUI_P_SOFF_H[$p] -= ${n:-5} * c )) ;;
         right) (( _TUI_P_SOFF_H[$p] += ${n:-5} * c )) ;;
     esac
-    _tui._queue_render "$p"
+    _tui_scroll.apply "$p"
 }
 
 # tui.action.page up|down - one viewport at a time
@@ -579,12 +589,27 @@ tui.action.page() {
     local p="$_ST" step=$(( ${_TUI_P_H[$_ST]} - 3 ))
     (( step < 1 )) && step=1
     (( step *= ${TUI_EVENT_COUNT:-1} ))
+
+    # Save old offset before mutation
+    _SC_OLD="${_TUI_P_SOFF_V[$p]:-0}"
+
     case "$1" in up) (( _TUI_P_SOFF_V[$p] -= step )) ;; down) (( _TUI_P_SOFF_V[$p] += step )) ;; esac
-    _tui._queue_render "$p"
+    _tui_scroll.apply "$p"
 }
 
-tui.action.scroll_top()    { _tui_input.scroll_target || return 0; _TUI_P_SOFF_V[$_ST]=0; _TUI_P_SOFF_H[$_ST]=0; _tui._queue_render "$_ST"; }
-tui.action.scroll_bottom() { _tui_input.scroll_target || return 0; _TUI_P_SOFF_V[$_ST]=999999; _tui._queue_render "$_ST"; }
+tui.action.scroll_top() {
+    _tui_input.scroll_target || return 0
+    _SC_OLD="${_TUI_P_SOFF_V[$_ST]:-0}"
+    _TUI_P_SOFF_V[$_ST]=0; _TUI_P_SOFF_H[$_ST]=0
+    _tui_scroll.apply "$_ST"
+}
+
+tui.action.scroll_bottom() {
+    _tui_input.scroll_target || return 0
+    _SC_OLD="${_TUI_P_SOFF_V[$_ST]:-0}"
+    _TUI_P_SOFF_V[$_ST]=999999
+    _tui_scroll.apply "$_ST"
+}
 
 # Left press/drag: scrollbar jump, else activate the widget under the pointer,
 # else drop focus.

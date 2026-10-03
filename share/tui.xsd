@@ -396,6 +396,7 @@
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
       <xs:attribute name="scroll" type="scrollType"/>
+      <xs:attribute name="scroll_into_view" type="boolType"/>
       <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
       <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
       <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
@@ -441,6 +442,13 @@
       <xs:attribute name="width" type="xs:string"/>
       <xs:attribute name="height" type="xs:string"/>
       <xs:attribute name="padding" type="xs:string"/>
+      <xs:attribute name="pin">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="top"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
       <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
@@ -478,6 +486,13 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+      <xs:attribute name="pin">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="top"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
       <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
@@ -511,6 +526,13 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+      <xs:attribute name="pin">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="top"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
       <xs:attributeGroup ref="focusHitAttrs"/>
     </xs:complexType>
   </xs:element>
@@ -541,6 +563,13 @@
             <xs:enumeration value="x"/>
             <xs:enumeration value="y"/>
             <xs:enumeration value="both"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="pin">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="top"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

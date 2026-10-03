@@ -22,6 +22,9 @@
 
 declare -gi TUI_JOB_SPINNER_MS="${TUI_JOB_SPINNER_MS:-100}"
 declare -g TUI_JOB_PREFIX=""
+# 0 runs every job to its end before tui.job.run returns (DONEFN included): no concurrency, to measure what the
+# background hides
+declare -gi TUI_JOB_BACKGROUND="${TUI_JOB_BACKGROUND:-1}"
 
 declare -ga _TJ_IDS=()
 declare -gA _TJ_PID=() _TJ_FILES=() _TJ_START=() _TJ_DELAY=() _TJ_LABEL=() _TJ_DONE=() _TJ_SHOWN=()
@@ -73,22 +76,36 @@ tui.job.run() {
 	fi
 	# files, not a directory per job: redirects create them with no process; the whole root goes at exit
 	local dir="$_TJ_ROOT/$((++_TJ_SEQ))."
-	{
-		(
-			TUI_JOB_PREFIX="$dir"
-			"$work" "$@"
-		) </dev/null >"${dir}out" 2>"${dir}err"
-		printf '%s' "$?" >"${dir}rc"
-	} &
-	_TJ_PID[$id]=$!
-	disown "$!" 2>/dev/null
+	if ((TUI_JOB_BACKGROUND)); then
+		_tui_job.work "$dir" "$work" "$@" &
+		_TJ_PID[$id]=$!
+		disown "$!" 2>/dev/null
+	else
+		_tui_job.work "$dir" "$work" "$@"
+		_TJ_PID[$id]=0
+	fi
 	((silent)) && delay=-1
 	_TJ_FILES[$id]="$dir" _TJ_START[$id]="${EPOCHREALTIME//[!0-9]/}" _TJ_DELAY[$id]="$delay"
 	_TJ_LABEL[$id]="$label" _TJ_DONE[$id]="$done_fn"
 	unset '_TJ_SHOWN[$id]'
 	_TJ_IDS+=("$id")
-	tui.tick.add _tui_job.tick
+	if ((TUI_JOB_BACKGROUND)); then
+		tui.tick.add _tui_job.tick
+	else
+		_tui_job.finish "$id"
+	fi
 	return 0
+}
+
+# _tui_job.work DIR WORKFN ARGS... - WORKFN in a child process; its stdout, stderr and exit status land in DIR's files
+_tui_job.work() {
+	local dir="$1" work="$2"
+	shift 2
+	(
+		TUI_JOB_PREFIX="$dir"
+		"$work" "$@"
+	) </dev/null >"${dir}out" 2>"${dir}err"
+	printf '%s' "$?" >"${dir}rc"
 }
 
 tui.job.running() { [[ -n "${_TJ_FILES[$1]+x}" ]]; }
@@ -206,20 +223,26 @@ _tui_job.spinner_draw() {
 
 # ── tui.page.rebuild ─────────────────────────────────────────────────────
 
-# tui.page.rebuild [--delay MS] [--label TEXT] FILE
+# tui.page.rebuild [--delay MS] [--label TEXT] [--quiet [--expanded]] FILE
 #   Builds page FILE again in the background (the same headless build the start-up warm-up does), with the spinner of
 #   tui.job.run if it takes longer than the delay. When the build is complete its result becomes FILE's cached page
 #   and, if FILE is still the page on screen, the app goes to it in one redraw - never a half-built page. If the user
 #   has moved on, nothing is drawn; the next visit uses the fresh build. A failed build keeps the old page and says why
 #   in a toast. With --quiet only the cache is refreshed (no spinner, nothing drawn): tui.page.refresh uses it to
-#   bring the cached copy of a page up to date after it changed the screen itself. Use it after something FILE depends on has changed (an addon file, a generated include).
+#   bring the cached copy of a page up to date after it changed the screen itself. With --expanded (quiet only) the
+#   build starts from the expanded tree that is in the node store now instead of parsing FILE again: the caller
+#   vouches that the tree is FILE's current one. Use it after something FILE depends on has changed (an addon file, a generated include).
 tui.page.rebuild() {
 	local -a opts=()
-	local quiet=0
+	local quiet=0 work=_tui_job.page_build
 	while [[ "${1:-}" == --* ]]; do
 		case "$1" in
 			--quiet)
 				quiet=1
+				shift
+				;;
+			--expanded)
+				work=_tui_job.page_rebuild_expanded
 				shift
 				;;
 			*)
@@ -235,7 +258,7 @@ tui.page.rebuild() {
 	}
 	_tui_path_canon "$file"
 	if ((quiet)); then # only the cache: no spinner, and the page on screen is left alone
-		tui.job.run --silent "page-cache:$_CANON" _tui_job.page_build _tui_job.page_cache_done "$_CANON"
+		tui.job.run --silent "page-cache:$_CANON" "$work" _tui_job.page_cache_done "$_CANON"
 		return
 	fi
 	tui.job.run "${opts[@]}" "page:$_CANON" _tui_job.page_build _tui_job.page_done "$_CANON"
@@ -244,6 +267,17 @@ tui.page.rebuild() {
 # WORKFN (background): build the page, hand the cache entry back as one blob
 _tui_job.page_build() {
 	tui.reset_ui
+	tui.cache.record "$1" || return 1
+	tui.cache.encode "$1" >"${TUI_JOB_PREFIX}blob"
+}
+
+# WORKFN (background): the same entry from the expanded tree this shell holds. The fork inherited the node store and
+# _TUI_P_RAW; reset_ui clears the raw tree, so it is put back for the build to keep and cache.
+_tui_job.page_rebuild_expanded() {
+	local raw="$_TUI_P_RAW"
+	tui.reset_ui
+	_TUI_P_RAW="$raw"
+	_TUI_BUILD_REUSE_TREE=1
 	tui.cache.record "$1" || return 1
 	tui.cache.encode "$1" >"${TUI_JOB_PREFIX}blob"
 }

@@ -327,15 +327,17 @@ _tui_cmd.provide_pages() {
 # selectable theme overlays: exactly what tui.theme.list prints (every *.css in DABT's installed themes
 # directory plus the app's TUI_THEMES_DIR). Picking one also remembers it, like the Settings page does.
 _tui_cmd.provide_themes() {
-    local name f cur mark title n=0
+    local name f cur mark title line n=0
     cur="${_TUI_THEME_OVERLAY:-}"
-    while IFS=$'\t' read -r name f; do
+    _tui_api.theme_list
+    for line in "${_TA_THEMES[@]}"; do
+        name="${line%%$'\t'*}" f="${line#*$'\t'}"
         [[ -n "$name" && "$name" != *' '* ]] || continue          # a command can't pass an argument with spaces
         mark=""; [[ "$cur" == "$f" ]] && mark="  (active)"
         title="${name//_/ }"
         tui.cmd.add "theme:$name" "Theme: ${title^}$mark" "tui.theme.pick $name" --group Themes --desc "Apply $name to every page"
         ((n++))
-    done < <(tui.theme.list)
+    done
     (( n )) || return 0
     mark=""; [[ -z "$cur" ]] && mark="  (active)"
     tui.cmd.add theme:default "Theme: page default$mark" "tui.theme.pick" --group Themes --desc "Remove the theme overlay"

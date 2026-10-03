@@ -5,21 +5,45 @@
 
   <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
     <use template="dabt_header"/>
-  <pane id="root1" weight="90" split="h">
-    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
-    <pane id="main" split="v" weight="82">
-        <pane id="header" weight="15" title="Scroll Demo" border="single" class="panel"/>
-        <pane id="scroll_demos" split="h" weight="85">
-            <pane id="scroll_v"  weight="33" title="Vertical (scroll='v')" border="heavy" class="panel" scroll="v"/>
-            <pane id="scroll_h" weight="33" title="Horizontal (scroll='h')" border="heavy" class="panel" scroll="h"/>
-            <pane id="scroll_b"  weight="34" title="Both (scroll='both')" border="heavy" class="panel" scroll="both"/>
+    <pane id="root1" weight="90" split="h">
+      <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
+      <pane id="main" split="v" weight="82">
+        <pane id="header" height="clamp(3,3,3)" title="Scroll Demo" border="single" class="panel">
+          <label id="lbl_inst" text="Wheel scrolls - Tab brings the focused field into view" align="center"/>
         </pane>
+        <pane id="scroll_demos" split="h">
+          <pane id="left" split="v" weight="55">
+            <pane id="scroll_form" title="Widgets (scroll='v')" border="heavy" class="panel" scroll="v" hpad="1">
+              <label id="sf_title" pin="top" text="Member profile   (pinned: stays on the first row)" class="brand"/>
+              <input id="sf_in0" label="First name:" label_width="12"/>
+              <input id="sf_in1" label="Last name:" label_width="12"/>
+              <input id="sf_in2" label="Email:" label_width="12"/>
+              <input id="sf_in3" label="Phone:" label_width="12"/>
+              <input id="sf_in4" label="Company:" label_width="12"/>
+              <input id="sf_in5" label="Job title:" label_width="12"/>
+              <input id="sf_in6" label="Website:" label_width="12"/>
+              <select id="sf_role" label="Role:" items="viewer|editor|admin" value="editor" action="noop"/>
+              <checkbox id="sf_chk0" label="Newsletter" class="check"/>
+              <checkbox id="sf_chk1" label="Beta features" class="check"/>
+              <checkbox id="sf_chk2" label="Dark mode" class="check"/>
+              <checkbox id="sf_chk3" label="Two-factor login" class="check"/>
+              <input id="sf_ad0" label="Street:" label_width="12"/>
+              <input id="sf_ad1" label="City:" label_width="12"/>
+              <input id="sf_ad2" label="Postcode:" label_width="12"/>
+              <input id="sf_ad3" label="Country:" label_width="12"/>
+              <input id="sf_ad4" label="Notes:" label_width="12"/>
+              <label id="sf_lh" text="Recent files (a list: the wheel scrolls it first, then the form)" class="muted_label"/>
+              <list id="sf_list" rows="6" action="tui.action.noop" items="report.md|budget.csv|notes.txt|todo.org|roadmap.md|changelog|readme|license|makefile|run.sh"/>
+            </pane>
+          </pane>
+          <pane id="right" split="v" weight="45">
+            <pane id="scroll_v" weight="50" title="tui.output (scroll='v')" border="heavy" class="panel" scroll="v"/>
+            <pane id="scroll_b" weight="50" title="tui.output (scroll='both')" border="heavy" class="panel" scroll="both"/>
+          </pane>
+        </pane>
+      </pane>
     </pane>
   </pane>
-  </pane>
-
-  <label id="lbl_inst" pane="header" row="0" text="Scroll using Mouse Wheel, Dragging Borders, or Vim/Arrow Keys (Shift+Up/Down/Left/Right)" align="center"/>
-  <button id="btn_load" pane="header" row="2" text="[ Load Dummy Data into Panes ]" action="on_load_scroll_data" class="info_button" align="center"/>
 
   <use template="dabt_nav"/>
 </tui>

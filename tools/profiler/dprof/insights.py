@@ -100,9 +100,23 @@ def generate(rep):
                 "Runs spawned from " + e["caller"] + "; scenarios: " + ", ".join(sorted(e["groups"])[:5]) + ".",
                 e["caller"])
 
+    # 4a. steps that failed: the numbers of that group are not measurements
+    for g in rep["latency"]:
+        if g.get("failed"):
+            add("crit", f"{g['title']}: {g['failed']} of {g['n']} steps failed", g["note"] + " The timing of this group is not a measurement.", "", g["id"])
+    for w in rep.get("warnings") or []:
+        add("crit", "Profiler warning", w)
+
+    # 4b. the machine was not quiet: something besides the app used CPU while a unit ran
+    for u in rep.get("resources") or []:
+        if u.get("jobs", 1) == 1 and u.get("other_cores", 0) >= 0.5:
+            add("warn", f"Machine was busy during '{u['unit']}': ~{u['other_cores']:.1f} cores used by other work",
+                "Something besides the profiled app used the CPU while this unit ran, so its timings are inflated. Close other programs and run again.",
+                "", "")
+
     # 4. budget breaches with attribution
     for g in rep["latency"]:
-        if g["rating"] in ("ok", "slow") and g["id"] != "idle":
+        if g["rating"] in ("ok", "slow") and g["id"] != "idle" and not g.get("failed"):
             tl = _top_layer(attr, g["id"])
             path = rep["paths"].get(g["id"])
             where = short_path(path)

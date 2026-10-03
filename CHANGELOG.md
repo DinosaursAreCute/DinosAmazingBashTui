@@ -5,10 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+### News 
 - XML Markup now supports adding widgets within pane tags. When placed within pane tags the `pane` attribute is automatically inferred. Use the `Pane` attribute for templates and includes.
 - `Row` attribute for widgets is no longer required and is inferred based on its position in the markup. If row is specified it will be ensured.  
 - Widgets can now be added to scrollable panes. (beta arrow key navigation conflicts between scrolling and changing focus)
+
+### NOTES
+- The Profiler navigation key results and addon build times are architechtually speaking sound but do not reflect the reality when running the demo. We are investigating the issue but are yet to find the source of the bug
+- The Profiler currently does not have a metric to show where sub processes come from in non hot paths. We are considering to add that as it can be hard to determine if there are forks in known paths like caching or if time is lost in other paths that might require more optimizations.
+- The Widget scrolling is tested and generally speaking complete but work is still needed to improve the focus cycling and navigation behavior.
+
+### Known Issues 
+- Pane Focus Switching via `alt + n` does not work in control panes
+- The input field in the terminal page currently does not send its input into the process.
+- Grid layouts focus order follows the logical layout of buttons not the visual layout leading to confusing jumps when cycling through grid pane options.
+
 
 ### Added
 

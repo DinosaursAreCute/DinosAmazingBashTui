@@ -172,6 +172,7 @@
       <xs:element ref="pane"/>
       <xs:element ref="details"/>
       <xs:element ref="accordion"/>
+      <xs:element ref="outlet"/>
       <xs:element ref="tabs"/>
       <xs:element ref="bind"/>
       <xs:element ref="footer"/>
@@ -288,6 +289,21 @@
       <xs:attribute name="persist" type="persistType"/>
       <!-- focus_on_enter: first (default), keep (the id focused when the page was last left) or the id of a widget -->
       <xs:attribute name="focus_on_enter" type="xs:string"/>
+      <!-- shell: a shell file (relative to this page) whose chrome stays while the user moves between its pages; the page builds into its <outlet/> -->
+      <xs:attribute name="shell" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- outlet: in a shell file, the one pane a page of the shell is built into (id defaults to "outlet") -->
+  <xs:element name="outlet">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="split" type="splitType"/>
+      <xs:attribute name="weight" type="xs:positiveInteger"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="border" type="borderType"/>
+      <xs:attribute name="class" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 

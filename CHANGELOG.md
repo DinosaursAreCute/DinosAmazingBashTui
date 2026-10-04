@@ -10,10 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `Row` attribute for widgets is no longer required and is inferred based on its position in the markup. If row is specified it will be ensured.  
 - Widgets can now be added to scrollable panes. (beta arrow key navigation conflicts between scrolling and changing focus)
 - Panes can be fused (neighbours share one border line), resized with the mouse or `alt+r`, and collapsed to a title bar, a rail or nothing. The new Workspace demo page (an on-call console) shows all three and replaces the Styles page.
+- Shells: `<tui shell="_shell.xml">` builds a page into the `<outlet/>` of a shared chrome file. `tui.goto` between pages of one shell keeps the shell's widgets, focus, values and timers and rebuilds only the page (about 20 % faster than a full goto). New `tui.shell.file`; the demo menu and header now live in `share/demo/_shell.xml`.
 - Pages can keep their state: input values, selections, scroll offsets, collapsed panes and pane sizes survive page changes (`keep_value`, `keep_collapsed`, `keep_size`, `keep_state`), can be stored on disk (`persist="disk"`), and can be reset with `alt+shift+r`.
 
 ### NOTES
-- Shells (`<tui shell="...">` with `<outlet/>`) are not part of this release: the code is in the tree but untested and unfinished, with no validator rules, docs or demo conversion yet. Treat them as unavailable.
 - The page-state file under `TUI_HOME/state/store` is plain data (one escaped `page TAB id TAB field TAB value` line per entry) and is never sourced.
 - Framework defaults from `~/.config/DABT/defaults` are now used only when their `install.meta` version equals the running version; otherwise the checkout's `share/defaults` apply. Older installs no longer shadow newer keybinds and theme classes.
 - New profiler scenarios `workspace`, `state` and `scrollform`, and five new micro-benches in `tools/bench/run.sh` (`resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`). `tools/bench/baseline.txt` is not regenerated.

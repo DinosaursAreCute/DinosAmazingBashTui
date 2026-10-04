@@ -1,25 +1,17 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
-  <include src="_templates.xml"/>
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">
   <script src="debug_callbacks.sh"/>
   <script src="debug_tabs.sh"/>
-  <theme src="theme.css"/>
 
-  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <use template="dabt_header"/>
-  <pane id="root1" weight="90" split="h">
-    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
-    <pane id="main" split="v" weight="82" border="none">
-      <pane id="tabs_header" weight="5" border="none"/>
-      <pane id="interactive_demo" weight="42" title="Interactive Elements (dynamic grid)" border="heavy" class="panel"/>
-      <pane id="controls" weight="14" border="single">
-        <button id="btn_rebuild" text="[ Rebuild grid - random item count ]" action="on_rebuild_grid" class="info_button" align="fill"/>
-        <button id="btn_clear_tape" text="[ Clear tape ]" action="on_clear_tape" class="danger_button" align="fill"/>
-      </pane>
-      <pane id="warn_demo" weight="6" title="Size warning demo" border="heavy" class="panel" min_width="999" min_height="999"/>
-      <pane id="tape" weight="24" title="Input Tape (mouse + keyboard)" border="heavy" class="panel" scroll="v"/>
-      <pane id="status" weight="18" title="Status" border="heavy" class="panel"/>
+  <pane id="main" split="v" border="none">
+    <pane id="tabs_header" weight="5" border="none"/>
+    <pane id="interactive_demo" weight="42" title="Interactive Elements (dynamic grid)" border="heavy" class="panel"/>
+    <pane id="controls" weight="14" border="single">
+      <button id="btn_rebuild" text="[ Rebuild grid - random item count ]" action="on_rebuild_grid" class="info_button" align="fill"/>
+      <button id="btn_clear_tape" text="[ Clear tape ]" action="on_clear_tape" class="danger_button" align="fill"/>
     </pane>
-  </pane>
+    <pane id="warn_demo" weight="6" title="Size warning demo" border="heavy" class="panel" min_width="999" min_height="999"/>
+    <pane id="tape" weight="24" title="Input Tape (mouse + keyboard)" border="heavy" class="panel" scroll="v"/>
+    <pane id="status" weight="18" title="Status" border="heavy" class="panel"/>
   </pane>
 
   <tabs id="dbg_tabs" header_pane="tabs_header" content_pane="interactive_demo" style="compact">
@@ -27,7 +19,4 @@
     <tab id="tab_dbg_input"  text="Keyboard &amp; mouse" action="dbg_goto_input"/>
     <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
   </tabs>
-
-
-  <use template="dabt_nav"/>
 </tui>

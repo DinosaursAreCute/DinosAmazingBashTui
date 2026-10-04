@@ -1,0 +1,19 @@
+<!-- The demo's chrome, built once and kept while the user moves between pages: the framed root with the title banner and -->
+<!--     clock, the menu, and the outlet every page builds into (see "Shells" in docs/guide/markup.md). A page opts in with -->
+<!--     the shell attribute of its tui tag; its top-level panes are placed inside the outlet "page_outlet". The menu collapses to a -->
+<!--     rail (alt+c) and resizes (drag its right edge, or alt+r). -->
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd">
+  <include src="_templates.xml"/>
+  <script src="demo_callbacks.sh"/>
+  <theme src="theme.css"/>
+
+  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
+    <use template="dabt_header"/>
+    <pane id="root1" weight="90" split="h">
+      <pane id="nav" weight="18" title="Menu" border="single" class="sidebar" collapsible="true" collapse_to="rail" default="expanded" resizable="x" handle="edge"/>
+      <outlet id="page_outlet" split="v" weight="82" border="none"/>
+    </pane>
+  </pane>
+
+  <use template="dabt_nav"/>
+</tui>

@@ -734,3 +734,7 @@ _tui_store.enter_focus() {
 	_TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$want]}"
 	return 0
 }
+
+# _tui_store.forget_pane ID / forget_widget ID - drops the keep and disk flags of a pane / widget that is leaving the page
+_tui_store.forget_pane() { unset '_TUI_P_KEEP_SIZE[$1]' '_TUI_P_DISK[$1]'; }
+_tui_store.forget_widget() { unset '_TUI_W_KEEP[$1]' '_TUI_W_KEEPFOCUS[$1]' '_TUI_W_DISK[$1]'; }

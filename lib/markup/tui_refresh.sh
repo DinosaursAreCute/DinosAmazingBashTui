@@ -230,6 +230,11 @@ _tui_engine.forget_pane() {
 		'_TUI_P_GAP[$id]' '_TUI_P_FUSE[$id]' '_TUI_P_DIVIDER[$id]' '_TUI_P_DIVIDER_CLASS[$id]' '_TUI_P_TITLE_POS[$id]' '_TUI_P_TITLE_ALIGN[$id]' '_TUI_P_RESIZABLE[$id]' '_TUI_P_HANDLE[$id]' '_TUI_P_ON_RESIZE[$id]' '_TUI_P_WEIGHTS0[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]' '_TUI_P_CONTENT_H[$id]'
 }
 
+# _tui_engine.clear_children PANE - PANE keeps its geometry and attributes but has no children (a shell's outlet between pages)
+_tui_engine.clear_children() {
+	unset '_TUI_P_CHILDREN[$1]' '_TUI_P_WEIGHTS[$1]' '_TUI_P_DIR[$1]' '_TUI_P_GAP[$1]' '_TUI_P_CELLW[$1]' '_TUI_P_CELLH[$1]'
+}
+
 # _tui_engine.forget_styles ID... - the class styles baked for these ids (keys "ID_normal", "ID_hover", ...)
 _tui_engine.forget_styles() {
 	local -A gone=()

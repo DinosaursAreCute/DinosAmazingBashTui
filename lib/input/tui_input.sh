@@ -281,15 +281,19 @@ tui.bind.reset() {
     _TUI_BIND=(); _TUI_BIND_PASS=(); _TUI_BIND_ALWAYS=(); _TUI_BIND_PAGE=(); _TUI_BIND_DESC=()
 }
 
-# Called by tui.reset_ui: drops bindings made with --page (markup <bind>).
+# _tui_input.clear_page [KEEP] - drops the bindings made with --page (markup <bind>); KEEP names an assoc whose keys survive (a shell's own binds).
+# Called by tui.reset_ui.
 _tui_input.clear_page() {
     (( _TUI_BIND_GEN++ ))
     local id
+    local -n _cp_keep="${1:-_TUI_NO_KEEP}"
     for id in "${!_TUI_BIND_PAGE[@]}"; do
+        [[ -n "${_cp_keep[$id]:-}" ]] && continue
         unset '_TUI_BIND[$id]' '_TUI_BIND_PASS[$id]' '_TUI_BIND_ALWAYS[$id]' '_TUI_BIND_PAGE[$id]' '_TUI_BIND_DESC[$id]'
     done
     _TUI_DEF_OFF_PAGE=()          # page-scoped default-group switches end with the page
 }
+declare -gA _TUI_NO_KEEP=()
 
 # tui.bind.list - "SCOPE<TAB>KEY<TAB>COMMAND<TAB>NOTE": your binds, then code binds, then defaults.
 # _tui_input.bind_rows builds them into _BL (fork-free); tui.bind.list prints, tui.bind.table formats.

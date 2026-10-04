@@ -1,25 +1,16 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="sc_tab_renderers">
-  <include src="_templates.xml"/>
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="sc_tab_renderers">
   <script src="showcase_callbacks.sh"/>
-  <theme src="theme.css"/>
 
-  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <use template="dabt_header"/>
-  <pane id="root1" weight="90" split="h">
-    <pane id="sidebar" weight="18" split="v" border="none">
-      <pane id="nav"      weight="58" title="Menu"     border="single" class="sidebar"/>
-      <pane id="controls" weight="42" title="Controls" border="single" class="sidebar" hpad="1">
-        <!-- Controls sidebar: widgets that drive the renderers -->
-        <label    id="lbl_current" text="Current:" class="muted_label"/>
-        <label    id="lbl_status" text="—" class="brand"/>
-        <checkbox id="chk_fit" label="Fit to pane" checked="true" action="on_toggle_fit" class="check"/>
-        <!-- rows 4-8: options for the current view, built at runtime (_sc_controls) -->
-        <button   id="btn_clear" row="10" text="[ Clear ]" action="on_clear" class="danger_button" align="fill"/>
-      </pane>
+  <pane id="page_row" split="h" border="none">
+    <pane id="controls" weight="22" title="Controls" border="single" class="sidebar" hpad="1">
+      <!-- Controls sidebar: widgets that drive the renderers -->
+      <label    id="lbl_current" text="Current:" class="muted_label"/>
+      <label    id="lbl_status" text="—" class="brand"/>
+      <checkbox id="chk_fit" label="Fit to pane" checked="true" action="on_toggle_fit" class="check"/>
+      <!-- rows 4-8: options for the current view, built at runtime (_sc_controls) -->
+      <button   id="btn_clear" row="10" text="[ Clear ]" action="on_clear" class="danger_button" align="fill"/>
     </pane>
-    <!-- main is a PARENT with its own frame + hpad: the layered-border demo
-         (main single -> output heavy). Borders drop automatically on tiny terminals. -->
-    <pane id="main" split="v" border="single" weight="82" class="panel" hpad="1">
+    <pane id="main" split="v" border="single" weight="78" class="panel" hpad="1">
       <pane id="tabs_header" weight="5" border="none"/>
       <!-- One fixed-size grid (tui.fixed): every button is a 15x3 tile (the cell pane carries the colour, the button sits in its middle row), so all components line up in
            columns whatever their label length, and the rows re-flow when the terminal is resized.
@@ -87,7 +78,6 @@
       <pane id="output" weight="61" border="heavy" class="panel" scroll="both"/>
     </pane>
   </pane>
-  </pane>
 
   <!-- One page per tab, so each tab only shows the controls that apply to it. -->
   <tabs id="sc_tabs" header_pane="tabs_header" content_pane="output" style="compact">
@@ -96,9 +86,4 @@
     <tab id="tab_fit"       text="Fit to size"  action="sc_goto_fit"/>
     <tab id="tab_live"      text="Live"         action="sc_goto_live"/>
   </tabs>
-
-
-
-
-  <use template="dabt_nav"/>
 </tui>

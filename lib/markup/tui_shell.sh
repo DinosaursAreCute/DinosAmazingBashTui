@@ -16,7 +16,8 @@
 #   _TUI_OUTLET          id of its outlet pane          _TUI_OUTLET_SPLIT  the outlet's split ("h" | "v" | "")
 #   _TUI_SHELL_AT        index in _TUI_W_ORDER where the page's widgets go (document order of the outlet tag)
 #   _TUI_SHELL_IDS[id]   w | p for every widget / pane the shell built
-#   _TUI_PAGE_IDS[id]    w | p for every widget / pane the current page built (what leaving the page removes)
+#   _TUI_PAGE_IDS[id]    w | p for every widget / pane that is not the shell's: what leaving the page removes. Derived
+#                        (_tui_shell.sync_page_ids), so widgets a page creates later (on_visit, callbacks) count too.
 # The page cache stores a page of a shell as a delta (see _tui_shell.delta): only the array entries the page's build
 # added or changed, so a replay lands on top of the live shell and never touches shell state.
 # requires:
@@ -25,6 +26,7 @@ declare -g _TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT=""
 declare -gi _TUI_SHELL_AT=0
 declare -gA _TUI_SHELL_IDS=() _TUI_PAGE_IDS=()
 declare -g _TUI_PAGE_UNDO="" # script putting the scalars the page changed back (runs when the page is left)
+declare -gi _SHL_RECORD=0    # 1 while tui.cache.record builds a page of a shell: the delta is taken before on_visit runs
 declare -gi _SHL_SOFT=0      # 1 while tui.goto swaps pages inside a live shell (the store then only saves/restores page ids)
 declare -ga _SHL_TIMERS=() _SHL_WATCH=()
 declare -gA _SHL_BINDS=()
@@ -32,10 +34,16 @@ declare -g _SH_OF=""
 declare -g _SHL_SKIP='^(_TUI_(FOCUS_ID|FOCUS_IDX|CURSOR|FOCUSABLE|PANE_FOCUS|PENDING_OUTPUT|HOVERED_.*|P_ALL|P_LEAVES|P_RAW|P_SIG_.*|STYLE_SIG)|_TUI_SHELL_.*|_TUI_OUTLET.*|__B_.*)$'
 declare -gA _SHL_FLAGS=()
 
-# tui.shell.file -> stdout: the canonical path of the live shell (nothing when the page has none).
+# tui.shell.file [VAR] - the canonical path of the live shell ("" when the page has none): stored in VAR, or printed when
+# VAR is omitted (nothing is printed for no shell). Status 0 with a shell, 1 without.
 tui.shell.file() {
-	[[ -n "$_TUI_SHELL_FILE" ]] && printf '%s' "$_TUI_SHELL_FILE"
-	return 0
+	if [[ -n "${1:-}" ]]; then
+		local -n _sf_out="$1"
+		_sf_out="$_TUI_SHELL_FILE"
+	elif [[ -n "$_TUI_SHELL_FILE" ]]; then
+		printf '%s' "$_TUI_SHELL_FILE"
+	fi
+	[[ -n "$_TUI_SHELL_FILE" ]]
 }
 
 # _tui_shell.scan PAGE_FILE [FRESH] -> _SH_OF - canonical path of the shell a page names in its <tui shell="...">
@@ -50,12 +58,30 @@ _tui_shell.scan() {
 	fi
 	[[ -r "$f" ]] || return 0
 	IFS= read -r -d '' txt <"$f" || true
-	[[ "$txt" == *'shell="'* && "$txt" =~ $re ]] || return 0
+	[[ "$txt" == *'shell="'* ]] || return 0
+	while [[ "$txt" == *'<!--'* && "$txt" == *'-->'* ]]; do txt="${txt%%'<!--'*}${txt#*'-->'}"; done # a comment may quote shell="..."
+	[[ "$txt" =~ $re ]] || return 0
 	src="${BASH_REMATCH[2]}"
 	[[ -n "$src" ]] || return 0
 	[[ "$src" != /* ]] && src="${f%/*}/$src"
 	_tui_path_canon "$src"
 	_SH_OF="$_CANON"
+}
+
+# _tui_shell.warm PAGE... - caches the shell of every page that names one, once, in this process. The warm-up workers fork
+# afterwards and replay it from the inherited cache instead of building it per page; it is dumped to disk with the pages.
+# A shell that is cached and unchanged is left alone.
+_tui_shell.warm() {
+	local page seen=" "
+	for page; do
+		_tui_shell.scan "$page" 1
+		[[ -n "$_SH_OF" && "$seen" != *" $_SH_OF "* ]] || continue
+		seen+="$_SH_OF "
+		tui.cache.valid "$_SH_OF" && continue
+		tui.reset_ui
+		tui.cache.record "$_SH_OF" >/dev/null 2>&1
+	done
+	tui.reset_ui
 }
 
 # _tui_shell.ensure SHELL_FILE CACHED - builds SHELL_FILE (replayed from the page cache when CACHED is 1) unless it is the
@@ -78,11 +104,22 @@ _tui_shell.ensure() {
 # _tui_shell.seal - what a shell owns that is not in the snapshot: its timers, watchers and page-scoped binds, so
 # leaving a page cancels only the ones the page started.
 _tui_shell.seal() {
+	_tui_shell.collect_ids
 	_SHL_TIMERS=("${_TA_IDS[@]}")
 	_SHL_WATCH=("${_TA_WIDS[@]}")
 	_SHL_BINDS=()
 	local k
 	for k in "${!_TUI_BIND_PAGE[@]}"; do _SHL_BINDS[$k]=1; done
+}
+
+# _tui_shell.sync_page_ids - _TUI_PAGE_IDS: every widget the shell did not build, and every pane below the outlet
+_tui_shell.sync_page_ids() {
+	local id c
+	_TUI_PAGE_IDS=()
+	for id in "${_TUI_W_ORDER[@]}"; do [[ -n "${_TUI_SHELL_IDS[$id]+x}" ]] || _TUI_PAGE_IDS[$id]=w; done
+	_EF_PANES=()
+	for c in ${_TUI_P_CHILDREN[$_TUI_OUTLET]:-}; do _tui_engine.collect_panes "$c"; done
+	for id in "${_EF_PANES[@]}"; do _TUI_PAGE_IDS[$id]=p; done
 }
 
 # _tui_shell.collect_ids - _TUI_SHELL_IDS for the shell that was just built (every widget and pane)
@@ -96,32 +133,35 @@ _tui_shell.collect_ids() {
 }
 
 # _tui_shell.build_page NODE - the markup build of a page's <tui shell="..."> NODE on a live shell: its children are the
-# outlet's, and what they created is recorded in _TUI_PAGE_IDS. The widgets move from the end of _TUI_W_ORDER to where
+# outlet's. The widgets move from the end of _TUI_W_ORDER to where
 # the outlet stands in the shell, so tab order follows the document order of shell and page together.
 _tui_shell.build_page() {
-	local node="$1" kept=${#_TUI_W_ORDER[@]} at=$_TUI_SHELL_AT total w c
-	_TUI_PAGE_IDS=()
+	local node="$1" kept=${#_TUI_W_ORDER[@]} at=$_TUI_SHELL_AT
 	_TUI_BUILD_CTX_PANE=""
 	_TUI_BUILD_CTX_ROW=0
 	_tui_build.pane_kids "$_TUI_OUTLET" "$node" "$_TUI_OUTLET_SPLIT" "" "" "" "" "" "" "" 1
-	total=${#_TUI_W_ORDER[@]}
 	((at > kept)) && at=$kept
 	_TUI_W_ORDER=("${_TUI_W_ORDER[@]:0:at}" "${_TUI_W_ORDER[@]:kept}" "${_TUI_W_ORDER[@]:at:kept-at}")
-	for w in "${_TUI_W_ORDER[@]:at:total-kept}"; do _TUI_PAGE_IDS[$w]=w; done
-	_EF_PANES=()
-	for c in ${_TUI_P_CHILDREN[$_TUI_OUTLET]:-}; do _tui_engine.collect_panes "$c"; done
-	for c in "${_EF_PANES[@]}"; do _TUI_PAGE_IDS[$c]=p; done
 	_tui_w.changed
 }
 
 # ── leaving a page ────────────────────────────────────────────────────────
 
-# _tui_shell.leave_page - removes exactly what the current page built (_TUI_PAGE_IDS: its panes and widgets, wherever
+# _tui_shell.before_script - a <script> of a page of a shell runs with the page's panes laid out: they are built inside
+# an outlet whose layout the shell's load already finished, so without this their geometry would read as empty
+_tui_shell.before_script() {
+	[[ -n "$_TUI_SHELL_FILE" && "$_TUI_MARKUP_FILE" != "$_TUI_SHELL_FILE" ]] || return 0
+	_tui.epoch_bump layout
+	_tui._layout "$_TUI_OUTLET"
+}
+
+# ── leaving a page - removes exactly what the current page built (_TUI_PAGE_IDS: its panes and widgets, wherever
 # they sit) and what it started (timers, watchers, page binds, modals); the shell is untouched.
 _tui_shell.leave_page() {
 	local id k o="$_TUI_OUTLET"
 	local -a keep=() wl=() pl=() ids=()
 	local -A gone=()
+	_tui_shell.sync_page_ids
 	for id in "${!_TUI_PAGE_IDS[@]}"; do
 		ids+=("$id")
 		if [[ "${_TUI_PAGE_IDS[$id]}" == w ]]; then
@@ -135,17 +175,17 @@ _tui_shell.leave_page() {
 	_TUI_W_ORDER=("${keep[@]}")
 	for id in "${wl[@]}"; do
 		_tui_engine.forget_widget "$id"
-		unset '_TUI_W_HIDDEN[$id]' '_TUI_W_COLLAPSED_TEXT[$id]' '_TUI_W_LABEL_SAVED[$id]' '_TUI_W_KEEP[$id]' '_TUI_W_KEEPFOCUS[$id]' '_TUI_W_DISK[$id]'
+		_tui_collapse.forget_widget "$id"
+		_tui_store.forget_widget "$id"
 	done
 	for id in "${pl[@]}"; do
 		unset "_TUI_PANE_CONTENT_${id}" '_TUI_PANE_CONTENT[$id]'
 		_tui_engine.forget_pane "$id"
-		unset '_TUI_P_COLLAPSIBLE[$id]' '_TUI_P_COLLAPSED[$id]' '_TUI_P_COLLAPSE_DEFAULT[$id]' '_TUI_P_COLLAPSE_TO[$id]' '_TUI_P_KEEP_COLLAPSED[$id]' \
-			'_TUI_P_ON_TOGGLE[$id]' '_TUI_P_COLLAPSE_SAVED[$id]' '_TUI_P_ACCORDION[$id]' '_TUI_P_COLLAPSE_KEY[$id]' '_TUI_P_COLLAPSE_CLASS[$id]' \
-			'_TUI_P_KEEP_SIZE[$id]' '_TUI_P_DISK[$id]'
+		_tui_collapse.forget_pane "$id"
+		_tui_store.forget_pane "$id"
 	done
 	((${#ids[@]})) && _tui_engine.forget_styles "${ids[@]}"
-	[[ -n "$o" ]] && unset '_TUI_P_CHILDREN[$o]' '_TUI_P_WEIGHTS[$o]' '_TUI_P_DIR[$o]' '_TUI_P_GAP[$o]' '_TUI_P_CELLW[$o]' '_TUI_P_CELLH[$o]'
+	[[ -n "$o" ]] && _tui_engine.clear_children "$o"
 	_TUI_PAGE_IDS=()
 	[[ -n "$_TUI_PAGE_UNDO" ]] && eval "$_TUI_PAGE_UNDO"
 	_TUI_PAGE_UNDO=""
@@ -157,12 +197,7 @@ _tui_shell.leave_page() {
 		for k in "${_SHL_WATCH[@]}"; do [[ "$k" == "$id" ]] && continue 2; done
 		tui.watch.stop "$id"
 	done
-	((_TUI_BIND_GEN++))
-	for k in "${!_TUI_BIND_PAGE[@]}"; do
-		[[ -n "${_SHL_BINDS[$k]:-}" ]] && continue
-		unset '_TUI_BIND[$k]' '_TUI_BIND_PASS[$k]' '_TUI_BIND_ALWAYS[$k]' '_TUI_BIND_PAGE[$k]' '_TUI_BIND_DESC[$k]'
-	done
-	_TUI_DEF_OFF_PAGE=()
+	_tui_input.clear_page _SHL_BINDS
 	_tui_modal.reset
 	_tui_dialog.reset
 	_TUI_P_ALL=()
@@ -297,6 +332,13 @@ _tui_shell.delta() {
 	done
 }
 
+# _tui_shell.before_visit - tui.load calls it just before on_visit: while a page is being recorded the delta is taken here,
+# because on_visit runs again on every replay and what it builds must not be in the recording (it would be built twice)
+_tui_shell.before_visit() {
+	((_SHL_RECORD)) && _tui_shell.delta
+	return 0
+}
+
 # _tui_shell.drop_base - frees the baseline copies
 _tui_shell.drop_base() {
 	local v
@@ -305,22 +347,13 @@ _tui_shell.drop_base() {
 
 # _tui_shell.apply FILE - the cached page delta of FILE onto the live shell
 _tui_shell.apply() {
-	local f="$1" id
+	local f="$1"
 	eval "${_TUI_CACHE_PAGE[$f]}"
 	_TUI_PAGE_UNDO="${_TUI_CACHE_PAGEUNDO[$f]:-}"
-	_TUI_PAGE_IDS=()
-	for id in ${_TUI_CACHE_PAGEIDS[$f]:-}; do _TUI_PAGE_IDS[${id#?:}]="${id%%:*}"; done
 	_TUI_P_ALL=()
 	_TUI_P_LEAVES=()
 	_tui._collect_leaves root
 	_tui_w.changed
-}
-
-# _tui_shell.page_ids_string -> _SH_STR: _TUI_PAGE_IDS as "w:id p:id ..." (the cache record)
-_tui_shell.page_ids_string() {
-	local id
-	_SH_STR=""
-	for id in "${!_TUI_PAGE_IDS[@]}"; do _SH_STR+="${_SH_STR:+ }${_TUI_PAGE_IDS[$id]}:$id"; done
 }
 
 # _tui_shell.geometry -> _SH_GEO: the outlet's "row col height width", the space a recorded page was laid out in

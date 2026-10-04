@@ -1,47 +1,36 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="settings_visit">
-  <include src="_templates.xml"/>
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="settings_visit">
   <script src="settings_callbacks.sh"/>
-  <theme src="theme.css"/>
 
-  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <use template="dabt_header"/>
-  <pane id="root1" weight="90" split="h">
-    <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
-    <pane id="main" split="v" weight="82" border="none">
-      <pane id="body" split="h" weight="76" border="none">
-        <pane id="form" weight="40" title="Appearance &amp; behavior" border="single" class="panel" hpad="1">
-          <label id="lbl_theme_hd" text="Theme  (applies to every page)" class="brand"/>
-          <button id="btn_th_default" text="Default" action="on_theme_pick" class="nav_link" align="fill"/>
-          <button id="btn_th_ocean" text="Ocean" action="on_theme_pick" class="nav_link" align="fill"/>
-          <button id="btn_th_forest" text="Forest" action="on_theme_pick" class="nav_link" align="fill"/>
-          <button id="btn_th_sunset" text="Sunset" action="on_theme_pick" class="nav_link" align="fill"/>
-          <button id="btn_th_light" text="Light" action="on_theme_pick" class="nav_link" align="fill"/>
+  <pane id="main" split="v" border="none">
+    <pane id="body" split="h" weight="76" border="none">
+      <pane id="form" weight="40" title="Appearance &amp; behavior" border="single" class="panel" hpad="1">
+        <label id="lbl_theme_hd" text="Theme  (applies to every page)" class="brand"/>
+        <button id="btn_th_default" text="Default" action="on_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_th_ocean" text="Ocean" action="on_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_th_forest" text="Forest" action="on_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_th_sunset" text="Sunset" action="on_theme_pick" class="nav_link" align="fill"/>
+        <button id="btn_th_light" text="Light" action="on_theme_pick" class="nav_link" align="fill"/>
 
-          <label id="lbl_prev_hd" text="Preview pane" class="brand" row="7"/>
-          <button id="btn_border" text="Border" action="on_border_cycle" class="info_button" align="fill" row="8"/>
-          <button id="btn_font" text="Font" action="on_font_cycle" class="info_button" align="fill" row="9"/>
-          <input id="inp_hpad" label="hpad:" label_width="7" placeholder="0-9" submit="on_pad_apply" row="10"/>
-          <input id="inp_vpad" label="vpad:" label_width="7" placeholder="0-9" submit="on_pad_apply" row="11"/>
-          <input id="inp_text" label="text:" label_width="7" placeholder="banner text" submit="on_text_apply" row="12"/>
+        <label id="lbl_prev_hd" text="Preview pane" class="brand" row="7"/>
+        <button id="btn_border" text="Border" action="on_border_cycle" class="info_button" align="fill" row="8"/>
+        <button id="btn_font" text="Font" action="on_font_cycle" class="info_button" align="fill" row="9"/>
+        <input id="inp_hpad" label="hpad:" label_width="7" placeholder="0-9" submit="on_pad_apply" row="10"/>
+        <input id="inp_vpad" label="vpad:" label_width="7" placeholder="0-9" submit="on_pad_apply" row="11"/>
+        <input id="inp_text" label="text:" label_width="7" placeholder="banner text" submit="on_text_apply" row="12"/>
 
-          <label id="lbl_beh_hd" text="Behavior" class="brand" row="14"/>
-          <checkbox id="chk_clock" label="Show live clock" checked="true" action="on_clock_toggle" class="check" row="15"/>
-          <checkbox id="chk_notify" label="Notifications" checked="true" action="on_notify_toggle" class="check" row="16"/>
-          <button id="btn_reset" text="[ Reset to defaults ]" action="on_reset" class="danger_button" align="fill" row="18"/>
-        </pane>
-        <pane id="right" split="v" weight="60" border="none">
-          <pane id="preview"       weight="68" title="Live preview" border="single" class="panel" hpad="1" vpad="1"/>
-          <pane id="preview_clock" weight="32" title="tui.clock in the chosen font" border="single" class="panel" hpad="1"/>
-        </pane>
+        <label id="lbl_beh_hd" text="Behavior" class="brand" row="14"/>
+        <checkbox id="chk_clock" label="Show live clock" checked="true" action="on_clock_toggle" class="check" row="15"/>
+        <checkbox id="chk_notify" label="Notifications" checked="true" action="on_notify_toggle" class="check" row="16"/>
+        <button id="btn_reset" text="[ Reset to defaults ]" action="on_reset" class="danger_button" align="fill" row="18"/>
       </pane>
-      <pane id="toast" weight="5" border="none" class="panel">
-        <label id="lbl_toast" text="" class="brand" align="center"/>
+      <pane id="right" split="v" weight="60" border="none">
+        <pane id="preview"       weight="68" title="Live preview" border="single" class="panel" hpad="1" vpad="1"/>
+        <pane id="preview_clock" weight="32" title="tui.clock in the chosen font" border="single" class="panel" hpad="1"/>
       </pane>
-      <pane id="status" weight="19" title="settings.conf (saved on every change)" border="single" class="panel" hpad="1"/>
     </pane>
+    <pane id="toast" weight="5" border="none" class="panel">
+      <label id="lbl_toast" text="" class="brand" align="center"/>
+    </pane>
+    <pane id="status" weight="19" title="settings.conf (saved on every change)" border="single" class="panel" hpad="1"/>
   </pane>
-  </pane>
-
-
-  <use template="dabt_nav"/>
 </tui>

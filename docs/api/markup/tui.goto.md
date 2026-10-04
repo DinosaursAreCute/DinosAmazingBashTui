@@ -14,6 +14,7 @@ Switches to another page: clears the current UI, loads `FILE` (from the page cac
 
 - Everything page-scoped is dropped: panes, widgets, timers, watches, `tui.exec` instances, the modal, the footer, `--page` bindings. Tick listeners from [`tui.tick.add`](/api/core/tui.tick.add.html) and overlays are kept.
 - The previous page is pushed onto the history for [`tui.action.back`](/api/input/tui.action.back.html) (up to 30 entries).
+- Between two pages of one shell (`<tui shell="…">`) only what the previous page built is dropped; the shell's panes, widgets, state, timers and binds stay. See "Shells" in the markup guide.
 - Reloading the same page keeps the focused widget and cursor when that widget still exists.
 - The page's `on_visit` function runs on every visit, also when the page is replayed from the cache.
 - Fires the `page` hook with the resolved path.

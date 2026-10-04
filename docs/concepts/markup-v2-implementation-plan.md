@@ -28,7 +28,7 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 3A Fused/resize/collapse | `lib/layout/tui_frame.sh`, `tui_resize.sh`, `tui_collapse.sh` | medium | done |
 | 3B Layers | `lib/chrome/tui_layer.sh` | medium | todo |
 | 3C Scroll widgets | `lib/layout/tui_scroll.sh` | medium | done |
-| 3D Page state | `lib/state/tui_store.sh`, `lib/markup/tui_shell.sh` | medium | wip (store, reset, disk, focus done; shells unverified) |
+| 3D Page state | `lib/state/tui_store.sh`, `lib/markup/tui_shell.sh` | medium | done (golden frames, G3 benches and the real-terminal check are owed by the user) |
 | 4.1 Cascade | `lib/style/tui_cascade.sh` | medium | todo |
 | 4.2 Reactive | `lib/state/tui_reactive.sh` | medium | todo |
 | 4.3 CSS lint | `lib/style/tui_style_lint.sh` | medium | todo |
@@ -91,7 +91,7 @@ Suite at the last verified run: 767 pass, 0 fail (before the shell work started)
 - `lib/tui_home.sh` uses the installed defaults only when their `install.meta` version equals `TUI_VERSION` (an older install used to shadow newer keybinds and theme classes). No unit test covers the version rule.
 - The unit speed budget forced several multi-relayout tests into the integration tier (`ti_*`).
 
-**Unverified: shells (3D-3).** `lib/markup/tui_shell.sh` and hooks in `tui.sh`, `tui_build.sh` (a `tag.pane` child loop moved into `_tui_build.pane_kids`, the `<outlet>` tag), `tui_markup.sh`, `tui_cache.sh` and `tui_store.sh` were written and never run. `tui_shell.sh` is sourced from `tui.sh`, so a syntax error there breaks every page. Not done: `tests/unit/shell.t.sh`, validator rules, XSD, the guide section, the `tui.shell.file` API entry, `share/demo/_shell.xml` and the page conversion, the `tui.page.refresh` fallback, shell-first cache warm-up and the timing against a full `tui.goto`. First step: `bash -n` on the six files, then `tools/t.sh` (expect 767 pass).
+**Shells (3D-3), done.** `lib/markup/tui_shell.sh` plus hooks in `tui.sh`, `tui_build.sh` (`<outlet>`, `_tui_build.pane_kids`), `tui_markup.sh`, `tui_cache.sh`, `tui_store.sh`, `tui_refresh.sh`, `tui_input.sh`. Tests: `tests/unit/shell.t.sh` (swap, state kept, on_visit widgets, validator, refresh fallback, scan) and a bats case for the shell-first warm-up. Validator walks the shell before the page (shared ids, one outlet, no shell naming a shell); XSD, guide section "Shells", `tui.shell.file` API entry and the `tui.goto` note are in. A page's owned ids are derived (everything not in the shell), so widgets made in `on_visit` or callbacks leave with the page; the cache stores a page of a shell as a delta taken before `on_visit`. Warm-up caches each shell once in the parent before the workers fork. Bench `goto_pair_shell` 23.5 ms vs `goto_pair_plain` 29.2 ms for two switches (load only, render excluded). Demo: `share/demo/_shell.xml` (collapsible, resizable menu; outlet `page_outlet`) and every demo page use it. `tui.page.refresh` works on shell pages (the Compose demo is one). A page pane may not reuse the outlet's id: the validator reports it, and the engine would recurse on the cycle.
 
 **Owed by the user (not run by the implementer)**
 - Golden frames (G4): re-record every demo page (the nav changed; the update banner is stored in the frames, so `t_golden.sh --check` reported every frame as changed before this work).

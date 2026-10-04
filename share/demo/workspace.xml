@@ -1,51 +1,40 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="on_ws_visit">
-  <include src="_templates.xml"/>
-  <script src="demo_callbacks.sh"/>
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="on_ws_visit">
   <script src="workspace_callbacks.sh"/>
-  <theme src="theme.css"/>
 
-  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <use template="dabt_header"/>
-    <pane id="root1" weight="90" split="h">
-      <pane id="nav" resizable="x" handle="edge" weight="18" title="Menu" border="single" class="sidebar"/>
-      <pane id="main" split="v" weight="82" border="none">
-        <pane id="ws_top" split="h" weight="78" border="none">
-          <pane id="services" collapsible="true" collapse_to="title" default="expanded" resizable="x" handle="divider" title="Services" weight="29" class="panel">
-            <list id="ws_list" rows="12" on_change="on_ws_select" action="on_ws_restart" items="● api-gateway    ok|● auth-service   ok|● orders-svc     ok|✖ billing-queue down|▲ cache-redis    warn|● search-index   ok|▲ notifier       warn"/>
-          </pane>
-          <pane id="logs_col" split="v" weight="46" border="none">
-            <pane id="logs" fuse="true" divider="single" resizable="y" handle="divider" title="Logs" border="single" class="panel" weight="60" scroll="v"/>
-            <pane id="events" fuse="true" divider="single" title="Events" border="single" class="panel" weight="40" scroll="v"/>
-          </pane>
-          <pane id="details" resizable="x" handle="divider" title="Details" weight="25" class="panel" hpad="1">
-            <label id="ws_d_host" text="HOST" class="brand"/>
-            <label id="ws_d_load" text="load    n/a"/>
-            <label id="ws_d_up" text="uptime  n/a"/>
-            <label id="ws_d_mem" text="memory  n/a"/>
-            <progress id="ws_mem" value="0"/>
-            <label id="ws_d_gap" text=" "/>
-            <label id="ws_d_svc" text="SERVICE" class="brand"/>
-            <label id="ws_d_name" text="-"/>
-            <label id="ws_d_state" text="state"/>
-            <label id="ws_d_owner" text="owner"/>
-            <label id="ws_d_ver" text="version"/>
-            <label id="ws_d_rep" text="replicas"/>
-            <label id="ws_d_deploy" text="deployed"/>
-            <label id="ws_d_err" text="errors"/>
-            <label id="ws_d_p95" text="p95"/>
-            <label id="ws_d_slo" text="SLO"/>
-          </pane>
-        </pane>
-        <pane id="prompt" height="1" border="none">
-          <input id="ws_cmd" label=">" label_width="2" placeholder="help | status | logs svc | restart svc | ack svc | clear" submit="on_ws_submit" retain_input_on_submit="true" class="field"/>
-        </pane>
-        <bind key="r" action="on_ws_restart" desc="Restart the selected service"/>
-        <bind key="a" action="on_ws_ack" desc="Acknowledge the selected service"/>
-        <bind key="c" action="on_ws_clear" desc="Clear the selected log"/>
-        <bind key="/" action="on_ws_focus_cmd" desc="Focus the command prompt"/>
+  <pane id="main" split="v" border="none">
+    <pane id="ws_top" split="h" weight="78" border="none">
+      <pane id="services" collapsible="true" collapse_to="title" default="expanded" resizable="x" handle="divider" title="Services" weight="29" class="panel">
+        <list id="ws_list" rows="12" on_change="on_ws_select" action="on_ws_restart" items="● api-gateway    ok|● auth-service   ok|● orders-svc     ok|✖ billing-queue down|▲ cache-redis    warn|● search-index   ok|▲ notifier       warn"/>
+      </pane>
+      <pane id="logs_col" split="v" weight="46" border="none">
+        <pane id="logs" fuse="true" divider="single" resizable="y" handle="divider" title="Logs" border="single" class="panel" weight="60" scroll="v"/>
+        <pane id="events" fuse="true" divider="single" title="Events" border="single" class="panel" weight="40" scroll="v"/>
+      </pane>
+      <pane id="details" resizable="x" handle="divider" title="Details" weight="25" class="panel" hpad="1">
+        <label id="ws_d_host" text="HOST" class="brand"/>
+        <label id="ws_d_load" text="load    n/a"/>
+        <label id="ws_d_up" text="uptime  n/a"/>
+        <label id="ws_d_mem" text="memory  n/a"/>
+        <progress id="ws_mem" value="0"/>
+        <label id="ws_d_gap" text=" "/>
+        <label id="ws_d_svc" text="SERVICE" class="brand"/>
+        <label id="ws_d_name" text="-"/>
+        <label id="ws_d_state" text="state"/>
+        <label id="ws_d_owner" text="owner"/>
+        <label id="ws_d_ver" text="version"/>
+        <label id="ws_d_rep" text="replicas"/>
+        <label id="ws_d_deploy" text="deployed"/>
+        <label id="ws_d_err" text="errors"/>
+        <label id="ws_d_p95" text="p95"/>
+        <label id="ws_d_slo" text="SLO"/>
       </pane>
     </pane>
+    <pane id="prompt" height="1" border="none">
+      <input id="ws_cmd" label=">" label_width="2" placeholder="help | status | logs svc | restart svc | ack svc | clear" submit="on_ws_submit" retain_input_on_submit="true" class="field"/>
+    </pane>
+    <bind key="r" action="on_ws_restart" desc="Restart the selected service"/>
+    <bind key="a" action="on_ws_ack" desc="Acknowledge the selected service"/>
+    <bind key="c" action="on_ws_clear" desc="Clear the selected log"/>
+    <bind key="/" action="on_ws_focus_cmd" desc="Focus the command prompt"/>
   </pane>
-
-  <use template="dabt_nav"/>
 </tui>

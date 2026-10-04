@@ -12,7 +12,7 @@
 #   element  TUI_V_FILE TUI_V_LINE TUI_V_COL TUI_V_TAG TUI_V_RAW TUI_V_SELFCLOSE TUI_V_DEPTH (open containers around it)
 #            TUI_V_PARENT_TAG TUI_V_PARENT_ID TUI_V_PARENT_SPLIT TUI_V_GRANDPARENT_SPLIT (empty at top level)
 #            tui.validate.attr NAME -> REPLY (status 1 when the attribute is absent)
-#   end      TUI_V_PAGE, TUI_V_PANES[id]=loc, TUI_V_PANE_SPLIT[id], TUI_V_WIDGETS[id]=loc,
+#   end      TUI_V_PAGE, TUI_V_SHELL (canonical path of the page's shell, "" without one), TUI_V_PANES[id]=loc, TUI_V_PANE_SPLIT[id], TUI_V_WIDGETS[id]=loc,
 #            TUI_V_WIDGET_PANE[id]=pane, TUI_V_WIDGET_PANE_AT[id]=loc   (loc = "file|line|col")
 #
 # Running: tui.validate.files PAGE...  (status 1 when any error was found), then tui.validate.report
@@ -39,7 +39,7 @@ declare -g TUI_V_ERRORS=0 TUI_V_WARNINGS=0
 declare -gA _TV_A=() _TV_AC=() _TV_SEEN=() _TV_READ=()
 declare -ga _TV_ST_TAG=() _TV_ST_ID=() _TV_ST_SPLIT=() _TV_ST_LOC=()
 declare -gA TUI_V_PANES=() TUI_V_PANE_SPLIT=() TUI_V_WIDGETS=() TUI_V_WIDGET_PANE=() TUI_V_WIDGET_PANE_AT=()
-declare -g TUI_V_PAGE="" TUI_V_FILE="" TUI_V_LINE=0 TUI_V_COL=1 TUI_V_TAG="" TUI_V_RAW="" TUI_V_SELFCLOSE=0
+declare -g TUI_V_SHELL="" TUI_V_PAGE="" TUI_V_FILE="" TUI_V_LINE=0 TUI_V_COL=1 TUI_V_TAG="" TUI_V_RAW="" TUI_V_SELFCLOSE=0
 declare -g TUI_V_DEPTH=0 TUI_V_PARENT_TAG="" TUI_V_PARENT_ID="" TUI_V_PARENT_SPLIT="" TUI_V_GRANDPARENT_SPLIT=""
 
 # ═══ registration API ═══════════════════════════════════════════════════
@@ -273,7 +273,7 @@ _tui_validate.record() {
 	local id="${_TV_A[id]:-}"
 	[[ -n "$id" ]] || return 0
 	tui.validate.here id
-	if [[ "$TUI_V_TAG" == pane ]]; then
+	if [[ "$TUI_V_TAG" == @(pane|outlet) ]]; then
 		if [[ -n "${TUI_V_PANES[$id]:-}" ]]; then
 			local p="${TUI_V_PANES[$id]}"
 			_tui_validate.where "$p"
@@ -316,6 +316,18 @@ tui.validate.page() {
 	TUI_V_PANES=() TUI_V_PANE_SPLIT=() TUI_V_WIDGETS=() TUI_V_WIDGET_PANE=() TUI_V_WIDGET_PANE_AT=()
 	[[ -r "$TUI_V_PAGE" ]] || { tui.validate.error_at "$TUI_V_PAGE|0|" "page file cannot be read"; return; }
 	for fn in "${_TV_RULES_PAGE[@]}"; do "$fn"; done
+	# a page of a shell is validated on top of it: its ids, panes and outlet are the page's neighbours
+	_tui_shell.scan "$TUI_V_PAGE" 1
+	TUI_V_SHELL="$_SH_OF"
+	if [[ -n "$TUI_V_SHELL" ]]; then
+		if [[ -r "$TUI_V_SHELL" ]]; then
+			_tui_validate.walk "$TUI_V_SHELL"
+			TUI_V_FILE="$TUI_V_PAGE"
+		else
+			tui.validate.error_at "$TUI_V_PAGE|1|" "shell '$TUI_V_SHELL' cannot be read"
+			TUI_V_SHELL=""
+		fi
+	fi
 	_tui_validate.walk "$TUI_V_PAGE"
 	local i
 	for ((i = ${#_TV_ST_TAG[@]} - 1; i >= 0; i--)); do

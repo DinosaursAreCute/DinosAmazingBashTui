@@ -5,11 +5,11 @@
 # -- vocabulary ----------------------------------------------------------
 tui.validate.container tui pane tabs details accordion
 tui.validate.widget label input button checkbox password textarea list table select progress
-tui.validate.tag script theme include footer bind tab
+tui.validate.tag script theme include footer bind tab outlet
 # composition (lib/markup/tui_compose.sh) and addons (tui_addon.sh): expanded away before the build
 tui.validate.container template use slot fill for if else addon append prepend before after replace
 tui.validate.tag component remove set wrap
-tui.validate.self_closing script theme include footer bind tab \
+tui.validate.self_closing script theme include footer bind tab outlet \
 	label input button checkbox password textarea list table select progress
 
 # -- required attributes -------------------------------------------------
@@ -103,6 +103,7 @@ declare -gA _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=(
 declare -gA _TVR_TABORD_N=() _TVR_TABORD_AT=() _TVR_RAIL_AT=() _TVR_RAIL_OK=() _TVR_CKEY=() _TVR_CCLASS=()
 declare -ga _TVR_THEMES=()
 declare -g _TVR_FOE="" _TVR_FOE_AT=""
+declare -gi _TVR_OUTLETS=0
 
 # a <component name="box"/> makes <box> a known tag for the rest of that page
 declare -ga _TVR_COMP=()
@@ -121,7 +122,7 @@ _tui_vrule.component() {
 }
 tui.validate.rule element _tui_vrule.component
 
-_tui_vrule.reset() { _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=() _TVR_TABORD_N=() _TVR_TABORD_AT=() _TVR_RAIL_AT=() _TVR_RAIL_OK=() _TVR_CKEY=() _TVR_CCLASS=() _TVR_THEMES=() _TVR_FOE="" _TVR_FOE_AT=""; }
+_tui_vrule.reset() { _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=() _TVR_TABORD_N=() _TVR_TABORD_AT=() _TVR_RAIL_AT=() _TVR_RAIL_OK=() _TVR_CKEY=() _TVR_CCLASS=() _TVR_THEMES=() _TVR_FOE="" _TVR_FOE_AT="" _TVR_OUTLETS=0; }
 tui.validate.rule page _tui_vrule.reset
 
 # a widget written directly under <tui> (or in an included fragment) names its pane and row; one written inside a
@@ -407,3 +408,33 @@ _tui_vrule.tab_order_end() {
 	return 0
 }
 tui.validate.rule end _tui_vrule.tab_order_end
+
+# shells: <outlet> belongs in the shell file, once; a shell does not name a shell; a page's ids may not repeat the shell's
+# (the duplicate-id check sees both files: tui.validate.page walks the shell first)
+_tui_vrule.shell() {
+	case "$TUI_V_TAG" in
+		outlet)
+			if [[ -n "$TUI_V_SHELL" && "$TUI_V_FILE" == "$TUI_V_PAGE" ]]; then
+				tui.validate.error "<outlet> is in a page that names a shell - the outlet belongs in the shell file" id
+			else
+				((_TVR_OUTLETS++))
+			fi
+			;;
+		tui)
+			[[ -n "$TUI_V_SHELL" && "$TUI_V_FILE" == "$TUI_V_SHELL" && -n "${_TV_A[shell]:-}" ]] &&
+				tui.validate.error "a shell cannot name a shell (shell=\"${_TV_A[shell]}\")" shell
+			;;
+	esac
+	return 0
+}
+tui.validate.rule element _tui_vrule.shell
+
+_tui_vrule.shell_end() {
+	if [[ -n "$TUI_V_SHELL" ]]; then
+		((_TVR_OUTLETS == 1)) || tui.validate.error_at "$TUI_V_SHELL|1|" "a shell needs exactly one <outlet/> (this one has $_TVR_OUTLETS)"
+	else
+		((_TVR_OUTLETS <= 1)) || tui.validate.error_at "$TUI_V_PAGE|1|" "a shell file takes exactly one <outlet/> (found $_TVR_OUTLETS)"
+	fi
+	return 0
+}
+tui.validate.rule end _tui_vrule.shell_end

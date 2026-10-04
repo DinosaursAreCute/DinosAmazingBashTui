@@ -53,6 +53,25 @@ _b_hover_zone_move() {
 	_tui_hit.at "$_BENCH_MX" "$_BENCH_MY"
 	_tui_hit.hover >/dev/null
 }
+# one iteration = two page switches (a -> b -> a). The shell pair shares one chrome; the plain pair builds it per page.
+_b_goto_pair() {
+	tui.goto "$_BENCH_PA" >/dev/null
+	tui.goto "$_BENCH_PB" >/dev/null
+}
+# _bench_goto_pages DIR - the chrome (header with 8 buttons, nav of 12 buttons, footer) and two 20-widget pages, as a shell
+# pair (s_a, s_b) and as plain pages (p_a, p_b)
+_bench_goto_pages() {
+	local d="$1" i name chrome="" body
+	for ((i = 0; i < 8; i++)); do chrome+="<button id=\"h$i\" text=\"head $i\"/>"; done
+	for ((i = 0; i < 12; i++)); do chrome+="<button id=\"n$i\" text=\"nav $i\"/>"; done
+	for name in a b; do
+		body=""
+		for ((i = 0; i < 20; i++)); do body+="<input id=\"${name}$i\" label=\"f$i:\"/>"; done
+		printf '<tui shell="_shell.xml"><pane id="main_%s" border="single" split="v">%s</pane></tui>\n' "$name" "$body" >"$d/s_$name.xml"
+		printf '<tui><pane id="root" split="v"><pane id="chrome" border="single">%s</pane><pane id="main_%s" border="single" split="v">%s</pane></pane></tui>\n' "$chrome" "$name" "$body" >"$d/p_$name.xml"
+	done
+	printf '<tui><pane id="root" split="v"><pane id="chrome" border="single">%s</pane><outlet id="body"/></pane></tui>\n' "$chrome" >"$d/_shell.xml"
+}
 _b_store_save_restore() {
 	_tui_store.save_page
 	_tui_store.restore_page
@@ -72,7 +91,7 @@ _bench_size() {
 
 # _bench_v2 - loads the v2 pages and runs their benches (after the stage-0 ones, which use $PAGE)
 _bench_v2() {
-	local f="$_BENCH_ROOT/keep30.xml" i
+	local f="$_BENCH_ROOT/keep30.xml" i name
 	{
 		printf '<tui keep_state="true"><pane id="root" split="v" border="single" class="panel">\n'
 		for ((i = 0; i < 30; i++)); do printf '<input id="k%d" label="f%d:" label_width="5"/>\n' "$i" "$i"; done
@@ -98,6 +117,14 @@ _bench_v2() {
 	tui.render >/dev/null
 	for ((i = 0; i < 30; i++)); do _TUI_W_VALUE[k$i]="value $i"; done
 	_bench_run store_save_restore 30 _b_store_save_restore
+	_bench_goto_pages "$_BENCH_ROOT"
+	_TUI_ROWS=30 _TUI_COLS=100
+	for name in shell plain; do
+		_BENCH_PA="$_BENCH_ROOT/${name:0:1}_a.xml" _BENCH_PB="$_BENCH_ROOT/${name:0:1}_b.xml"
+		tui.goto "$_BENCH_PA" >/dev/null # builds and caches both pages and the shell
+		tui.goto "$_BENCH_PB" >/dev/null
+		_bench_run "goto_pair_$name" 20 _b_goto_pair
+	done
 }
 
 {

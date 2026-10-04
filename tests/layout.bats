@@ -75,6 +75,28 @@ split() { bash -c 'source "$REPO/lib/tui.sh"; _TUI_P_ROW[root]=1 _TUI_P_COL[root
     [[ "$output" == *"P2_VALID"* ]]
 }
 
+@test "cache: warm-up caches a shell once in the parent and its pages replay into the outlet" {
+    mkdir -p "$T/app"
+    printf '<tui>\n<pane id="root" split="v">\n<pane id="top" weight="1"/>\n<outlet id="body" weight="3"/>\n</pane>\n</tui>\n' >"$T/app/_shell.xml"
+    printf '<tui shell="_shell.xml">\n<pane id="a1" weight="1"/>\n</tui>\n' >"$T/app/p1.xml"
+    printf '<tui shell="_shell.xml">\n<pane id="b1" weight="1"/>\n</tui>\n' >"$T/app/p2.xml"
+    run bash -c 'source "$REPO/lib/tui.sh"; term.size() { printf -v "$1" 24; printf -v "$2" 80; }
+        tui.init
+        tui.reset_ui
+        _TUI_CACHE_PAGE=(); _TUI_CACHE_SIG=(); _TUI_CACHE_SHELL=()
+        TUI_CACHE_WORKERS=2 tui.cache.warm_with_spinner "$T/app/p1.xml" "$T/app/p2.xml" >/dev/null 2>&1
+        tui.cache.valid "$T/app/_shell.xml" && echo SHELL_CACHED
+        tui.cache.valid "$T/app/p2.xml" && echo P2_VALID
+        tui.reset_ui
+        tui.load_cached "$T/app/p2.xml"
+        [[ "${_TUI_P_CHILDREN[body]}" == b1 && "$(tui.shell.file)" == "$T/app/_shell.xml" ]] && echo PAGE_IN_OUTLET
+        _master_cleanup 2>/dev/null; true' 3>&-
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"SHELL_CACHED"* ]]
+    [[ "$output" == *"P2_VALID"* ]]
+    [[ "$output" == *"PAGE_IN_OUTLET"* ]]
+}
+
 @test "cache: tui.start_cached's staleness gate treats an already-recorded page as not stale" {
     mkdir -p "$T/app"
     printf '<tui><pane id="root"/></tui>' >"$T/app/p1.xml"

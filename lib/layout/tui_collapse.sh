@@ -88,6 +88,16 @@ tui.action.collapse_toggle() {
 	return 0
 }
 
+# _tui_collapse.forget_pane ID / forget_widget ID - drops the collapse state of a pane / widget that is leaving the page
+_tui_collapse.forget_pane() {
+	unset '_TUI_P_COLLAPSIBLE[$1]' '_TUI_P_COLLAPSED[$1]' '_TUI_P_COLLAPSE_DEFAULT[$1]' '_TUI_P_COLLAPSE_TO[$1]' \
+		'_TUI_P_KEEP_COLLAPSED[$1]' '_TUI_P_ON_TOGGLE[$1]' '_TUI_P_COLLAPSE_SAVED[$1]' '_TUI_P_ACCORDION[$1]' \
+		'_TUI_P_COLLAPSE_KEY[$1]' '_TUI_P_COLLAPSE_CLASS[$1]'
+}
+_tui_collapse.forget_widget() {
+	unset '_TUI_W_HIDDEN[$1]' '_TUI_W_COLLAPSED_TEXT[$1]' '_TUI_W_LABEL_SAVED[$1]'
+}
+
 # _tui_collapse.build ID COLLAPSIBLE DEFAULT COLLAPSED KEEP COLLAPSE_TO ON_TOGGLE - the markup build step: empty values
 # are skipped. Bad values are the validator's to report; here they fall back to the defaults.
 _tui_collapse.build() {

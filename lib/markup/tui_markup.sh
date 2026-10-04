@@ -148,7 +148,10 @@ tui.load() {
 	# (see config/docu_callbacks.sh) instead of needing every widget known
 	# up front in the markup. Fires on every tui.load, including a
 	# tui.goto back to a page already visited before.
+	[[ -n "$_ld_shell" ]] && _tui_shell.before_visit
 	_tui_cache_run_on_visit "$_TUI_BUILD_ON_VISIT"
+	[[ -n "$_ld_shell" ]] && _tui_shell.sync_page_ids # on_visit may have added widgets
+	return 0
 }
 
 # Recorded by tui.cache so a replayed page also re-lays out once borders/pads
@@ -340,6 +343,7 @@ tui.goto() {
 		_tui_shell.scan "$canon"
 		[[ "$_SH_OF" == "$_TUI_SHELL_FILE" ]] && _gt_soft=1
 	fi
+	[[ -n "$_TUI_SHELL_FILE" ]] && _tui_shell.sync_page_ids # widgets the page made since it was built belong to it too
 	if ((_gt_soft)); then
 		_SHL_SOFT=1
 		_tui_store.save_page

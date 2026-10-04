@@ -10,8 +10,8 @@ ti_demo_pages_use_the_header_and_nav_templates_instead_of_including_fragments() 
 	ok '[[ ! -e "$REPO/share/demo/_header.xml" && ! -e "$REPO/share/demo/_nav.xml" ]]'
 }
 
-ti_demo_home_page_expands_to_the_same_header_and_menu_widgets() {
-	tui.parse.file "$REPO/share/demo/home.xml"
+ti_demo_shell_expands_to_the_header_and_menu_widgets() { # the chrome lives in the shell every page but Compose uses
+	tui.parse.file "$REPO/share/demo/_shell.xml"
 	tui_compose.expand "$_P_ROOT"
 	ok '[[ -n "${_N_BY_ID[dabt_hdr]:-}" && -n "${_N_BY_ID[dabt_hdr_clock]:-}" ]]' # header pane, inside root
 	eq "${_N_BY_ID[root]}" "${_N_PARENT[${_N_BY_ID[dabt_hdr]}]}"

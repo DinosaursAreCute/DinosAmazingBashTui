@@ -158,6 +158,7 @@ _tui_build.tag.script() {
 	[[ -z "$src" ]] && return 0
 	resolved="$src"
 	[[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR}/${src}"
+	_tui_shell.before_script
 	_tui_cache_source "$resolved"
 }
 

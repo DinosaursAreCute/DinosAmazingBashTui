@@ -321,6 +321,38 @@ Besides explicit `min_width`/`min_height`, a pane's content is checked on every 
 
 Each file is a page with its own `<tui>`. `<button page="other.xml"/>` or `tui.goto other.xml` switches to it; the UI is reset, the page loaded (from the cache when possible) and drawn in one frame. Focus stays on the same widget id when a page is reloaded. `tui.action.back` returns to the previous page.
 
+## Shells
+
+A shell is the chrome that stays while the user moves between pages: a header, a nav, a footer. It is a markup file with exactly one `<outlet/>`, the pane the page content goes into:
+
+```xml
+<!-- _shell.xml -->
+<tui>
+  <pane id="root" split="v">
+    <pane id="nav" border="single" weight="1">
+      <button id="go_a" text="A" page="a.xml"/>
+      <button id="go_b" text="B" page="b.xml"/>
+    </pane>
+    <outlet id="body" weight="5"/>
+  </pane>
+</tui>
+
+<!-- a.xml -->
+<tui shell="_shell.xml">
+  <pane id="a_main" border="single"> ... </pane>
+</tui>
+```
+
+The page's top-level panes are built inside the outlet (`id` defaults to `outlet`; `split`, `weight`, `border` and `class` work as on a pane). `shell` is resolved against the page's folder.
+
+- **`tui.goto` between pages of one shell** keeps every shell pane and widget: focus on a shell widget, typed values, scroll positions, timers, watches and binds the shell started. Only what the previous page built is removed. A page's `<script>`, `<theme>`, `<bind>` and `<footer>` belong to the page and go with it.
+- **A page of another shell, or one without a shell,** is a full `tui.goto`: the UI is reset and built from scratch.
+- **Tab order** follows document order of shell and page together: the page's widgets sit where the outlet stands.
+- **Ids** are shared between shell and page; the validator reports a page id that repeats a shell id, the outlet's included. Give the outlet a name pages will not pick (`page_outlet`, not `main`).
+- **`tui.page.refresh`** works on a page of a shell like on any page.
+- **Cache.** A page of a shell is cached as the difference it makes on top of the shell, so replaying it never touches shell state. Switching inside a shell is faster than a full `tui.goto`: `tools/bench/run.sh` compares `goto_pair_shell` with `goto_pair_plain`.
+- A shell cannot name another shell, and a page that names a shell cannot contain an `<outlet/>`. `tui.shell.file` tells a callback which shell is live.
+
 ## Tools
 
 | | |

@@ -485,8 +485,10 @@ tui.get.dimensions() {
 			r=$_CR_H
 			c=$_CR_W
 		else
-			r=${_TUI_P_H[$pane]}
-			c=${_TUI_P_W[$pane]}
+			_ps.panes.get "$pane" h
+			r=$_V
+			_ps.panes.get "$pane" w
+			c=$_V
 		fi
 	fi
 	case "$mode" in r) printf '%s\n' "$r" ;; c) printf '%s\n' "$c" ;; *) printf '%s %s\n' "$r" "$c" ;; esac
@@ -733,6 +735,7 @@ tui.theme.pick() {
 #   nothing else flickers. No PANE (or a parent): recompute geometry and redraw
 #   everything. Either way it is one synchronized-output frame (mode.sync_*), so
 #   the terminal never shows the intermediate blank screen.
+# state:direct
 tui.relayout() {
 	local pane="${1:-}"
 	((_TUI_RUNNING)) || {
@@ -751,6 +754,7 @@ tui.relayout() {
 	return 0
 }
 
+# state:direct
 _tui_api._repaint_pane() {
 	local id="$1" row blank
 	((${_TUI_P_H[$1]:-0} < 1 || ${_TUI_P_W[$1]:-0} < 1)) && return
@@ -774,7 +778,7 @@ _tui_api._repaint_pane() {
 # changes a widget's value, which buttons don't display) and redraw it.
 tui.set_label() {
 	[[ -n "${_TUI_W_TYPE[$1]:-}" ]] || return 1
-	_TUI_W_LABEL[$1]="$2"
+	_ps.widgets.set "$1" label "$2"
 	[[ "${_TUI_W_TYPE[$1]}" == label ]] && _TUI_W_VALUE[$1]="$2"
 	((_TUI_RUNNING)) && _tui._draw_widget "$1"
 	return 0

@@ -158,7 +158,7 @@ _tui_text.changed() {
 _tui_text.replace() {
     local id="$1" a="$2" b="$3" t="$4" kind="${5:-edit}" v="${_TUI_W_VALUE[$1]}"
     _tui_text.undo_push "$id" "$kind"
-    _TUI_W_VALUE[$id]="${v:0:a}${t}${v:b}"
+    _ps.widgets.set "$id" value "${v:0:a}${t}${v:b}"
     _TXC[$id]=$(( a + ${#t} )); _TXA[$id]=-1; _TXW[$id]=-1
     _TXLP[$id]=${_TXC[$id]}
     _tui_text.changed "$id"
@@ -196,6 +196,7 @@ tui.text.cursor()     { _tui_text.rc "$1" "${_TXC[$1]:-0}"; printf '%s %s\n' $((
 tui.text.line_count() { _tui_text.line_count "$1"; printf '%s\n' "$_LC"; }
 tui.on_change()       { _TUI_W_CHANGE[$1]="$2"; }
 
+# state:direct
 _tui_text.redraw() { _TXF[$1]=1; [[ -n "${_TUI_W_PANE[$1]:-}" ]] && (( _TUI_RUNNING )) && _tui._draw_widget "$1"; return 0; }
 
 # clipboard: internal + terminal (OSC 52)
@@ -468,6 +469,7 @@ _tui_text.paint_v() {
 _tui_text.paint() { _tui_text.paint_v "$@"; _tui.emit "$_PV"; }
 
 # single-line input / password
+# state:direct
 _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
     local id="$1" sr="$2" sc="$3" sw="$4" focused="$5" style_key="$6" pane_key="$7"
     local prefix="${_TUI_W_LABEL[$id]:-}" value="${_TUI_W_VALUE[$id]}" placeholder="${_TUI_W_PH[$id]:-}" plen=0 fw
@@ -511,6 +513,7 @@ _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
 }
 
 # multi-line textarea: fills its rows, scrolls, highlights the selection, shows the cursor
+# state:direct
 _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
     local id="$1" sr="$2" sc="$3" sw="$4" sh="$5" focused="$6" style_key="$7" pane_key="$8"
     local fw=$sw i

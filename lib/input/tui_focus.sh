@@ -50,7 +50,7 @@ tui.focus.set() {
 		focus_next) _TUI_W_FNEXT[$id]="$v" ;;
 		focus_prev) _TUI_W_FPREV[$id]="$v" ;;
 		autofocus)
-			_TUI_W_AUTOFOCUS[$id]="$v"
+			_ps.widgets.set "$id" autofocus "$v"
 			_TUI_FOCUS_AUTO=1
 			;;
 		*)
@@ -68,6 +68,7 @@ _tui_focus.ensure() {
 }
 
 # _tui_focus.rebuild - rebuilds _TUI_FOCUSABLE (document order) and _TUI_FOCUS_TAB (tab order) from widget attributes.
+# state:direct
 _tui_focus.rebuild() {
 	_tui_perf.begin focus_index
 	local id g t o f i j n

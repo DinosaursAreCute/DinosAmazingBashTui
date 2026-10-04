@@ -92,10 +92,10 @@ tui.action.collapse_toggle() {
 _tui_collapse.build() {
 	[[ "$2" == true ]] || return 0
 	local id="$1" state=expanded
-	_TUI_P_COLLAPSIBLE[$id]=1
+	_ps.panes.set "$id" collapsible 1
 	[[ "$4" == true ]] && state=collapsed
 	[[ "$3" == @(expanded|collapsed) ]] && state="$3"
-	_TUI_P_COLLAPSE_DEFAULT[$id]="$state"
+	_ps.panes.set "$id" collapse_default "$state"
 	[[ "$5" == true ]] && _TUI_P_KEEP_COLLAPSED[$id]=true
 	[[ "$6" == @(title|0|rail) ]] && _TUI_P_COLLAPSE_TO[$id]="$6"
 	[[ -n "$7" ]] && _TUI_P_ON_TOGGLE[$id]="$7"
@@ -108,7 +108,7 @@ _tui_collapse.build() {
 # _tui_collapse.bind ID KEY - the direct toggle bind of collapse_key=; a page bind, recorded for a cache replay like <bind>
 _tui_collapse.bind() {
 	local _q _a _rec="tui.bind"
-	_TUI_P_COLLAPSE_KEY[$1]="$2"
+	_ps.panes.set "$1" collapse_key "$2"
 	for _a in "$2" "tui.collapse $1 toggle" --page --always --desc "Collapse or expand ${_TUI_P_TITLE[$1]:-${_TUI_BUILD_TITLE[$1]:-$1}}"; do
 		printf -v _q '%q' "$_a"
 		_rec+=" $_q"
@@ -164,6 +164,7 @@ _tui_collapse.init_children() {
 }
 
 # _tui_collapse.size ID AXIS -> _CL_S: the size spec (fixed cells) of collapsed pane ID along AXIS (h|v)
+# state:direct
 _tui_collapse.size() {
 	local id="$1" n w t ml=0
 	case "${_TUI_P_COLLAPSE_TO[$id]:-title}" in
@@ -200,29 +201,29 @@ _tui_collapse.flip() {
 	p="$_RZ_P" i=$_RZ_I axis="${_TUI_P_DIR[$_RZ_P]}"
 	read -ra spec <<<"${_TUI_P_WEIGHTS[$p]}"
 	if ((st)); then
-		_TUI_P_COLLAPSE_SAVED[$id]="${spec[i]:-1}"
+		_ps.panes.set "$id" collapse_saved "${spec[i]:-1}"
 		_tui_collapse.size "$id" "$axis"
 		spec[i]="$_CL_S"
-		_TUI_P_COLLAPSED[$id]=1
+		_ps.panes.set "$id" collapsed 1
 	else
 		spec[i]="${_TUI_P_COLLAPSE_SAVED[$id]:-1}"
 		unset '_TUI_P_COLLAPSE_SAVED[$id]' '_TUI_P_COLLAPSED[$id]'
 	fi
-	_TUI_P_WEIGHTS[$p]="${spec[*]}"
+	_ps.panes.set "$p" weights "${spec[*]}"
 	for w in "${_TUI_W_ORDER[@]}"; do
 		[[ "${_TUI_W_PANE[$w]:-}" == "$id" ]] || continue
 		ct="${_TUI_W_COLLAPSED_TEXT[$w]:-}"
 		if ((st)); then
 			if [[ "${_TUI_P_COLLAPSE_TO[$id]:-title}" == rail && -n "$ct" ]]; then
-				_TUI_W_LABEL_SAVED[$w]="${_TUI_W_LABEL[$w]:-}"
-				_TUI_W_LABEL[$w]="$ct"
+				_ps.widgets.set "$w" label_saved "${_TUI_W_LABEL[$w]:-}"
+				_ps.widgets.set "$w" label "$ct"
 			else
-				_TUI_W_HIDDEN[$w]=1
+				_ps.widgets.set "$w" hidden 1
 			fi
 		else
 			unset '_TUI_W_HIDDEN[$w]'
 			if [[ -n "${_TUI_W_LABEL_SAVED[$w]+x}" ]]; then
-				_TUI_W_LABEL[$w]="${_TUI_W_LABEL_SAVED[$w]}"
+				_ps.widgets.set "$w" label "${_TUI_W_LABEL_SAVED[$w]}"
 				unset '_TUI_W_LABEL_SAVED[$w]'
 			fi
 		fi
@@ -263,6 +264,7 @@ _tui_collapse.refocus() {
 
 # _tui_collapse.bar ID - draws the one-row title bar of a collapsed pane (the border cannot: it needs 3 rows); rc 1 when
 # ID is not such a pane. The first two cells are left for the button (_tui_collapse.button_buf paints it on top).
+# state:direct
 _tui_collapse.bar() {
 	[[ -n "${_TUI_P_COLLAPSED[$1]:-}" && "${_TUI_P_H[$1]}" == 1 ]] || return 1
 	local t="${_TUI_P_TITLE[$1]:-}" w=${_TUI_P_W[$1]} pad
@@ -283,6 +285,7 @@ _tui_collapse.bar() {
 # with its neighbour (the right edge, the left one for the last pane), in a v split the bottom edge (the top one for
 # the last pane); the cells are the edge's first row / left corner. _CL_G is the arrow, pointing where the edge will
 # move (collapsed: back where it came from). rc 1 when no button is drawn (size 0, too small, no split parent).
+# state:direct
 _tui_collapse.cell() {
 	local id="$1" r c h w last=0 coll=0 ax
 	r=${_TUI_P_ROW[$id]:-0} c=${_TUI_P_COL[$id]:-0} h=${_TUI_P_H[$id]:-0} w=${_TUI_P_W[$id]:-0}
@@ -329,6 +332,7 @@ _tui_collapse.button_buf() {
 }
 
 # _tui_collapse.zones - (re)registers the button zone of every collapsible pane: 2 cells x 1 row
+# state:direct
 _tui_collapse.zones() {
 	((${#_TUI_P_COLLAPSIBLE[@]} || _TUI_CV_ZONES)) || return 0
 	local -a keep=()

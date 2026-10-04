@@ -1,0 +1,15 @@
+DABT 0.0.24-preRelease installed. Checking https://api.github.com/repos/DinosaursAreCute/DinosAmazingBashTui/releases/latest ...
+You are up to date (latest: 0.0.23).
+cold_page_load	423763	465601	0
+warm_page_load	66087	531876	0
+full_render	93712	108751	0
+hover_redraw	257	269	0
+focus_move	179	207	0
+mouse_hit	334	34	0
+resize_relayout	6408	6356	0
+scroll_burst	1519	1900	0
+resize_drag_step	31789	32074	0
+collapse_toggle	44401	79312	0
+hit_with_handles	155	163	0
+hover_zone_move	38597	40035	0
+store_save_restore	113782	117419	0

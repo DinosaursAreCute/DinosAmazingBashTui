@@ -70,7 +70,7 @@ tui.resize.reset() {
 	while _tui_resize.parent "$node"; do
 		p="$_RZ_P"
 		if [[ -n "${_TUI_P_WEIGHTS0[$p]+x}" ]]; then
-			_TUI_P_WEIGHTS[$p]="${_TUI_P_WEIGHTS0[$p]}"
+			_ps.panes.set "$p" weights "${_TUI_P_WEIGHTS0[$p]}"
 			unset '_TUI_P_WEIGHTS0[$p]'
 			restored=0
 		fi
@@ -126,6 +126,7 @@ _tui_resize.fmt() {
 }
 
 # _tui_resize.limit PANE AXIS AVAIL -> _RZ_MIN _RZ_MAX (cells; max -1 = none): PANE's min_* / max_* on AXIS
+# state:direct
 _tui_resize.limit() {
 	local mn mx
 	if [[ "$2" == h ]]; then mn="${_TUI_P_MINW[$1]:-}" mx="${_TUI_P_MAXW[$1]:-}"; else mn="${_TUI_P_MINH[$1]:-}" mx="${_TUI_P_MAXH[$1]:-}"; fi
@@ -198,7 +199,7 @@ _tui_resize.move() {
 		spec[i + 1]="$_RZ_S"
 	fi
 	[[ -n "${_TUI_P_WEIGHTS0[$p]+x}" ]] || _TUI_P_WEIGHTS0[$p]="${_TUI_P_WEIGHTS[$p]}"
-	_TUI_P_WEIGHTS[$p]="${spec[*]}"
+	_ps.panes.set "$p" weights "${spec[*]}"
 	_tui.layout_bump
 }
 
@@ -269,6 +270,7 @@ _tui_resize.allows() {
 declare -gi _TUI_RZ_ZONES=0
 
 # _tui_resize.zones - (re)registers the handle / divider zones of every resizable pane that has a handle
+# state:direct
 _tui_resize.zones() {
 	((${#_TUI_P_HANDLE[@]} || _TUI_RZ_ZONES)) || return 0
 	local -a keep=()
@@ -308,6 +310,7 @@ _tui_resize.zones() {
 # _tui_resize.seg_buf PANE ARG - appends a repaint of the border segment of zone PANE|ARG (a handle / divider /
 # corner): its cells with the pane's border glyphs, the ring colour at rest, theme class .resize_handle:hover (default
 # bold white) while _TUI_HZ_HOVER names it. Title tag cells and nothing outside the zone are touched.
+# state:direct
 _tui_resize.seg_buf() {
 	local p="$1" arg="$2" zr zc zh zw pr pc ph pw y x g b ov="" t0=0 t1=-1 hov=0 st=border
 	pr=${_TUI_P_ROW[$p]:-0} pc=${_TUI_P_COL[$p]:-0} ph=${_TUI_P_H[$p]:-0} pw=${_TUI_P_W[$p]:-0}
@@ -374,28 +377,32 @@ _tui_resize.drag() {
 	_tui_resize.snap
 	local moved=1
 	if [[ "$arg" == rz-hl ]] && ((dx != 0)) && _tui_resize.allows "$id" h; then # leading border: the pane grows as it moves left
-		before=${_TUI_P_W[$id]}
+		_ps.panes.get "$id" w
+		before=$_V
 		if _tui_resize.grow "$id" h "$((-dx))" 1; then
 			moved=0
 			((_TUI_RZ_X -= _TUI_P_W[$id] - before))
 		fi
 	fi
 	if [[ "$arg" == rz-vl ]] && ((dy != 0)) && _tui_resize.allows "$id" v; then
-		before=${_TUI_P_H[$id]}
+		_ps.panes.get "$id" h
+		before=$_V
 		if _tui_resize.grow "$id" v "$((-dy))" 1; then
 			moved=0
 			((_TUI_RZ_Y -= _TUI_P_H[$id] - before))
 		fi
 	fi
 	if [[ "$arg" == rz-h || "$arg" == rz-corner ]] && ((dx != 0)) && _tui_resize.allows "$id" h; then
-		before=${_TUI_P_W[$id]}
+		_ps.panes.get "$id" w
+		before=$_V
 		if _tui_resize.grow "$id" h "$dx"; then
 			moved=0
 			((_TUI_RZ_X += _TUI_P_W[$id] - before))
 		fi
 	fi
 	if [[ "$arg" == rz-v || "$arg" == rz-corner ]] && ((dy != 0)) && _tui_resize.allows "$id" v; then
-		before=${_TUI_P_H[$id]}
+		_ps.panes.get "$id" h
+		before=$_V
 		if _tui_resize.grow "$id" v "$dy"; then
 			moved=0
 			((_TUI_RZ_Y += _TUI_P_H[$id] - before))
@@ -474,7 +481,7 @@ declare -g _TUI_RZ_TAG=" [resize]"
 _tui_resize.enter() {
 	_TUI_RESIZE_PANE="$1"
 	_TUI_RZ_TITLE="${_TUI_P_TITLE[$1]:-}"
-	_TUI_P_TITLE[$1]="${_TUI_RZ_TITLE}${_TUI_RZ_TAG}"
+	_ps.panes.set "$1" title "${_TUI_RZ_TITLE}${_TUI_RZ_TAG}"
 	_TUI_HZ_DIRTY=1
 }
 

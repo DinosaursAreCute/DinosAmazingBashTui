@@ -36,12 +36,12 @@ _tui_wx.new() {
 		echo "tui.$type: missing id or pane, skipping widget" >&2
 		return 1
 	fi
-	_TUI_W_TYPE[$id]="$type"
-	_TUI_W_PANE[$id]="$3"
-	_TUI_W_ROW[$id]="$4"
-	_TUI_W_LABEL[$id]=""
-	_TUI_W_VALUE[$id]=""
-	_TUI_W_ACTION[$id]=""
+	_ps.widgets.set "$id" type "$type"
+	_ps.widgets.set "$id" pane "$3"
+	_ps.widgets.set "$id" row "$4"
+	_ps.widgets.set "$id" label ""
+	_ps.widgets.set "$id" value ""
+	_ps.widgets.set "$id" action ""
 	_TUI_W_ORDER+=("$id")
 	_tui_w.changed
 	return 0
@@ -49,50 +49,50 @@ _tui_wx.new() {
 
 tui.password() {
 	_tui_wx.new "$1" password "$2" "$3" 1 || return 1
-	_TUI_W_PH[$1]="${4:-}"
-	_TUI_W_LABEL[$1]="${5:-}"
-	_TUI_W_SUBMIT[$1]="${6:-}"
+	_ps.widgets.set "$1" ph "${4:-}"
+	_ps.widgets.set "$1" label "${5:-}"
+	_ps.widgets.set "$1" submit "${6:-}"
 }
 tui.textarea() {
 	_tui_wx.new "$1" textarea "$2" "$3" 1 || return 1
-	_TUI_W_PH[$1]="${4:-}"
-	_TUI_W_ROWSPAN[$1]="${5:-0}"
-	_TUI_W_SUBMIT[$1]="${6:-}"
-	_TUI_W_EXPAND[$1]=y
+	_ps.widgets.set "$1" ph "${4:-}"
+	_ps.widgets.set "$1" rowspan "${5:-0}"
+	_ps.widgets.set "$1" submit "${6:-}"
+	_ps.widgets.set "$1" expand y
 }
 tui.list() {
 	_tui_wx.new "$1" list "$2" "$3" 1 || return 1
-	_TUI_W_ACTION[$1]="${4:-}"
-	_TUI_W_ROWSPAN[$1]="${5:-0}"
+	_ps.widgets.set "$1" action "${4:-}"
+	_ps.widgets.set "$1" rowspan "${5:-0}"
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
-	_TUI_W_EXPAND[$1]=y
+	_ps.widgets.set "$1" expand y
 	_tui_wx.arr "$1"
 	_WXA=()
 }
 tui.table() {
 	_tui_wx.new "$1" table "$2" "$3" 1 || return 1
-	_TUI_W_ACTION[$1]="${4:-}"
-	_TUI_W_ROWSPAN[$1]="${5:-0}"
+	_ps.widgets.set "$1" action "${4:-}"
+	_ps.widgets.set "$1" rowspan "${5:-0}"
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
 	_WXCOLS[$1]=""
-	_TUI_W_EXPAND[$1]=y
+	_ps.widgets.set "$1" expand y
 	_tui_wx.arr "$1"
 	_WXA=()
 }
 tui.select() {
 	_tui_wx.new "$1" select "$2" "$3" 1 || return 1
-	_TUI_W_LABEL[$1]="${4:-}"
-	_TUI_W_ACTION[$1]="${5:-}"
+	_ps.widgets.set "$1" label "${4:-}"
+	_ps.widgets.set "$1" action "${5:-}"
 	_WXSEL[$1]=-1
 	_tui_wx.arr "$1"
 	_WXA=()
 }
 tui.progress() {
 	_tui_wx.new "$1" progress "$2" "$3" 0 || return 1
-	_TUI_W_LABEL[$1]="${4:-}"
-	_TUI_W_VALUE[$1]=0
+	_ps.widgets.set "$1" label "${4:-}"
+	_ps.widgets.set "$1" value 0
 }
 
 # per-widget item array: _tui_wx.arr ID -> nameref-able array _WXA (declared once per widget)
@@ -197,7 +197,7 @@ tui.select.pick() {
 	local i=$2
 	((i >= 0 && i < ${#_WXA[@]})) || return 1
 	_WXSEL[$1]=$i
-	_TUI_W_VALUE[$1]="${_WXA[i]}"
+	_ps.widgets.set "$1" value "${_WXA[i]}"
 	_tui_wx.redraw "$1"
 	_tui_wx.changed "$1"
 	local fn="${_TUI_W_ACTION[$1]:-}"
@@ -210,7 +210,7 @@ tui.progress.set() {
 	((v = v * 100 / m))
 	((v < 0)) && v=0
 	((v > 100)) && v=100
-	_TUI_W_VALUE[$1]=$v
+	_ps.widgets.set "$1" value "$v"
 	_tui_wx.redraw "$1"
 }
 
@@ -293,6 +293,13 @@ _tui_wx.consumes() {
 			esac
 			;;
 		select) case "$name" in down | space) return 0 ;; esac ;;
+		*) # contract type: its KEY handler, asked in probe mode
+			local _wt_key="${_TUI_WT_KEY[$type]-}" _TUI_WT_PROBE=1
+			[[ -n "$_wt_key" ]] && {
+				"$_wt_key" "$id" "$name"
+				return
+			}
+			;;
 	esac
 	return 1
 }
@@ -306,6 +313,7 @@ _tui_wx.key() {
 			_tui_wx.redraw "$id"
 			;;
 		select) _tui_wx.select_open "$id" ;;
+		*) [[ -n "${_TUI_WT_KEY[$type]-}" ]] && "${_TUI_WT_KEY[$type]}" "$id" "$name" ;;
 	esac
 	return 0
 }
@@ -347,6 +355,12 @@ _tui_wx.mouse() { # ID X Y KIND(press|drag)
 		select)
 			_tui_wx.select_open "$id"
 			return 0
+			;;
+		*) # contract type: its HIT handler
+			[[ -n "${_TUI_WT_HIT[$type]-}" ]] && {
+				"${_TUI_WT_HIT[$type]}" "$id" "$x" "$y" "$kind"
+				return
+			}
 			;;
 	esac
 	return 1
@@ -441,6 +455,7 @@ _tui_wx.label_sgr() {
 	fi
 }
 
+# state:direct
 _tui_wx.draw_select() {
 	local id="$1" sr="$2" sc="$3" sw="$4" focused="$5" sk="$6" pk="$7"
 	local label="${_TUI_W_LABEL[$id]:-}" v="${_TUI_W_VALUE[$id]:-}" lw=0 line
@@ -460,6 +475,7 @@ _tui_wx.draw_select() {
 	_tui.emit_reset
 }
 
+# state:direct
 _tui_wx.draw_progress() {
 	local id="$1" sr="$2" sc="$3" sw="$4" sk="$5" pk="$6"
 	local label="${_TUI_W_LABEL[$id]:-}" pct=${_TUI_W_VALUE[$id]:-0} lw=0 bw fill

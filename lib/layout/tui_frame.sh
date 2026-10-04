@@ -35,7 +35,7 @@ tui.pane_title_pos() {
 		tui.log.warn "tui.pane_title_pos: '$2' is not top|bottom" 2>/dev/null
 		return 1
 	}
-	_TUI_P_TITLE_POS[$1]="$2"
+	_ps.panes.set "$1" title_pos "$2"
 }
 
 # tui.pane_title_align ID ALIGN - left|center|right: where along the border line the title sits.
@@ -44,7 +44,7 @@ tui.pane_title_align() {
 		tui.log.warn "tui.pane_title_align: '$2' is not left|center|right" 2>/dev/null
 		return 1
 	}
-	_TUI_P_TITLE_ALIGN[$1]="$2"
+	_ps.panes.set "$1" title_align "$2"
 }
 
 # _tui_frame.build ID FUSE DIVIDER DIVIDER_CLASS TITLE_POS TITLE_ALIGN - the markup build step: empty values are skipped.
@@ -134,6 +134,7 @@ _tui_frame.title_span() {
 
 # _tui_frame.junctions - redraws every cell shared by two or more fused boxes with the glyph for the lines
 # meeting there. Appends to _TUI_FRAME; a no-op (one test) on a page without fused panes.
+# state:direct
 _tui_frame.junctions() {
 	((${#_TUI_P_FUSE[@]})) || return 0
 	local -A mask=() cnt=() hst=() vst=() dvd=() last=()
@@ -201,6 +202,7 @@ _tui_frame.junctions() {
 # shared with a neighbour (the lower pane's top row, the upper pane's bottom row) draws its tag again over the plain
 # horizontal cells (mask 2|8) of that line. It stops at the first junction cell, so the tag is cut to fit, and a tag
 # that would land on an earlier pane's tag moves to the right of it. MASK / CNT are the pass's cell tables (by name).
+# state:direct
 _tui_frame.shared_titles() {
 	local -n _m="$1" _n="$2"
 	local -A end=()
@@ -211,7 +213,8 @@ _tui_frame.shared_titles() {
 		[[ "$_TB" == none ]] && continue
 		r=${_TUI_P_ROW[$p]} c=${_TUI_P_COL[$p]} h=${_TUI_P_H[$p]} w=${_TUI_P_W[$p]}
 		[[ "${_TUI_P_TITLE_POS[$p]:-top}" == bottom ]] && y=$((r + h - 1)) || y=$r
-		title="${_TUI_P_TITLE[$p]}"
+		_ps.panes.get "$p" title
+		title=$_V
 		inner=$((w - 2))
 		max_t=$((inner - 4))
 		((max_t < 1)) && max_t=1

@@ -122,17 +122,17 @@ tui.store.register_type() {
 _tui_store.build_widget() {
 	[[ "$2" != false ]] || return 0
 	[[ "$2" == true || "${3:-}" == disk ]] || return 0
-	_TUI_W_KEEP[$1]=1
+	_ps.widgets.set "$1" keep 1
 	[[ "${3:-}" == disk ]] && _TUI_W_DISK[$1]=1
 	return 0
 }
 _tui_store.build_pane() {
 	[[ "$2" != false ]] || return 0
 	[[ "$2" == true || "${3:-}" == disk ]] || return 0
-	_TUI_P_KEEP_SIZE[$1]=1
+	_ps.panes.set "$1" keep_size 1
 	if [[ "${3:-}" == disk ]]; then
-		_TUI_P_KEEP_COLLAPSED[$1]=1
-		_TUI_P_DISK[$1]=1
+		_ps.panes.set "$1" keep_collapsed 1
+		_ps.panes.set "$1" disk 1
 	fi
 	return 0
 }
@@ -225,11 +225,11 @@ _tui_store.put_weights() {
 	for i in "${!ch[@]}"; do
 		c="${ch[i]}"
 		if [[ -n "${_TUI_P_COLLAPSED[$c]:-}" ]]; then
-			_TUI_P_COLLAPSE_SAVED[$c]="${spec[i]}"
+			_ps.panes.set "$c" collapse_saved "${spec[i]}"
 			spec[i]="${cur[i]}"
 		fi
 	done
-	_TUI_P_WEIGHTS[$p]="${spec[*]}"
+	_ps.panes.set "$p" weights "${spec[*]}"
 }
 
 # _tui_store.unsize SPLIT - back to the weights before the first resize

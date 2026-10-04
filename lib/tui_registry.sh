@@ -37,10 +37,13 @@ tui.register() {
 	local kind="$1" name="$2"
 	shift 2
 	local key="$kind:$name" fn
+	[[ "$kind" == widget ]] && _tui_widget.bind "$name" "$@"
 	for fn in "$@"; do
+		[[ "$fn" == - ]] && continue
 		_TUI_REGISTRY[$key]="${_TUI_REGISTRY[$key]:+${_TUI_REGISTRY[$key]} }$fn"
 		[[ -n "$_TUI_REGISTRY_CURRENT_PLUGIN" ]] && _tui_registry.own "$_TUI_REGISTRY_CURRENT_PLUGIN" "$kind" "$name" "$fn"
 	done
+	return 0
 }
 
 # tui.registered KIND NAME -> $_TUI_REGISTERED - the space-joined handler
@@ -79,6 +82,7 @@ _tui_registry.unregister_plugin() {
 			rest="${rest:+$rest }$f"
 		done
 		_TUI_REGISTRY[$key]="$rest"
+		[[ "$kind" == widget ]] && _tui_widget.unbind_missing "$name"
 		unset '_TUI_REGISTRY_OWNER[$okey]'
 	done
 	unset '_TUI_PLUGIN_OWNS[$plugin]'

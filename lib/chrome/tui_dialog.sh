@@ -272,8 +272,8 @@ tui.prompt() {
 	_DLG_BTN=("$_DLG_OK_L" "Cancel")
 	_DLG_BTN_ID=(submit cancel)
 	_DLG_SEL=0
-	_TUI_W_TYPE[__dlg]=input
-	_TUI_W_VALUE[__dlg]="$_DLG_VAL"
+	_ps.widgets.set __dlg type input
+	_ps.widgets.set __dlg value "$_DLG_VAL"
 	_TXC[__dlg]=${#_DLG_VAL}
 	_TXA[__dlg]=-1
 	_TXS[__dlg]=0
@@ -352,7 +352,8 @@ _tui_dialog.key() {
 					return
 					;;
 				enter)
-					_DLG_VAL="${_TUI_W_VALUE[__dlg]}"
+					_ps.widgets.get __dlg value
+					_DLG_VAL=$_V
 					_tui_dialog.submit
 					return
 					;;
@@ -365,7 +366,8 @@ _tui_dialog.key() {
 					_DLG_ERR=""
 				} ;;
 			esac
-			_DLG_VAL="${_TUI_W_VALUE[__dlg]}"
+			_ps.widgets.get __dlg value
+			_DLG_VAL=$_V
 			;;
 		view)
 			n=${#_DLG_ITEMS[@]}

@@ -63,6 +63,7 @@ _tui_hit.extra_clear() {
 }
 
 # _tui_hit.clip ROW COL H W PANE - intersect a rect with PANE's rect -> _HR _HC _HH _HW (_HH/_HW 0 if disjoint)
+# state:direct
 _tui_hit.clip() {
 	local r0=$1 c0=$2 r1=$(($1 + $3)) c1=$(($2 + $4)) pane=$5
 	local pr=${_TUI_P_ROW[$pane]} pc=${_TUI_P_COL[$pane]}
@@ -78,6 +79,7 @@ _tui_hit.clip() {
 
 # _tui_hit.clip_content ROW COL H W PANE - for scrolling panes, clip to content rect
 # (inside border/padding), not the outer rect. For non-scrolling panes, same as clip.
+# state:direct
 _tui_hit.clip_content() {
 	local pane=$5
 	local scroll="${_TUI_P_SCROLL[$pane]:-none}"
@@ -106,6 +108,7 @@ _tui_hit.clip_content() {
 }
 
 # _tui_hit.zones_scrollbars - registers scrollbar zones for every scrollable leaf pane.
+# state:direct
 _tui_hit.zones_scrollbars() {
 	local p mode pr pc ph pw
 	for p in "${_TUI_P_ALL[@]}"; do
@@ -120,6 +123,7 @@ _tui_hit.zones_scrollbars() {
 }
 
 # _tui_hit.zones_titles - registers title text zones for panes with titles.
+# state:direct
 _tui_hit.zones_titles() {
 	local p title max_t
 	for p in "${_TUI_P_ALL[@]}"; do
@@ -147,6 +151,7 @@ _tui_hit.zones_extras() {
 }
 
 # _tui_hit.zones_widgets - registers widget zones (exact rect, then padded hit areas).
+# state:direct
 _tui_hit.zones_widgets() {
 	local id p hp hb vp hw dy dx hh reuse=$_TUI_WP_REUSE
 	local -a pads=()
@@ -178,6 +183,7 @@ _tui_hit.zones_widgets() {
 }
 
 # _tui_hit.zones_panes - registers fallback pane zones (whole rect of every leaf pane).
+# state:direct
 _tui_hit.zones_panes() {
 	local p
 	for p in "${_TUI_P_ALL[@]}"; do
@@ -222,19 +228,21 @@ _tui_hit.at() {
 }
 
 # _tui_hit.scrollbar_jump PANE v|h COL ROW - scroll PANE so the pointer's position on the bar becomes the offset
+# state:direct
 _tui_hit.scrollbar_jump() {
 	local p="$1" total
 	_SC_OLD=${_TUI_P_SOFF_V[$p]:-0}
 	if [[ "$2" == v ]]; then
 		if _tui_scroll.is_output "$p"; then total=${_TUI_P_LINES[$p]:-1}; else total=${_TUI_P_CONTENT_H[$p]:-1}; fi # tui.output lines, or the widgets' rows
-		_TUI_P_SOFF_V[$p]=$((($4 - _TUI_P_ROW[$p]) * total / _TUI_P_H[$p]))
+		_ps.panes.set "$p" soff_v "$((($4 - _TUI_P_ROW[$p]) * total / _TUI_P_H[$p]))"
 	else
-		_TUI_P_SOFF_H[$p]=$((($3 - _TUI_P_COL[$p]) * ${_TUI_P_MAX_W[$p]:-1} / _TUI_P_W[$p]))
+		_ps.panes.set "$p" soff_h "$((($3 - _TUI_P_COL[$p]) * ${_TUI_P_MAX_W[$p]:-1} / _TUI_P_W[$p]))"
 	fi
 	_tui_scroll.apply "$p"
 }
 
 # tui.hit.set ID hit_pad|hitbox VALUE - widen the area that counts as a hit on widget ID
+# state:direct
 tui.hit.set() {
 	case "$2" in
 		hit_pad) _TUI_W_HITPAD[$1]="$3" ;;
@@ -296,6 +304,7 @@ _tui_hit.hover() {
 
 # _tui_hit.overlay [PANE] - appends what is drawn over the frame: the collapse button of PANE (of every pane without
 # one) and the hovered segment. A no-op on a page with neither.
+# state:direct
 _tui_hit.overlay() {
 	local p
 	if ((${#_TUI_P_COLLAPSIBLE[@]})); then

@@ -47,6 +47,8 @@ source "${SCRIPT_DIR}/layout/tui_frame.sh"
 source "${SCRIPT_DIR}/layout/tui_resize.sh"
 # shellcheck source=layout/tui_collapse.sh
 source "${SCRIPT_DIR}/layout/tui_collapse.sh"
+# shellcheck source=state_api.sh
+source "${SCRIPT_DIR}/state_api.sh"
 # shellcheck source=state/tui_store.sh
 source "${SCRIPT_DIR}/state/tui_store.sh"
 # shellcheck source=colors.sh
@@ -66,6 +68,8 @@ source "${SCRIPT_DIR}/markup/tui_validate.sh"
 source "${SCRIPT_DIR}/style/tui_style.sh"
 # shellcheck source=tui_registry.sh
 source "${SCRIPT_DIR}/tui_registry.sh"
+# shellcheck source=widgets/tui_widget_contract.sh
+source "${SCRIPT_DIR}/widgets/tui_widget_contract.sh"
 # shellcheck source=markup/tui_ops.sh
 source "${SCRIPT_DIR}/markup/tui_ops.sh"
 # shellcheck source=markup/tui_compose.sh
@@ -232,12 +236,12 @@ tui.init() {
 
 	term.size _TUI_ROWS _TUI_COLS
 
-	_TUI_P_ROW[root]=1
-	_TUI_P_COL[root]=1
-	_TUI_P_H[root]=$_TUI_ROWS
-	_TUI_P_W[root]=$_TUI_COLS
-	_TUI_P_BORDER[root]="single"
-	_TUI_P_TITLE[root]=""
+	_ps.panes.set root row 1
+	_ps.panes.set root col 1
+	_ps.panes.set root h "$_TUI_ROWS"
+	_ps.panes.set root w "$_TUI_COLS"
+	_ps.panes.set root border "single"
+	_ps.panes.set root title ""
 	_TUI_P_LEAVES=(root)
 	_TUI_P_ALL=(root)
 	_tui_home.touch    # app.meta: last run, run count, versions
@@ -374,13 +378,13 @@ _tui._split() {
 		[[ "$spec" == *:* ]] && w="${spec#*:}"
 		names+="${names:+ }$n"
 		weights+="${weights:+ }$w"
-		_TUI_P_BORDER[$n]="single"
-		_TUI_P_TITLE[$n]=""
+		_ps.panes.set "$n" border "single"
+		_ps.panes.set "$n" title ""
 	done
 
-	_TUI_P_DIR[$parent]="$dir"
-	_TUI_P_CHILDREN[$parent]="$names"
-	_TUI_P_WEIGHTS[$parent]="$weights"
+	_ps.panes.set "$parent" dir "$dir"
+	_ps.panes.set "$parent" children "$names"
+	_ps.panes.set "$parent" weights "$weights"
 	_tui.layout_bump
 
 	_tui._layout "$parent"
@@ -410,17 +414,17 @@ tui.fixed() {
 		[[ "$rest" == *:* ]] && nl="${rest#*:}"
 		[[ "$span" =~ ^[0-9]+$ ]] || span=1
 		names+="${names:+ }$n"
-		_TUI_P_SPAN[$n]=$span
+		_ps.panes.set "$n" span "$span"
 		if [[ -n "$nl" ]]; then _TUI_P_NEWLINE[$n]=1; else unset '_TUI_P_NEWLINE[$n]'; fi
-		_TUI_P_BORDER[$n]="none"
-		_TUI_P_TITLE[$n]=""
+		_ps.panes.set "$n" border "none"
+		_ps.panes.set "$n" title ""
 	done
 
-	_TUI_P_DIR[$parent]="f"
-	_TUI_P_CHILDREN[$parent]="$names"
-	_TUI_P_WEIGHTS[$parent]=""
-	_TUI_P_CELLW[$parent]="$sw"
-	_TUI_P_CELLH[$parent]="$sh"
+	_ps.panes.set "$parent" dir "f"
+	_ps.panes.set "$parent" children "$names"
+	_ps.panes.set "$parent" weights ""
+	_ps.panes.set "$parent" cellw "$sw"
+	_ps.panes.set "$parent" cellh "$sh"
 	_tui.layout_bump
 
 	_tui._layout "$parent"
@@ -430,6 +434,7 @@ tui.fixed() {
 	_tui._collect_leaves "root"
 }
 
+# state:direct
 _tui._layout_fixed() {
 	local p="$1" pr="$2" pc="$3" ph="$4" pw="$5"
 	local cw=${_TUI_P_CELLW[$p]:-1} chh=${_TUI_P_CELLH[$p]:-1}
@@ -445,15 +450,15 @@ _tui._layout_fixed() {
 			}
 		fi
 		if ((w > pw || y + chh > ph)); then
-			_TUI_P_ROW[$name]=$pr
-			_TUI_P_COL[$name]=$pc
-			_TUI_P_H[$name]=0
-			_TUI_P_W[$name]=0
+			_ps.panes.set "$name" row "$pr"
+			_ps.panes.set "$name" col "$pc"
+			_ps.panes.set "$name" h 0
+			_ps.panes.set "$name" w 0
 		else
-			_TUI_P_ROW[$name]=$((pr + y))
-			_TUI_P_COL[$name]=$((pc + x))
-			_TUI_P_H[$name]=$chh
-			_TUI_P_W[$name]=$w
+			_ps.panes.set "$name" row "$((pr + y))"
+			_ps.panes.set "$name" col "$((pc + x))"
+			_ps.panes.set "$name" h "$chh"
+			_ps.panes.set "$name" w "$w"
 			((x += w))
 		fi
 		[[ -n "${_TUI_P_CHILDREN[$name]:-}" ]] && _tui._layout_r "$name"
@@ -564,6 +569,7 @@ _tui._collect_leaves() {
 # _tui._layout_r below recurses into every descendant pane: only the
 # top-level call is timed, so a span's begin/end pair is never clobbered by
 # a nested begin overwriting the outer call's start time.
+# state:direct
 _tui._layout() {
 	_TUI_HZ_DIRTY=1
 	_tui_perf.begin layout
@@ -576,6 +582,7 @@ _tui._layout() {
 	_tui_perf.end layout
 }
 
+# state:direct
 _tui._layout_r() {
 	local p="$1"
 	local dir="${_TUI_P_DIR[$p]:-}"
@@ -676,15 +683,15 @@ _tui._layout_r() {
 		size=${sizes[$i]:-0}
 
 		if [[ "$dir" == "h" ]]; then
-			_TUI_P_ROW[$name]=$pr
-			_TUI_P_COL[$name]=$((pc + offset))
-			_TUI_P_H[$name]=$ph
-			_TUI_P_W[$name]=$size
+			_ps.panes.set "$name" row "$pr"
+			_ps.panes.set "$name" col "$((pc + offset))"
+			_ps.panes.set "$name" h "$ph"
+			_ps.panes.set "$name" w "$size"
 		else
-			_TUI_P_ROW[$name]=$((pr + offset))
-			_TUI_P_COL[$name]=$pc
-			_TUI_P_H[$name]=$size
-			_TUI_P_W[$name]=$pw
+			_ps.panes.set "$name" row "$((pr + offset))"
+			_ps.panes.set "$name" col "$pc"
+			_ps.panes.set "$name" h "$size"
+			_ps.panes.set "$name" w "$pw"
 		fi
 		((offset += size))
 		((i < last)) && ((offset += gap))
@@ -695,8 +702,8 @@ _tui._layout_r() {
 
 tui.pane_title() { _TUI_P_TITLE[$1]="$2"; }
 tui.pane_border() {
-	_TUI_P_BORDER[$1]="$2"
-	_TUI_P_BORDER_EXPL[$1]=1
+	_ps.panes.set "$1" border "$2"
+	_ps.panes.set "$1" border_expl 1
 	_tui.layout_bump # border changes _tui._inset, which shifts every child's rect
 }
 # tui.pane_pad ID HPAD VPAD - blank cols/rows on each side. Parent panes:
@@ -722,6 +729,7 @@ tui.pane_gap() {
 # small to keep >=1 content row/col inside its frame (and, for parents,
 # room for bordered children) loses the frame, so nested borders collapse
 # instead of eating the content.
+# state:direct
 _tui._eff_border() {
 	local id="$1" b="${_TUI_P_BORDER[$1]:-single}"
 	_TB=$b
@@ -740,6 +748,7 @@ _tui._eff_border() {
 # _tui._inset ID - sets _IV/_IH: rows/cols taken on EACH side by border
 # plus padding (pad clamped so >=1 row/col remains). Parents with no frame
 # inset 0 border cols; leaves with no frame keep the legacy 1-col margin.
+# state:direct
 _tui._inset() {
 	local id="$1" bv bh
 	# _tui._eff_border inlined (one call fewer on every widget position and pane rect); keep the two in step
@@ -800,8 +809,8 @@ tui.pane_maxsize() {
 
 tui.pane_scroll() {
 	[[ -n "$2" ]] && _TUI_P_SCROLL[$1]="$2"
-	_TUI_P_SOFF_V[$1]=0
-	_TUI_P_SOFF_H[$1]=0
+	_ps.panes.set "$1" soff_v 0
+	_ps.panes.set "$1" soff_h 0
 }
 
 # tui.pane_scroll_into_view PANE true|false - sets whether focus scrolls vertically scrolling pane to reveal focused widget.
@@ -823,11 +832,11 @@ tui.label() {
 		echo "tui.label: missing id or pane, skipping widget" >&2
 		return 1
 	fi
-	_TUI_W_TYPE[$id]="label"
-	_TUI_W_PANE[$id]="$2"
-	_TUI_W_ROW[$id]="$3"
-	_TUI_W_LABEL[$id]="$4"
-	_TUI_W_VALUE[$id]="$4"
+	_ps.widgets.set "$id" type "label"
+	_ps.widgets.set "$id" pane "$2"
+	_ps.widgets.set "$id" row "$3"
+	_ps.widgets.set "$id" label "$4"
+	_ps.widgets.set "$id" value "$4"
 	_TUI_W_ORDER+=("$id")
 	_tui_w.changed
 }
@@ -838,12 +847,12 @@ tui.button() {
 		echo "tui.button: missing id or pane, skipping widget" >&2
 		return 1
 	fi
-	_TUI_W_TYPE[$id]="button"
-	_TUI_W_PANE[$id]="$2"
-	_TUI_W_ROW[$id]="$3"
-	_TUI_W_LABEL[$id]="$4"
-	_TUI_W_VALUE[$id]=""
-	_TUI_W_ACTION[$id]="${5:-}"
+	_ps.widgets.set "$id" type "button"
+	_ps.widgets.set "$id" pane "$2"
+	_ps.widgets.set "$id" row "$3"
+	_ps.widgets.set "$id" label "$4"
+	_ps.widgets.set "$id" value ""
+	_ps.widgets.set "$id" action "${5:-}"
 	_TUI_W_ORDER+=("$id")
 	_tui_w.changed
 }
@@ -855,14 +864,14 @@ tui.input() {
 		return 1
 	fi
 	local submit_fn="${6:-}"
-	_TUI_W_TYPE[$id]="input"
-	_TUI_W_PANE[$id]="$2"
-	_TUI_W_ROW[$id]="$3"
-	_TUI_W_PH[$id]="${4:-}"
-	_TUI_W_LABEL[$id]="${5:-}"
-	_TUI_W_VALUE[$id]=""
-	_TUI_W_ACTION[$id]=""
-	_TUI_W_SUBMIT[$id]="${submit_fn}"
+	_ps.widgets.set "$id" type "input"
+	_ps.widgets.set "$id" pane "$2"
+	_ps.widgets.set "$id" row "$3"
+	_ps.widgets.set "$id" ph "${4:-}"
+	_ps.widgets.set "$id" label "${5:-}"
+	_ps.widgets.set "$id" value ""
+	_ps.widgets.set "$id" action ""
+	_ps.widgets.set "$id" submit "${submit_fn}"
 	_TUI_W_ORDER+=("$id")
 	_tui_w.changed
 }
@@ -874,15 +883,15 @@ tui.checkbox() {
 		return 1
 	fi
 	local checked="${5:-}"
-	_TUI_W_TYPE[$id]="checkbox"
-	_TUI_W_PANE[$id]="$2"
-	_TUI_W_ROW[$id]="$3"
-	_TUI_W_LABEL[$id]="$4"
+	_ps.widgets.set "$id" type "checkbox"
+	_ps.widgets.set "$id" pane "$2"
+	_ps.widgets.set "$id" row "$3"
+	_ps.widgets.set "$id" label "$4"
 	case "$checked" in
 		1 | true | yes) _TUI_W_VALUE[$id]="1" ;;
 		*) _TUI_W_VALUE[$id]="0" ;;
 	esac
-	_TUI_W_ACTION[$id]="${6:-}"
+	_ps.widgets.set "$id" action "${6:-}"
 	_TUI_W_ORDER+=("$id")
 	_tui_w.changed
 }
@@ -1023,7 +1032,7 @@ tui.update() {
 		return 1
 	fi
 
-	_TUI_W_VALUE[$1]="$2"
+	_ps.widgets.set "$1" value "$2"
 	_tui._draw_widget "$1"
 }
 tui.on_action() { _TUI_W_ACTION[$1]="$2"; }
@@ -1179,6 +1188,7 @@ declare -g _TUI_CONTENT_NEED_H=0
 # up-front refresh): the per-pane scan of all widgets made a full render cost panes x widgets.
 declare -gA _TUI_CN_ROW=() _TUI_CN_LEN=()
 declare -gi _TUI_CN_ON=0 _TUI_FIT_FRESH=0 # _TUI_FIT_FRESH: tui.render has just refreshed every leaf's content fit
+# state:direct
 _tui._content_need_index() {
 	_TUI_CN_ROW=()
 	_TUI_CN_LEN=()
@@ -1193,6 +1203,7 @@ _tui._content_need_index() {
 	done
 }
 
+# state:direct
 _tui._pane_content_need() {
 	local id="$1"
 	_TUI_CONTENT_NEED_W=0
@@ -1257,10 +1268,11 @@ _tui._refresh_content_fit() {
 		((_TUI_CONTENT_NEED_W > minw)) && minw=$_TUI_CONTENT_NEED_W
 		((_TUI_CONTENT_NEED_H > minh)) && minh=$_TUI_CONTENT_NEED_H
 	fi
-	_TUI_P_EFFECTIVE_MINW[$id]=$minw
-	_TUI_P_EFFECTIVE_MINH[$id]=$minh
+	_ps.panes.set "$id" effective_minw "$minw"
+	_ps.panes.set "$id" effective_minh "$minh"
 }
 
+# state:direct
 _tui._pane_too_small() {
 	local id="$1"
 	[[ -n "${_TUI_P_COLLAPSED[$id]:-}" ]] && return 1 # a collapsed pane is meant to be small (tui_collapse.sh)
@@ -1278,6 +1290,7 @@ declare -gi _TUI_WP_REUSE=0 _TUI_WP_IV=0 _TUI_WP_IH=0
 declare -g _TUI_WP_LAST=""
 declare -gA _TUI_WPC=()
 declare -gi _TUI_WPC_N=0
+# state:direct
 _tui._widget_pos() {
 	local pane="${_TUI_W_PANE[$1]}"
 	local wrow="${_TUI_W_ROW[$1]}"
@@ -1359,6 +1372,12 @@ _tui._widget_pos() {
 		_WSH=$_LY_R
 		((_WSH < 1)) && _WSH=1
 	fi
+	local _wt_measure="${_TUI_WT_MEASURE[${_TUI_W_TYPE[$1]}]-}" # contract types size themselves unless expand= / height= decided
+	if [[ -n "$_wt_measure" && -z "$expand$height_spec" ]]; then
+		"$_wt_measure" "$1" "$_WSW"
+		_WSH=$_R
+		((_WSH < 1)) && _WSH=1
+	fi
 	local maxh="${_TUI_W_MAXH[$1]:-}" minh="${_TUI_W_MINH[$1]:-}"
 	if [[ -n "$maxh" ]] && ((_WSH > maxh)); then _WSH=$maxh; fi
 	if [[ -n "$minh" ]] && ((_WSH < minh)); then _WSH=$minh; fi
@@ -1388,6 +1407,7 @@ _tui._widget_pos() {
 		local _vend=$((pr + ph - _IV))
 		((_WSR >= 0 && _WSR < _vend && _WSR + _WSH > _vend)) && _WSH=$((_vend - _WSR))
 	fi
+	[[ -n "$_wt_measure" ]] && return # a measured height can change with the widget's content, which the key does not cover
 	if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
 	_TUI_WPC[$_wk]="$_WSR $_WSC $_WSW $_WSH $_WSW_AVAIL"
 	_TUI_WPC_N+=1
@@ -1551,6 +1571,7 @@ _tui._draw_pane() {
 	_TUI_FRAME="$_dp_saved"
 }
 
+# state:direct
 _tui._draw_pane_buf() {
 	local id="$1"
 	local r=${_TUI_P_ROW[$id]} c=${_TUI_P_COL[$id]}
@@ -1625,6 +1646,7 @@ _tui._draw_pane_buf() {
 # reset/flush of _TUI_FRAME, so this appends only - no standalone wrapper
 # needed (unlike _tui._draw_pane, this one has no caller outside the render
 # path).
+# state:direct
 _tui._draw_pane_border_buf() {
 	local id="$1"
 	local r=${_TUI_P_ROW[$id]} c=${_TUI_P_COL[$id]}
@@ -1699,6 +1721,7 @@ _tui._draw_widget() {
 	_TUI_FRAME="$_dw_saved"
 }
 
+# state:direct
 _tui._draw_widget_buf() {
 	local id="$1"
 	local type="${_TUI_W_TYPE[$id]:-}"
@@ -1770,33 +1793,6 @@ _tui._draw_widget_buf() {
 	fi
 
 	case "$type" in
-		label)
-			local calign
-			_tui._widget_align_v "$id"
-			calign="$_R"
-			local text
-			_tui._resolve_text_v "${_TUI_W_VALUE[$id]}"
-			text="$_R"
-			text="${text:0:$sw}"
-			_tui.emit_style "$style_key" "$pane_key"
-			if [[ "$calign" == "fill" ]]; then
-				local pad=$(((sw - ${#text}) / 2))
-				((pad < 0)) && pad=0
-				local rem=$((sw - pad - ${#text}))
-				((rem < 0)) && rem=0
-				_tui.emit_goto "$sr" "$sc"
-				_tui.emit_printf '%*s%s%*s' "$pad" "" "$text" "$rem" ""
-			else
-				_tui.emit_goto "$sr" "$sc"
-				_tui.emit_printf '%*s' "$sw" ""
-				local pad
-				_tui._align_pad_v "$calign" "${#text}" "$sw"
-				pad=$_R
-				_tui.emit_goto "$sr" $((sc + pad))
-				_tui.emit "$text"
-			fi
-			_tui.emit_reset
-			;;
 		button)
 			local calign
 			_tui._widget_align_v "$id"
@@ -1877,6 +1873,10 @@ _tui._draw_widget_buf() {
 			;;
 		input | password | textarea | list | table | select | progress)
 			_tui_wx.draw_buf "$id" "$type" "$sr" "$sc" "$sw" "$_WSH" "$focused" "$hovered" "$style_key" "$pane_key"
+			;;
+		*) # a type registered on the widget contract (tui_widget_contract.sh)
+			local _wt_draw="${_TUI_WT_DRAW[$type]-}"
+			[[ -n "$_wt_draw" ]] && "$_wt_draw" "$id" "$sr" "$sc" "$sw" "$_WSH" "$focused" "$hovered" "$style_key" "$pane_key"
 			;;
 	esac
 	[[ -n "$_rc_key" ]] && _tui_rowcache.store "$_rc_key" "$_rc_from"
@@ -1993,6 +1993,7 @@ _tui.frame_present() {
 	tui.relayout
 }
 
+# state:direct
 tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
 	_TUI_FRAME_REQ=0
@@ -2072,6 +2073,7 @@ tui.clear_pane() {
 #  Scrolling
 # ═══════════════════════════════════════════════════════════════════════
 
+# state:direct
 _tui._scroll_kb() {
 	local dir="$1"
 	local p="${_TUI_HOVERED_PANE:-}"
@@ -2158,6 +2160,7 @@ _tui._draw_pane_borders_now() { _tui._draw_ids_now _tui._draw_pane_border_buf "$
 # _tui._draw_pane_full_buf PANE - appends to _TUI_FRAME a full redraw of the
 # pane's border, all its widgets, and its scrollbar. Used by scroll_into_view
 # to redraw everything after an offset change from reveal.
+# state:direct
 _tui._draw_pane_full_buf() {
 	local pane="$1" wid
 	# the whole pane (border and a blank interior), so rows a scroll moved away from are not left behind
@@ -2219,10 +2222,10 @@ _tui._calc_bounds() {
 	local pane="$1"
 	declare -n arr="_TUI_PANE_CONTENT_${pane}"
 	local total=${#arr[@]}
-	_TUI_P_LINES[$pane]=$total
+	_ps.panes.set "$pane" lines "$total"
 
 	if ((total == 0)); then
-		_TUI_P_MAX_W[$pane]=0
+		_ps.panes.set "$pane" max_w 0
 		return
 	fi
 
@@ -2236,7 +2239,7 @@ _tui._calc_bounds() {
 			((${#_l} > max_w)) && max_w=${#_l}
 		fi
 	done
-	_TUI_P_MAX_W[$pane]=$max_w
+	_ps.panes.set "$pane" max_w "$max_w"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2260,13 +2263,13 @@ _tui._input_key() {
 	case "$key" in
 		$'\x7f' | $'\b')
 			if ((_TUI_CURSOR > 0)); then
-				_TUI_W_VALUE[$id]="${value:0:$((_TUI_CURSOR - 1))}${value:$_TUI_CURSOR}"
+				_ps.widgets.set "$id" value "${value:0:$((_TUI_CURSOR - 1))}${value:$_TUI_CURSOR}"
 				((_TUI_CURSOR--))
 			fi
 			;;
 		*)
 			if [[ ${#key} -eq 1 && "$key" =~ [[:print:]] ]]; then
-				_TUI_W_VALUE[$id]="${value:0:$_TUI_CURSOR}${key}${value:$_TUI_CURSOR}"
+				_ps.widgets.set "$id" value "${value:0:$_TUI_CURSOR}${key}${value:$_TUI_CURSOR}"
 				((_TUI_CURSOR++))
 			fi
 			;;
@@ -2285,7 +2288,7 @@ _tui._input_seq() {
 		"[F" | "[4~") _TUI_CURSOR=${#value} ;;
 		"[3~")
 			if ((_TUI_CURSOR < ${#value})); then
-				_TUI_W_VALUE[$id]="${value:0:$_TUI_CURSOR}${value:$((_TUI_CURSOR + 1))}"
+				_ps.widgets.set "$id" value "${value:0:$_TUI_CURSOR}${value:$((_TUI_CURSOR + 1))}"
 			fi
 			;;
 		*) return ;;
@@ -2612,7 +2615,7 @@ _exec_setup_controls() {
 	_EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
 
 	tui.factory.input "$ns" "$pane" "$((row0 + 6))" "type and press Enter…" "stdin▸"
-	_TUI_W_STICKY[$_TUI_FACTORY_LAST_ID]=1 # a shell prompt: stays focused after Enter and after clicking the output
+	_ps.widgets.set "$_TUI_FACTORY_LAST_ID" sticky 1 # a shell prompt: stays focused after Enter and after clicking the output
 	_EXEC_WIDGET_TO_IID[$_TUI_FACTORY_LAST_ID]="$iid"
 	tui.on_action "$_TUI_FACTORY_LAST_ID" _exec_on_send
 
@@ -2775,7 +2778,7 @@ _exec_append_raw_line() {
 	pbuf+=("${prefix}${clean}")
 	((${#pbuf[@]} > 2500)) && pbuf=("${pbuf[@]:500}")
 
-	_TUI_P_LINES[$pane]=${#pbuf[@]}
+	_ps.panes.set "$pane" lines "${#pbuf[@]}"
 	local last_len
 	last_len=$(printf '%s' "${pbuf[$((${#pbuf[@]} - 1))]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
 	((last_len > ${_TUI_P_MAX_W[$pane]:-0})) && _TUI_P_MAX_W[$pane]=$last_len
@@ -3125,6 +3128,7 @@ _tui._vslice() {
 	_TUI_VS_MEMO_N+=1
 }
 
+# state:direct
 _tui._render_output_buf() {
 	local pane="$1" i
 	((${_TUI_P_H[$pane]:-0} < 1 || ${_TUI_P_W[$pane]:-0} < 1)) && return # hidden, or no geometry (pane not on this page)
@@ -3148,12 +3152,12 @@ _tui._render_output_buf() {
 	((total_lines <= ct_h)) && v_off=0
 	((v_off > total_lines - ct_h && total_lines > ct_h)) && v_off=$((total_lines - ct_h))
 	((v_off < 0)) && v_off=0
-	_TUI_P_SOFF_V[$pane]=$v_off
+	_ps.panes.set "$pane" soff_v "$v_off"
 
 	((max_w <= ct_w)) && h_off=0
 	((h_off > max_w - ct_w && max_w > ct_w)) && h_off=$((max_w - ct_w))
 	((h_off < 0)) && h_off=0
-	_TUI_P_SOFF_H[$pane]=$h_off
+	_ps.panes.set "$pane" soff_h "$h_off"
 
 	# Collect visible slice directly from memory
 	local -a view_lines=()
@@ -3274,8 +3278,8 @@ _tui._apply_resize() {
 	done
 	_TUI_RESIZED=0
 	_tui._read_term_size
-	_TUI_P_ROW[root]=1
-	_TUI_P_COL[root]=1
+	_ps.panes.set root row 1
+	_ps.panes.set root col 1
 	_tui._root_w
 	_tui._root_h
 	_tui._layout "root"

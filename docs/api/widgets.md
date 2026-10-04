@@ -244,3 +244,36 @@ For input, password and textarea widgets. Offsets are 0-based character position
 </div>
 
 <!-- /api -->
+
+## Widget types as plugins
+
+A widget type is four registered functions: `tui.register widget TYPE MEASURE DRAW HIT [KEY]`, `-` for a handler the type does not have. The handler signatures and the whole contract are described at the top of `lib/widgets/tui_widget_contract.sh`; `share/plugins/meter.plugin.sh` is a complete example that adds a `<meter>` widget without touching `lib/`.
+
+<!-- api: tui.widget.new tui.widget.get tui.widget.set tui.widget.from_node tui.widget.emit tui.widget.redraw -->
+
+| Function | Summary |
+|---|---|
+| [`tui.widget.new`](widgets/tui.widget.new.md) | Creates a widget of a type registered with `tui.register widget`. |
+| [`tui.widget.get`](widgets/tui.widget.get.md) | Reads a widget field (`label`, `value`, `action`, ...) into `$TUI_WIDGET_V`; empty when unset. |
+| [`tui.widget.set`](widgets/tui.widget.set.md) | Sets a widget field. |
+| [`tui.widget.from_node`](widgets/tui.widget.from_node.md) | Builds the widget a markup node describes, for use as a `tui.register tag` handler; leaves the id in `$TUI_WIDGET_V`. |
+| [`tui.widget.emit`](widgets/tui.widget.emit.md) | DRAW-handler helper: moves the cursor to ROW COL and appends the printf output to the frame. |
+| [`tui.widget.redraw`](widgets/tui.widget.redraw.md) | Repaints one widget now, when the app is running. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative widgets/tui.widget.new.md %}
+
+{% include_relative widgets/tui.widget.get.md %}
+
+{% include_relative widgets/tui.widget.set.md %}
+
+{% include_relative widgets/tui.widget.from_node.md %}
+
+{% include_relative widgets/tui.widget.emit.md %}
+
+{% include_relative widgets/tui.widget.redraw.md %}
+
+</div>
+
+<!-- /api -->

@@ -55,6 +55,7 @@ tui.plugin.own()  { _tui_plugin.own "$@"; }
 
 _tui_plugin.release() {   # NAME: undo, newest first
     local name="$1" line t v i
+    _tui_registry.unregister_plugin "$name"
     local -a lines=()
     while IFS= read -r line; do [[ -n "$line" ]] && lines+=("$line"); done <<< "${_TPL_OWN[$name]:-}"
     for (( i = ${#lines[@]} - 1; i >= 0; i-- )); do
@@ -178,15 +179,15 @@ tui.plugin.enable() {
     for r in ${_TPL_REQ[$name]}; do
         tui.plugin.enable "$r" "${2:-}" || { TUI_PLUGIN_ERROR="$name needs $r: $TUI_PLUGIN_ERROR"; _TPL_STATE[$name]=error; _TPL_ERR[$name]="$TUI_PLUGIN_ERROR"; return 1; }
     done
-    prev="$_TPL_CUR"; _TPL_CUR="$name"
+    prev="$_TPL_CUR"; _TPL_CUR="$name"; _TUI_REGISTRY_CURRENT_PLUGIN="$name"   # tui.register calls in the plugin are attributed to it
     # shellcheck disable=SC1090 # an arbitrary installed plugin's own file, no fixed path to point at
     if ! source "${_TPL_FILE[$name]}" || { declare -F "plugin.$name.on_enable" >/dev/null && ! "plugin.$name.on_enable"; }; then
-        _TPL_CUR="$prev"
+        _TPL_CUR="$prev"; _TUI_REGISTRY_CURRENT_PLUGIN="$prev"
         TUI_PLUGIN_ERROR="$name failed to start"
         _tui_plugin.release "$name"; _TPL_STATE[$name]=error; _TPL_ERR[$name]="$TUI_PLUGIN_ERROR"
         return 1
     fi
-    _TPL_CUR="$prev"
+    _TPL_CUR="$prev"; _TUI_REGISTRY_CURRENT_PLUGIN="$prev"
     _TPL_STATE[$name]=enabled; _TPL_ERR[$name]=""
     (( save )) && _tui_plugin.persist "$name" 1
     tui.hook.fire plugin_enabled "$name"

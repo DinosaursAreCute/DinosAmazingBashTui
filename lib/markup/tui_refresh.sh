@@ -145,9 +145,9 @@ _tui_refresh.adopt() {
 	local k
 	_TUI_P_SIG_OWN=() _TUI_P_SIG_FULL=() _TUI_P_SIG_PLAIN=()
 	for k in "${!_RF_OWN[@]}"; do
-		_TUI_P_SIG_OWN[$k]="${_RF_OWN[$k]}"
-		_TUI_P_SIG_FULL[$k]="${_RF_FULL[$k]}"
-		_TUI_P_SIG_PLAIN[$k]="${_RF_PLAIN[$k]}"
+		_ps.panes.set "$k" sig_own "${_RF_OWN[$k]}"
+		_ps.panes.set "$k" sig_full "${_RF_FULL[$k]}"
+		_ps.panes.set "$k" sig_plain "${_RF_PLAIN[$k]}"
 	done
 	_TUI_P_SIG_TOP="$_RF_TOP"
 }

@@ -603,14 +603,14 @@ tui.action.page() {
 tui.action.scroll_top() {
     _tui_input.scroll_target || return 0
     _SC_OLD="${_TUI_P_SOFF_V[$_ST]:-0}"
-    _TUI_P_SOFF_V[$_ST]=0; _TUI_P_SOFF_H[$_ST]=0
+    _ps.panes.set "$_ST" soff_v 0; _ps.panes.set "$_ST" soff_h 0
     _tui_scroll.apply "$_ST"
 }
 
 tui.action.scroll_bottom() {
     _tui_input.scroll_target || return 0
     _SC_OLD="${_TUI_P_SOFF_V[$_ST]:-0}"
-    _TUI_P_SOFF_V[$_ST]=999999
+    _ps.panes.set "$_ST" soff_v 999999
     _tui_scroll.apply "$_ST"
 }
 
@@ -646,6 +646,12 @@ tui.action.click() {
                 tui.focus "$wid"
                 _tui._widget_pos "$wid"
                 _tui_wx.mouse "$wid" "$mx" "$my" press ;;
+            *)  # contract type: focus it when it takes keys, then its HIT handler
+                if [[ -n "${_TUI_WT_HIT[$wtype]-}" ]]; then
+                    [[ -n "${_TUI_WT_KEY[$wtype]-}" ]] && tui.focus "$wid"
+                    _tui._widget_pos "$wid"
+                    _tui_wx.mouse "$wid" "$mx" "$my" press
+                fi ;;
         esac
     else
         # clicking a scrollable pane makes it the keyboard pane too

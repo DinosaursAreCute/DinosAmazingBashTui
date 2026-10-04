@@ -11,6 +11,7 @@
 # widgets in PANE stacked vertically: max over widgets w with
 # _TUI_W_PANE[w]==PANE of (_TUI_W_ROW[w] + h), where h = _TUI_W_HEIGHT[w] when
 # it is a plain integer, else 1. Returns 0 when the pane has no widgets.
+# state:direct
 _tui_scroll.measure() {
 	local pane="$1"
 	local max_row=0
@@ -29,7 +30,7 @@ _tui_scroll.measure() {
 			max_row=$end_row
 		fi
 	done
-	_TUI_P_CONTENT_H[$pane]=$max_row
+	_ps.panes.set "$pane" content_h "$max_row"
 }
 
 # _tui_scroll.max_off PANE - sets _SC_MAX = max(0, _TUI_P_CONTENT_H[PANE] -
@@ -52,11 +53,11 @@ _tui_scroll.clamp() {
 	local pane="$1"
 	local offset="${_TUI_P_SOFF_V[$pane]:-0}"
 	if ((offset < 0)); then
-		_TUI_P_SOFF_V[$pane]=0
+		_ps.panes.set "$pane" soff_v 0
 		_TUI_HZ_DIRTY=1 # every widget of the pane moved on screen: the hit index is stale
 		return 0
 	elif ((offset > _SC_MAX)); then
-		_TUI_P_SOFF_V[$pane]=$_SC_MAX
+		_ps.panes.set "$pane" soff_v "$_SC_MAX"
 		_TUI_HZ_DIRTY=1
 		return 0
 	fi
@@ -69,6 +70,7 @@ _tui_scroll.clamp() {
 # offset+viewport, otherwise leave it), then clamps. Returns 0 if the offset
 # changed, 1 if not (also 1 for a widget in a pane that does not scroll
 # vertically).
+# state:direct
 _tui_scroll.reveal() {
 	local widget="$1"
 	local pane="${_TUI_W_PANE[$widget]:-}"
@@ -104,7 +106,7 @@ _tui_scroll.reveal() {
 		reveal_changed=0
 	fi
 
-	_TUI_P_SOFF_V[$pane]=$new_offset
+	_ps.panes.set "$pane" soff_v "$new_offset"
 	((new_offset != offset)) && _TUI_HZ_DIRTY=1
 	_tui_scroll.max_off "$pane"
 	_tui_scroll.clamp "$pane"
@@ -139,6 +141,7 @@ _tui_scroll.settle() {
 # pin="top" and _TUI_W_ROW <= _TUI_P_SOFF_V (scrolled past or at the top edge),
 # the one with the largest row wins (one pin sticks at a time). Clears the stuck
 # entry if no pinned widget qualifies.
+# state:direct
 _tui_scroll.stuck() {
 	local pane="$1"
 	local offset="${_TUI_P_SOFF_V[$pane]:-0}"
@@ -158,7 +161,7 @@ _tui_scroll.stuck() {
 		fi
 	done
 	if [[ -n "$stuck_id" ]]; then
-		_TUI_P_STUCK[$pane]="$stuck_id"
+		_ps.panes.set "$pane" stuck "$stuck_id"
 	else
 		unset '_TUI_P_STUCK[$pane]'
 	fi
@@ -286,7 +289,8 @@ tui.scroll.to() {
 	if [[ -n "${_TUI_W_PANE[$target]:-}" ]]; then
 		# It's a widget
 		widget="$target"
-		pane="${_TUI_W_PANE[$widget]}"
+		_ps.widgets.get "$widget" pane
+		pane=$_V
 	elif [[ -n "${_TUI_P_ROW[$target]:-}" ]]; then
 		# It's a pane
 		pane="$target"
@@ -384,7 +388,7 @@ tui.scroll.to() {
 		new_offset=$max_clamp
 	fi
 
-	_TUI_P_SOFF_V[$pane]=$new_offset
+	_ps.panes.set "$pane" soff_v "$new_offset"
 
 	# Check if offset changed
 	if ((old_offset != new_offset)); then

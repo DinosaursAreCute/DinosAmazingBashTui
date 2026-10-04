@@ -275,12 +275,12 @@ tui.reset_ui() {
 
 	# a running app keeps _TUI_ROWS/_TUI_COLS current from its resize handler: no stty fork on every page switch
 	((_TUI_RUNNING)) || term.size _TUI_ROWS _TUI_COLS
-	_TUI_P_ROW[root]=1
-	_TUI_P_COL[root]=1
-	_TUI_P_H[root]=$_TUI_ROWS
-	_TUI_P_W[root]=$_TUI_COLS
-	_TUI_P_BORDER[root]="single"
-	_TUI_P_TITLE[root]=""
+	_ps.panes.set root row 1
+	_ps.panes.set root col 1
+	_ps.panes.set root h "$_TUI_ROWS"
+	_ps.panes.set root w "$_TUI_COLS"
+	_ps.panes.set root border "single"
+	_ps.panes.set root title ""
 	_TUI_P_LEAVES=(root)
 
 	erase.all

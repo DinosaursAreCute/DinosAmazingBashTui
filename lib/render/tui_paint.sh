@@ -80,6 +80,10 @@ _tui_paint.split_rows() {
 # for next time.
 _tui_paint.diff() {
 	_TP_OUT=""
+	((_TUI_CACHES)) || {
+		_TP_OUT="$1"
+		return
+	}                                              # caches off: every row is sent
 	[[ -n "$1" && "$1" == "$_TP_LAST" ]] && return # every row of it is already PREV
 	_tui_paint.split_rows "$1"
 	_TP_LAST=""

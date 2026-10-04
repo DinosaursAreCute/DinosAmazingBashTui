@@ -14,6 +14,12 @@
 # (see docs/design/caches.md), which is how a missing bump shows up as a difference between the two modes.
 # requires:
 
+# TUI_CACHES=off (environment) bypasses every cache that can go stale: the layout memo, the widget position cache, the
+# row-fragment cache, the paint diff, the hit index, the focus order, the saved base frame, the page cache and the theme
+# memo. The two modes must behave the same; a difference is a cache boundary bug (docs/design/caches.md).
+declare -gi _TUI_CACHES=1
+case "${TUI_CACHES:-on}" in off | 0 | false | no) _TUI_CACHES=0 ;; esac
+
 _tui.epoch_bump() {
 	local kind
 	for kind in "$@"; do

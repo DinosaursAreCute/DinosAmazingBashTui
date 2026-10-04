@@ -15,6 +15,7 @@ _rc_draw_widget() { # ID -> bytes in _RC_OUT
 }
 
 t_rowcache_miss_then_hit_replays_stored_bytes() {
+	_t_needs_caches || return 0
 	_tui_rowcache.reset
 	_TUI_FRAME="head"
 	_tui_rowcache.replay k && return 1

@@ -1177,7 +1177,7 @@ _tui._widget_pos() {
 		fi
 	fi
 	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}$scroll_off$stuck_id"
-	if [[ -n "${_TUI_WPC[$_wk]+x}" ]]; then
+	if ((_TUI_CACHES)) && [[ -n "${_TUI_WPC[$_wk]+x}" ]]; then
 		set -- "$1" ${_TUI_WPC[$_wk]}
 		_WSR=$2 _WSC=$3 _WSW=$4 _WSH=$5 _WSW_AVAIL=$6
 		return
@@ -1266,7 +1266,7 @@ _tui._widget_pos() {
 		local _vend=$((pr + ph - _IV))
 		((_WSR >= 0 && _WSR < _vend && _WSR + _WSH > _vend)) && _WSH=$((_vend - _WSR))
 	fi
-	[[ -n "$_wt_measure" ]] && return # a measured height can change with the widget's content, which the key does not cover
+	[[ -n "$_wt_measure" ]] || ((! _TUI_CACHES)) && return # a measured height can change with the widget's content, which the key does not cover
 	if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
 	_TUI_WPC[$_wk]="$_WSR $_WSC $_WSW $_WSH $_WSW_AVAIL"
 	_TUI_WPC_N+=1

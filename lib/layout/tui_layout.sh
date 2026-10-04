@@ -44,7 +44,7 @@ declare -gA _TUI_LY_KEY=() _TUI_LY_GEN_AT=()
 # real recompute.
 _tui.layout_cache_hit() {
 	local p="$1" key="$2"
-	if [[ "${_TUI_LY_GEN_AT[$p]:-}" == "$_TUI_LY_GEN" && "${_TUI_LY_KEY[$p]:-}" == "$key" ]]; then
+	if ((_TUI_CACHES)) && [[ "${_TUI_LY_GEN_AT[$p]:-}" == "$_TUI_LY_GEN" && "${_TUI_LY_KEY[$p]:-}" == "$key" ]]; then
 		_tui_perf.count layout_memo_hit
 		return 0
 	fi

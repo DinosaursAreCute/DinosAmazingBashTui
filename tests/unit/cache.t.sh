@@ -13,6 +13,7 @@ _cache_fixture() { # NAME CONTENT -> writes CONTENT to $_T_ROOT/NAME, returns it
 }
 
 ti_cache_record_then_valid_then_replay_rebuilds_same_state() {
+	_t_needs_caches || return 0
 	_cache_fixture cb.sh 'declare -gi CACHE_SCRIPT_RUNS=$((CACHE_SCRIPT_RUNS + 1))'
 	_cache_fixture page.xml '<tui on_visit="cache_test_on_visit"><script src="cb.sh"/><pane id="root" split="v"><pane id="a" weight="1"/><pane id="b" weight="2"/></pane></tui>'
 	declare -gi CACHE_SCRIPT_RUNS=0 CACHE_ON_VISIT_RUNS=0
@@ -36,6 +37,7 @@ ti_cache_record_then_valid_then_replay_rebuilds_same_state() {
 }
 
 ti_cache_editing_page_invalidates_it() {
+	_t_needs_caches || return 0
 	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
 	touch -d '@1000000000' "$_CF"
 	tui.reset_ui
@@ -149,6 +151,7 @@ ti_cache_replay_reapplies_theme_overlay_to_baked_widget_style() {
 
 # After start-up the cache is trusted: a recorded page is valid without looking at its files.
 ti_cache_trusted_skips_the_mtime_check() {
+	_t_needs_caches || return 0
 	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
 	touch -d '@1000000000' "$_CF"
 	tui.reset_ui
@@ -227,4 +230,45 @@ ti_cache_replay_relays_out_at_another_size() {
 	tui.cache.replay "$_CF"
 	eq 120 "${_TUI_P_W[root]}"
 	eq "$((_TUI_P_W[a] + _TUI_P_W[b]))" "${_TUI_P_W[root]}"
+}
+
+# A replay must hand on_visit the same state a fresh build does: no focus and no hover, whatever the recording ended with
+# (tools/decoupling/cache_ab.sh found a status line that read the focus and differed between a cached and an uncached visit).
+ti_cache_replay_starts_on_visit_without_the_recordings_focus() {
+	_t_needs_caches || return 0
+	_cache_fixture page.xml '<tui on_visit="cache_focus_visit"><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
+	declare -g CACHE_SEEN=""
+	cache_focus_visit() {
+		CACHE_SEEN+="[$_TUI_FOCUS_ID]"
+		_TUI_FOCUS_ID="wx_focus"
+	}
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	tui.reset_ui
+	tui.cache.replay "$_CF"
+	eq "[][]" "$CACHE_SEEN"
+	_TUI_FOCUS_ID=""
+}
+
+# A replay after a theme change re-bakes widget styles from the current classes. tui.class only adds to the style
+# tables, so a property the new theme no longer sets (here: bold) stayed baked until the recorded ids were cleared first.
+ti_cache_replay_after_a_theme_change_drops_the_old_style() {
+	_t_needs_caches || return 0
+	_cache_fixture own.css '.cl_tx { fg: #111111; }'
+	_cache_fixture overlay.css '.cl_tx { mods: bold; }'
+	local overlay="$_CF"
+	_cache_fixture page.xml '<tui><theme src="own.css"/><pane id="root" split="v"><label id="cl_l1" class="cl_tx" text="hi"/></pane></tui>'
+	local saved_dd="$TUI_DEFAULTS_DIR"
+	TUI_DEFAULTS_DIR=/nonexistent
+	_TUI_THEME_OVERLAY="$overlay"
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	local with_overlay="${_TUI_STYLE_MOD[cl_l1_normal]-}"
+	_TUI_THEME_OVERLAY=""
+	_tui.theme_reset
+	tui.reset_ui
+	tui.cache.replay "$_CF"
+	local without="${_TUI_STYLE_MOD[cl_l1_normal]-}"
+	TUI_DEFAULTS_DIR="$saved_dd"
+	eq "bold|" "$with_overlay|$without"
 }

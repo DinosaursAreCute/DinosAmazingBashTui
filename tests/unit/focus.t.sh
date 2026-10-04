@@ -234,6 +234,7 @@ t_focus_set_rejects_a_non_boolean_without_forking() {
 }
 
 t_focus_adding_a_widget_marks_the_order_dirty() {
+	_t_needs_caches || return 0
 	_foc_four
 	_foc_order
 	eq 0 "$_TUI_FOCUS_DIRTY"
@@ -296,6 +297,7 @@ t_focus_dir_down_goes_to_the_widget_below() {
 }
 
 t_focus_dir_computes_no_widget_position_once_the_index_is_built() {
+	_t_needs_caches || return 0
 	_foc_four
 	tui.focus a >/dev/null
 	tui.action.focus_dir down >/dev/null # builds the index

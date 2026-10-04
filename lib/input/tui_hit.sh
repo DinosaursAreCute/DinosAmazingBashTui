@@ -196,7 +196,7 @@ _tui_hit.zones_panes() {
 _tui_hit.rebuild() {
 	_tui_perf.begin hit_index
 	_TUI_HZ_ROW=() _TUI_HZ_C0=() _TUI_HZ_C1=() _TUI_HZ_KIND=() _TUI_HZ_ID=() _TUI_HZ_ARG=()
-	_TUI_HZ_N=0 _TUI_HZ_DIRTY=0
+	_TUI_HZ_N=0 _TUI_HZ_DIRTY=$((1 - _TUI_CACHES)) # caches off: never trusted, rebuilt on every lookup
 	_TUI_HZ_WR=() _TUI_HZ_WC=() _TUI_HZ_WW=()
 	_tui_hit.zones_scrollbars
 	_tui_collapse.zones      # chevron zones (registered into the extras)

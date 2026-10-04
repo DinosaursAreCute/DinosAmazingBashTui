@@ -145,7 +145,7 @@ _tui_cache_theme_stamp() { # FILE -> sets _TS to a fresh stamp path (creates the
 
 _tui.theme_load_file() {
 	local file="$1" cls fg bg mods out=""
-	if [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || [[ ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; }; then
+	if ((_TUI_CACHES)) && [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || [[ ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; }; then
 		tui.log.debug "_tui.theme_load_file: memo HIT for $file, re-applying from memory"
 		# fd 7, not stdin: tui.load_theme runs mid-build (from a <theme> tag
 		# handler); keep fd 0 free for the tty the same way tui.cache.replay's
@@ -437,6 +437,7 @@ declare -gi TUI_CACHE_TRUST="${TUI_CACHE_TRUST:-1}"
 # then, i.e. neither the page nor anything it includes has changed since.
 # Once the cache is trusted (_TUI_CACHE_TRUSTED) a recorded page is simply valid: no stat.
 tui.cache.valid() {
+	((_TUI_CACHES)) || return 1
 	local file="$1"
 	local sig="${_TUI_CACHE_SIG[$file]:-}"
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" && -n "$sig" ]] || return 1
@@ -482,7 +483,14 @@ tui.cache.replay() {
 	fi
 	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
 	_TUI_SNAP_SIZE=""  # a snapshot from an earlier version does not set it
-	if [[ -n "$shell" ]]; then _tui_shell.apply "$file"; else _tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"; fi
+	if [[ -n "$shell" ]]; then
+		_tui_shell.apply "$file"
+	else
+		_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
+		# a fresh build reaches on_visit with no focus and no hover (tui.goto and the app put them back afterwards); the
+		# snapshot carries the recording's, so an on_visit that reads the focus would see a different page
+		_TUI_FOCUS_ID="" _TUI_FOCUS_IDX=-1 _TUI_CURSOR=0 _TUI_PANE_FOCUS="" _TUI_HOVERED_PANE="" _TUI_HOVERED_WIDGET=""
+	fi
 	_tui.epoch_bump style  # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
 	_tui.epoch_bump layout # the layout memo belongs to the previous page (see _tui_cache_relayout)
 	local _ly_gen=$_TUI_LY_GEN
@@ -509,6 +517,11 @@ tui.cache.replay() {
 		local _rc_id _rc_cls
 		# fd 6, not stdin: kept free for the tty on the same principle as this
 		# file's other stdin-bound while-read loops (fd 7/8/9 above).
+		# two passes: clear every recorded id first (an id may carry several classes that merge), then bake
+		while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
+			[[ -z "$_rc_id" ]] && continue
+			_tui.style_clear "$_rc_id"
+		done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
 		while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
 			[[ -z "$_rc_id" ]] && continue
 			tui.class "$_rc_id" "$_rc_cls"

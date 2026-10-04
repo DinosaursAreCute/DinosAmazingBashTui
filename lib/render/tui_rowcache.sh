@@ -8,12 +8,12 @@
 # (a ${expr} text), so dynamic content always recomposes.
 #
 # Fork-free: parameter expansion and one associative array.
-# requires:
+# requires: tui_epoch
 
 declare -gA _TUI_RC=()
 declare -gi _TUI_RC_N=0
 declare -gi _TUI_RC_EPOCH=0 # bumped by every style write and page reset; not in the fragment keys: only tells the saved frame (tui.modal.dismiss) that the screen may have been restyled
-declare -gi _TUI_ROWCACHE="${TUI_ROWCACHE:-1}"
+declare -gi _TUI_ROWCACHE="${TUI_ROWCACHE:-$_TUI_CACHES}"
 declare -gi _TUI_RC_MAX=4096 # bounded like _TUI_SGR_MEMO: a gradient or chart must not grow it without limit
 
 # _tui_rowcache.replay KEY - appends the cached fragment to _TUI_FRAME; rc 1 on a miss.

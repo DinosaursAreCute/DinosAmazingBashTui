@@ -107,6 +107,7 @@ _tui_modal.base_fold() {
 }
 
 _tui_modal.base_valid() {
+	((_TUI_CACHES)) || return 1
 	((_TUI_DISMISS_REPLAY && _TUI_BASE_GEN >= 0 && _TUI_FLUSH_GEN - _TUI_BASE_GEN == _TUI_OVL_FLUSHES)) || return 1
 	((_TUI_BASE_EPOCH == _TUI_RC_EPOCH && _TUI_BASE_ROWS == _TUI_ROWS && _TUI_BASE_COLS == _TUI_COLS)) || return 1
 	[[ -n "$_TUI_BASE_FRAME" ]]

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # hit.t.sh - lib/input/tui_hit.sh: per-row interval index of interaction zones (roadmap E base).
 
 # one leaf pane "p": rows 1..10, cols 1..24, no border, no padding
@@ -195,6 +196,7 @@ ti_hit_row_lists_stay_short_with_many_widgets() {
 }
 
 t_hit_layout_marks_index_dirty() {
+	_t_needs_caches || return 0
 	_hit_pane
 	_tui_hit.rebuild
 	eq 0 "$_TUI_HZ_DIRTY"
@@ -247,6 +249,7 @@ t_hit_no_title_zone_without_a_frame() {
 }
 
 t_hit_adding_a_widget_marks_the_index_dirty() {
+	_t_needs_caches || return 0
 	_hit_pane
 	tui.button b1 p 0 "Go" ""
 	_tui_hit.rebuild

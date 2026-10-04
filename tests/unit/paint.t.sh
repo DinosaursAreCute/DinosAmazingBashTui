@@ -11,6 +11,7 @@ t_paint_first_flush_keeps_everything() {
 }
 
 t_paint_second_identical_flush_drops_unchanged_rows() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	local buf
 	buf="$(_paint_goto 3 5)AAA$(_paint_goto 7 2)BBB"
@@ -20,6 +21,7 @@ t_paint_second_identical_flush_drops_unchanged_rows() {
 }
 
 t_paint_only_the_changed_row_survives() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	local buf1 buf2
 	buf1="$(_paint_goto 3 5)AAA$(_paint_goto 7 2)BBB"
@@ -59,6 +61,7 @@ t_paint_row_touched_twice_in_one_buffer_is_compared_as_one_unit() {
 }
 
 t_paint_flush_second_identical_frame_writes_nothing() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	local buf out="$_T_ROOT/pf.out"
 	buf="$(_paint_goto 3 5)AAA"
@@ -68,6 +71,7 @@ t_paint_flush_second_identical_frame_writes_nothing() {
 }
 
 t_paint_flush_sends_only_the_changed_row() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	local b1 b2 out="$_T_ROOT/pf.out"
 	b1="$(_paint_goto 3 5)AAA$(_paint_goto 7 2)BBB"
@@ -98,6 +102,7 @@ t_paint_flush_full_erase_in_buffer_is_never_diffed() {
 }
 
 t_paint_flush_still_folds_the_full_frame_into_the_base() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	_TUI_BASE_FRAME="B" _TUI_DISMISS_REPLAY=1 _TUI_FLUSH_GEN=5 _TUI_OVL_FLUSHES=0 _TUI_BASE_GEN=5
 	_TUI_BASE_EPOCH=$_TUI_RC_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
@@ -109,6 +114,7 @@ t_paint_flush_still_folds_the_full_frame_into_the_base() {
 }
 
 t_paint_identical_buffer_skips_the_row_split() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	local buf
 	buf="$(_paint_goto 3 5)AAA$(_paint_goto 7 2)BBB"
@@ -121,6 +127,7 @@ t_paint_identical_buffer_skips_the_row_split() {
 }
 
 t_paint_identical_buffer_with_a_leading_run_is_never_suppressed() {
+	_t_needs_caches || return 0
 	tui.paint.reset
 	_tui_paint.diff "XX$(_paint_goto 3 5)AAA"
 	_tui_paint.diff "XX$(_paint_goto 3 5)AAA"

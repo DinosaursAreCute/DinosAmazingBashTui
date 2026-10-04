@@ -76,7 +76,7 @@ _tui_focus.rebuild() {
 	local -a first=() rest=() last=() vals=()
 	local -A bucket=()
 	_TUI_FOCUSABLE=() _TUI_FOCUS_TAB=() _TUI_FOCUS_POS=() _TUI_FOCUS_GNAV=() _TUI_FOCUS_GWRAP=() _TUI_FOCUS_REP=()
-	_TUI_FOCUS_DIRTY=0
+	_TUI_FOCUS_DIRTY=$((1 - _TUI_CACHES)) # caches off: never trusted, rebuilt on every use
 
 	for id in "${_TUI_W_ORDER[@]}"; do
 		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue # in a collapsed pane

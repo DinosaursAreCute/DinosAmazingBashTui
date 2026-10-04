@@ -125,6 +125,15 @@ ok() {
 	eval "$@" || _t_fail "ok: false: $*"
 }
 
+# _t_needs_caches || return 0 - first line of a test that asserts how a cache behaves (a hit, a dirty flag, a suppressed row).
+# With TUI_CACHES=off there is no cache to observe, so the test is skipped; every other test must pass in both modes.
+_T_SKIPPED=0
+_t_needs_caches() {
+	((_TUI_CACHES)) && return 0
+	((_T_SKIPPED++))
+	return 1
+}
+
 match() {
 	[[ "$1" =~ $2 ]] || _t_fail "match: [$1] !~ [$2]"
 }
@@ -179,6 +188,7 @@ for _t_line in "${_T_FAIL_LINES[@]}"; do
 	printf '%s\n' "$_t_line"
 done
 
+((_T_SKIPPED > 0)) && echo "t.sh: $_T_SKIPPED cache-mechanism tests skipped (TUI_CACHES=off)" >&2
 printf '%d %d %d\n' "$_T_PASS" "$_T_FAIL" "$_T_MS"
 
 # flat budget: unit tests only (200 ms per 100); integration tests get a total cap

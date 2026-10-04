@@ -40,6 +40,16 @@ tui.style() {
 	_tui.epoch_bump style
 }
 
+# _tui.style_clear ID - drops every baked style of ID (all states). tui.class only ever adds to the tables, so a
+# re-bake after a theme change clears first: a property the new theme leaves out must not keep the old value.
+_tui.style_clear() {
+	local state
+	for state in normal focus border title hover checked unchecked; do
+		unset '_TUI_STYLE_FG[${1}_$state]' '_TUI_STYLE_BG[${1}_$state]' '_TUI_STYLE_MOD[${1}_$state]'
+	done
+	_tui.epoch_bump style
+}
+
 # ── theme loading ───────────────────────────────────────────────────────
 # tui.load_theme FILE - parse a .css-like stylesheet into the class table.
 #   Split in three so tui_cache.sh can memoize the middle one without this file knowing:

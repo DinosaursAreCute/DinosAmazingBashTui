@@ -2,6 +2,7 @@
 # tui_mouse.sh - mouse reports: hover tracking, motion coalescing, and the SGR report handler that routes presses to tui_input.sh.
 #
 #   Internal (_tui._*): _set_hovered_pane, _set_hovered_widget, _mouse_seq_is_motion, _coalesce_mouse_motion, _handle_mouse
+# requires:
 
 # _tui._set_hovered_pane tracks which pane the pointer is over purely as
 # routing state for scroll-wheel/keyboard-scroll targeting (_tui._scroll_kb,

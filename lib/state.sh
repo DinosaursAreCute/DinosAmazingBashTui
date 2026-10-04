@@ -12,6 +12,7 @@
 # to its one function (e.g. _TUI_SGR_NAMED, _HIT_PANE) stays local to that
 # function in tui.sh - only the three big up-front registries below moved
 # (UI & LAYOUT, BACKGROUND EXECUTION, and FACTORY).
+# requires:
 
 # ═══════════════════════════════════════════════════════════════════════
 #  UI & LAYOUT
@@ -69,7 +70,7 @@ declare -ga _TUI_FOCUSABLE=()
 
 # _tui_w.changed - the widget list or a widget's type changed: the focus order (tui_focus.sh) and the hit index
 # (tui_hit.sh) are derived from it and rebuild on next use. Every writer of _TUI_W_ORDER/_TUI_W_TYPE calls this.
-_tui_w.changed() { _TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1; }
+_tui_w.changed() { _tui.epoch_bump widgets; }
 
 declare -g _TUI_FOCUS_ID=""
 declare -g _TUI_FOCUS_IDX=-1

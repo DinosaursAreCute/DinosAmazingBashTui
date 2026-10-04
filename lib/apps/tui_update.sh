@@ -17,6 +17,7 @@
 #   version   https://raw.githubusercontent.com/REPO/BRANCH/VERSION      (override: TUI_UPDATE_VERSION_URL)
 #   archive   https://github.com/REPO/archive/refs/heads/BRANCH.tar.gz    (override: TUI_UPDATE_ARCHIVE_URL)
 # Needs curl or wget, and tar. Files are only written after you confirm; the old ones are kept in $TUI_HOME/backups/.
+# requires: tui_sync
 
 declare -g TUI_UPDATE_REPO="${TUI_UPDATE_REPO:-DinosaursAreCute/DinosAmazingBashTui}" TUI_UPDATE_BRANCH="${TUI_UPDATE_BRANCH:-main}"
 declare -g TUI_UPDATE_LATEST="" TUI_UPDATE_ERROR="" TUI_UPDATE_GIT=0 TUI_UPDATE_TIMEOUT="${TUI_UPDATE_TIMEOUT:-15}"

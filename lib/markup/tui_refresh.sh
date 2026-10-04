@@ -20,6 +20,7 @@
 # When the change cannot be applied this way - something outside the panes changed, a pane without an id would have to
 # be rebuilt, the root pane itself changed, or the changed part holds tabs or another tag the incremental build does not
 # handle - the page is rebuilt in the background instead (tui.page.rebuild, with a spinner).
+# requires:
 
 declare -g _TUI_P_RAW=""                                             # tui_node.dump of the parsed page, before addons and templates
 declare -gA _TUI_P_SIG_OWN=() _TUI_P_SIG_FULL=() _TUI_P_SIG_PLAIN=() # pane key -> signature / 1 when only plain tags below

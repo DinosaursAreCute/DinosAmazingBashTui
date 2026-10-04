@@ -18,6 +18,7 @@
 #
 # Keys inside: type to filter (fuzzy, every word must match) | up/down or ctrl+p/ctrl+n | pgup/pgdn | Enter run
 # | Esc close | ctrl+u clear | backspace. Mouse: click a row to run it, wheel to move, click outside to close.
+# requires: tui_configuration tui_home tui_input tui_own
 
 declare -ga _TUI_CMD_IDS=()
 declare -gA _TUI_CMD_TITLE=() _TUI_CMD_ACTION=() _TUI_CMD_GROUP=() _TUI_CMD_DESC=() _TUI_CMD_WHEN=() _TUI_CMD_DYN=()

@@ -22,6 +22,7 @@
 # into that pane, at a row inferred from its position among that pane's
 # non-pane children. Legacy `pane="…" row="…"` still wins when given -
 # every existing page uses only the explicit form and is unaffected.
+# requires: tui_registry
 
 declare -gA _TUI_BUILD_TITLE=()  # pane id -> title, applied once every split is done (see tui_build.build)
 declare -gA _TUI_BUILD_BORDER=() # pane id -> border, same reason

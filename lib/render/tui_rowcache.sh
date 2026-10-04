@@ -8,6 +8,7 @@
 # (a ${expr} text), so dynamic content always recomposes.
 #
 # Fork-free: parameter expansion and one associative array.
+# requires:
 
 declare -gA _TUI_RC=()
 declare -gi _TUI_RC_N=0

@@ -5,6 +5,7 @@
 # File: $TUI_APP_CONF/dabt.conf = ~/.config/DABT/apps/<app>/dabt.conf  (key=value lines; see tui_home.sh). tui.init applies:
 #   theme=/path/to/overlay.css      defaults.off="scroll quit"      input.retain=1|0      input.coalesce=1|0
 # Apps can keep their own keys here too - anything is stored; only those four mean something to the framework.
+# requires: tui_configuration tui_home
 declare -gA _TUI_CFG=()
 declare -g  TUI_CONFIG_FILE="${TUI_CONFIG_FILE:-$TUI_APP_CONF/dabt.conf}"
 

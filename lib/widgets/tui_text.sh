@@ -28,6 +28,7 @@
 # (tui.text.highlighter ID FN, FN LINE -> a list of "START LEN STYLE" spans) would slot in there without touching the
 # editor state, and a `mode="markdown"` on <textarea> could switch it on together with a preview (see
 # docs/guide/widgets.md, "Roadmap"). Nothing in the engine assumes plain text beyond that one function.
+# requires:
 
 declare -gA _TXC=() _TXA=() _TXS=() _TXT=() _TXW=() _TXH=()       # cursor, anchor(-1), hscroll, top row, wanted column, rows shown
 declare -gA _TXUV=() _TXUC=() _TXUN=() _TXRV=() _TXRC=() _TXRN=() _TXLK=() _TXLP=()   # undo / redo

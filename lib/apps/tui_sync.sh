@@ -24,6 +24,7 @@
 #   tui.sync.valid_source SRC           rc 0 when SRC looks like a DABT release (VERSION, lib/tui.sh, share/defaults)
 #   tui.sync.report                     text listing the last plan(s) for humans
 # STAMP is a timestamp; set TUI_SYNC_STAMP to fix it (tests).
+# requires:
 
 declare -ga TUI_SYNC_ADD=() TUI_SYNC_UPDATE=() TUI_SYNC_SAME=() TUI_SYNC_KEEP=() TUI_SYNC_CONFLICT=() TUI_SYNC_REMOVE=() TUI_SYNC_ORPHAN=()
 declare -ga TUI_SYNC_P_ADD=() TUI_SYNC_P_UPDATE=() TUI_SYNC_P_SAME=() TUI_SYNC_P_REMOVE=()

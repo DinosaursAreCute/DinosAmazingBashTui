@@ -18,6 +18,7 @@
 #                                      want NAME?" without acting; otherwise it acts and rc 0 = handled
 # The handlers are cached per type at registration (_TUI_WT_*), so the engine pays one array lookup, not a registry
 # split. A later registration of the same type wins; unregistering a plugin drops what it registered.
+# requires: tui_registry
 
 declare -gA _TUI_WT_MEASURE=() _TUI_WT_DRAW=() _TUI_WT_HIT=() _TUI_WT_KEY=()
 declare -g _TUI_WT_PROBE=0 TUI_WIDGET_V=""

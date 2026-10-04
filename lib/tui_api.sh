@@ -14,6 +14,7 @@
 # Usage:
 #   printf '%s%s%s\n' "$(tui.ansi mypane title)" "hi" "$(style.reset)"
 #   tui.paint mypane "hi" title
+# requires:
 
 # _tui_api._build FG BG MODS - emits ANSI prefix for resolved values.
 _tui_api._build() {
@@ -668,6 +669,7 @@ tui.theme.clear() {
 }
 tui.theme.current() { printf '%s\n' "${_TUI_THEME_OVERLAY:-}"; }
 tui.theme.reload() {
+	_tui.theme_reset # drop the previous theme's classes: a class the new theme does not define must not keep its colours
 	tui.log.debug "tui.theme.reload: goto ${_TUI_MARKUP_FILE:-<none>} (via tui.load_cached - may replay from cache)"
 	[[ -n "${_TUI_MARKUP_FILE:-}" ]] && tui.goto "$_TUI_MARKUP_FILE"
 }

@@ -29,6 +29,7 @@
 # bottom of the callback file, not inside on_visit. Skipping that on a
 # cache hit silently drops it. Re-declaring already-identical functions is
 # cheap; only the markup parse+build is what's actually worth caching.
+# requires: tui_style
 
 declare -gA _TUI_CACHE_PAGE=()                                                 # resolved page path -> declare -p snapshot of its built engine state
 declare -gA _TUI_CACHE_SIG=()                                                  # resolved page path -> "dep=mtime dep=mtime ..." signature
@@ -482,8 +483,8 @@ tui.cache.replay() {
 	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
 	_TUI_SNAP_SIZE=""  # a snapshot from an earlier version does not set it
 	if [[ -n "$shell" ]]; then _tui_shell.apply "$file"; else _tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"; fi
-	_TUI_RC_EPOCH+=1 # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
-	_tui.layout_bump # the layout memo belongs to the previous page (see _tui_cache_relayout)
+	_tui.epoch_bump style  # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
+	_tui.epoch_bump layout # the layout memo belongs to the previous page (see _tui_cache_relayout)
 	local _ly_gen=$_TUI_LY_GEN
 	# Re-applies the page's <theme> plus whatever app-wide overlay is
 	# currently set (tui.load_theme itself layers _TUI_THEME_OVERLAY on top,
@@ -533,7 +534,7 @@ tui.cache.replay() {
 		if [[ "$_SH_GEO" == "${_TUI_CACHE_PAGEGEO[$file]:-}" ]] && ((_TUI_LY_GEN == _ly_gen)); then
 			_tui_perf.count relayout_skipped
 		else
-			_tui.layout_bump
+			_tui.epoch_bump layout
 			_tui._layout "$_TUI_OUTLET"
 		fi
 	elif [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON" ]] && ((_TUI_LY_GEN == _ly_gen)); then

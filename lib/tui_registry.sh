@@ -25,6 +25,7 @@
 # registry's KIND/NAME/FN triples. Wiring an actual plugin's on_disable to
 # also call _tui_registry.unregister_plugin is for whichever stage next
 # touches tui_plugin.sh.
+# requires:
 
 declare -gA _TUI_REGISTRY=()        # "KIND:NAME" -> space-joined FN list, registration order
 declare -gA _TUI_REGISTRY_OWNER=()  # "KIND:NAME:FN" -> owning plugin name

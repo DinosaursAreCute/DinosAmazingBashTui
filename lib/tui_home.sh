@@ -19,6 +19,7 @@
 #   first_run, last_run, runs  - and anything else you store with tui.app.meta_set.
 #   tui.app.meta_get KEY [DEFAULT]    tui.app.meta_set KEY VALUE    tui.app.dir  (prints TUI_APP_CONF)
 # Files from the old layout (~/.config/<app>/{dabt.conf,keybinds.xml,settings.conf}) are moved here the first time.
+# requires: tui_configuration
 
 declare -g TUI_ROOT="${TUI_ROOT:-$(cd -P "${BASH_SOURCE[0]%/*}/.." && pwd -P)}" # the program: the folder that holds lib/ bin/ share/
 declare -g TUI_VERSION="0.0.6"

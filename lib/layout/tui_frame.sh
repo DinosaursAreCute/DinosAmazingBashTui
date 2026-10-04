@@ -10,6 +10,7 @@
 #
 # Fused boxes each still draw their full border; _tui_frame.junctions then redraws every cell that two or more
 # fused boxes share, with the glyph for the lines meeting there (junction table: lib/render/tui_canvas.sh).
+# requires:
 
 declare -gA _TUI_P_FUSE=() _TUI_P_DIVIDER=() _TUI_P_DIVIDER_CLASS=() _TUI_P_TITLE_POS=() _TUI_P_TITLE_ALIGN=()
 
@@ -20,7 +21,7 @@ tui.pane_fuse() {
 		return 1
 	}
 	if [[ "$2" == true ]]; then _TUI_P_FUSE[$1]=true; else unset '_TUI_P_FUSE[$1]'; fi
-	_tui.layout_bump # fusing moves every sibling's rect
+	_tui.epoch_bump layout # fusing moves every sibling's rect
 }
 
 # tui.pane_divider ID STYLE - border style of the line ID shares with its fused neighbour (empty: the pane's border).

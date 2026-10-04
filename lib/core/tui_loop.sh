@@ -3,6 +3,7 @@
 #
 #   tui.run     runs the event loop: input, ticks, resize, frames; returns when tui.stop is called
 #   tui.stop    asks the loop to end
+# requires:
 
 # ═══════════════════════════════════════════════════════════════════════
 #  MAIN EVENT LOOP

@@ -35,6 +35,7 @@
 #
 # Page-local keep flags are _TUI_W_KEEP / _TUI_P_KEEP_SIZE / _TUI_P_KEEP_COLLAPSED / _TUI_P_KEEP_STATE: _TUI_P_ and
 # _TUI_W_ variables, so the page cache snapshots and replays them with everything else.
+# requires:
 
 declare -gA _TUI_STORE=() _TUI_STORE_DEFAULT=() _TUI_STORE_DEFAULTED=()
 declare -gA _TUI_W_KEEP=() _TUI_P_KEEP_SIZE=()
@@ -372,8 +373,8 @@ _tui_store.restore_page() {
 			_tui_store.restore_widget "$id" "$pass"
 		done
 	done
-	_tui.layout_bump
-	_TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1
+	_tui.epoch_bump layout
+	_tui.epoch_bump widgets
 	return 0
 }
 
@@ -409,8 +410,8 @@ _tui_store.unsize_chain() {
 
 # _tui_store.reset_done - lay out again, run on_resize callbacks, repaint
 _tui_store.reset_done() {
-	_tui.layout_bump
-	_TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1
+	_tui.epoch_bump layout
+	_tui.epoch_bump widgets
 	_tui_resize.commit
 }
 

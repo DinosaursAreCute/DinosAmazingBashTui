@@ -14,6 +14,7 @@
 # tui_api.sh's standalone pane repaint), which still wants an immediate
 # write. _tui.emit_style/_tui.emit_ring below are the buffer-mode
 # equivalents, used only by draw paths that build into _TUI_FRAME.
+# requires:
 
 declare -g _TUI_FRAME=""
 

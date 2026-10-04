@@ -23,6 +23,7 @@
 # tui.class ID CLASS    applies a class's rules to a pane or widget id.
 # tui.style ID:STATE FG BG MODS   sets style directly, bypassing classes.
 #   STATE is one of: normal (default), focus, border, title, hover, checked, unchecked.
+# requires:
 
 declare -gA _TUI_STYLE_FG=() _TUI_STYLE_BG=() _TUI_STYLE_MOD=()
 declare -gA _TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=()
@@ -36,7 +37,7 @@ tui.style() {
 	[[ -n "$fg" ]] && _TUI_STYLE_FG[$key]="$fg"
 	[[ -n "$bg" ]] && _TUI_STYLE_BG[$key]="$bg"
 	[[ -n "$mods" ]] && _TUI_STYLE_MOD[$key]="$mods"
-	_TUI_RC_EPOCH+=1
+	_tui.epoch_bump style
 }
 
 # ── theme loading ───────────────────────────────────────────────────────
@@ -107,6 +108,16 @@ _tui.theme_commit() {
 		[[ -n "${_TP_BG[$cls]:-}" ]] && _TUI_CLASS_BG[$cls]="${_TP_BG[$cls]}"
 		[[ -n "${_TP_MOD[$cls]:-}" ]] && _TUI_CLASS_MOD[$cls]="${_TP_MOD[$cls]}"
 	done
+}
+
+# _tui.theme_reset - empties the class table. Loading a theme only ever adds to it (later files override earlier
+# ones), so a class or property the new theme leaves out would keep the previous theme's colour; a theme switch
+# resets first and rebuilds from the framework default.
+_tui.theme_reset() {
+	_TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=()
+	_TUI_THEME_COLLISIONS=()
+	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css"
+	return 0
 }
 
 # Runs the collision lint on the class table and logs findings. Only done when a file is actually

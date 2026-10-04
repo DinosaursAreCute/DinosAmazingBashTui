@@ -16,6 +16,7 @@
 # Offered to the screen after every render and once per loop like any overlay (tui_modal.sh), but only written when the
 # row would change (new content, a resize or an erase); rebuilt when the bindings, the terminal width or the page history
 # change.
+# requires:
 declare -g TUI_FOOTER_DEFAULT='@tui.action.quit|Quit;@tui.palette.open|Command bar;@tui.action.back|Back|_tui_cmd.has_history;@tui.action.resize_mode|Resize|_tui_resize.can_enter;arrows|Resize|_tui_resize.in_mode;enter|Done|_tui_resize.in_mode;@tui.action.collapse_toggle|Collapse|_tui_collapse.can_collapse;@tui.action.collapse_toggle|Expand|_tui_collapse.can_expand;@tui.action.page_reset|Reset page|tui.page.resettable'
 declare -g _TUI_FOOTER_ON=0 _TUI_FOOTER_ITEMS="" _TUI_FOOTER_STR="" _TUI_FOOTER_STAMP=""
 declare -g _TUI_BIND_GEN=0 # bumped by every binding change (footer / palette hints re-read the keys)

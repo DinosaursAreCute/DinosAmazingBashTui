@@ -19,6 +19,7 @@
 #   _TUI_PAGE_IDS[id]    w | p for every widget / pane the current page built (what leaving the page removes)
 # The page cache stores a page of a shell as a delta (see _tui_shell.delta): only the array entries the page's build
 # added or changed, so a replay lands on top of the live shell and never touches shell state.
+# requires:
 
 declare -g _TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT=""
 declare -gi _TUI_SHELL_AT=0
@@ -168,7 +169,7 @@ _tui_shell.leave_page() {
 	_TUI_P_LEAVES=()
 	_tui._collect_leaves root
 	_tui_w.changed
-	_tui.layout_bump
+	_tui.epoch_bump layout
 }
 
 # ── the page's cache entry: a delta over the shell ─────────────────────────

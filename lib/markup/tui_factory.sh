@@ -3,6 +3,7 @@
 #
 # tui.factory.* creates widgets/panes with auto-generated, globally unique
 # namespace-scoped ids and tracks them for batch teardown. Sourced by tui.sh.
+# requires:
 
 # shellcheck source=../state.sh
 source "${SCRIPT_DIR}/state.sh"

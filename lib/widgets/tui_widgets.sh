@@ -25,6 +25,7 @@
 #       select      Enter / space / down open the picker.        Mouse: click selects, double-click activates, wheel scrolls.
 # Theme classes (all optional): .list_sel .table_head .table_sel .progress .progress_fill .select .selection
 #   .field_label (+ :focus) - the label in front of an input, password, select or progress bar
+# requires:
 
 declare -gA _TUI_W_ROWSPAN=() _WXSEL=() _WXTOP=() _WXCOLS=() _WXH=() _WXPCT=() _WXF=()
 declare -g _WX_TARGET="" _WX_CLICK_T=0 _WX_CLICK_ID="" _WX_CLICK_I=-1

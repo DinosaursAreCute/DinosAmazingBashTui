@@ -20,6 +20,7 @@
 #
 # Scrollbars: the bar is drawn 1 cell wide, its zone is 3 columns wide (the bar +-1, clamped to the pane); the
 # horizontal bar's zone is 3 rows high. The vertical zone wins the shared corner.
+# requires:
 
 declare -gA _TUI_W_HITPAD=() _TUI_W_HITBOX=() # id -> "N" or "V H" cells; id -> "dy dx h w" relative to the widget origin
 declare -ga _TUI_HZ_C0=() _TUI_HZ_C1=()

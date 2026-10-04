@@ -32,6 +32,7 @@
 #   .dialog_dim .dialog_error   and for toasts  .toast .toast_success .toast_warn .toast_error
 # One dialog at a time: opening a dialog while another is open replaces it. Toasts and dialogs never survive a page
 # change except toasts, which keep their remaining time.
+# requires:
 
 declare -g TUI_DIALOG_RESULT="" TUI_DIALOG_ERROR="" TUI_NOTIFY_ID=0
 declare -g TUI_TOAST_MAX=5 TUI_TOAST_WIDTH=46 TUI_TOAST_SECONDS=5 TUI_TOAST_POSITION=bottom-right

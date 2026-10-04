@@ -6,6 +6,7 @@
 # Globals for results:
 #   _SC_MAX        (max_off): max offset value for the pane
 #   _TUI_P_CONTENT_H (measure): total height in rows of widgets in pane
+# requires:
 
 # _tui_scroll.measure PANE - sets _TUI_P_CONTENT_H[PANE] = height of all
 # widgets in PANE stacked vertically: max over widgets w with
@@ -54,11 +55,11 @@ _tui_scroll.clamp() {
 	local offset="${_TUI_P_SOFF_V[$pane]:-0}"
 	if ((offset < 0)); then
 		_ps.panes.set "$pane" soff_v 0
-		_TUI_HZ_DIRTY=1 # every widget of the pane moved on screen: the hit index is stale
+		_tui.epoch_bump hit # every widget of the pane moved on screen: the hit index is stale
 		return 0
 	elif ((offset > _SC_MAX)); then
 		_ps.panes.set "$pane" soff_v "$_SC_MAX"
-		_TUI_HZ_DIRTY=1
+		_tui.epoch_bump hit
 		return 0
 	fi
 	return 1
@@ -107,7 +108,7 @@ _tui_scroll.reveal() {
 	fi
 
 	_ps.panes.set "$pane" soff_v "$new_offset"
-	((new_offset != offset)) && _TUI_HZ_DIRTY=1
+	((new_offset != offset)) && _tui.epoch_bump hit
 	_tui_scroll.max_off "$pane"
 	_tui_scroll.clamp "$pane"
 	local clamp_changed=$?
@@ -271,7 +272,7 @@ _tui_scroll.apply() {
 
 		local new_offset="${_TUI_P_SOFF_V[$pane]:-0}"
 		if ((old_offset != new_offset)); then
-			_TUI_HZ_DIRTY=1 # the widgets moved on screen: clicks and hovers must see the new places
+			_tui.epoch_bump hit # the widgets moved on screen: clicks and hovers must see the new places
 			_tui_scroll.repaint "$pane"
 		fi
 	fi
@@ -392,7 +393,7 @@ tui.scroll.to() {
 
 	# Check if offset changed
 	if ((old_offset != new_offset)); then
-		_TUI_HZ_DIRTY=1
+		_tui.epoch_bump hit
 		if ((_TUI_RUNNING)); then
 			# Repaint if UI is running
 			if [[ -n "${_TUI_PANE_CONTENT[$pane]:-}" ]]; then

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# bench_ab.sh [RUNS] [REF] - A/B bench: REF (default HEAD, checked out as a throwaway worktree) against the working
+# bench_ab.sh [RUNS] [REF] - A/B bench: REF (default HEAD, checked out as a throwaway export) against the working
 # tree, interleaved so machine drift hits both. Prints name, ref mean, tree mean, delta and a verdict per bench:
 # <= +2% noise, <= +5% WARN, > +5% FAIL. Exit 1 when any bench fails.
 set -uo pipefail
 REPO="$(cd -P "$(dirname "$0")/../.." && pwd -P)"
 RUNS=${1:-3} REF=${2:-HEAD}
 WT=$(mktemp -d "${TMPDIR:-/tmp}/bench_ab.XXXXXX")
-trap 'git -C "$REPO" worktree remove --force "$WT" >/dev/null 2>&1; rm -rf "$WT"' EXIT
-git -C "$REPO" worktree add -q --detach "$WT" "$REF" || exit 1
+trap 'rm -rf "$WT"' EXIT
+git -C "$REPO" archive "$REF" | tar -x -C "$WT" || exit 1 # read-only: no worktree or ref is created
+cp -r "$REPO/share/." "$WT/share/"                        # lib/ is what is compared: both sides render the same pages and themes (share/ may carry uncommitted edits)
 
 rows() { "$1/tools/bench/run.sh" 2>/dev/null | grep -a $'\t' | awk -F'\t' -v l="$2" '{print l "\t" $1 "\t" $2}'; }
 {

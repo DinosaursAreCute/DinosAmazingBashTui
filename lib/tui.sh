@@ -17,109 +17,8 @@
 # ╚════════════════════════════════════════════════════════════════════════════╝
 
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" # the lib/ folder, symlinks resolved
-# shellcheck source=tui_configuration.sh
-source "${SCRIPT_DIR}/tui_configuration.sh"
-# shellcheck source=state.sh
-source "${SCRIPT_DIR}/state.sh"
-# shellcheck source=perf.sh
-source "${SCRIPT_DIR}/perf.sh"
-# shellcheck source=layout/tui_layout.sh
-source "${SCRIPT_DIR}/layout/tui_layout.sh"
-# shellcheck source=terminal_controls.sh
-source "${SCRIPT_DIR}/terminal_controls.sh"
-# shellcheck source=render/tui_emit.sh
-source "${SCRIPT_DIR}/render/tui_emit.sh"
-# shellcheck source=render/tui_canvas.sh
-source "${SCRIPT_DIR}/render/tui_canvas.sh"
-# shellcheck source=render/tui_paint.sh
-source "${SCRIPT_DIR}/render/tui_paint.sh"
-# shellcheck source=render/tui_rowcache.sh
-source "${SCRIPT_DIR}/render/tui_rowcache.sh"
-# shellcheck source=input/tui_hit.sh
-source "${SCRIPT_DIR}/input/tui_hit.sh"
-# shellcheck source=input/tui_focus.sh
-source "${SCRIPT_DIR}/input/tui_focus.sh"
-# shellcheck source=layout/tui_scroll.sh
-source "${SCRIPT_DIR}/layout/tui_scroll.sh"
-# shellcheck source=layout/tui_frame.sh
-source "${SCRIPT_DIR}/layout/tui_frame.sh"
-# shellcheck source=layout/tui_resize.sh
-source "${SCRIPT_DIR}/layout/tui_resize.sh"
-# shellcheck source=layout/tui_collapse.sh
-source "${SCRIPT_DIR}/layout/tui_collapse.sh"
-# shellcheck source=state_api.sh
-source "${SCRIPT_DIR}/state_api.sh"
-# shellcheck source=state/tui_store.sh
-source "${SCRIPT_DIR}/state/tui_store.sh"
-# shellcheck source=colors.sh
-source "${SCRIPT_DIR}/colors.sh"
-# shellcheck source=tui_home.sh
-source "${SCRIPT_DIR}/tui_home.sh"
-_tui_plugin.own() { :; } # replaced by tui_plugin.sh; modules sourced before it may already register things
-# shellcheck source=markup/tui_node.sh
-source "${SCRIPT_DIR}/markup/tui_node.sh"
-# shellcheck source=markup/tui_markup.sh
-source "${SCRIPT_DIR}/markup/tui_markup.sh"
-# shellcheck source=markup/tui_parse.sh
-source "${SCRIPT_DIR}/markup/tui_parse.sh"
-# shellcheck source=markup/tui_validate.sh
-source "${SCRIPT_DIR}/markup/tui_validate.sh"
-# shellcheck source=style/tui_style.sh
-source "${SCRIPT_DIR}/style/tui_style.sh"
-# shellcheck source=tui_registry.sh
-source "${SCRIPT_DIR}/tui_registry.sh"
-# shellcheck source=widgets/tui_widget_contract.sh
-source "${SCRIPT_DIR}/widgets/tui_widget_contract.sh"
-# shellcheck source=markup/tui_ops.sh
-source "${SCRIPT_DIR}/markup/tui_ops.sh"
-# shellcheck source=markup/tui_compose.sh
-source "${SCRIPT_DIR}/markup/tui_compose.sh"
-# shellcheck source=markup/tui_addon.sh
-source "${SCRIPT_DIR}/markup/tui_addon.sh"
-# shellcheck source=markup/tui_build.sh
-source "${SCRIPT_DIR}/markup/tui_build.sh"
-# shellcheck source=markup/tui_refresh.sh
-source "${SCRIPT_DIR}/markup/tui_refresh.sh"
-# shellcheck source=markup/tui_shell.sh
-source "${SCRIPT_DIR}/markup/tui_shell.sh"
-# shellcheck source=markup/tui_factory.sh
-source "${SCRIPT_DIR}/markup/tui_factory.sh"
-# shellcheck source=tui_api.sh
-source "${SCRIPT_DIR}/tui_api.sh"
-# shellcheck source=input/tui_input.sh
-source "${SCRIPT_DIR}/input/tui_input.sh"
-# shellcheck source=input/tui_mouse.sh
-source "${SCRIPT_DIR}/input/tui_mouse.sh"
-# shellcheck source=chrome/tui_modal.sh
-source "${SCRIPT_DIR}/chrome/tui_modal.sh"
-# shellcheck source=chrome/tui_cmd.sh
-source "${SCRIPT_DIR}/chrome/tui_cmd.sh"
-# shellcheck source=chrome/tui_footer.sh
-source "${SCRIPT_DIR}/chrome/tui_footer.sh"
-# shellcheck source=chrome/tui_dialog.sh
-source "${SCRIPT_DIR}/chrome/tui_dialog.sh"
-# shellcheck source=core/tui_loop.sh
-source "${SCRIPT_DIR}/core/tui_loop.sh"
-# shellcheck source=exec/tui_exec.sh
-source "${SCRIPT_DIR}/exec/tui_exec.sh"
-# shellcheck source=tui_job.sh
-source "${SCRIPT_DIR}/tui_job.sh"
-# shellcheck source=widgets/tui_text.sh
-source "${SCRIPT_DIR}/widgets/tui_text.sh"
-# shellcheck source=widgets/tui_widgets.sh
-source "${SCRIPT_DIR}/widgets/tui_widgets.sh"
-# shellcheck source=config/tui_config.sh
-source "${SCRIPT_DIR}/config/tui_config.sh"
-# shellcheck source=plugin/tui_plugin.sh
-source "${SCRIPT_DIR}/plugin/tui_plugin.sh"
-# shellcheck source=apps/tui_sync.sh
-source "${SCRIPT_DIR}/apps/tui_sync.sh"
-# shellcheck source=apps/tui_install.sh
-source "${SCRIPT_DIR}/apps/tui_install.sh"
-# shellcheck source=apps/tui_update.sh
-source "${SCRIPT_DIR}/apps/tui_update.sh"
-# shellcheck source=markup/tui_cache.sh
-source "${SCRIPT_DIR}/markup/tui_cache.sh"
+# shellcheck source=tui_modules.sh
+source "${SCRIPT_DIR}/tui_modules.sh" # GENERATED from the "# requires:" headers by tools/gen_load_order.sh
 
 # ═══════════════════════════════════════════════════════════════════════
 #  INTERNAL STATE (UI & LAYOUT)
@@ -345,7 +244,7 @@ _tui._split() {
 	_ps.panes.set "$parent" dir "$dir"
 	_ps.panes.set "$parent" children "$names"
 	_ps.panes.set "$parent" weights "$weights"
-	_tui.layout_bump
+	_tui.epoch_bump layout
 
 	_tui._layout "$parent"
 
@@ -385,7 +284,7 @@ tui.fixed() {
 	_ps.panes.set "$parent" weights ""
 	_ps.panes.set "$parent" cellw "$sw"
 	_ps.panes.set "$parent" cellh "$sh"
-	_tui.layout_bump
+	_tui.epoch_bump layout
 
 	_tui._layout "$parent"
 
@@ -531,7 +430,7 @@ _tui._collect_leaves() {
 # a nested begin overwriting the outer call's start time.
 # state:direct
 _tui._layout() {
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 	_tui_perf.begin layout
 	_tui._layout_r "$1"
 	# Settle scroll offsets for all leaf panes with vertical scroll after geometry is final
@@ -664,7 +563,7 @@ tui.pane_title() { _TUI_P_TITLE[$1]="$2"; }
 tui.pane_border() {
 	_ps.panes.set "$1" border "$2"
 	_ps.panes.set "$1" border_expl 1
-	_tui.layout_bump # border changes _tui._inset, which shifts every child's rect
+	_tui.epoch_bump layout # border changes _tui._inset, which shifts every child's rect
 }
 # tui.pane_pad ID HPAD VPAD - blank cols/rows on each side. Parent panes:
 # gap between the frame and the children. Leaf panes: shrinks the area
@@ -672,7 +571,7 @@ tui.pane_border() {
 tui.pane_pad() {
 	[[ -n "$2" ]] && _TUI_P_HPAD[$1]="$2"
 	[[ -n "$3" ]] && _TUI_P_VPAD[$1]="$3"
-	_tui.layout_bump
+	_tui.epoch_bump layout
 }
 tui.pad() {
 	[[ -n "$2" ]] && _TUI_W_HPAD[$1]="$2"
@@ -681,7 +580,7 @@ tui.pad() {
 # tui.pane_gap ID GAP - cells left blank between ID's children on its split axis (2A).
 tui.pane_gap() {
 	[[ -n "$2" ]] && _TUI_P_GAP[$1]="$2"
-	_tui.layout_bump
+	_tui.epoch_bump layout
 }
 
 # _tui._eff_border ID - sets _TB to the border style actually drawn.
@@ -764,7 +663,7 @@ tui.pane_minsize() {
 tui.pane_maxsize() {
 	[[ -n "$2" ]] && _TUI_P_MAXW[$1]="$2"
 	[[ -n "$3" ]] && _TUI_P_MAXH[$1]="$3"
-	_tui.layout_bump # unlike min_*, max_* feeds real arrange math (fast-path check + _LY_MAXS)
+	_tui.epoch_bump layout # unlike min_*, max_* feeds real arrange math (fast-path check + _LY_MAXS)
 }
 
 tui.pane_scroll() {
@@ -1957,7 +1856,7 @@ _tui.frame_present() {
 tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
 	_TUI_FRAME_REQ=0
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 	((_TUI_FOCUS_AUTO)) && _tui_focus.autofocus
 	_tui_perf.begin render
 	_tui_perf.count full_renders

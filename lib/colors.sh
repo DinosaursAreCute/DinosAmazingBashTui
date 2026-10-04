@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# requires:
 BLACK='\033[0;30m'
 BOLD='\033[1m'
 RED='\033[0;31m'

@@ -8,6 +8,7 @@
 # Public: tui.perf.report, tui.perf.reset, tui.perf.mean_render_ms (tui.sh).
 # Private: _tui_perf.begin/end/count wrap the phases that matter (parse,
 # build, layout, render, flush, dispatch) in the current code.
+# requires: tui_configuration
 
 declare -g _TUI_PERF_TRACKING="${_TUI_PERF_TRACKING:-0}"
 declare -gA _TUI_PERF_T0=()       # span name -> start time (us), set by begin

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # cursor.sh - Sourceable ANSI/VT100 terminal control library
 # Usage: source cursor.sh
+# requires:
 
 # ─────────────────────────────────────────────
 #  Cursor Movement

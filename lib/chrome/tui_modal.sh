@@ -17,6 +17,7 @@
 #   tui.modal.close             remove it and repaint the screen
 #   tui.modal.active [NAME]     rc 0 while a modal (or that one) is open
 #   tui.modal.redraw            draw now (call after your state changes)
+# requires:
 declare -ga _TUI_OVERLAY_FNS=()
 declare -g _TUI_MODAL="" _TUI_MODAL_KEYFN="" _TUI_MODAL_DRAWFN="" _TUI_MODAL_MOUSEFN=""
 

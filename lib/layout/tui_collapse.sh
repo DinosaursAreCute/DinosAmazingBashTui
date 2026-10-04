@@ -34,6 +34,7 @@
 # collapse_to=0 there is none. Theme classes .collapse_button, :hover and :collapsed (collapse_class= picks another). Its zone (kind chevron, arg
 # cv-toggle, 2 wide) is rebuilt with the hit index (_tui_collapse.zones); the button is painted after the frame by
 # _tui_hit.overlay, hover redraws just it.
+# requires:
 
 declare -gA _TUI_P_COLLAPSIBLE=() _TUI_P_COLLAPSED=() _TUI_P_COLLAPSE_DEFAULT=() _TUI_P_COLLAPSE_TO=()
 declare -gA _TUI_P_KEEP_COLLAPSED=() _TUI_P_ON_TOGGLE=() _TUI_P_COLLAPSE_SAVED=() _TUI_P_ACCORDION=()
@@ -58,7 +59,7 @@ tui.collapse() {
 	esac
 	_CL_CHANGED=()
 	_tui_collapse.flip "$id" "$st" || return 1
-	_tui.layout_bump
+	_tui.epoch_bump layout
 	_tui_resize.snap
 	_tui_resize.commit
 	_tui_collapse.refocus
@@ -101,7 +102,7 @@ _tui_collapse.build() {
 	[[ -n "$7" ]] && _TUI_P_ON_TOGGLE[$id]="$7"
 	[[ -n "${9:-}" ]] && _TUI_P_COLLAPSE_CLASS[$id]="$9"
 	[[ -n "${8:-}" ]] && _tui_collapse.bind "$id" "$8"
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 	return 0
 }
 
@@ -228,7 +229,7 @@ _tui_collapse.flip() {
 			fi
 		fi
 	done
-	_TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1
+	_tui.epoch_bump widgets
 	_CL_CHANGED+=("$id")
 	if ((! st)) && [[ "${_TUI_P_ACCORDION[$p]:-}" == exclusive ]]; then
 		read -ra ch <<<"${_TUI_P_CHILDREN[$p]}"

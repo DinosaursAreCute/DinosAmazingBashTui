@@ -33,11 +33,10 @@
 # unchanged tree). It is coarser than per-subtree dirty tracking (any
 # mutation anywhere invalidates the whole cache) but never stale, and needs
 # no parent-pointer bookkeeping.
+# requires:
 
 declare -g _TUI_LY_GEN=0
 declare -gA _TUI_LY_KEY=() _TUI_LY_GEN_AT=()
-
-_tui.layout_bump() { : $((_TUI_LY_GEN++)); }
 
 # _tui.layout_cache_hit P - true and skips nothing itself; caller
 # (_tui._layout_r) does the skipping. Sets nothing on a miss beyond

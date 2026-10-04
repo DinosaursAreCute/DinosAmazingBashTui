@@ -3,6 +3,7 @@
 #
 #   tui.exec CMD OUT_PANE [CTL_PANE]    starts CMD as a tracked instance; its id is left in $_TUI_EXEC_LAST_ID
 #   tui.exec.cancel_pane PANE           cancels the instances feeding PANE
+# requires: tui_configuration
 
 # ═══════════════════════════════════════════════════════════════════════
 #  INTERNAL STATE (BACKGROUND EXECUTION)

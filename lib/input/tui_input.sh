@@ -38,6 +38,7 @@
 #   tui.action.quit  focus_next  focus_prev  activate  unfocus  click
 #   tui.action.scroll up|down|left|right [N]   tui.action.page up|down
 #   tui.action.scroll_top  tui.action.scroll_bottom
+# requires: tui_configuration tui_home
 
 declare -gA _TUI_BIND=()          # "scope|key" -> command        (user; scope = "" or "pane:ID")
 declare -gA _TUI_BIND_DEF=()      # key -> command                (built-in defaults)

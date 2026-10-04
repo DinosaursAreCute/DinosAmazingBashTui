@@ -15,3 +15,8 @@
 
 #Used In comments we do not care about this. 
  disable=SC2006
+
+# Functions here are called from other modules, by registered name or by handler lookup, which a per-file
+# analysis cannot see: it reports them as never invoked (SC2329) and their bodies as unreachable (SC2317).
+disable=SC2317
+disable=SC2329

@@ -7,6 +7,7 @@
 # ║                                                                            ║
 # ║  Read-only after initialization: _TUI_* paths (computed).                  ║
 # ╚════════════════════════════════════════════════════════════════════════════╝
+# requires:
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  APPLICATION IDENTITY (set by caller before sourcing tui.sh)

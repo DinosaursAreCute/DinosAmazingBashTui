@@ -16,6 +16,7 @@
 # _tui_focus.ensure rebuilds on next use.
 # Which widget types are focusable by default is part of the type's contract: "focusable:yes" in its
 # tui.register.style_contract (lib/tui_registry.sh); the markup validator asks the same question.
+# requires:
 
 # _tui_focus.default_focusable TYPE - rc 0 if TYPE takes focus unless focusable="false"
 _tui_focus.default_focusable() {

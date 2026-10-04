@@ -66,6 +66,7 @@
 # Multi-page TUIs: each file is a self-contained page (its own <tui>…</tui>).
 # tui.goto "path/to/page.xml" clears the current UI and loads a new page,
 # so buttons can link between files like anchors between HTML pages.
+# requires:
 
 declare -g _TUI_MARKUP_DIR=""
 declare -g _TUI_MARKUP_FILE=""
@@ -133,7 +134,7 @@ tui.load() {
 	tui_build.load "$file"
 	[[ -n "$_TUI_SHELL_FILE" && "$_TUI_SHELL_FILE" == "$_TUI_MARKUP_FILE" ]] && _tui_shell.collect_ids
 	if [[ -n "$_ld_shell" ]]; then
-		_tui.layout_bump
+		_tui.epoch_bump layout
 		_tui._layout "$_TUI_OUTLET"
 		_TUI_P_ALL=()
 		_TUI_P_LEAVES=()
@@ -165,7 +166,7 @@ _tui_cache_relayout() {
 	# terminal size) could otherwise coincidentally satisfy the memo's key
 	# check. The memo's own generation counter can't tell replay apart from
 	# an ordinary call, so this is the one unconditional bump point.
-	_tui.layout_bump
+	_tui.epoch_bump layout
 	_tui._root_w
 	_tui._root_h
 	_tui._layout root
@@ -242,7 +243,8 @@ tui.reset_ui() {
 	_TUI_W_STICKY=()
 	_TUI_W_FOCUSABLE=() _TUI_W_TABBABLE=() _TUI_W_TABORDER=() _TUI_W_FGROUP=() _TUI_W_FNAV=() _TUI_W_FWRAP=()
 	_TUI_W_FNEXT=() _TUI_W_FPREV=() _TUI_W_AUTOFOCUS=() _TUI_W_HITPAD=() _TUI_W_HITBOX=()
-	_TUI_FOCUS_GLAST=() _TUI_FOCUS_WRAP=1 _TUI_FOCUS_AUTO=1 _TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1
+	_TUI_FOCUS_GLAST=() _TUI_FOCUS_WRAP=1 _TUI_FOCUS_AUTO=1
+	_tui.epoch_bump widgets
 	_tui_hit.extra_clear
 	_tui_refresh.reset
 	_tui_wx.reset
@@ -264,7 +266,7 @@ tui.reset_ui() {
 	_TUI_STYLE_FG=()
 	_TUI_STYLE_BG=()
 	_TUI_STYLE_MOD=()
-	_TUI_RC_EPOCH+=1
+	_tui.epoch_bump style
 
 	_tui_api.shutdown 2>/dev/null
 	_tui_input.clear_page

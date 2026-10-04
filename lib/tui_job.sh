@@ -19,6 +19,7 @@
 # Starting a job with an ID that is already pending cancels the earlier one.
 #
 # The loop calls _tui_job.tick on every pass while a job is pending (tui.tick.add); no timers, no signals.
+# requires: tui_configuration
 
 declare -g TUI_JOB_PREFIX=""
 

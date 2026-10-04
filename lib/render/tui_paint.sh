@@ -22,6 +22,7 @@
 #
 # Fork-free: everything here is bash builtins/parameter expansion, no
 # command substitution, matching every other hot-render-path helper.
+# requires:
 
 declare -gA _TUI_PAINT_PREV=() # row number -> bytes physically flushed for that row last time
 declare -gA _TP_ROW=()         # scratch (this call only): row number (see _TP_PRE_ROW) -> concatenated bytes

@@ -22,6 +22,7 @@
 #
 # This module only builds the tree. Nothing here calls a single tui.* API -
 # that dispatch is lib/markup/tui_build.sh's job (stage 1.2).
+# requires:
 
 declare -g _P_ROOT=""
 # a whole tag: <name, then any run of non-quote non-> characters and quoted strings, then >

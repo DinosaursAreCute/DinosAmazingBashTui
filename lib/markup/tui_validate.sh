@@ -17,6 +17,7 @@
 #
 # Running: tui.validate.files PAGE...  (status 1 when any error was found), then tui.validate.report
 # (stderr-ready text) and tui.validate.log (into the app log through tui.log, see tui.log.file).
+# requires:
 
 # ── rule tables ─────────────────────────────────────────────────────────
 declare -gA _TV_TAGS=() _TV_CONTAINER=() _TV_WIDGET=() _TV_SELFCLOSE=()

@@ -40,17 +40,17 @@
 #   key NAME (before bindings - FN returns 0 to CONSUME the key)  quit (tui.stop)  exit (terminal being restored -
 #   give shortcuts/files back here)  plugin_enabled NAME  plugin_disabled NAME
 # Plugins are trusted code: they run in the app's shell with its permissions.
+# requires: tui_cmd tui_own
 
-declare -gA _TPL_KIND=() _TPL_FILE=() _TPL_TITLE=() _TPL_VER=() _TPL_DESC=() _TPL_AUTHOR=() _TPL_REQ=() _TPL_DEF=() _TPL_SRC=() _TPL_STATE=() _TPL_ERR=() _TPL_OWN=()
+declare -gA _TPL_KIND=() _TPL_FILE=() _TPL_TITLE=() _TPL_VER=() _TPL_DESC=() _TPL_AUTHOR=() _TPL_REQ=() _TPL_DEF=() _TPL_SRC=() _TPL_STATE=() _TPL_ERR=()
 declare -ga _TPL_ORDER=() _TPL_DIRS=()
 declare -gA _TPL_HOOK=()
-declare -g  _TPL_CUR="" _TPL_READY=0 _TPL_SCANNED=0
+declare -g  _TPL_READY=0 _TPL_SCANNED=0
 declare -g  TUI_PLUGIN_NAME="" TUI_PLUGIN_ERROR="" TUI_PLUGIN_DIRS="${TUI_PLUGIN_DIRS:-}"
 
 _tui_plugin.id() { _PID="${1,,}"; _PID="${_PID//[^a-z0-9_]/_}"; }
 
-# ── ownership: what a plugin registered, so disabling can undo it ────────
-_tui_plugin.own() { [[ -n "${_TPL_CUR:-}" ]] && _TPL_OWN[$_TPL_CUR]+="$1"$'\t'"$2"$'\n'; return 0; }
+# ── ownership is tracked by tui_own.sh; release undoes it ────────────────
 tui.plugin.own()  { _tui_plugin.own "$@"; }
 
 _tui_plugin.release() {   # NAME: undo, newest first

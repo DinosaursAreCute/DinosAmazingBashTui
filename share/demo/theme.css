@@ -45,11 +45,6 @@
   mods: bold;
 }
 
-.muted_label {
-  fg: #888888;
-}
-
-
 .panel {
   fg: #c9d6e3;
   bg: #1c2336;
@@ -65,6 +60,11 @@
 .panel:focus {
   fg: #ffffff;
   bg: #2c3e50;
+}
+
+.muted_label {
+  fg: #c9d6e3;
+  bg: #1f233a;
 }
 
 .sidebar {
@@ -85,10 +85,12 @@
 }
 
 .hdr {
-  fg: #dbe4ff;
-  bg: #3c3e49;
+  fg: #ff5bef;
+  bg: #1a1c2c;
 }
-
+.hdr:border{
+  fg: #ff5bef;
+}
 .hdr_title {
   fg: #ff5bef;
   bg: #1a1c2c;

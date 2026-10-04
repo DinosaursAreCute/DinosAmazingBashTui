@@ -17,6 +17,7 @@
 # Keyboard: alt+r (tui.action.resize_mode) enters resize mode on the focused pane's nearest resizable ancestor:
 # arrows +-1, shift+arrows +-5 (the last pane of a split grows / shrinks against its previous sibling), Enter / Esc leave. The mode is the global _TUI_RESIZE_PANE.
 # Zones are rebuilt with the hit index (_tui_hit.rebuild calls _tui_resize.zones); a double press on a zone resets.
+# requires:
 
 declare -gA _TUI_P_RESIZABLE=() _TUI_P_HANDLE=() _TUI_P_ON_RESIZE=()
 declare -gA _TUI_P_WEIGHTS0=()                                     # split -> its weights before the first resize (what tui.resize.reset restores)
@@ -37,7 +38,7 @@ tui.pane_resizable() {
 			return 1
 			;;
 	esac
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 }
 
 # tui.pane_handle ID KIND - corner|edge|divider|none: which mouse zone resizes the pane.
@@ -50,7 +51,7 @@ tui.pane_handle() {
 			return 1
 			;;
 	esac
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 }
 
 # tui.resize ID DW DH - grows pane ID by DW columns and DH rows (negative shrinks), clamped like a drag.
@@ -77,7 +78,7 @@ tui.resize.reset() {
 		node="$p"
 	done
 	((restored == 0)) && {
-		_tui.layout_bump
+		_tui.epoch_bump layout
 		_tui_resize.commit
 	}
 	return $restored
@@ -200,7 +201,7 @@ _tui_resize.move() {
 	fi
 	[[ -n "${_TUI_P_WEIGHTS0[$p]+x}" ]] || _TUI_P_WEIGHTS0[$p]="${_TUI_P_WEIGHTS[$p]}"
 	_ps.panes.set "$p" weights "${spec[*]}"
-	_tui.layout_bump
+	_tui.epoch_bump layout
 }
 
 # _tui_resize.grow PANE AXIS DELTA [OWN] - grows PANE by DELTA cells on AXIS (h = width, v = height) at the nearest
@@ -482,7 +483,7 @@ _tui_resize.enter() {
 	_TUI_RESIZE_PANE="$1"
 	_TUI_RZ_TITLE="${_TUI_P_TITLE[$1]:-}"
 	_ps.panes.set "$1" title "${_TUI_RZ_TITLE}${_TUI_RZ_TAG}"
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 }
 
 # _tui_resize.leave - exits resize mode: restores pane's title if unchanged since entering.
@@ -491,7 +492,7 @@ _tui_resize.leave() {
 	[[ -n "$p" ]] || return 0
 	[[ "${_TUI_P_TITLE[$p]:-}" == "${_TUI_RZ_TITLE}${_TUI_RZ_TAG}" ]] && _TUI_P_TITLE[$p]="$_TUI_RZ_TITLE"
 	_TUI_RESIZE_PANE="" _TUI_RZ_TITLE=""
-	_TUI_HZ_DIRTY=1
+	_tui.epoch_bump hit
 }
 
 # tui.action.resize_mode - alt+r: enters resize mode on the focused pane's nearest resizable ancestor (else the first

@@ -9,6 +9,7 @@
 # including empty, falls back to "single" - the callers' own `*)` default).
 # Fork-free (a case statement, no command substitution), same convention as
 # every other hot-render-path helper in this file.
+# requires:
 _tui_canvas.glyphs() {
 	case "$1" in
 		double) _TC_TL="╔" _TC_TR="╗" _TC_BL="╚" _TC_BR="╝" _TC_HZ="═" _TC_VT="║" ;;

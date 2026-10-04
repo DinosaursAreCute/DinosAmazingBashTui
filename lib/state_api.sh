@@ -12,6 +12,7 @@
 #
 # Hot render loops may index the arrays directly; mark each such line `# state:direct` so
 # tools/map.sh can list the known exceptions.
+# requires:
 
 declare -g _V=""
 

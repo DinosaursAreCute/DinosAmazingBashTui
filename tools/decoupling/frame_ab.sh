@@ -6,7 +6,7 @@
 set -uo pipefail
 REPO="$(cd -P "$(dirname "$0")/../.." && pwd -P)"
 REF=${1:-HEAD}
-SKIP=" components_live monitor settings docu compose _templates " # as in t_golden.sh
+SKIP=" components_live monitor settings docu compose _templates workspace " # t_golden.sh skips all but workspace: its frame carries live load / host / memory values, so two runs of one tree differ
 WT=$(mktemp -d "${TMPDIR:-/tmp}/frame_ab.XXXXXX")
 trap 'git -C "$REPO" worktree remove --force "$WT" >/dev/null 2>&1; rm -rf "$WT"' EXIT
 git -C "$REPO" worktree add -q --detach "$WT" "$REF" || exit 1

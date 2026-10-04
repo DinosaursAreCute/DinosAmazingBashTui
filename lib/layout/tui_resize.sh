@@ -540,3 +540,50 @@ _tui_resize.key() {
 	((moved == 0)) && _tui_resize.commit
 	return 0
 }
+
+# ── terminal resize (SIGWINCH): the terminal changed size, not a pane ─────────────────────────
+
+declare -g _TUI_RESIZED=0
+# Optional page hook, called after a resize re-layout (cleared on tui.reset_ui).
+declare -g _TUI_ON_RESIZE_FN=""
+
+tui.on_resize() { _TUI_RESIZED=1; }
+
+# _tui._read_term_size - sets _TUI_ROWS/_TUI_COLS from the tty, but only from a
+# sane reading. Mid-drag, stty can fail or report 0x0; the old code fell back
+# to 24x80 and laid the whole UI out at that size until the next resize.
+# On a bad reading it retries, then keeps the previous size.
+_tui._read_term_size() {
+	local sz r c i
+	for ((i = 0; i < 4; i++)); do
+		sz="$(stty size 2>/dev/null </dev/tty || stty size 2>/dev/null)"
+		r="${sz%% *}"
+		c="${sz##* }"
+		if [[ "$r" =~ ^[0-9]+$ && "$c" =~ ^[0-9]+$ ]] && ((r > 0 && c > 0)); then
+			_TUI_ROWS=$r
+			_TUI_COLS=$c
+			return 0
+		fi
+		read -rt 0.02 <> <(:)
+	done
+	return 1
+}
+
+# _tui._apply_resize - coalesces a WINCH burst (bounded) and re-measures +
+# re-lays-out root for the current terminal size. Shared by tui.run's
+# pre-first-render check and its main-loop resize handling, below.
+_tui._apply_resize() {
+	local _rz_n=0
+	while ((_TUI_RESIZED && _rz_n < 25)); do
+		_TUI_RESIZED=0
+		read -rt 0.04 <> <(:)
+		((_rz_n++))
+	done
+	_TUI_RESIZED=0
+	_tui._read_term_size
+	_ps.panes.set root row 1
+	_ps.panes.set root col 1
+	_tui._root_w
+	_tui._root_h
+	_tui._layout "root"
+}

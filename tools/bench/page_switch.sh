@@ -9,7 +9,7 @@
 #   tools/bench/page_switch.sh                    # compact, microseconds, script-friendly
 #   tools/bench/page_switch.sh -h                 # human: live per-switch lines, ms, heatmap/sparkline/boxplots
 #   tools/bench/page_switch.sh 100 -h
-#   tools/bench/page_switch.sh 40 --pages "home.xml settings.xml"
+#   tools/bench/page_switch.sh 40 --pages "components.xml settings.xml"
 #
 # -h isn't --help (there's no long-form flag here, so there's nothing for
 # that to collide with) - it means "human-readable", matching what was
@@ -35,7 +35,7 @@ source "$REPO/lib/terminal_renderer.sh"
 source "$REPO/lib/terminal_controls.sh"
 
 _PS_N=20
-_PS_PAGES="home.xml components.xml widgets.xml settings.xml monitor.xml docu.xml"
+_PS_PAGES="components.xml home.xml widgets.xml settings.xml monitor.xml docu.xml"
 _PS_HUMAN=0
 while (($#)); do
 	case "$1" in

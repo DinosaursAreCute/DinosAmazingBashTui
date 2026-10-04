@@ -195,10 +195,10 @@ ti_shell_first_goto_from_a_page_without_a_shell_builds_the_shell_and_the_page() 
 	eq "search pa_btn pa_in quit" "${_TUI_W_ORDER[*]}"
 }
 
-ti_shell_demo_pages_all_use_the_shell_whose_menu_is_collapsible_and_resizable() {
+ti_shell_demo_pages_but_home_use_the_shell_whose_menu_is_collapsible_and_resizable() {
 	local p bad=""
 	for p in "$REPO"/share/demo/*.xml; do
-		[[ "$p" == @(*/_*|*/commands.xml) ]] || grep -q 'shell="_shell.xml"' "$p" || bad+="${p##*/} "
+		[[ "$p" == @(*/_*|*/commands.xml|*/home.xml) ]] || grep -q 'shell="_shell.xml"' "$p" || bad+="${p##*/} "
 	done
 	eq "" "$bad"
 	tui.reset_ui
@@ -206,4 +206,116 @@ ti_shell_demo_pages_all_use_the_shell_whose_menu_is_collapsible_and_resizable() 
 	eq 1 "${_TUI_P_COLLAPSIBLE[nav]:-}"
 	eq rail "${_TUI_P_COLLAPSE_TO[nav]:-}"
 	eq x "${_TUI_P_RESIZABLE[nav]:-}"
+}
+
+ti_shell_pane_collapsed_in_the_shell_keeps_its_state_and_width_when_the_page_reloads() {
+	_sh_setup
+	cat >"$_SHD/_shell2.xml" <<'XML'
+<tui>
+  <pane id="root" split="h">
+    <pane id="side" weight="20" border="single" collapsible="true" collapse_to="0" keep_collapsed="true">
+      <button id="side_btn" text="side"/>
+    </pane>
+    <outlet id="body2" weight="80"/>
+  </pane>
+</tui>
+XML
+	cat >"$_SHD/pz.xml" <<'XML'
+<tui shell="_shell2.xml">
+  <pane id="pz_main" border="single">
+    <button id="pz_btn" text="z"/>
+  </pane>
+</tui>
+XML
+	_sh_go pz.xml
+	local open_w=${_TUI_P_W[side]}
+	tui.collapse side on
+	_sh_go pz.xml # same page again: a full reload, the shell is rebuilt
+	eq 1 "${_TUI_P_COLLAPSED[side]:-}"
+	ok '(( _TUI_P_W[side] < open_w ))' # the geometry follows the restored state, not the first layout
+}
+
+ti_shell_leaving_a_page_ends_its_exec_instances_and_frees_their_control_rows() {
+	_sh_setup
+	cat >"$_SHD/px.xml" <<'XML'
+<tui shell="_shell.xml">
+  <pane id="px_main" split="v">
+    <pane id="px_out" weight="3"/>
+    <pane id="px_ctl" weight="1"/>
+  </pane>
+</tui>
+XML
+	_sh_go px.xml
+	tui.exec "sleep 30" px_out px_ctl
+	eq 1 "${#_EXEC_STATUS[@]}"
+	_sh_go pa.xml
+	eq 0 "${#_EXEC_STATUS[@]}"
+	eq 0 "${_EXEC_PANE_CTL_ROW[px_ctl]:-0}" # the next visit's controls start at the top again, not below a ghost cluster
+}
+
+ti_shell_exec_started_by_a_page_script_has_one_live_control_cluster_after_a_cached_revisit() {
+	_sh_setup
+	cat >"$_SHD/pz_init.sh" <<'SH'
+tui.exec.cancel_pane pz_out
+tui.exec "cat" pz_out pz_ctl
+SH
+	cat >"$_SHD/pz2.xml" <<'XML'
+<tui shell="_shell.xml">
+  <pane id="pz_main" split="v">
+    <pane id="pz_out" weight="3"/>
+    <pane id="pz_ctl" weight="1"/>
+  </pane>
+  <script src="pz_init.sh"/>
+</tui>
+XML
+	tui.cache.record "$_SHD/pz2.xml" >/dev/null 2>&1
+	_sh_go pa.xml
+	tui.cache.replay "$_SHD/pz2.xml" >/dev/null 2>&1
+	local w n=0 live=0
+	for w in "${_TUI_W_ORDER[@]}"; do
+		[[ "${_TUI_W_TYPE[$w]:-}" == input ]] || continue
+		[[ "$w" == __f_exec_* ]] || continue
+		n=$((n + 1))
+		[[ -n "${_EXEC_WIDGET_TO_IID[$w]:-}" ]] && live=$((live + 1))
+	done
+	eq 1 "$n"    # no ghost cluster restored with the snapshot
+	eq 1 "$live" # and the one there is wired to a running instance
+	tui.exec.cancel_pane pz_out
+}
+
+ti_shell_page_layers_leave_with_the_page_and_the_shells_layers_stay() {
+	_sh_setup
+	cat >"$_SHD/_shell3.xml" <<'XML'
+<tui>
+  <pane id="root" split="v">
+    <outlet id="body3"/>
+  </pane>
+  <window id="shell_win" x="2" y="2" width="20" height="5" float="true">
+    <button id="shell_win_btn" text="s"/>
+  </window>
+</tui>
+XML
+	printf '<tui shell="_shell3.xml">\n<pane id="la"/>\n<window id="page_win" x="30" y="3" width="20" height="5">\n<button id="page_win_btn" text="p"/>\n</window>\n</tui>\n' >"$_SHD/la.xml"
+	printf '<tui shell="_shell3.xml">\n<pane id="lb"/>\n</tui>\n' >"$_SHD/lb.xml"
+	_sh_go la.xml
+	eq "shell_win page_win" "${_TUI_L_ORDER[*]}"
+	_sh_go lb.xml
+	eq "shell_win" "${_TUI_L_ORDER[*]}"
+	ok '[[ -z "${_TUI_P_ROW[page_win]:-}" && -z "${_TUI_W_TYPE[page_win_btn]:-}" ]]'
+	ok '[[ -n "${_TUI_W_TYPE[shell_win_btn]:-}" ]]'
+	_sh_go la.xml
+	eq "shell_win page_win" "${_TUI_L_ORDER[*]}"
+	eq "page_win" "${_TUI_P_LAYER[page_win]}"
+	eq "" "$(<"$_SHD/err")"
+}
+
+ti_shell_page_replayed_from_the_cache_still_carries_what_a_refresh_needs() {
+	_sh_setup
+	_sh_go pa.xml # recorded
+	_sh_go pb.xml
+	_sh_go pa.xml # replayed from the delta
+	ok '[[ -n "$_TUI_P_RAW" && -n "${_TUI_P_SIG_OWN[pa_main]:-}" && -n "$_TUI_P_SIG_TOP" ]]'
+	_sh_go pb.xml
+	ok '[[ -n "${_TUI_P_SIG_OWN[pb_main]:-}" && -z "${_TUI_P_SIG_OWN[pa_main]:-}" || -n "${_TUI_P_SIG_OWN[pb_main]:-}" ]]'
+	eq "" "$(<"$_SHD/err")"
 }

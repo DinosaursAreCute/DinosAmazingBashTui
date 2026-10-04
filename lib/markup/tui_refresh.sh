@@ -334,7 +334,9 @@ tui.page.refresh() {
 	tui.cache.forget "$file" # the cached page predates this change: a visit before the refresh below lands rebuilds it
 	_tui_perf.end page_refresh
 	tui.relayout
-	((_TUI_RUNNING && TUI_REFRESH_CACHE_JOB)) && tui.page.rebuild --quiet --expanded "$file" # the cache catches up in the background, from the tree just expanded
+	# the cache catches up in the background, from the tree just expanded (a page of a shell is recorded on its next visit:
+	# the background build starts from a clean engine, shell included)
+	((_TUI_RUNNING && TUI_REFRESH_CACHE_JOB)) && [[ -z "$_TUI_SHELL_FILE" ]] && tui.page.rebuild --quiet --expanded "$file"
 	return 0
 }
 

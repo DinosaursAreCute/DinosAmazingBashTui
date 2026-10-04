@@ -89,6 +89,20 @@
   mods: bold;
 }
 
+.layer_button {
+  fg: #61afef;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #1c2336;
+  bg: #61afef;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #888888;
+}
+
 .sidebar {
   fg: #dbe4ff;
   bg: #1a1c2c;
@@ -185,6 +199,27 @@
 .nav_link:focus {
   fg: #01484e;
   bg: #ff93f4;
+  mods: bold;
+}
+
+.home_tag {
+  fg: #888888;
+}
+
+.home_badge {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+
+.home_new {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+
+.home_news {
+  fg: #ed61c8;
   mods: bold;
 }
 

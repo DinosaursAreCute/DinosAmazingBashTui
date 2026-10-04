@@ -45,12 +45,13 @@ tui.run() {
 	# Tick cadence is a property of time, not of loop iterations: any input
 	# byte ends the poll read early, so ticking per iteration would run
 	# every registered tick function faster whenever the pointer moves.
-	local _tick_period_us _tick_last_us=0 _tick_now_us
+	local _tick_period_us _tick_last_us=0 _tick_now_us _tick_eff_us
 	_tui._secs_to_us "$TUI_INPUT_POLL_TIMEOUT" _tick_period_us
 
 	while ((_TUI_RUNNING)); do
 
 		if ((_TUI_RESIZED && ! _TUI_PASSTHROUGH)); then # while frozen (terminal-control mode) resize waits
+			_tui_async.hold                                # painters draw for the old size until the page has answered
 			_tui._apply_resize
 			mode.sync_start
 			erase.all
@@ -59,13 +60,20 @@ tui.run() {
 			tui.hook.fire resize "$_TUI_ROWS" "$_TUI_COLS"
 			declare -F _tui_api.on_resize >/dev/null && _tui_api.on_resize
 			[[ -n "${_TUI_ON_RESIZE_FN:-}" ]] && "$_TUI_ON_RESIZE_FN"
+			_tui_async.cover_changed # painters go on
 		fi
 
 		local char=""
 		local got_char=0
 		local poll_timeout="$TUI_INPUT_IDLE_TIMEOUT"
+		_tick_eff_us=$_tick_period_us
 		if [[ -n "${_TUI_TICK_FN:-}" ]] || ((${#_TUI_TICK_LISTENERS[@]} > 0)); then
 			poll_timeout="$TUI_INPUT_POLL_TIMEOUT"
+			if ((_TA_FAST_MS)); then # a job wants a rate above the usual poll (an animation): wake when it is due, tick at its rate
+				_tui_api.poll_wait
+				poll_timeout="$_TA_POLL"
+				_tick_eff_us=1000 # the wait ends when the job is due: tick then, not one gate later
+			fi
 		fi
 		# A queued pane render (tui.output, scroll batching) is flushed once the input goes quiet; waiting the
 		# full poll timeout for that made every scroll step and page load ~50 ms slower than its work.
@@ -126,7 +134,7 @@ tui.run() {
 		fi
 
 		_tick_now_us=${EPOCHREALTIME//[!0-9]/}
-		if ((_tick_now_us - _tick_last_us >= _tick_period_us)); then
+		if ((_tick_now_us - _tick_last_us >= _tick_eff_us)); then
 			_tick_last_us=$_tick_now_us
 			[[ -n "${_TUI_TICK_FN:-}" ]] && "$_TUI_TICK_FN"
 		fi

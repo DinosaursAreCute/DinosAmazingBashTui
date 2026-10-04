@@ -160,6 +160,28 @@
   mods: bold;
 }
 
+.home_tag {
+  fg: #888888;
+}
+
+.home_badge {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+
+.home_new {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+
+.home_news {
+  fg: #fbbf24;
+  mods: bold;
+}
+
+
 /* <tabs> header buttons - see docs/guide/markup.md. .tab_header is the
  * default framed style (each header a bordered pane.hover shows an
  * about-to-click state). .tab_header_compact is for <tabs style="compact">
@@ -258,6 +280,21 @@
   bg: #fb923c;
   mods: bold;
 }
+
+.layer_button {
+  fg: #fb923c;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #2a1a1c;
+  bg: #fb923c;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #888888;
+}
+
 .collapse_button:collapsed {
   fg: #2a1a1c;
   bg: #f97316;

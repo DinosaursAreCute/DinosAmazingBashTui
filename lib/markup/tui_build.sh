@@ -192,7 +192,7 @@ _tui_build.tag.pane() {
 
 	local split weight title border align valign minw minh maxw maxh class scroll strictfit scroll_into_view
 	local rows cols fit roww colw sizew sizeh hpad vpad gap fuse divider dclass tpos talign
-	local ccol cdef ccoll ckeep cto ctog ckey cclass
+	local ccol cdef ccoll ckeep cto ctog ckey cclass ldet ldg lleave londet londock lpers
 	_tui_build.attrv "$node" split split
 	_tui_build.attrv "$node" weight weight
 	_tui_build.attrv "$node" title title
@@ -233,6 +233,12 @@ _tui_build.tag.pane() {
 	_tui_build.attrv "$node" on_toggle ctog
 	_tui_build.attrv "$node" collapse_key ckey
 	_tui_build.attrv "$node" collapse_class cclass
+	_tui_build.attrv "$node" detachable ldet
+	_tui_build.attrv "$node" dock_group ldg
+	_tui_build.attrv "$node" leave lleave
+	_tui_build.attrv "$node" on_detach londet
+	_tui_build.attrv "$node" on_dock londock
+	_tui_build.attrv "$node" persist lpers
 
 	[[ -n "$title" ]] && _TUI_BUILD_TITLE[$id]="$title"
 	[[ -n "$border" ]] && _TUI_BUILD_BORDER[$id]="$border"
@@ -245,6 +251,7 @@ _tui_build.tag.pane() {
 	_tui_frame.build "$id" "$fuse" "$divider" "$dclass" "$tpos" "$talign"
 	_tui_resize.build "$id" "$resizable" "$handle" "$onresize"
 	_tui_collapse.build "$id" "$ccol" "$cdef" "$ccoll" "$ckeep" "$cto" "$ctog" "$ckey" "$cclass"
+	_tui_layer.build_pane "$id" "$ldet" "$ldg" "$lleave" "$londet" "$londock" "$lpers"
 	_tui_build.store_attrs "$node" pane "$id"
 	_tui_cache_class "$id" "$class"
 	tui.pane_scroll "$id" "$scroll"

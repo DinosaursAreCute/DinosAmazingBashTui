@@ -18,7 +18,7 @@ _TUI_P_ROW[root]=1
 _TUI_P_COL[root]=1
 _TUI_P_W[root]=$COLS
 _tui._root_h
-tui.load "$ROOT/share/demo/home.xml" >/dev/null 2>&1
+tui.load "$ROOT/share/demo/components.xml" >/dev/null 2>&1
 _TUI_RUNNING=1
 LOG=()
 yes_fn() { LOG+=("yes_fn $*"); }

@@ -3,7 +3,7 @@
 
   <pane id="main" split="h" border="none">
     <pane id="wx_left" split="v" weight="46" border="none">
-      <pane id="wx_notes" resizable="both" collapsable="true" handle="corner"  weight="88" title="Notes (textarea) - select, cut, paste, ctrl+arrows, click" border="single" class="panel" hpad="1">
+      <pane id="wx_notes" resizable="both" collapsible="true" handle="corner"  weight="88" title="Notes (textarea) - select, cut, paste, ctrl+arrows, click" border="single" class="panel" hpad="1">
         <!-- text editing: the textarea fills its pane; on_change keeps the status line current -->
         <textarea id="wx_text" placeholder="type here..." on_change="wx_text_changed"/>
       </pane>

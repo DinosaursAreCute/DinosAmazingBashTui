@@ -79,7 +79,8 @@ _tui_focus.rebuild() {
 	_TUI_FOCUS_DIRTY=$((1 - _TUI_CACHES)) # caches off: never trusted, rebuilt on every use
 
 	for id in "${_TUI_W_ORDER[@]}"; do
-		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue # in a collapsed pane
+		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue                   # in a collapsed pane
+		[[ -z "$_TUI_L_TRAP" ]] || _tui_layer.in_scope "$id" || continue # outside the modal layer that holds the focus
 		if [[ -n "${_TUI_W_FOCUSABLE[$id]:-}" ]]; then
 			((_TUI_W_FOCUSABLE[$id])) || continue
 		else
@@ -188,6 +189,7 @@ _tui_focus.set() {
 	_TUI_FOCUS_IDX=-1
 	[[ -n "${_TUI_FOCUS_POS[$id]+x}" ]] && _TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$id]}"
 	_TUI_PANE_FOCUS="$newpane" # the keyboard pane follows widget focus
+	((_TUI_L_N)) && _tui_layer.on_focus "$id"
 	[[ -n "$newpane" ]] && _TUI_PANE_LAST_WIDGET[$newpane]="$id"
 	[[ -n "$g" ]] && _TUI_FOCUS_GLAST[$g]="$id"
 	_tui_text.is_text "$id" && _tui_text.on_focus "$id"

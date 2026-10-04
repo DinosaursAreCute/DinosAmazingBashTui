@@ -60,7 +60,7 @@ declare -ga _TUI_CACHE_REC_CLASSES=()
 # match (compgen, fork-free... `<()` itself forks once per record, same as
 # every other one-shot build-time cost this stage already pays) so a new
 # widget's own `_TUI_W_*`/`_WX*`/`_TX*` array is covered automatically.
-declare -g _TUI_CACHE_STATE_REGEX='^(_TUI_P_|_TUI_W_|_TUI_PANE_CONTENT$|_TUI_PANE_FOCUS$|_TUI_PANE_LAST_WIDGET$|_TUI_FACTORY_|_TUI_TABS_|_TUI_TAB_|_TUI_FOCUSABLE$|_TUI_FOCUS_ID$|_TUI_FOCUS_IDX$|_TUI_CURSOR$|_TUI_HOVERED_|_TUI_PENDING_OUTPUT$|_TUI_RENDER_TIMEOUT$|_TUI_TICK_FN$|_TUI_ON_RESIZE_FN$|_TUI_ON_INPUT_EVENT$|_TUI_ON_KEY_EVENT$|_TUI_STYLE_|_TUI_FOOTER_|_TUI_SHELL_|_TUI_OUTLET|_WX|_TX)'
+declare -g _TUI_CACHE_STATE_REGEX='^(_TUI_P_|_TUI_W_|_TUI_PANE_CONTENT$|_TUI_PANE_FOCUS$|_TUI_PANE_LAST_WIDGET$|_TUI_FACTORY_|_TUI_TABS_|_TUI_TAB_|_TUI_FOCUSABLE$|_TUI_FOCUS_ID$|_TUI_FOCUS_IDX$|_TUI_CURSOR$|_TUI_HOVERED_|_TUI_PENDING_OUTPUT$|_TUI_RENDER_TIMEOUT$|_TUI_TICK_FN$|_TUI_ON_RESIZE_FN$|_TUI_ON_INPUT_EVENT$|_TUI_ON_KEY_EVENT$|_TUI_STYLE_|_TUI_FOOTER_|_TUI_SHELL_|_TUI_OUTLET|_TUI_L_|_WX|_TX)'
 
 # _tui_cache_snapshot -> stdout : a `declare -p` dump of every currently
 # live variable tui.reset_ui/_tui_wx.reset would clear - the built page's
@@ -532,8 +532,13 @@ tui.cache.replay() {
 	# _TUI_OVERLAY_FNS (lib/chrome/tui_modal.sh) isn't page state, so it isn't in the
 	# snapshot: tui.reset_ui's _tui_footer.reset always removes _tui_footer.draw from it,
 	# and restoring _TUI_FOOTER_ON=1 alone wouldn't re-add it without this.
+	((_TUI_L_N)) && tui.overlay.add _tui_layer.draw # reset_ui took the layers' overlay off; the replay brought the layers back
 	[[ -z "$shell" ]] && ((_TUI_FOOTER_ON)) && tui.overlay.add _tui_footer.draw
-	local s
+	# a recorded script's exec controls came back with the snapshot, but the instance they belonged to is gone: the re-sourced script starts a new one
+	local s ns live=" ${_EXEC_NS[*]} "
+	for ns in "${!_TUI_FACTORY_IDS[@]}"; do
+		[[ "$ns" == exec_* && "$live" != *" $ns "* ]] && tui.factory.clear "$ns"
+	done
 	for s in ${_TUI_CACHE_SCRIPTS[$file]:-}; do _tui_cache_source "$s"; done
 	# the goto/on_visit calls come in on fd 9, not stdin: they must see the terminal on stdin - with them on
 	# stdin, `stty size` failed and a tui.goto from on_visit laid out at 80x24
@@ -552,6 +557,7 @@ tui.cache.replay() {
 			_tui.epoch_bump layout
 			_tui._layout "$_TUI_OUTLET"
 		fi
+		((_TUI_L_N)) && _tui_layer.layout # the recorded rectangles of the layers belong to the recording's screen
 	elif [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON" ]] && ((_TUI_LY_GEN == _ly_gen)); then
 		_tui_perf.count relayout_skipped
 	else

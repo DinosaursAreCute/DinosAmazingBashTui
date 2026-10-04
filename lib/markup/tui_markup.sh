@@ -136,6 +136,7 @@ tui.load() {
 	if [[ -n "$_ld_shell" ]]; then
 		_tui.epoch_bump layout
 		_tui._layout "$_TUI_OUTLET"
+		((_TUI_L_N)) && _tui_layer.layout # a page's layers are placed against this screen, not the one the page was recorded on
 		_TUI_P_ALL=()
 		_TUI_P_LEAVES=()
 		_tui._collect_leaves root
@@ -183,6 +184,7 @@ tui.reset_ui() {
 	_EXEC_PANE_CTL_ROW=()
 	for _pc in "${!_TUI_PANE_CONTENT[@]}"; do unset "_TUI_PANE_CONTENT_${_pc}"; done
 	_TUI_PANE_CONTENT=()
+	_TUI_PANE_RAW=() _TUI_PANE_RAW_SIZE=()
 	_TUI_P_ROW=()
 	_TUI_P_COL=()
 	_TUI_P_H=()
@@ -208,6 +210,7 @@ tui.reset_ui() {
 	_TUI_P_FUSE=() _TUI_P_DIVIDER=() _TUI_P_DIVIDER_CLASS=() _TUI_P_TITLE_POS=() _TUI_P_TITLE_ALIGN=()
 	_tui_resize.clear
 	_tui_collapse.clear
+	((_TUI_L_N)) && _tui_layer.clear
 	_tui_store.clear
 	_TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT="" _TUI_SHELL_AT=0 _TUI_SHELL_IDS=() _TUI_PAGE_IDS=() _TUI_PAGE_UNDO=""
 	_TUI_P_STRICT_FIT=()
@@ -273,6 +276,7 @@ tui.reset_ui() {
 
 	_tui_api.shutdown 2>/dev/null
 	_tui_input.clear_page
+	tui.async.stop_all # a painter belongs to the page that started it
 	_tui_modal.reset
 	_tui_footer.reset
 	_tui_dialog.reset

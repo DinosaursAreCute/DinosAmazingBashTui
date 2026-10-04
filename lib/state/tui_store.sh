@@ -191,11 +191,15 @@ _tui_store.get.collapsed() {
 	[[ -n "${_TUI_P_COLLAPSIBLE[$1]:-}" ]] || return 1
 	[[ -n "${_TUI_P_COLLAPSED[$1]:-}" ]] && _SF=1 || _SF=0
 }
+declare -gi _ST_RELAYOUT=0 # 1 when a restore moved a pane edge: the geometry laid out before it is stale
 _tui_store.put.collapsed() {
+	_ST_RELAYOUT=1
 	((${2:-0})) && _tui_collapse.flip "$1" 1 || _tui_collapse.flip "$1" 0
 	_CL_CHANGED=()
 	return 0
 }
+_tui_store.get.layout() { _tui_layer.state_get "$1"; }
+_tui_store.put.layout() { _tui_layer.state_put "$1" "$2"; }
 _tui_store.get.size() {
 	local p i
 	local -a spec ch
@@ -210,6 +214,7 @@ _tui_store.get.size() {
 	_SF="${spec[*]}"
 }
 _tui_store.put.size() {
+	_ST_RELAYOUT=1
 	_tui_resize.parent "$1" && _tui_store.put_weights "$_RZ_P" "$2"
 }
 
@@ -251,17 +256,22 @@ _tui_store.fields() {
 	fi
 	[[ -n "${_TUI_P_KEEP_COLLAPSED[$id]:-}" || -n "$_TUI_P_KEEP_STATE" ]] && _SFL="collapsed "
 	[[ -n "${_TUI_P_KEEP_SIZE[$id]:-}" || -n "$_TUI_P_KEEP_STATE" ]] && _SFL+="size "
-	[[ -n "$_TUI_P_KEEP_STATE" ]] && _SFL+="scroll"
+	[[ -n "$_TUI_P_KEEP_STATE" ]] && _SFL+="scroll "
+	[[ -n "${_TUI_P_LAYOUT_KEEP[$id]:-}" ]] && _SFL+="layout" # persist="layout": where a window or detached pane is (tui_layer.sh)
 	return 0
 }
 
 # _tui_store.active - rc 0 when the built page keeps anything
 _tui_store.active() {
-	[[ -n "$_TUI_P_KEEP_STATE" ]] || ((${#_TUI_W_KEEP[@]} || ${#_TUI_P_KEEP_SIZE[@]} || ${#_TUI_P_KEEP_COLLAPSED[@]}))
+	[[ -n "$_TUI_P_KEEP_STATE" ]] || ((${#_TUI_W_KEEP[@]} || ${#_TUI_P_KEEP_SIZE[@]} || ${#_TUI_P_KEEP_COLLAPSED[@]} || ${#_TUI_P_LAYOUT_KEEP[@]}))
 }
 
 # _tui_store.ids -> _SIDS: every widget, then every pane
-_tui_store.ids() { _SIDS=("${_TUI_W_ORDER[@]}" "${_TUI_P_ALL[@]}"); }
+_tui_store.ids() {
+	local L
+	_SIDS=("${_TUI_W_ORDER[@]}" "${_TUI_P_ALL[@]}")
+	for L in "${_TUI_L_ORDER[@]}"; do [[ -n "${_TUI_L_F[$L.hidden]:-}" ]] && _SIDS+=("$L"); done # a hidden layer is out of the pane list but keeps its layout
+}
 declare -ga _SIDS=()
 
 # _tui_store.page -> _SP
@@ -375,6 +385,10 @@ _tui_store.restore_page() {
 	done
 	_tui.epoch_bump layout
 	_tui.epoch_bump widgets
+	if ((_ST_RELAYOUT)); then
+		_ST_RELAYOUT=0
+		_tui._layout root
+	fi
 	return 0
 }
 
@@ -618,7 +632,7 @@ _tui_store.load_disk() {
 			f="${rest%%$'\t'*}" v="${rest#*$'\t'}"
 			_tui_store.unesc "$f"
 			f="$_SE"
-			case "$f" in value | cursor | scroll | sel | collapsed | size | focus) ;; *) continue ;; esac
+			case "$f" in value | cursor | scroll | sel | collapsed | size | focus | layout) ;; *) continue ;; esac
 			_tui_store.unesc "$p"
 			p="$_SE"
 			[[ -n "$p" ]] || continue

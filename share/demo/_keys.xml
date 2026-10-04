@@ -1,0 +1,14 @@
+<!-- The alt+N page bindings alone: for a page that has no menu (Home). The menu template includes them too. -->
+<template name="dabt_keys">
+  <bind key="alt+1" action="tui.action.goto home.xml"                  desc="Home"/>
+  <bind key="alt+2" action="tui.action.goto components.xml"            desc="Components"/>
+  <bind key="alt+3" action="tui.action.goto settings.xml"              desc="Settings"/>
+  <bind key="alt+4" action="tui.action.goto monitor.xml"               desc="Monitor"/>
+  <bind key="alt+5" action="tui.action.goto terminal.xml"              desc="Terminal"/>
+  <bind key="alt+6" action="tui.action.goto scrolling.xml"             desc="Scrolling"/>
+  <bind key="alt+7" action="tui.action.goto case_study.xml"            desc="Case Study"/>
+  <bind key="alt+8" action="tui.action.goto docu.xml"                  desc="Docs"/>
+  <bind key="alt+9" action="tui.action.goto features.xml"              desc="Layout"/>
+  <bind key="alt+0" action="tui.action.goto widgets.xml"               desc="Widgets"/>
+  <bind key="alt+-" action="tui.action.goto compose.xml"               desc="Compose"/>
+</template>

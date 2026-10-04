@@ -1,6 +1,8 @@
 <!-- Shared building blocks of every demo page, written once as templates (see "Reusing markup" in docs/guide/markup.md).
      A page pulls them in with <include src="_templates.xml"/> and places them with <use template="..."/>. -->
 
+<include src="_keys.xml"/>
+
 <!-- Title banner + live clock (see _header.sh). Placed INSIDE the framed root pane: <use template="dabt_header"/> -->
 <template name="dabt_header">
   <script src="_header.sh"/>
@@ -24,24 +26,15 @@
   <button id="btn_features"      pane="nav" row="8"  text="  Layout"     page="features.xml"   class="nav_link" align="left" collapsed_text="LA"/>
   <button id="btn_workspace"     pane="nav" row="9" text="  Workspace"  page="workspace.xml"  class="nav_link" align="left"  collapsed_text="WO"/>
   <button id="btn_widgets"       pane="nav" row="10" text="  Widgets"    page="widgets.xml"    class="nav_link" align="left" collapsed_text="WI"/>
-  <label  id="divider_debug"     pane="nav" row="11" text="--- Debugging Tools---"  class="nav_divider" align="left"/>
-  <button id="btn_keys"          pane="nav" row="12" text="     Keys"       page="keys.xml"       class="nav_link" align="left" collapsed_text="KE"/>
-  <button id="btn_debug"         pane="nav" row="13" text="     Debug"      page="debug.xml"      class="nav_link" align="left" collapsed_text="DE"/>
-  <button id="btn_compose"       pane="nav" row="14" text="     Compose"    page="compose.xml"   class="nav_link" align="left" collapsed_text="CO"/>
-  <button id="btn_lab"           pane="nav" row="15" text="     Feature lab" page="debug_lab.xml" class="nav_link" align="left" collapsed_text="FL"/>
-  <button id="btn_quit"          pane="nav" row="16" text="     Quit"       action="tui.action.quit"      class="danger_button" align="left" collapsed_text="QU"/>
+  <button id="btn_layers"        pane="nav" row="11" text="  Layers"     page="layers.xml"     class="nav_link" align="left" collapsed_text="LY"/>
+  <label  id="divider_debug"     pane="nav" row="12" text="--- Debugging Tools---"  class="nav_divider" align="left"/>
+  <button id="btn_keys"          pane="nav" row="13" text="     Keys"       page="keys.xml"       class="nav_link" align="left" collapsed_text="KE"/>
+  <button id="btn_debug"         pane="nav" row="14" text="     Debug"      page="debug.xml"      class="nav_link" align="left" collapsed_text="DE"/>
+  <button id="btn_compose"       pane="nav" row="15" text="     Compose"    page="compose.xml"   class="nav_link" align="left" collapsed_text="CO"/>
+  <button id="btn_lab"           pane="nav" row="16" text="     Feature lab" page="debug_lab.xml" class="nav_link" align="left" collapsed_text="FL"/>
+  <button id="btn_quit"          pane="nav" row="17" text="     Quit"       action="tui.action.quit"      class="danger_button" align="left" collapsed_text="QU"/>
   <!-- q / ctrl+q quit, tab/arrows/f6, scrolling and paste come from share/defaults/keybinds.xml.
        App-specific: jump to a page with alt+1..9, focus the menu with alt+n. -->
   <bind key="alt+n" action="tui.action.focus_pane nav"                 desc="Focus the menu"/>
-  <bind key="alt+1" action="tui.action.goto home.xml"                  desc="Home"/>
-  <bind key="alt+2" action="tui.action.goto components.xml"            desc="Components"/>
-  <bind key="alt+3" action="tui.action.goto settings.xml"              desc="Settings"/>
-  <bind key="alt+4" action="tui.action.goto monitor.xml"               desc="Monitor"/>
-  <bind key="alt+5" action="tui.action.goto terminal.xml"              desc="Terminal"/>
-  <bind key="alt+6" action="tui.action.goto scrolling.xml"             desc="Scrolling"/>
-  <bind key="alt+7" action="tui.action.goto case_study.xml"            desc="Case Study"/>
-  <bind key="alt+8" action="tui.action.goto docu.xml"                  desc="Docs"/>
-  <bind key="alt+9" action="tui.action.goto features.xml"              desc="Layout"/>
-  <bind key="alt+0" action="tui.action.goto widgets.xml"               desc="Widgets"/>
-  <bind key="alt+-" action="tui.action.goto compose.xml"               desc="Compose"/>
+  <use template="dabt_keys"/>
 </template>

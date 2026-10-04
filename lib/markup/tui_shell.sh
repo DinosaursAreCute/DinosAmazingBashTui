@@ -31,7 +31,7 @@ declare -gi _SHL_SOFT=0      # 1 while tui.goto swaps pages inside a live shell 
 declare -ga _SHL_TIMERS=() _SHL_WATCH=()
 declare -gA _SHL_BINDS=()
 declare -g _SH_OF=""
-declare -g _SHL_SKIP='^(_TUI_(FOCUS_ID|FOCUS_IDX|CURSOR|FOCUSABLE|PANE_FOCUS|PENDING_OUTPUT|HOVERED_.*|P_ALL|P_LEAVES|P_RAW|P_SIG_.*|STYLE_SIG)|_TUI_SHELL_.*|_TUI_OUTLET.*|__B_.*)$'
+declare -g _SHL_SKIP='^(_TUI_(FOCUS_ID|FOCUS_IDX|CURSOR|FOCUSABLE|PANE_FOCUS|PENDING_OUTPUT|HOVERED_.*|P_ALL|P_LEAVES|STYLE_SIG)|_TUI_SHELL_.*|_TUI_OUTLET.*|__B_.*)$'
 declare -gA _SHL_FLAGS=()
 
 # tui.shell.file [VAR] - the canonical path of the live shell ("" when the page has none): stored in VAR, or printed when
@@ -120,6 +120,10 @@ _tui_shell.sync_page_ids() {
 	_EF_PANES=()
 	for c in ${_TUI_P_CHILDREN[$_TUI_OUTLET]:-}; do _tui_engine.collect_panes "$c"; done
 	for id in "${_EF_PANES[@]}"; do _TUI_PAGE_IDS[$id]=p; done
+	for c in "${_TUI_L_ORDER[@]}"; do # the page's own layers (windows, modals, popups) leave with it
+		[[ -n "${_TUI_SHELL_IDS[$c]+x}" ]] && continue
+		for id in ${_TUI_L_PANES[$c]:-}; do _TUI_PAGE_IDS[$id]=p; done
+	done
 }
 
 # _tui_shell.collect_ids - _TUI_SHELL_IDS for the shell that was just built (every widget and pane)
@@ -130,6 +134,9 @@ _tui_shell.collect_ids() {
 	_EF_PANES=()
 	_tui_engine.collect_panes root
 	for p in "${_EF_PANES[@]}"; do _TUI_SHELL_IDS[$p]=p; done
+	for w in "${_TUI_L_ORDER[@]}"; do # a layer the shell declares is the shell's, panes and all
+		for p in ${_TUI_L_PANES[$w]:-}; do _TUI_SHELL_IDS[$p]=p; done
+	done
 }
 
 # _tui_shell.build_page NODE - the markup build of a page's <tui shell="..."> NODE on a live shell: its children are the
@@ -162,6 +169,11 @@ _tui_shell.leave_page() {
 	local -a keep=() wl=() pl=() ids=()
 	local -A gone=()
 	_tui_shell.sync_page_ids
+	for k in "${!_EXEC_STATUS[@]}"; do # exec instances die with their page, like in tui.reset_ui
+		[[ -n "${_TUI_PAGE_IDS[${_EXEC_OUT_PANE[$k]:-}]+x}" || -n "${_TUI_PAGE_IDS[${_EXEC_CTL_PANE[$k]:-}]+x}" ]] || continue
+		_exec_dismiss_instance "$k"
+	done
+	for k in "${!_EXEC_PANE_CTL_ROW[@]}"; do [[ -n "${_TUI_PAGE_IDS[$k]+x}" ]] && unset '_EXEC_PANE_CTL_ROW[$k]'; done
 	for id in "${!_TUI_PAGE_IDS[@]}"; do
 		ids+=("$id")
 		if [[ "${_TUI_PAGE_IDS[$id]}" == w ]]; then
@@ -185,6 +197,7 @@ _tui_shell.leave_page() {
 		_tui_store.forget_pane "$id"
 	done
 	((${#ids[@]})) && _tui_engine.forget_styles "${ids[@]}"
+	for id in "${_TUI_L_ORDER[@]}"; do [[ -n "${_TUI_SHELL_IDS[$id]+x}" ]] || _tui_layer.forget "$id"; done
 	[[ -n "$o" ]] && _tui_engine.clear_children "$o"
 	_TUI_PAGE_IDS=()
 	[[ -n "$_TUI_PAGE_UNDO" ]] && eval "$_TUI_PAGE_UNDO"

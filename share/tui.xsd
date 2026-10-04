@@ -108,8 +108,47 @@
     <xs:restriction base="xs:string">
       <xs:enumeration value="session"/>
       <xs:enumeration value="disk"/>
+      <xs:enumeration value="layout"/>
     </xs:restriction>
   </xs:simpleType>
+
+  <xs:simpleType name="leaveType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="collapse"/>
+      <xs:enumeration value="placeholder"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- detach / dock (lib/chrome/tui_layer.sh): detachable adds a button that floats the pane as a window; dock_group names the
+       docks it may join; leave: what stays where it was (siblings take the space, or an empty placeholder pane);
+       on_detach / on_dock: FN PANE; persist="layout" keeps where it floats across page switches -->
+  <xs:attributeGroup name="detachAttrs">
+    <xs:attribute name="detachable" type="boolType"/>
+    <xs:attribute name="dock_group" type="xs:string"/>
+    <xs:attribute name="leave" type="leaveType"/>
+    <xs:attribute name="on_detach" type="xs:string"/>
+    <xs:attribute name="on_dock" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <!-- layers: panes that float above the page. x / y are offsets from the anchor's top-left (x: center|right, y: center|bottom|below|above);
+       width / height (pane attributes) are cells, N% of the screen or fill, and a layer is never smaller than what is inside it; the rectangle
+       is clamped to the screen. float: the header drags it, the corner resizes it; modal: focus and pointer stay inside until it closes;
+       open="false": starts hidden; timeout: hides itself after that many seconds; persist="layout": keeps where it is across page switches.
+       A layer takes everything a pane takes (paneAttrs) as well. -->
+  <xs:attributeGroup name="layerAttrs">
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="anchor" type="xs:string"/>
+    <xs:attribute name="x" type="xs:string"/>
+    <xs:attribute name="y" type="xs:string"/>
+    <xs:attribute name="float" type="boolType"/>
+    <xs:attribute name="shadow" type="boolType"/>
+    <xs:attribute name="closable" type="boolType"/>
+    <xs:attribute name="fullscreen" type="boolType"/>
+    <xs:attribute name="minimizable" type="boolType"/>
+    <xs:attribute name="modal" type="boolType"/>
+    <xs:attribute name="open" type="boolType"/>
+    <xs:attribute name="timeout" type="xs:positiveInteger"/>
+  </xs:attributeGroup>
 
   <xs:attributeGroup name="keepValueAttrs">
     <!-- keep_value: the widget's value, cursor, scroll and selection survive a page switch (session); persist: session (default) or disk (also written to $TUI_HOME/state/store; implies keeping) -->
@@ -162,6 +201,59 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <!-- everything a pane takes: the pane element, the helper tags that are panes with a preset (row, col, group, spacer, divider), the
+       outlet of a shell, details / accordion, and the layer tags (window, modal, dialog, popup, tooltip, contextmenu, toast) -->
+  <xs:attributeGroup name="paneAttrs">
+    <!-- width/height/gap: size tokens - N cells, N%, Nfr, fill, clamp(MIN,PREF,MAX); weight="N" is the same as Nfr -->
+    <xs:attribute name="split" type="splitType"/>
+    <xs:attribute name="weight" type="xs:positiveInteger"/>
+    <xs:attribute name="title" type="xs:string"/>
+    <xs:attribute name="border" type="borderType"/>
+    <!-- fuse: on every child of a split - siblings share one border line; divider/divider_class style that line -->
+    <xs:attribute name="fuse" type="boolType"/>
+    <xs:attribute name="divider" type="borderType"/>
+    <xs:attribute name="divider_class" type="xs:string"/>
+    <xs:attribute name="title_pos" type="titlePosType"/>
+    <xs:attribute name="title_align" type="titleAlignType"/>
+    <!-- resizable: axes the user may resize on; handle: mouse zones (none = keyboard only); on_resize: FN PANE W H -->
+    <xs:attribute name="resizable" type="resizableType"/>
+    <xs:attribute name="handle" type="handleType"/>
+    <xs:attribute name="on_resize" type="xs:string"/>
+    <xs:attributeGroup ref="collapseAttrs"/>
+    <xs:attributeGroup ref="detachAttrs"/>
+    <xs:attributeGroup ref="keepSizeAttrs"/>
+    <xs:attribute name="align" type="alignType"/>
+    <xs:attribute name="valign" type="valignType"/>
+    <xs:attribute name="scroll" type="scrollType"/>
+    <xs:attribute name="scroll_into_view" type="boolType"/>
+    <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="hpad" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="max_height" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="class" type="xs:string"/>
+    <xs:attribute name="strict_fit" type="boolType"/>
+    <!-- split="fixed" only: every child is exactly size_w x size_h cells, flowed left to right and wrapped (tui.fixed) -->
+    <xs:attribute name="size_w" type="xs:positiveInteger"/>
+    <xs:attribute name="size_h" type="xs:positiveInteger"/>
+    <!-- direct child of a split="fixed" parent only: width in cell units, and force a new row before this child -->
+    <xs:attribute name="span" type="xs:positiveInteger"/>
+    <xs:attribute name="newline" type="boolType"/>
+    <!-- split="grid" only -->
+    <xs:attribute name="rows" type="xs:positiveInteger"/>
+    <xs:attribute name="cols" type="xs:positiveInteger"/>
+    <xs:attribute name="fit" type="fitType"/>
+    <xs:attribute name="row_weights" type="xs:string"/>
+    <xs:attribute name="col_weights" type="xs:string"/>
+    <!-- direct child of a split="grid" parent only -->
+    <xs:attribute name="grid_row" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="grid_col" type="xs:nonNegativeInteger"/>
+    <xs:attribute name="width" type="xs:string"/>
+    <xs:attribute name="height" type="xs:string"/>
+    <xs:attribute name="gap" type="xs:string"/>
+  </xs:attributeGroup>
+
   <!-- Everything a page may contain. The loader reads one tag per line with no parent tracking (widgets attach
        via pane="…", not by nesting), so the same set is valid at <tui> level and inside any <pane>. -->
   <xs:group name="pageContent">
@@ -170,9 +262,21 @@
       <xs:element ref="theme"/>
       <xs:element ref="include"/>
       <xs:element ref="pane"/>
+      <xs:element ref="row"/>
+      <xs:element ref="col"/>
+      <xs:element ref="group"/>
+      <xs:element ref="spacer"/>
+      <xs:element ref="divider"/>
       <xs:element ref="details"/>
       <xs:element ref="accordion"/>
       <xs:element ref="outlet"/>
+      <xs:element ref="window"/>
+      <xs:element ref="modal"/>
+      <xs:element ref="dialog"/>
+      <xs:element ref="popup"/>
+      <xs:element ref="tooltip"/>
+      <xs:element ref="contextmenu"/>
+      <xs:element ref="toast"/>
       <xs:element ref="tabs"/>
       <xs:element ref="bind"/>
       <xs:element ref="footer"/>
@@ -294,16 +398,88 @@
     </xs:complexType>
   </xs:element>
 
-  <!-- outlet: in a shell file, the one pane a page of the shell is built into (id defaults to "outlet") -->
+  <!-- outlet: in a shell file, the one pane a page of the shell is built into (id defaults to "outlet"); it takes what a pane takes -->
   <xs:element name="outlet">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string"/>
-      <xs:attribute name="split" type="splitType"/>
-      <xs:attribute name="weight" type="xs:positiveInteger"/>
-      <xs:attribute name="width" type="xs:string"/>
-      <xs:attribute name="height" type="xs:string"/>
-      <xs:attribute name="border" type="borderType"/>
-      <xs:attribute name="class" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- window: a floating window -->
+  <xs:element name="window">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- modal: a window that holds the focus and the pointer until it closes -->
+  <xs:element name="modal">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- dialog: a modal window -->
+  <xs:element name="dialog">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- popup: a window that closes on an outside press or Esc -->
+  <xs:element name="popup">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- tooltip: a window that never takes the pointer or the focus -->
+  <xs:element name="tooltip">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- contextmenu: a popup meant to open at the pointer -->
+  <xs:element name="contextmenu">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- toast: a window that hides itself after its timeout -->
+  <xs:element name="toast">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -370,6 +546,8 @@
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:group ref="pageContent"/>
       </xs:choice>
+      <!-- id: what an addon's ref="#id" finds -->
+      <xs:attribute name="id" type="xs:string"/>
       <xs:attribute name="each" type="xs:string"/>
       <xs:attribute name="count" type="xs:string"/>
       <xs:attribute name="as" type="xs:string"/>
@@ -383,6 +561,8 @@
         <xs:group ref="pageContent"/>
         <xs:element ref="else"/>
       </xs:choice>
+      <!-- id: what an addon's ref="#id" finds -->
+      <xs:attribute name="id" type="xs:string"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
     </xs:complexType>
   </xs:element>
@@ -392,6 +572,8 @@
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:group ref="pageContent"/>
       </xs:choice>
+      <!-- id: what an addon's ref="#id" finds -->
+      <xs:attribute name="id" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -493,62 +675,71 @@
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:group ref="pageContent"/>
       </xs:choice>
-      <!-- width/height/gap: size tokens - N cells, N%, Nfr, fill, clamp(MIN,PREF,MAX); weight="N" is the same as Nfr -->
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="split" type="splitType"/>
-      <xs:attribute name="weight" type="xs:positiveInteger"/>
-      <xs:attribute name="title" type="xs:string"/>
-      <xs:attribute name="border" type="borderType"/>
-      <!-- fuse: on every child of a split - siblings share one border line; divider/divider_class style that line -->
-      <xs:attribute name="fuse" type="boolType"/>
-      <xs:attribute name="divider" type="borderType"/>
-      <xs:attribute name="divider_class" type="xs:string"/>
-      <xs:attribute name="title_pos" type="titlePosType"/>
-      <xs:attribute name="title_align" type="titleAlignType"/>
-      <!-- resizable: axes the user may resize on; handle: mouse zones (none = keyboard only); on_resize: FN PANE W H -->
-      <xs:attribute name="resizable" type="resizableType"/>
-      <xs:attribute name="handle" type="handleType"/>
-      <xs:attribute name="on_resize" type="xs:string"/>
-      <xs:attributeGroup ref="collapseAttrs"/>
-      <xs:attributeGroup ref="keepSizeAttrs"/>
-      <xs:attribute name="align" type="alignType"/>
-      <xs:attribute name="valign" type="valignType"/>
-      <xs:attribute name="scroll" type="scrollType"/>
-      <xs:attribute name="scroll_into_view" type="boolType"/>
-      <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="hpad" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="max_height" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="class" type="xs:string"/>
-      <xs:attribute name="strict_fit" type="boolType"/>
-      <!-- split="fixed" only: every child is exactly size_w x size_h cells, flowed left to right and wrapped (tui.fixed) -->
-      <xs:attribute name="size_w" type="xs:positiveInteger"/>
-      <xs:attribute name="size_h" type="xs:positiveInteger"/>
-      <!-- direct child of a split="fixed" parent only: width in cell units, and force a new row before this child -->
-      <xs:attribute name="span" type="xs:positiveInteger"/>
-      <xs:attribute name="newline" type="boolType"/>
-      <!-- split="grid" only -->
-      <xs:attribute name="rows" type="xs:positiveInteger"/>
-      <xs:attribute name="cols" type="xs:positiveInteger"/>
-      <xs:attribute name="fit" type="fitType"/>
-      <xs:attribute name="row_weights" type="xs:string"/>
-      <xs:attribute name="col_weights" type="xs:string"/>
-      <!-- direct child of a split="grid" parent only -->
-      <xs:attribute name="grid_row" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="grid_col" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="width" type="xs:string"/>
-      <xs:attribute name="height" type="xs:string"/>
-      <xs:attribute name="gap" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- row: a pane that splits horizontally (split="h"); the id is optional (one is made) -->
+  <xs:element name="row">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- col: a pane that splits vertically (split="v"); the id is optional (one is made) -->
+  <xs:element name="col">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- group: a pane without a border of its own by default: a way to group; the id is optional (one is made) -->
+  <xs:element name="group">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- spacer: an empty pane that takes space; the id is optional (one is made) -->
+  <xs:element name="spacer">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- divider: a pane with a border (a line between its neighbours); the id is optional (one is made) -->
+  <xs:element name="divider">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
     </xs:complexType>
   </xs:element>
 
   <xs:element name="label">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="text" type="xs:string"/>
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
@@ -574,8 +765,8 @@
   <xs:element name="input">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
       <xs:attribute name="placeholder" type="xs:string"/>
       <xs:attribute name="submit" type="xs:string"/>
@@ -623,17 +814,7 @@
         <xs:group ref="pageContent"/>
       </xs:choice>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="title" type="xs:string"/>
-      <xs:attribute name="split" type="splitType"/>
-      <xs:attribute name="weight" type="xs:positiveInteger"/>
-      <xs:attribute name="width" type="xs:string"/>
-      <xs:attribute name="height" type="xs:string"/>
-      <xs:attribute name="border" type="borderType"/>
-      <xs:attribute name="class" type="xs:string"/>
-      <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="scroll" type="scrollType"/>
-      <xs:attributeGroup ref="keepSizeAttrs"/>
-      <xs:attributeGroup ref="collapseAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -644,21 +825,16 @@
         <xs:group ref="pageContent"/>
       </xs:choice>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="split" type="splitType"/>
       <xs:attribute name="multiple" type="boolType"/>
-      <xs:attribute name="weight" type="xs:positiveInteger"/>
-      <xs:attribute name="width" type="xs:string"/>
-      <xs:attribute name="height" type="xs:string"/>
-      <xs:attribute name="border" type="borderType"/>
-      <xs:attribute name="class" type="xs:string"/>
+      <xs:attributeGroup ref="paneAttrs"/>
     </xs:complexType>
   </xs:element>
 
   <xs:element name="button">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="text" type="xs:string"/>
       <!-- text shown on a collapse_to="rail" pane while it is collapsed -->
       <xs:attribute name="collapsed_text" type="xs:string"/>
@@ -699,8 +875,8 @@
   <xs:element name="checkbox">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
       <xs:attribute name="checked" type="boolType"/>
       <xs:attribute name="action" type="xs:string"/>
@@ -740,8 +916,8 @@
   <xs:element name="password">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
       <xs:attribute name="placeholder" type="xs:string"/>
       <xs:attribute name="submit" type="xs:string"/>
@@ -763,8 +939,8 @@
   <xs:element name="textarea">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="placeholder" type="xs:string"/>
       <xs:attribute name="rows" type="xs:nonNegativeInteger"/>
       <xs:attribute name="value" type="xs:string"/>
@@ -785,8 +961,8 @@
   <xs:element name="list">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="action" type="xs:string"/>
       <xs:attribute name="rows" type="xs:nonNegativeInteger"/>
       <xs:attribute name="items" type="xs:string"/>
@@ -806,8 +982,8 @@
   <xs:element name="table">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="action" type="xs:string"/>
       <xs:attribute name="rows" type="xs:nonNegativeInteger"/>
       <xs:attribute name="columns" type="xs:string"/>
@@ -828,8 +1004,8 @@
   <xs:element name="select">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
       <xs:attribute name="action" type="xs:string"/>
       <xs:attribute name="items" type="xs:string"/>
@@ -850,8 +1026,8 @@
   <xs:element name="progress">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
-      <xs:attribute name="pane" type="xs:string" use="required"/>
-      <xs:attribute name="row" type="xs:integer" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
       <xs:attribute name="value" type="xs:nonNegativeInteger"/>
       <xs:attribute name="align" type="alignType"/>

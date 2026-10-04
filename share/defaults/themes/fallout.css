@@ -50,6 +50,30 @@
 .nav_link { fg: #41ff00; bg: #0f1a0f; }
 .nav_link:hover { fg: #41ff00; bg: #163c0d; }
 .nav_link:focus { fg: #0a0f0a; bg: #41ff00; mods: bold; }
+
+.home_tag {
+  fg: #1f7a12;
+  bg: #0a0f0a;
+}
+
+.home_badge {
+  fg: #0a0f0a;
+  bg: #ffb641;
+  mods: bold;
+}
+
+.home_new {
+  fg: #b8ff9e;
+  bg: #1f7a12;
+  mods: bold;
+}
+
+.home_news {
+  fg: #7cff4f;
+  bg: #0a0f0a;
+  mods: bold;
+}
+
 .nav_divider { fg: #1f7a12; bg: #0f1a0f; mods: bold; }
 .brand { fg: #7cff4f; mods: bold; }
 .clock { fg: #41ff00; bg: #0f1a0f; mods: bold; }
@@ -151,6 +175,21 @@
   bg: #7cff4f;
   mods: bold;
 }
+
+.layer_button {
+  fg: #7cff4f;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #0a0f0a;
+  bg: #7cff4f;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #1f7a12;
+}
+
 .collapse_button:collapsed {
   fg: #0a0f0a;
   bg: #2bd900;

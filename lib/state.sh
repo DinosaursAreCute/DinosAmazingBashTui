@@ -104,6 +104,8 @@ declare -g _TUI_HOVERED_WIDGET=""
 # single cheap widget or border redraw and is drawn immediately instead
 # (see _tui._draw_widgets_now) - debouncing it added latency without a
 # throughput problem to justify it.
+declare -gA _TUI_PANE_RAW_SIZE=()  # pane id -> "W H" of the content area the frame in _TUI_PANE_RAW was made for
+declare -gA _TUI_PANE_RAW=()       # pane id -> a ready-made frame set with tui.set_canvas (rows already as wide as the pane)
 declare -gA _TUI_PANE_CONTENT=()   # pane id -> 1 when it holds tui.output content (MUST be associative: pane ids are names)
 declare -gA _TUI_PENDING_OUTPUT=() # pane id -> content awaiting re-render
 declare -g _TUI_RENDER_TIMEOUT=-1

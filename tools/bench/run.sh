@@ -72,6 +72,14 @@ _bench_goto_pages() {
 	done
 	printf '<tui><pane id="root" split="v"><pane id="chrome" border="single">%s</pane><outlet id="body"/></pane></tui>\n' "$chrome" >"$d/_shell.xml"
 }
+# a floating window: one full page repaint with its layer drawn on top (what every drag step costs), and the hit lookup
+# with the layer's zones ranked above the page's
+_b_layer_drag_step() {
+	tui.layer.move bench_win "$((3 + (_BENCH_STEP++ % 6)))" "$((10 + (_BENCH_STEP % 9)))" >/dev/null
+}
+_b_layer_hit() {
+	_tui_hit.at 20 6
+}
 _b_store_save_restore() {
 	_tui_store.save_page
 	_tui_store.restore_page
@@ -117,6 +125,18 @@ _bench_v2() {
 	tui.render >/dev/null
 	for ((i = 0; i < 30; i++)); do _TUI_W_VALUE[k$i]="value $i"; done
 	_bench_run store_save_restore 30 _b_store_save_restore
+	local lf="$_BENCH_ROOT/layer.xml"
+	printf '<tui>\n<pane id="root" split="v" border="single">\n<pane id="lp" border="single">\n<button id="lb1" text="under"/>\n</pane>\n</pane>\n<window id="bench_win" title="Win" x="8" y="3" width="40" height="10" float="true" closable="true">\n<button id="bw1" text="inside"/>\n<button id="bw2" text="more"/>\n</window>\n</tui>\n' >"$lf"
+	tui.load "$lf" >/dev/null
+	_bench_size
+	_tui._layout root
+	tui.render >/dev/null
+	_BENCH_STEP=0
+	_TUI_RUNNING=1 # the repaint only runs on a live screen; its output goes to /dev/null
+	_bench_run layer_drag_step 20 _b_layer_drag_step
+	_TUI_RUNNING=0
+	_tui_hit.at 20 6 # builds the index once
+	_bench_run layer_hit 100 _b_layer_hit
 	_bench_goto_pages "$_BENCH_ROOT"
 	_TUI_ROWS=30 _TUI_COLS=100
 	for name in shell plain; do

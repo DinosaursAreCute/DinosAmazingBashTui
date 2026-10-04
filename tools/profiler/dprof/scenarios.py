@@ -30,7 +30,7 @@ HOLD_SECONDS_QUICK = (0.1, 0.6)
 # (group, title, key there, key back, max repeats (rows to move before the widget ends), preparation): every widget or binding where holding a key
 # does something. None = no limit. The preparation is a list of setup labels/keys to reach and focus the widget.
 HELD = [
-    ("held.nav", "Held Up/Down on the nav bar", DOWN, UP, None, ["Home"]),
+    ("held.nav", "Held Up/Down on the nav bar", DOWN, UP, None, ["Components"]),
     ("held.list", "Held Up/Down on a list", DOWN, UP, 9, ["Widgets", "User:", "\t" * 5]),
     ("held.table", "Held Up/Down on a table", DOWN, UP, 6, ["Widgets", "User:", "\t" * 6]),
     ("held.type", "Held character key in an input", b"a", b"\x7f", None, ["Widgets", "User:"]),
@@ -121,7 +121,7 @@ def _wheel(x, y, down=True, n=1):
 
 
 # Scenario presets: what `--scenario` selects. `groups=None` means everything. Steps the chosen groups
-# need as preparation (navigate to a page, return home) run too but are labelled "setup" and not reported.
+# need as preparation (navigate to a page, return to the start page) run too but are labelled "setup" and not reported.
 SCENARIOS = [
     ("full", "Everything: start, navigation, input, scrolling, palette, themes, resize, idle, quit", None),
     ("startup", "Cold start (empty cache) and warm start", {"startup.cold", "startup.warm"}),
@@ -140,7 +140,7 @@ SCENARIOS = [
     ("idle", "Idle: what the app does when nothing happens", {"idle"}),
 ]
 SCENARIO_NAMES = [n for n, _, _ in SCENARIOS]
-FLOOR_LAPS = ["Layout", "Case Study", "Home"]   # nav labels of the trivial pages; the lap ends on home, the start page
+FLOOR_LAPS = ["Layout", "Case Study", "Debug"]   # nav labels of the trivial pages (no on_visit work)
 THEME_BUTTONS = ["ocean", "forest", "sunset", "light", "default"]   # Settings page rows (the page lowercases them); default last restores the look
 
 
@@ -307,16 +307,16 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
             if want(group):
                 for name, label in PAGES:
                     add(Step(group, name, "click_text", label, quiet=0.15))
-                add(Step(group, "home", "click_text", "Home", quiet=0.15))
+                add(Step(group, "components", "click_text", "Components", quiet=0.15))   # back to the start page
         if want("nav.key"):
             # alt+1..9 and alt+0 are bound in the nav template (_templates.xml): every page once by key, so the median is over all pages and each
-            # can be compared with clicking the same page (nav.first/nav.revisit details). The run before ends on home, so
-            # the sequence starts at alt+2 (alt+1 would be a switch to the page already shown) and ends with alt+1.
-            keys = ("2", "7") if quick else ("2", "3", "4", "5", "6", "7", "8", "9", "0", "1")
+            # can be compared with clicking the same page (nav.first/nav.revisit details). The run before ends on the start page (components), so
+            # the sequence starts at alt+1 (alt+2 would be a switch to the page already shown) and ends with alt+2.
+            keys = ("1", "7") if quick else ("1", "3", "4", "5", "6", "7", "8", "9", "0", "2")
             for k in keys:
                 add(Step("nav.key", f"alt+{k} {KEY_PAGE[k]}", "key", ESC + k.encode(), quiet=0.15, timeout=1.0))
     if want("nav.floor"):
-        # home, layout and case study carry no on_visit work: every millisecond here is the framework. One priming lap
+        # layout, case study and debug carry no on_visit work: every millisecond here is the framework. One priming lap
         # (labelled setup, not reported) takes the first-visit costs out; the measured laps are all warm switches.
         for label in FLOOR_LAPS:
             add(_setup(label))
@@ -368,9 +368,9 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                 n = min(n, count)
             add(Step(group, f"{secs:g}s hold", "repeat", (there, n, REPEAT_S), quiet=0.1, timeout=8.0))
             add(Step(group, f"{secs:g}s back", "repeat", (back, n, REPEAT_S), quiet=0.1, timeout=8.0))
-        add(_setup("Home"))
+        add(_setup("Components"))
     if want("palette.open", "palette.type", "palette.close"):
-        add(_setup("Home"))
+        add(_setup("Components"))
         add(Step("palette.open", "ctrl+p", "key", b"\x10", quiet=0.15))
         for ch in "set":
             add(Step("palette.type", ch, "key", ch.encode(), quiet=0.1))
@@ -381,7 +381,7 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
             if want(group):
                 for label in THEME_BUTTONS:
                     add(Step(group, label, "click_text", label, quiet=0.2, timeout=8.0))
-        add(_setup("Home"))
+        add(_setup("Components"))
     if want("compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"):
         add(Step("setup", "close dialogs", "key", ESC, quiet=0.1))   # an earlier step may have left a dialog open; it would swallow every key below
         S.extend(_palette_goto("Compose"))
@@ -409,7 +409,7 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
             if want("compose.tab"):
                 add(Step("compose.tab", "board", "click_text", "Board", quiet=0.3, timeout=10.0))
         add(Step("setup", "cache refresh ends", "idle", 1.0))   # the quiet rebuild of the cached page runs in the background
-        add(_setup("Home"))
+        add(_setup("Components"))
     if want(*WORKSPACE_GROUPS):
         S.extend(_workspace_steps(want, quick))
     if want("state.plain_goto", "state.save_restore", "state.reset"):
@@ -420,7 +420,7 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
         for r, c in ((max(20, rows - 6), max(70, cols - 24)), (rows + 8, cols + 30), (rows, cols)):
             add(Step("resize", f"{c}x{r}", "resize", (r, c), quiet=0.3, timeout=8.0))
     if want("idle"):
-        add(_setup("Home"))
+        add(_setup("Components"))
         add(Step("idle", "3 s", "idle", 1.5 if quick else 3.0, all_work=False))
     if wanted is None:
         add(Step("shutdown", "ctrl+q", "key", b"\x11", quiet=0.05, timeout=8.0, all_work=True))
@@ -436,7 +436,7 @@ class Unit:
         self.name, self.groups, self.steps = name, set(groups), steps
 
 
-DEFAULT_PAGE = "Home"   # nav label of the page the demo app opens on
+DEFAULT_PAGE = "Components"   # nav label of the page the profiled demo opens on (DABT_DEMO_PAGE, see session.py): Home is the heaviest page and has no menu
 
 
 # Which groups share a start state. Every group is in exactly one unit; startup.* is measured on its own (see runner).

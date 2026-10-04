@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DABT_demo.sh - starts the demo application (share/demo/home.xml). `dabt demo` runs this too.
+# DABT_demo.sh - starts the demo application (share/demo/home.xml unless DABT_DEMO_PAGE names another page). `dabt demo` runs this too.
 TUI_APP_NAME=dabt_demo # its files live in ~/.config/DABT/apps/dabt_demo/ (settings, keybinds, app.meta)
 TUI_APP_TITLE="DABT demo"
 TUI_APP_DESC="The showcase application that ships with DinosAmazingBashTui"
@@ -14,5 +14,5 @@ _saved_theme="$(sed -n 's/^theme=//p' "$TUI_APP_CONF/settings.conf" 2>/dev/null)
 [[ -n "$_saved_theme" && "$_saved_theme" != default && -r "$DEMO_DIR/themes/$_saved_theme.css" ]] &&
 	_TUI_THEME_OVERLAY="$DEMO_DIR/themes/$_saved_theme.css"
 
-tui.cmd.load "$DEMO_DIR/commands.xml" # app commands for the palette (ctrl+p)
-tui.start_cached "$DEMO_DIR/home.xml"
+tui.cmd.load "$DEMO_DIR/commands.xml"                    # app commands for the palette (ctrl+p)
+tui.start_cached "$DEMO_DIR/${DABT_DEMO_PAGE:-home}.xml" # DABT_DEMO_PAGE=components starts on another page (the profiler does: Home is the heaviest)

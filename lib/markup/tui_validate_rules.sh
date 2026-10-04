@@ -3,7 +3,7 @@
 # Add, drop or loosen a check here; nothing else needs to change. Apps/plugins can register more the same way.
 
 # -- vocabulary ----------------------------------------------------------
-tui.validate.container tui pane tabs details accordion
+tui.validate.container tui pane tabs details accordion window modal dialog popup tooltip contextmenu toast
 tui.validate.widget label input button checkbox password textarea list table select progress
 tui.validate.tag script theme include footer bind tab outlet
 # composition (lib/markup/tui_compose.sh) and addons (tui_addon.sh): expanded away before the build
@@ -62,9 +62,19 @@ tui.validate.enum tui keep_state "true|false"
 tui.validate.enum pane keep_size "true|false"
 tui.validate.enum details keep_size "true|false"
 for _tv_b in input password textarea checkbox select list table progress; do tui.validate.enum "$_tv_b" keep_value "true|false"; done
-tui.validate.enum '*' persist "session|disk"
+tui.validate.enum '*' persist "session|disk|layout"
 tui.validate.enum '*' keep_focus "true|false"
 unset _tv_b
+# layers (lib/chrome/tui_layer.sh)
+for _tv_a in window modal dialog popup tooltip contextmenu toast; do
+	for _tv_b in float shadow closable fullscreen minimizable modal; do tui.validate.enum "$_tv_a" "$_tv_b" "true|false"; done
+	tui.validate.enum "$_tv_a" open "true|false"
+	tui.validate.require "$_tv_a" id
+	tui.validate.int "$_tv_a" timeout 1
+done
+tui.validate.enum pane detachable "true|false"
+tui.validate.enum pane leave "collapse|placeholder"
+unset _tv_a _tv_b
 tui.validate.enum tabs style "framed|compact"
 tui.validate.enum bind scope "global"
 tui.validate.enum '*' focus_nav "arrows|tab|both"
@@ -438,3 +448,50 @@ _tui_vrule.shell_end() {
 	return 0
 }
 tui.validate.rule end _tui_vrule.shell_end
+
+# layers (lib/chrome/tui_layer.sh): anchor is screen, parent or #id of something on the page; x and y are cells or the
+# words the placement knows; a detachable pane must sit in an h or v split (the only splits a pane can leave and rejoin)
+declare -gA _TVR_LAYER_ANCHOR=()
+declare -g _TVR_LAYER_RE_X='^(center|right|[0-9]+)$' _TVR_LAYER_RE_Y='^(center|bottom|below|above|[0-9]+)$'
+_tui_vrule.layer() {
+	local a v
+	case "$TUI_V_TAG" in
+		window | modal | dialog | popup | tooltip | contextmenu | toast)
+			if tui.validate.attr anchor; then
+				a="$REPLY"
+				case "$a" in
+					screen | parent) ;;
+					'#'?*)
+						tui.validate.here anchor
+						_TVR_LAYER_ANCHOR[${a#\#}]="$REPLY|${_TV_A[id]:-?}"
+						;;
+					*) tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has anchor=\"$a\" - use screen, parent or #id" anchor ;;
+				esac
+			fi
+			if tui.validate.attr x && [[ ! "$REPLY" =~ $_TVR_LAYER_RE_X ]]; then
+				tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has x=\"$REPLY\" - use cells, center or right" x
+			fi
+			if tui.validate.attr y && [[ ! "$REPLY" =~ $_TVR_LAYER_RE_Y ]]; then
+				tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has y=\"$REPLY\" - use cells, center, bottom, below or above" y
+			fi
+			;;
+		pane)
+			if [[ "${_TV_A[detachable]:-}" == true && "$TUI_V_PARENT_SPLIT" != @(h|v) ]]; then
+				tui.validate.warn "pane '${_TV_A[id]:-?}' is detachable but sits in a '${TUI_V_PARENT_SPLIT:-none}' split - only panes in an h or v split can float and dock back" detachable
+			fi
+			;;
+	esac
+	return 0
+}
+tui.validate.rule element _tui_vrule.layer
+
+_tui_vrule.layer_end() {
+	local id
+	for id in "${!_TVR_LAYER_ANCHOR[@]}"; do
+		[[ -n "${TUI_V_PANES[$id]:-}${TUI_V_WIDGETS[$id]:-}" ]] ||
+			tui.validate.error_at "${_TVR_LAYER_ANCHOR[$id]%|*}" "layer '${_TVR_LAYER_ANCHOR[$id]##*|}' is anchored to #$id, which this page never declares"
+	done
+	_TVR_LAYER_ANCHOR=()
+	return 0
+}
+tui.validate.rule end _tui_vrule.layer_end

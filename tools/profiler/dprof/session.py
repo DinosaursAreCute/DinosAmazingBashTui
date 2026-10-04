@@ -143,7 +143,7 @@ class Session:
             HOME=self.home, XDG_CONFIG_HOME=self.home + "/.config", XDG_CACHE_HOME=self.home + "/.cache",
             XDG_DATA_HOME=self.home + "/.local/share", XDG_STATE_HOME=self.home + "/.local/state",
             TERM="xterm-256color", COLORTERM="truecolor", LC_ALL="C.UTF-8", LANG="C.UTF-8", TZ="UTC",
-            PROF_REPO=REPO, PROF_WRAP=wrap, PROF_TRACE="1" if self.trace_w is not None else "0",
+            DABT_DEMO_PAGE="components", PROF_REPO=REPO, PROF_WRAP=wrap, PROF_TRACE="1" if self.trace_w is not None else "0",
         )
         self.t_spawn = now()
         pid, fd = pty.fork()

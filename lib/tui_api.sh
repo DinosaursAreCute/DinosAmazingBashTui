@@ -103,7 +103,7 @@ _tui_api._ms() {
 	f="${f}000"
 	f="${f:0:3}"
 	_TA_MS=$((10#${i:-0} * 1000 + 10#$f))
-	((_TA_MS < 50)) && _TA_MS=50
+	((_TA_MS < 20)) && _TA_MS=20 # the floor of an interval: the loop cannot tick faster, and does so only while a job asks for it (see _tui_api._fast_update)
 }
 
 tui.set_text() {
@@ -120,6 +120,31 @@ tui.set_text() {
 	return 0
 }
 
+# tui.set_canvas PANE TEXT - the pane's content as a ready-made frame: one line per row, each already as wide as the pane's
+# content area (ANSI colours allowed), lines past the area are dropped. Nothing is measured or cut, so it costs a fraction of
+# tui.set_text with colours, and it is drawn at once (no debounce): it is for animation. Skipped when TEXT is what it set
+# last time. Any width the pane remembers from earlier text is dropped, so a canvas pane never reports itself too small.
+tui.set_canvas() {
+	local pane="$1" text="$2" buf saved
+	[[ "${_TUI_PANE_RAW[$pane]-}" == "$text" && -n "${_TUI_PANE_CONTENT[$pane]:-}" ]] && return 0
+	_TUI_PANE_RAW[$pane]="$text"
+	if ((${_TUI_P_H[$pane]:-0} > 0 && ${_TUI_P_W[$pane]:-0} > 0)); then
+		_tui._content_rect "$pane"
+		_TUI_PANE_RAW_SIZE[$pane]="$_CR_W $_CR_H"
+	fi
+	_TUI_PANE_CONTENT[$pane]=1
+	unset '_TUI_P_MAX_W[$pane]' '_TUI_P_LINES[$pane]' '_TUI_P_EFFECTIVE_MINW[$pane]' '_TUI_P_EFFECTIVE_MINH[$pane]'
+	if ((_TUI_RUNNING && ${_TUI_P_H[$pane]:-0} > 0 && ${_TUI_P_W[$pane]:-0} > 0)); then
+		saved="$_TUI_FRAME"
+		_TUI_FRAME=""
+		_tui._render_raw_buf "$pane"
+		buf="$_TUI_FRAME"
+		_TUI_FRAME="$saved"
+		[[ -n "$buf" ]] && _tui._flush "$buf"
+	fi
+	return 0
+}
+
 # ── scheduler ────────────────────────────────────────────────────────────
 
 _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
@@ -133,11 +158,39 @@ _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
 	_TA_NEXT[$id]=0
 	unset '_TA_PAUSED[$id]'
 	_tui_plugin.own every "$id"
+	_tui_api._fast_update
 	if [[ -n "$4" ]]; then
 		_tui_api._now
 		_TA_NEXT[$id]=$((_TA_NOW + _TA_MS))
 	fi # tui.after: first run is SEC from now, not on the next tick
 	tui.tick.add "_tui_api._tick"
+}
+
+# _tui_api._fast_update - _TA_FAST_MS: the shortest interval among the jobs when it is below the loop's usual poll (50 ms), else 0.
+# While it is set tui.run polls for no longer than the next job is due and ticks at that rate (see _tui_api.poll_wait): an
+# animation can reach 20+ frames a second, and every other page keeps its slow, idle-friendly poll.
+declare -gi _TA_FAST_MS=0
+declare -g _TA_POLL="0.050"
+_tui_api._fast_update() {
+	local id m=0
+	for id in "${_TA_IDS[@]}"; do
+		[[ -n "${_TA_FN[$id]:-}" ]] || continue
+		((_TA_INT[$id] < 50 && (m == 0 || _TA_INT[$id] < m))) && m=${_TA_INT[$id]}
+	done
+	_TA_FAST_MS=$m
+}
+
+# _tui_api.poll_wait - _TA_POLL: the seconds tui.run may wait for input: until the next job is due, at most 50 ms, at least 1 ms
+_tui_api.poll_wait() {
+	local id d due=50
+	_tui_api._now
+	for id in "${_TA_IDS[@]}"; do
+		[[ -n "${_TA_PAUSED[$id]:-}" ]] && continue
+		d=$((${_TA_NEXT[$id]:-0} - _TA_NOW))
+		((d < due)) && due=$d
+	done
+	((due < 1)) && due=1
+	printf -v _TA_POLL '0.%03d' "$due"
 }
 
 _tui_api._job_del() {
@@ -146,6 +199,7 @@ _tui_api._job_del() {
 	for x in "${_TA_IDS[@]}"; do [[ "$x" == "$id" ]] || keep+=("$x"); done
 	_TA_IDS=("${keep[@]}")
 	unset '_TA_FN[$id]' '_TA_INT[$id]' '_TA_NEXT[$id]' '_TA_ONCE[$id]' '_TA_ALIGN[$id]' '_TA_PAUSED[$id]' '_TA_ARGS[$id]'
+	_tui_api._fast_update
 	_tui_api._maybe_idle
 }
 

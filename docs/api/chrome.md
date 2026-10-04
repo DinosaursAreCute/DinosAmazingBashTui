@@ -159,3 +159,60 @@ Common flags: `--title T`, `--width N`, `--ok LABEL`, `--yes LABEL`, `--no LABEL
 </div>
 
 <!-- /api -->
+
+## Layers
+
+Layers are panes that float above the page as overlays. They have independent rectangles and can be shown, hidden, moved, resized, zoomed, and minimized. A modal layer captures all input (focus scope, Tab, clicks and keys) until it closes. Layers are created from markup tags `<window>`, `<modal>`, `<dialog>`, `<popup>`, `<tooltip>`, `<contextmenu>`, `<toast>`, with attributes `x y width height anchor=screen|parent|#id float shadow closable fullscreen minimizable modal open timeout persist=layout`. Panes can be detached from splits and floated as layers (`detachable dock_group leave on_detach on_dock persist=layout`).
+
+<!-- api: tui.layer.show tui.layer.hide tui.layer.close tui.layer.toggle tui.layer.raise tui.layer.move tui.layer.size tui.layer.reset tui.layer.zoom tui.layer.minimize tui.layer.active tui.layer.top tui.layer.detach tui.layer.dock -->
+
+| Function | Summary |
+|---|---|
+| [`tui.layer.show`](chrome/tui.layer.show.md) | Shows a hidden layer on top, restoring it to visibility. A modal layer takes the focus scope and remembers the focused widget; a layer with a timeout attribute hides itself after the specified seconds. |
+| [`tui.layer.hide`](chrome/tui.layer.hide.md) | Hides a visible layer, removing it from display. A modal layer gives the focus back to the widget that had focus before the layer opened. |
+| [`tui.layer.close`](chrome/tui.layer.close.md) | Alias for [`tui.layer.hide`](tui.layer.hide.md). Hides a visible layer. |
+| [`tui.layer.toggle`](chrome/tui.layer.toggle.md) | Shows a hidden layer or hides a visible layer. |
+| [`tui.layer.raise`](chrome/tui.layer.raise.md) | Makes a layer the topmost visible layer and repaints the screen. A click inside a layer or focus moving into it raises it automatically. |
+| [`tui.layer.move`](chrome/tui.layer.move.md) | Moves the layer's top-left corner to the specified position on the screen (1-based cells), clamped to keep the layer inside the screen. After moving, the layer stays where it was put; the layout does not re-place it on the next repaint. |
+| [`tui.layer.size`](chrome/tui.layer.size.md) | Sets the layer's size in cells. The minimum is 3 rows by 8 columns; the maximum is the screen size. The position is adjusted if needed to keep the layer inside the screen. |
+| [`tui.layer.reset`](chrome/tui.layer.reset.md) | Resets the layer to the position and size specified in the markup. Clears any manual moves, resizes, zoom state, and minimize state. |
+| [`tui.layer.zoom`](chrome/tui.layer.zoom.md) | Toggles the layer between its normal size and filling the entire screen. |
+| [`tui.layer.minimize`](chrome/tui.layer.minimize.md) | Toggles the layer between its normal display and a collapsed one-row title bar. |
+| [`tui.layer.active`](chrome/tui.layer.active.md) | Returns `0` while any layer is shown, or while a specific layer is shown. |
+| [`tui.layer.top`](chrome/tui.layer.top.md) | Gets the id of the topmost visible layer. The result is printed or stored in a variable; returns `1` when no layer is visible. |
+| [`tui.layer.detach`](chrome/tui.layer.detach.md) | Detaches a pane from its horizontal or vertical split, converting it into a floating layer that appears as a window on top of the page. The siblings of the detached pane take the freed space. Runs the `on_detach` callback if defined. |
+| [`tui.layer.dock`](chrome/tui.layer.dock.md) | Docks a floating pane back into its original split, restoring it to its previous position and size spec. If `PANE` is given, docks the pane as the last child of that split pane instead. Runs the `on_dock` callback if defined. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative chrome/tui.layer.show.md %}
+
+{% include_relative chrome/tui.layer.hide.md %}
+
+{% include_relative chrome/tui.layer.close.md %}
+
+{% include_relative chrome/tui.layer.toggle.md %}
+
+{% include_relative chrome/tui.layer.raise.md %}
+
+{% include_relative chrome/tui.layer.move.md %}
+
+{% include_relative chrome/tui.layer.size.md %}
+
+{% include_relative chrome/tui.layer.reset.md %}
+
+{% include_relative chrome/tui.layer.zoom.md %}
+
+{% include_relative chrome/tui.layer.minimize.md %}
+
+{% include_relative chrome/tui.layer.active.md %}
+
+{% include_relative chrome/tui.layer.top.md %}
+
+{% include_relative chrome/tui.layer.detach.md %}
+
+{% include_relative chrome/tui.layer.dock.md %}
+
+</div>
+
+<!-- /api -->

@@ -23,7 +23,7 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency n
 [**News**](#news) · [**Quick start**](#quick-start) · [**Features**](#features) · [**The `dabt` command**](#the-dabt-command) · [**Apps & security scan**](#security-scan) · [**Plugins**](#plugins) · [**Docs**](#documentation) · [**Changelog**](CHANGELOG.md)
 
 <img src="assets/gifs/settings.gif" alt="Home" width="760">
-
+<img src="assets/gifs/home.gif" alt="Home" width="760>
 </div>
 
 ---

@@ -13,6 +13,8 @@ source "${SCRIPT_DIR}/terminal_controls.sh"
 source "${SCRIPT_DIR}/markup/tui_addon.sh"
 # shellcheck source=tui_api.sh
 source "${SCRIPT_DIR}/tui_api.sh"
+# shellcheck source=render/tui_async.sh
+source "${SCRIPT_DIR}/render/tui_async.sh"
 # shellcheck source=render/tui_canvas.sh
 source "${SCRIPT_DIR}/render/tui_canvas.sh"
 # shellcheck source=layout/tui_collapse.sh
@@ -81,6 +83,8 @@ source "${SCRIPT_DIR}/markup/tui_refresh.sh"
 source "${SCRIPT_DIR}/tui_registry.sh"
 # shellcheck source=markup/tui_build.sh
 source "${SCRIPT_DIR}/markup/tui_build.sh"
+# shellcheck source=chrome/tui_layer.sh
+source "${SCRIPT_DIR}/chrome/tui_layer.sh"
 # shellcheck source=layout/tui_resize.sh
 source "${SCRIPT_DIR}/layout/tui_resize.sh"
 # shellcheck source=render/tui_rowcache.sh

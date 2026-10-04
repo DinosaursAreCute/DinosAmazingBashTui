@@ -423,6 +423,7 @@ _tui_input.key_event() {
     # Terminal-control mode: only the chord is heard; everything else is swallowed.
     if [[ "$name" == "$_TUI_PT_NAME" ]]; then tui.passthrough toggle; return 0; fi
     (( _TUI_PASSTHROUGH )) && return 0
+    [[ "$name" == esc ]] && (( _TUI_L_N )) && _tui_layer.dismiss_key && return 0   # Esc closes the topmost closable layer (tui_layer.sh)
     TUI_EVENT_TYPE=key; TUI_EVENT_BUTTON=""
     TUI_EVENT_WIDGET="$_TUI_FOCUS_ID"
     TUI_EVENT_PANE=""
@@ -474,6 +475,8 @@ _tui_input.mouse_event() {
     [[ -z "$name" ]] && return 1
     # A modal owns the pointer too: its handler gets the event, everything else is ignored.
     if [[ -n "$_TUI_MODAL" ]]; then [[ -n "$_TUI_MODAL_MOUSEFN" ]] && "$_TUI_MODAL_MOUSEFN" "$name" "$3" "$4"; return 0; fi
+    [[ "$name" == mouse:left ]] && ((_TUI_L_N)) && _tui_layer.outside && return 0      # a press outside the modal / popup layer (tui_layer.sh)
+    [[ "$_HIT_KIND" == layer || -n "$_TUI_L_DRAG" ]] && _tui_layer.mouse "$name" "$3" "$4" && return 0       # layer header, buttons, corner (tui_layer.sh)
     [[ "$_HIT_ARG" == cv-* ]] && _tui_collapse.mouse "$name" && return 0                                  # chevron zones (tui_collapse.sh)
     [[ "$_HIT_ARG" == rz-* || -n "$_TUI_RZ_ID" ]] && _tui_resize.mouse "$name" "$3" "$4" && return 0   # pane resize handles (tui_resize.sh)
     _tui_input.dispatch "$name"

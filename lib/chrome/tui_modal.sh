@@ -46,6 +46,13 @@ declare -gi _TUI_DISMISS_REPLAY="${TUI_DISMISS_REPLAY:-1}"
 # save/reset/build/flush/restore shape): overlays draw independently of a page's base
 # render (their own trigger, after tui.render already flushed once), so this owns its
 # own frame and its own synchronized flush rather than folding into tui.render's.
+# _tui_overlay.collect - appends every overlay's bytes to _TUI_FRAME without flushing: tui.render sends the page and its
+# overlays as one write, so a layer is never on screen without the page under it (or the page without its layers)
+_tui_overlay.collect() {
+	local f
+	for f in "${_TUI_OVERLAY_FNS[@]}"; do "$f"; done
+}
+
 _tui_overlay.draw_all() {
 	local f _oda_saved="$_TUI_FRAME"
 	_TUI_FRAME=""
@@ -78,6 +85,7 @@ tui.modal.open() {
 	_TUI_MODAL_DRAWFN="$3"
 	_TUI_MODAL_MOUSEFN="${4:-}"
 	tui.overlay.add "$3"
+	_tui_async.cover_changed
 	((_TUI_RUNNING)) && _tui_overlay.draw_all
 	return 0
 }
@@ -89,6 +97,7 @@ tui.modal.close() {
 	_TUI_MODAL_KEYFN=""
 	_TUI_MODAL_DRAWFN=""
 	_TUI_MODAL_MOUSEFN=""
+	_tui_async.cover_changed
 	tui.relayout # one synchronized full repaint: the overlay is gone, everything under it is back
 }
 
@@ -145,6 +154,7 @@ _tui_modal.reset() {
 	_TUI_MODAL_KEYFN=""
 	_TUI_MODAL_DRAWFN=""
 	_TUI_MODAL_MOUSEFN=""
+	_tui_async.cover_changed
 }
 
 # tui.overlay.box ROW COL WIDTH SGR TITLE LINE... - appends a framed box to _TUI_FRAME (for overlay/modal

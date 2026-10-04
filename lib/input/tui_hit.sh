@@ -206,6 +206,7 @@ _tui_hit.rebuild() {
 	_tui_hit.zones_titles
 	_tui_hit.zones_widgets
 	_tui_hit.zones_panes
+	((_TUI_L_N || ${#_TUI_P_DETACHABLE[@]})) && _tui_layer.zones # a layer's zones outrank the page's (tui_layer.sh)
 	_tui_perf.end hit_index
 }
 

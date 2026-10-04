@@ -213,6 +213,7 @@ _master_cleanup() {
 	tui.cache.cleanup 2>/dev/null
 	_tui_api.shutdown 2>/dev/null
 	_exec_cleanup_all 2>/dev/null
+	tui.async.stop_all 2>/dev/null # background painters end with the app
 	tui.cleanup 2>/dev/null
 	# Hard reset terminal state (ANSI resets + stty cooked mode)
 	printf "\e[0m\e[?25h\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1049l\r\n"
@@ -422,6 +423,8 @@ _tui._collect_leaves() {
 		read -ra ch <<<"${_TUI_P_CHILDREN[$id]}"
 		for c in "${ch[@]}"; do _tui._collect_leaves "$c"; done
 	fi
+	((_TUI_L_N)) && [[ "$id" == root ]] && _tui_layer.collect # the layers' panes follow the page's, bottom layer first
+	return 0
 }
 
 # _tui._layout P - one full layout pass, timed as a single span even though
@@ -433,6 +436,7 @@ _tui._layout() {
 	_tui.epoch_bump hit
 	_tui_perf.begin layout
 	_tui._layout_r "$1"
+	((_TUI_L_N)) && [[ "$1" == root ]] && _tui_layer.layout # the layers' anchors read the page's geometry
 	# Settle scroll offsets for all leaf panes with vertical scroll after geometry is final
 	local _lp
 	for _lp in "${_TUI_P_LEAVES[@]}"; do
@@ -1431,6 +1435,17 @@ _tui._draw_pane() {
 }
 
 # state:direct
+# _tui._paint_pane_buf PANE - PANE as the page paints it: a split without a border is a background fill, any other pane
+# its frame and interior
+_tui._paint_pane_buf() {
+	_tui._eff_border "$1"
+	if [[ -n "${_TUI_P_CHILDREN[$1]:-}" && "$_TB" == "none" ]]; then
+		_tui._fill_pane_bg "$1" "${_TUI_P_ROW[$1]}" "${_TUI_P_COL[$1]}" "${_TUI_P_H[$1]}" "${_TUI_P_W[$1]}"
+	else
+		_tui._draw_pane_buf "$1"
+	fi
+}
+
 _tui._draw_pane_buf() {
 	local id="$1"
 	local r=${_TUI_P_ROW[$id]} c=${_TUI_P_COL[$id]}
@@ -1787,6 +1802,15 @@ _tui._flush() {
 	local buf="$1" out="${2-$1}" # OUT: the part of BUF that must reach the terminal (tui_paint.sh drops unchanged rows)
 	((_TUI_OVL_FLUSHING)) || _tui_modal.base_fold "$buf"
 	((_TUI_FLUSH_GEN++))
+	# a repaint of the page (a clock tick, an animation, a hover) may cross a layer, the command palette or a dialog: what is
+	# open over the page goes out in the same write, so the page is never on screen over it, not even for one frame
+	if ((! _TUI_OVL_FLUSHING && ! _TUI_L_DRAWING)) && [[ -n "$out" ]] && { ((_TUI_L_N)) || [[ -n "$_TUI_MODAL" ]]; }; then
+		local _fl_saved="$_TUI_FRAME"
+		_TUI_FRAME="" _TUI_L_DRAWING=1
+		_tui_overlay.collect
+		out+="$_TUI_FRAME"
+		_TUI_FRAME="$_fl_saved" _TUI_L_DRAWING=0
+	fi
 	if ((! _TUI_PERF_TRACKING)); then
 		[[ -z "$out" ]] && return
 		mode.sync_start
@@ -1878,12 +1902,8 @@ tui.render() {
 
 	_TUI_FRAME=""
 	for pane in "${_TUI_P_ALL[@]}"; do
-		_tui._eff_border "$pane"
-		if [[ -n "${_TUI_P_CHILDREN[$pane]:-}" && "$_TB" == "none" ]]; then
-			_tui._fill_pane_bg "$pane" "${_TUI_P_ROW[$pane]}" "${_TUI_P_COL[$pane]}" "${_TUI_P_H[$pane]}" "${_TUI_P_W[$pane]}"
-		else
-			_tui._draw_pane_buf "$pane"
-		fi
+		((_TUI_L_N)) && [[ -n "${_TUI_P_LAYER[$pane]+x}" ]] && continue # a layer's panes are the overlay's (tui_layer.sh)
+		_tui._paint_pane_buf "$pane"
 	done
 	_tui_frame.junctions
 	_tui_hit.overlay
@@ -1891,6 +1911,7 @@ tui.render() {
 	_TUI_WP_LAST=""
 	_TUI_WP_REUSE=1
 	for wid in "${_TUI_W_ORDER[@]}"; do
+		((_TUI_L_N)) && [[ -n "${_TUI_P_LAYER[${_TUI_W_PANE[$wid]:-_}]+x}" ]] && continue # a layer's widgets are the overlay's
 		_tui._draw_widget_buf "$wid"
 	done
 	_TUI_WP_REUSE=0
@@ -1903,10 +1924,14 @@ tui.render() {
 	# Targeted redraws (_tui._draw_ids_now) go through _tui_paint.flush instead.
 	_TUI_BASE_FRAME="$_TUI_FRAME"
 	_TUI_BASE_GEN=-1 # this flush is the base itself: no fold
+	# layers draw over the page: their bytes ride in the same write, so a drag or a resize never shows the page without them
+	{ ((_TUI_L_N)) || [[ -n "$_TUI_MODAL" ]]; } && _tui_overlay.collect
+	_TUI_L_DRAWING=1 # the overlays are in the frame already
 	_tui._flush "$_TUI_FRAME"
+	_TUI_L_DRAWING=0
 	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=$_TUI_RC_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
-	((${#_TUI_OVERLAY_FNS[@]})) && _tui_overlay.draw_all
+	if ((_TUI_L_N)) || [[ -n "$_TUI_MODAL" ]]; then _TUI_OVL_GEN=$_TUI_FLUSH_GEN; elif ((${#_TUI_OVERLAY_FNS[@]})); then _tui_overlay.draw_all; fi
 	_tui_perf.end render
 }
 
@@ -2339,9 +2364,36 @@ _tui._vslice() {
 }
 
 # state:direct
+# _tui._render_raw_buf PANE - the lines of a tui.set_canvas frame at the pane's content area, each in the pane's style (which
+# returns after every reset inside a line), without measuring or cutting them. The frame is split by word splitting on
+# newlines (a here-string would cost a temporary file per frame), the style restored line by line (a replacement over the
+# whole frame is several times slower in a UTF-8 locale).
+_tui._render_raw_buf() {
+	local - # set -f below ends with the function
+	local pane="$1" i=0 line sty res=$'\e[0m' seg frame="" IFS=$'\n'
+	local -a rows
+	_tui._content_rect "$pane"
+	# a frame made for another size would run past the pane: it waits for the page to make one that fits (tui.on_resize hook)
+	[[ -z "${_TUI_PANE_RAW_SIZE[$pane]:-}" || "${_TUI_PANE_RAW_SIZE[$pane]}" == "$_CR_W $_CR_H" ]] || return 0
+	_tui._style_v "${pane}_normal"
+	sty="$_SGR"
+	set -f # the text holds * and [: no pathname expansion
+	rows=(${_TUI_PANE_RAW[$pane]})
+	for line in "${rows[@]:0:_CR_H}"; do
+		printf -v seg '\033[%d;%dH%s%s%s' $((_CR_R + i)) "$_CR_C" "$sty" "${line//"$res"/"$res$sty"}" "$res"
+		frame+="$seg"
+		i=$((i + 1))
+	done
+	_tui.emit "$frame"
+}
+
 _tui._render_output_buf() {
 	local pane="$1" i
 	((${_TUI_P_H[$pane]:-0} < 1 || ${_TUI_P_W[$pane]:-0} < 1)) && return # hidden, or no geometry (pane not on this page)
+	if [[ -n "${_TUI_PANE_RAW[$pane]+x}" ]]; then                        # tui.set_canvas: a ready-made frame
+		_tui._render_raw_buf "$pane"
+		return
+	fi
 	declare -n lines="_TUI_PANE_CONTENT_${pane}"
 	local scroll="${_TUI_P_SCROLL[$pane]:-none}"
 
@@ -2411,6 +2463,9 @@ _tui._render_output_buf() {
 				# sty again before the text: the clear is followed by a reset, so without it the text
 				# (and any centering spaces in it) is drawn in the terminal default, not the pane style
 				_tui._vslice "${view_lines[i]}" "$h_off" "$ct_w"
+				# a reset inside the text ends the pane style too: the pane's colours (background above all) come straight back
+				_VS="${_VS//"$res"/"$res$sty"}"
+				_VS="${_VS//$'\e[m'/"$res$sty"}"
 				printf -v seg '\033[%d;%dH%s%s%s\033[%d;%dH%s%s' $((ct_row + i)) "$ct_col" "$sty" "$clr" "$res" \
 					$((ct_row + i)) "$ct_col" "$sty" "$_VS"
 			else

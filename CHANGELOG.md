@@ -11,6 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Widgets can now be added to scrollable panes. (beta arrow key navigation conflicts between scrolling and changing focus)
 - Panes can be fused (neighbours share one border line), resized with the mouse or `alt+r`, and collapsed to a title bar, a rail or nothing. The new Workspace demo page (an on-call console) shows all three and replaces the Styles page.
 - Shells: `<tui shell="_shell.xml">` builds a page into the `<outlet/>` of a shared chrome file. `tui.goto` between pages of one shell keeps the shell's widgets, focus, values and timers and rebuilds only the page (about 20 % faster than a full goto). New `tui.shell.file`; the demo menu and header now live in `share/demo/_shell.xml`.
+- Layers: `<window>`, `<modal>`, `<dialog>`, `<popup>`, `<tooltip>`, `<contextmenu>` and `<toast>` float above the page with a clamped rectangle, an anchor (`screen`, `parent`, `#id`), a drop shadow and a header with reset, fullscreen, minimize and close buttons. Windows drag by the header, resize by the corner, snap to screen edges and rise when clicked or focused; modal layers hold Tab and the pointer and give the focus back. Panes can float and dock back (`detachable`, `dock_group`, `leave`, `on_detach`, `on_dock`), and `persist="layout"` keeps where windows and detached panes are. New `tui.layer.*` API; the page and its layers go out in one write, so dragging does not flicker. The Layers demo page shows all of it.
+- The Home page is a live demo: a DABT banner that types its own name in the letters' colours, dim matrix rain over the whole hero in the same four colours, a tagline and a line of news that rotate, and a fused grid of panes (no menu or title bar on this page). The rain is painted by a background process, so hovering and focus highlighting never wait for a frame.
+- New `tui.async.*`: background painters, functions that run in a process of their own and draw straight to the terminal (stopped by `tui.reset_ui` and on exit, held while a modal or a layer is open or a resize is applied). New `tui.set_canvas PANE TEXT` for ready-made, unmeasured frames. The tick of `tui.run` follows the shortest `tui.every` interval below 50 ms (down to 20 ms).
+- Anything open over the page (a layer, the command palette, a dialog) now goes out in the same write as every repaint of the page under it, so background updates no longer flicker through it.
+- Text painted into a pane (`tui.set_text`, `tui.output`) keeps the pane's colours after an `ESC[0m` inside the text.
 - Pages can keep their state: input values, selections, scroll offsets, collapsed panes and pane sizes survive page changes (`keep_value`, `keep_collapsed`, `keep_size`, `keep_state`), can be stored on disk (`persist="disk"`), and can be reset with `alt+shift+r`.
 
 ### NOTES
@@ -22,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - The Profiler currently does not have a metric to show where sub processes come from in non hot paths. We are considering to add that as it can be hard to determine if there are forks in known paths like caching or if time is lost in other paths that might require more optimizations.
 - The Widget scrolling is tested and generally speaking complete but work is still needed to improve the focus cycling and navigation behavior.
 
+- The page-switch benches: `goto_pair_shell` 23.5 ms against `goto_pair_plain` 29.2 ms for two switches (load only, no render). `layer_drag_step` 38 ms, `layer_hit` 53 us.
+- The Home rain is drawn by a background process that writes straight to the terminal. Each frame is small (usually under 4 KB, one write call), but a write of the main loop landing between two writes of the painter is not ruled out.
+- The unit speed budget (G2) is over by about 1 % (1127 ms against 1114 ms for 557 unit tests); it was within a few percent before the layer work.
+
 ### Known Issues 
 - Pane Focus Switching via `alt + n` does not work in control panes
 - The input field in the terminal page currently does not send its input into the process.
@@ -32,6 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - A page's reset defaults are captured on its first visit. If `on_visit` fills a list differently on a later visit, the first values remain the reset target.
 - `tui.store.get` sees on-disk entries only after the page they belong to has been restored.
 
+- The older `tui.modal.*`, the dialogs and the command palette are not rebuilt as layer presets and still use the overlay registry; a modal layer holds focus and the pointer but global key bindings still work inside it.
+- A drag of a window repaints the whole page (about 38 ms a step); a damage rectangle would cut that.
+- `dock_group` targets are explicit (`tui.layer.dock LAYER PANE`); there is no drag-to-dock yet.
 
 ### Added
 
@@ -49,6 +61,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * `scroll_into_view="true|false"` pane attribute to control whether Tab focus scrolls widgets into view (default true).
 * Profiler explorer (`tools/profiler/explorer/index.html`): an offline page to browse, filter, chart and compare every run in `reports/`, with all collected data. It is kept current automatically after each run (`explore.py`; `explorer.sh` to refresh and open).
 * Switches to measure what the background hides: `TUI_JOB_BACKGROUND=0` runs every `tui.job.run` job to its end (DONEFN included) before the call returns; `TUI_REFRESH_CACHE_JOB=0` skips the cache job that follows `tui.page.refresh`. Both are for profiling; the profiler passes the environment through.
+
+* Shells (`lib/markup/tui_shell.sh`): `<tui shell="_shell.xml">` names a markup file with chrome that stays while pages change, and exactly one `<outlet id= split= weight= border= class=/>`, the pane the page's top-level panes are built into. `tui.goto` between two pages of one shell removes only what the previous page built and keeps the shell's widgets, focus, typed values, scroll positions, timers, watchers and binds; a page of another shell, or one without a shell, gets the full reset. A page of a shell is cached as a delta over the shell (including its raw tree and pane signatures, so `tui.page.refresh` works on it like on any page); the warm-up caches each shell once before the page workers start. New `tui.shell.file [VAR]`. Validator: the shell is walked with the page (shared ids, one outlet, no outlet in a page that names a shell, no shell naming a shell, unreadable shell). Guide section "Shells".
+* Layers (`lib/chrome/tui_layer.sh`): panes that float above the page. Tags `<window>`, `<modal>`, `<dialog>`, `<popup>`, `<tooltip>`, `<contextmenu>`, `<toast>`; attributes `anchor="screen|parent|#id"`, `x`, `y` (cells, `center`, `right`, `bottom`, `below`, `above`), `width`, `height` (cells, `N%`, `fill`; a layer is never smaller than its content), `float`, `shadow`, `closable`, `fullscreen`, `minimizable`, `modal`, `open="false"`, `timeout`, `persist="layout"`. Floating windows have a header with reset, fullscreen, minimize and close buttons, drag by the header, resize by the corner, snap to screen edges and rise when clicked or focused. Modal layers are the focus scope (Tab and the pointer stay inside, the focus comes back on close); Esc closes the topmost closable layer; a popup closes on an outside press; a toast hides itself after `timeout` seconds. API `tui.layer.show|hide|close|toggle|raise|move|size|reset|zoom|minimize|active|top|detach|dock`. Theme classes `.layer_shadow`, `.layer_button`, `.layer_button:hover` in the default theme, the demo theme and every bundled theme. Demo page `layers.xml`.
+* Detach and dock: a pane with `detachable="true"` gets a `⇱` button that floats it as a window while its siblings take the space (`leave="placeholder"` keeps an empty pane there); the window's `⇲` button or `tui.layer.dock LAYER [PANE]` puts it back between the neighbours it had, or into a pane of the same `dock_group`. `on_detach` and `on_dock` callbacks (`FN PANE`). `persist="layout"` keeps a window's position, size and visibility, or whether a pane floats, across page switches (store field `layout`).
+* `tui.set_canvas PANE TEXT`: a pane's content as a ready-made frame (rows already as wide as the pane, ANSI allowed). Nothing is measured or cut and it is drawn at once, which makes it several times cheaper than `tui.set_text` with colours; a frame made for another size is not drawn until the page makes a new one.
+* Background painters, `tui.async.start|stop|stop_all|active|put|get|wait|covered` (`lib/render/tui_async.sh`): a function runs in a process of its own and draws straight to the terminal, so its frames cost the main loop nothing. Painters are ended by `tui.reset_ui` and on exit, and are held while a modal or a layer is open and while a resize is applied.
+* Faster ticks: `tui.every` takes intervals down to 20 ms (the floor was 50 ms). While a job asks for less than 50 ms `tui.run` waits only until the next job is due, so an animation can reach 20 frames a second or more; every other page keeps the idle-friendly poll.
+* Home demo page: a banner of the four DABT letters whose name types itself out in the letters' colours, dim matrix rain over the whole hero in the same four colours (a background painter), a tagline and a line of news that rotate (theme classes `.home_tag`, `.home_badge`, `.home_new`, `.home_news` in every theme), and a fused grid of panes. `TUI_HOME_RAIN=0` turns the rain off.
+* `DABT_DEMO_PAGE=NAME` starts `bin/DABT_demo.sh` on another demo page (the profiler uses `components`).
+* `TUI_CACHES=off` bypasses every cache that can go stale (layout memo, widget position cache, row-fragment cache, paint diff, hit index, focus order, saved base frame, page cache, theme memo); both modes must behave alike, so a difference is a cache-boundary bug (docs/design/caches.md).
+* Developer documentation: guide page `guide/animation.md` (timers, `tui.set_canvas`, background painters, overlays in one write), guide sections "Layers" and "Shells" in `guide/markup.md`, API entries for every new function, and the design notes `design/layers.md` and `design/caches.md`.
+* Tests: `shell`, `layer`, `async`, `home_anim`, `output_style` and `xsd` unit tests; a bats case for the shell warm-up; micro-benches `goto_pair_shell`, `goto_pair_plain`, `layer_drag_step` and `layer_hit`.
+* Menu of the demo (shell): collapsible to a rail (`alt+c`), resizable (drag the edge or `alt+r`), and it keeps both across page switches and reloads.
 
 ### Changed
 
@@ -70,11 +95,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Profiler: the steps that get a unit to its start state are timed too and shown as their own *Setup* category (app start, then each step, per unit); they are not part of any measured group. A unit no longer navigates to the default page it already starts on.
 * Profiler: the report names the machine (specs only, no host or user names) and shows CPU, memory and frequency per unit, with a finding when other work was using the CPU.
 
+* `share/tui.xsd` brought up to date: widgets no longer require `pane` and `row` (nested widgets get both from where they stand, so a page written the v2 way validates); one `paneAttrs` group is shared by `pane`, `details`, `accordion`, the helper tags `row`, `col`, `group`, `spacer`, `divider`, the shell's `outlet` and the layer tags; `id` on `if`, `else`, `for` and `use` (what an addon's `ref="#id"` finds); `keep_value`, `keep_focus` and `persist` on every widget that keeps a value; `persist` accepts `layout`; the shell and layer attributes. A unit test checks that every registered tag and every attribute the loader reads is declared, and that all demo pages validate (`xmllint`).
+* Every demo page except Home uses the shell; Home stands alone (no menu, no title bar), so the page's own list is the menu. The alt+N page bindings moved into a template of their own (`share/demo/_keys.xml`, `dabt_keys`) that both the menu template and Home use.
+* Repaints of the page under an open layer, the command palette or a dialog carry that overlay in the same write (`_tui._flush`), and a full render sends the page and its overlays as one write: no flicker through a window being dragged, a clock tick behind a popup or an animation behind the palette. A layer repaint (move, resize, show, hide, zoom) no longer erases the screen, so the footer is not redrawn.
+* Text painted into a pane (`tui.set_text`, `tui.output`) keeps the pane's colours after an `ESC[0m` inside the text: a reset ends the text's style and the pane's style comes straight back.
+* Reloading the page you are on (a theme change, clicking its own menu entry) restores collapsed panes and pane sizes and lays them out at once; the shell's menu is `keep_collapsed` and `keep_size`.
+* `tui.page.refresh` works on a page of a shell; its background cache job is skipped for shell pages (the page is recorded on its next visit).
+* The profiler, `tools/debug/profile_*.sh`, the screenshot and dialog tools and the page-switch bench start on Components instead of Home (Home runs a painter and timers and has no menu). Profiler: the floor laps are Layout, Case Study and Debug, the key sequence starts at `alt+1` and ends on `alt+2`, and the demo is started with `DABT_DEMO_PAGE=components`.
+* `tools/t.sh` snapshots the shell and page-id variables, so a test that builds a shell page cannot leak state into the next test.
+
 ### Fixed
 
 * Tick functions (`_TUI_TICK_FN`, `tui.tick.add` listeners, `tui.every`, `tui.exec`) ran once per input-loop iteration, and every mouse event ends the poll read early, so moving the pointer (e.g. onto a new button) made them fire faster; the monitor panes refreshed on hover. `tui.run` now dispatches ticks by elapsed time (`TUI_INPUT_POLL_TIMEOUT`), independent of input.
 * Profiler: in a full run the `theme` steps clicked `[ Reset to defaults ]` instead of the *Default* theme button (the needle `default` matched `defaults`), leaving a confirm dialog open that swallowed every later step, so all `compose` groups failed. Text lookup now matches whole words.
 * Profiler: a step that cannot do its job (text not on screen, `compose.open` not landing on the page) is now a warning and a red *steps failed* finding, and its group is never rated good. Unit tests for both.
+
+* The menu's collapsed state was lost when its page reloaded: the store restored the flag but the layout was not recomputed, so the pane showed expanded while flagged collapsed.
+* A page's own widgets, panes and layers now leave with it when `tui.goto` swaps pages inside a shell, including the ones made later (`on_visit`, callbacks); before, widgets made in `on_visit` piled up in the focus order and some menu buttons became unclickable.
+* A page of a shell recorded after `on_visit` ran got the widgets `on_visit` builds into its cached delta, so they were built twice on a revisit.
+* A window placed for the screen a page was recorded on kept that place when the page was replayed on another screen (the first click on the button that opens it only fixed the layout).
+* Closing a zoomed window left its full-screen pane in the hit index and the pane list, so clicks on the page under it went nowhere; hiding or showing a layer now rebuilds both. A hidden layer keeps its `persist="layout"` state.
+* A dock placeholder (`leave="placeholder"`) was looked up by index and missed after another pane had floated or docked meanwhile; the pane docked beside it. Docking finds the placeholder by name and the place by the neighbours the pane had.
+* A pane filled with `tui.set_text` could report itself too small, and draw its notice instead of its frame, below a width remembered from an earlier snapshot of the page; a resize also left the old, wider text running past the pane. `tui.set_canvas` drops the remembered width and skips a frame made for another size.
+* A layer smaller than its content showed "min space = WxH" instead of its content; layers grow to fit what is inside them.
+* A page that named a shell by quoting `shell="..."` in a comment was read as naming it; comments are skipped.
+* A pane id equal to the shell's outlet id made the pane its own child (a stack overflow in `tui.page.refresh`); the validator reports the clash.
+* `share/demo/widgets.xml` had `collapsable="true"` (a typo that disabled the collapse); the XSD check caught it.
 
 ## [0.0.23] - 2026-10-02
 

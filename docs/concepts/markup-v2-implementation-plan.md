@@ -26,7 +26,7 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | done |
 | 2D Node ops | `lib/markup/tui_ops.sh`, `tui_compose.sh`, `tui_addon.sh`, `tui_refresh.sh` | medium | done |
 | 3A Fused/resize/collapse | `lib/layout/tui_frame.sh`, `tui_resize.sh`, `tui_collapse.sh` | medium | done |
-| 3B Layers | `lib/chrome/tui_layer.sh` | medium | todo |
+| 3B Layers | `lib/chrome/tui_layer.sh` | medium | done (modal API not yet a layer preset; gates owed by the user) |
 | 3C Scroll widgets | `lib/layout/tui_scroll.sh` | medium | done |
 | 3D Page state | `lib/state/tui_store.sh`, `lib/markup/tui_shell.sh` | medium | done (golden frames, G3 benches and the real-terminal check are owed by the user) |
 | 4.1 Cascade | `lib/style/tui_cascade.sh` | medium | todo |
@@ -92,6 +92,9 @@ Suite at the last verified run: 767 pass, 0 fail (before the shell work started)
 - The unit speed budget forced several multi-relayout tests into the integration tier (`ti_*`).
 
 **Shells (3D-3), done.** `lib/markup/tui_shell.sh` plus hooks in `tui.sh`, `tui_build.sh` (`<outlet>`, `_tui_build.pane_kids`), `tui_markup.sh`, `tui_cache.sh`, `tui_store.sh`, `tui_refresh.sh`, `tui_input.sh`. Tests: `tests/unit/shell.t.sh` (swap, state kept, on_visit widgets, validator, refresh fallback, scan) and a bats case for the shell-first warm-up. Validator walks the shell before the page (shared ids, one outlet, no shell naming a shell); XSD, guide section "Shells", `tui.shell.file` API entry and the `tui.goto` note are in. A page's owned ids are derived (everything not in the shell), so widgets made in `on_visit` or callbacks leave with the page; the cache stores a page of a shell as a delta taken before `on_visit`. Warm-up caches each shell once in the parent before the workers fork. Bench `goto_pair_shell` 23.5 ms vs `goto_pair_plain` 29.2 ms for two switches (load only, render excluded). Demo: `share/demo/_shell.xml` (collapsible, resizable menu; outlet `page_outlet`) and every demo page use it. `tui.page.refresh` works on shell pages (the Compose demo is one). A page pane may not reuse the outlet's id: the validator reports it, and the engine would recurse on the cycle.
+
+**Layers (3B), done.** `lib/chrome/tui_layer.sh` plus seams in `tui.sh` (`_tui._paint_pane_buf`, the collect/layout hooks, render skips layer panes and widgets), `tui_hit.sh`, `tui_focus.sh`, `tui_input.sh`, `tui_store.sh`, `tui_shell.sh`, `tui_cache.sh`, `tui_modal.sh` (`_tui_overlay.collect`). Tests: `tests/unit/layer.t.sh`. Demo: `share/demo/layers.xml` (nav entry Layers), Workspace's Details pane is detachable. Design: a layer is a pane outside the split tree; its panes follow the page's in `_TUI_P_ALL`; it is drawn as an overlay, and `tui.render` sends page and layers in one write. A layer's zones are ranked above the page's by a stable reorder of every row's zone list. Rationale in `docs/design/layers.md`.
+- Deviations: the existing `tui.modal.*` / dialog / palette stay as they are (not rebuilt as layer presets) and the overlay registry stays; modal layers hold focus and pointer but global key bindings still work; `dock_group` targets are explicit (`tui.layer.dock LAYER PANE`); a layer drag repaints the whole page (38 ms per step, no damage rectangle yet).
 
 **Owed by the user (not run by the implementer)**
 - Golden frames (G4): re-record every demo page (the nav changed; the update banner is stored in the frames, so `t_golden.sh --check` reported every frame as changed before this work).

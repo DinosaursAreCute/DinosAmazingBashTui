@@ -288,7 +288,7 @@ Constructors for layouts whose shape is only known at runtime. Ids are generated
 
 Text content of leaf panes. Repaints are queued and coalesced, so several updates in one callback cost one frame.
 
-<!-- api: tui.output tui.output_append tui.output_clear tui.set_text -->
+<!-- api: tui.output tui.output_append tui.output_clear tui.set_text tui.set_canvas -->
 
 | Function | Summary |
 |---|---|
@@ -296,6 +296,7 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 | [`tui.output_append`](core/tui.output_append.md) | Appends lines to the pane's content, from arguments or stdin. |
 | [`tui.output_clear`](core/tui.output_clear.md) | Empties the pane's content and repaints the pane immediately. |
 | [`tui.set_text`](core/tui.set_text.md) | Replaces the pane's content like [`tui.output`](/api/core/tui.output.html), but skips the work when `TEXT` equals what it set last time. |
+| [`tui.set_canvas`](core/tui.set_canvas.md) | Sets the pane's content to a ready-made frame: one line per row, each already as wide as the pane's content area. The pane draws the lines as they are, in its own style. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -306,6 +307,47 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 {% include_relative core/tui.output_clear.md %}
 
 {% include_relative core/tui.set_text.md %}
+
+{% include_relative core/tui.set_canvas.md %}
+
+</div>
+
+<!-- /api -->
+
+## Background painters
+
+Painters run in background processes and draw directly to the terminal with absolute cursor moves, so their frames cost the main loop nothing and a hover or focus highlight is never queued behind them. A painter receives updates from the main loop through small state files and sleeps without forking.
+
+<!-- api: tui.async.start tui.async.stop tui.async.stop_all tui.async.active tui.async.put tui.async.get tui.async.wait tui.async.covered -->
+
+| Function | Summary |
+|---|---|
+| [`tui.async.start`](core/tui.async.start.md) | Forks FN with ARG... into the background as a painter: a function running in its own process that paints directly to the terminal with absolute cursor moves, so its frames cost the main loop nothing. |
+| [`tui.async.stop`](core/tui.async.stop.md) | Ends the painter named NAME, if it exists. |
+| [`tui.async.stop_all`](core/tui.async.stop_all.md) | Ends every painter and removes the state directory. |
+| [`tui.async.active`](core/tui.async.active.md) | Returns 0 while a painter is running; 1 when none are running, or when NAME is given and that painter is not running. |
+| [`tui.async.put`](core/tui.async.put.md) | The main loop's way to send a small value to a painter: writes VALUE to a temporary file that the painter can read with [`tui.async.get`](/api/core/tui.async.get.html). |
+| [`tui.async.get`](core/tui.async.get.md) | Inside a painter: reads a value sent by the main loop via [`tui.async.put`](/api/core/tui.async.put.html) into VAR. |
+| [`tui.async.wait`](core/tui.async.wait.md) | Inside a painter: sleeps without forking, by waiting on a pipe that is held open and never written. Returns immediately after the timeout, or when the main process exits. |
+| [`tui.async.covered`](core/tui.async.covered.md) | Inside a painter: returns 0 while something is open over the page (a modal, the command palette, a dialog, or a layer); 1 when the page is fully visible. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.async.start.md %}
+
+{% include_relative core/tui.async.stop.md %}
+
+{% include_relative core/tui.async.stop_all.md %}
+
+{% include_relative core/tui.async.active.md %}
+
+{% include_relative core/tui.async.put.md %}
+
+{% include_relative core/tui.async.get.md %}
+
+{% include_relative core/tui.async.wait.md %}
+
+{% include_relative core/tui.async.covered.md %}
 
 </div>
 

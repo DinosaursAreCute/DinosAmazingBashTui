@@ -37,7 +37,7 @@ _TUI_P_ROW[root]=1
 _TUI_P_COL[root]=1
 _TUI_P_H[root]=$ROWS
 _TUI_P_W[root]=$COLS
-home="${TUI_PROFILE_HOME:-home}"
+home="${TUI_PROFILE_HOME:-components}" # the page the profile starts on (Home is the heaviest page: it runs a rain painter and typing timers)
 tui.load "$PAGES_DIR/$home.xml" >/dev/null 2>&1
 _TUI_RUNNING=1
 for p in "$@"; do

@@ -66,6 +66,87 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <xs:simpleType name="titlePosType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="top"/>
+      <xs:enumeration value="bottom"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="titleAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="right"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="resizableType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="x"/>
+      <xs:enumeration value="y"/>
+      <xs:enumeration value="both"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="collapseToType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="title"/>
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="rail"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="collapseDefaultType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="expanded"/>
+      <xs:enumeration value="collapsed"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="persistType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="session"/>
+      <xs:enumeration value="disk"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attributeGroup name="keepValueAttrs">
+    <!-- keep_value: the widget's value, cursor, scroll and selection survive a page switch (session); persist: session (default) or disk (also written to $TUI_HOME/state/store; implies keeping) -->
+    <xs:attribute name="keep_value" type="boolType"/>
+    <xs:attribute name="persist" type="persistType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="keepSizeAttrs">
+    <!-- keep_size: the pane's size after a resize survives a page switch (keep_collapsed is in collapseAttrs) -->
+    <xs:attribute name="keep_size" type="boolType"/>
+    <xs:attribute name="persist" type="persistType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="collapseAttrs">
+    <!-- collapsible: chevron on the title, tui.collapse works; default / collapsed (alias, must agree): first-build state;
+         keep_collapsed: kept across page switches; collapse_to: title = one row / title-wide column, 0 = nothing, rail = buttons' collapsed_text;
+         on_toggle: FN PANE STATE (collapsed|expanded); collapse_key: a key name (ctrl+1, alt+c, f5) that toggles the pane from anywhere on the page;
+         collapse_class: theme class of the button (default collapse_button, with :hover and :collapsed) -->
+    <xs:attribute name="collapsible" type="boolType"/>
+    <xs:attribute name="default" type="collapseDefaultType"/>
+    <xs:attribute name="collapsed" type="boolType"/>
+    <xs:attribute name="keep_collapsed" type="boolType"/>
+    <xs:attribute name="collapse_to" type="collapseToType"/>
+    <xs:attribute name="on_toggle" type="xs:string"/>
+    <xs:attribute name="collapse_key" type="xs:string"/>
+    <xs:attribute name="collapse_class" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <xs:simpleType name="handleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="corner"/>
+      <xs:enumeration value="edge"/>
+      <xs:enumeration value="divider"/>
+      <xs:enumeration value="none"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="scrollType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="none"/>
@@ -89,6 +170,8 @@
       <xs:element ref="theme"/>
       <xs:element ref="include"/>
       <xs:element ref="pane"/>
+      <xs:element ref="details"/>
+      <xs:element ref="accordion"/>
       <xs:element ref="tabs"/>
       <xs:element ref="bind"/>
       <xs:element ref="footer"/>
@@ -185,6 +268,8 @@
     <xs:attribute name="focus_next" type="xs:string"/>
     <xs:attribute name="focus_prev" type="xs:string"/>
     <xs:attribute name="autofocus" type="boolType"/>
+    <!-- keep_focus: when this widget has the focus as the page is left, focus lands on the same id on the next page (if it has it) -->
+    <xs:attribute name="keep_focus" type="boolType"/>
     <xs:attribute name="hit_pad" type="xs:string"/>
     <xs:attribute name="hitbox" type="xs:string"/>
   </xs:attributeGroup>
@@ -198,6 +283,11 @@
       <!-- comma/space separated default keybind groups to switch off for this page, e.g. "-quit,-scroll" -->
       <xs:attribute name="defaults" type="xs:string"/>
       <xs:attribute name="focus_wrap" type="boolType"/>
+      <!-- keep_state: every widget and pane of the page keeps value, cursor, scroll, selection, collapsed and size across page switches -->
+      <xs:attribute name="keep_state" type="boolType"/>
+      <xs:attribute name="persist" type="persistType"/>
+      <!-- focus_on_enter: first (default), keep (the id focused when the page was last left) or the id of a widget -->
+      <xs:attribute name="focus_on_enter" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -393,6 +483,18 @@
       <xs:attribute name="weight" type="xs:positiveInteger"/>
       <xs:attribute name="title" type="xs:string"/>
       <xs:attribute name="border" type="borderType"/>
+      <!-- fuse: on every child of a split - siblings share one border line; divider/divider_class style that line -->
+      <xs:attribute name="fuse" type="boolType"/>
+      <xs:attribute name="divider" type="borderType"/>
+      <xs:attribute name="divider_class" type="xs:string"/>
+      <xs:attribute name="title_pos" type="titlePosType"/>
+      <xs:attribute name="title_align" type="titleAlignType"/>
+      <!-- resizable: axes the user may resize on; handle: mouse zones (none = keyboard only); on_resize: FN PANE W H -->
+      <xs:attribute name="resizable" type="resizableType"/>
+      <xs:attribute name="handle" type="handleType"/>
+      <xs:attribute name="on_resize" type="xs:string"/>
+      <xs:attributeGroup ref="collapseAttrs"/>
+      <xs:attributeGroup ref="keepSizeAttrs"/>
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
       <xs:attribute name="scroll" type="scrollType"/>
@@ -494,6 +596,45 @@
         </xs:simpleType>
       </xs:attribute>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- details: a collapsible pane (chevron on its title); in an accordion, opening one collapses the others -->
+  <xs:element name="details">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="title" type="xs:string"/>
+      <xs:attribute name="split" type="splitType"/>
+      <xs:attribute name="weight" type="xs:positiveInteger"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="border" type="borderType"/>
+      <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="min_height" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="scroll" type="scrollType"/>
+      <xs:attributeGroup ref="keepSizeAttrs"/>
+      <xs:attributeGroup ref="collapseAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- accordion: a split (v by default) of details that open one at a time; multiple="true" lifts that -->
+  <xs:element name="accordion">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:group ref="pageContent"/>
+      </xs:choice>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="split" type="splitType"/>
+      <xs:attribute name="multiple" type="boolType"/>
+      <xs:attribute name="weight" type="xs:positiveInteger"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attribute name="height" type="xs:string"/>
+      <xs:attribute name="border" type="borderType"/>
+      <xs:attribute name="class" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -503,6 +644,8 @@
       <xs:attribute name="pane" type="xs:string" use="required"/>
       <xs:attribute name="row" type="xs:integer" use="required"/>
       <xs:attribute name="text" type="xs:string"/>
+      <!-- text shown on a collapse_to="rail" pane while it is collapsed -->
+      <xs:attribute name="collapsed_text" type="xs:string"/>
       <xs:attribute name="action" type="xs:string"/>
       <xs:attribute name="page" type="xs:string"/>
       <xs:attribute name="align" type="alignType"/>
@@ -574,6 +717,7 @@
         </xs:simpleType>
       </xs:attribute>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -596,6 +740,7 @@
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -617,6 +762,7 @@
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -637,6 +783,7 @@
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -658,6 +805,7 @@
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -679,6 +827,7 @@
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 
@@ -698,6 +847,7 @@
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
       <xs:attributeGroup ref="focusHitAttrs"/>
+      <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>
   </xs:element>
 

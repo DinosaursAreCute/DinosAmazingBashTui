@@ -182,6 +182,7 @@ _tui._find_theme_collisions() {
 		base="${base%_border}"
 		base="${base%_title}"
 		base="${base%_hover}"
+		base="${base%_collapsed}"
 		base="${base%_unchecked}"
 		base="${base%_checked}"
 		bases[$base]=1

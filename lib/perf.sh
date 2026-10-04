@@ -13,7 +13,8 @@ declare -g _TUI_PERF_TRACKING="${_TUI_PERF_TRACKING:-0}"
 declare -gA _TUI_PERF_T0=()       # span name -> start time (us), set by begin
 declare -gA _TUI_PERF_LOG=()      # span name -> space-joined ring of durations (us)
 declare -gA _TUI_PERF_COUNTERS=() # counter name -> integer total
-declare -gi _TUI_PERF_RING_MAX=500
+# Ring buffer size configured in tui_configuration.sh
+_TUI_PERF_RING_MAX="$TUI_PERF_RING_MAX"
 
 # $EPOCHREALTIME has a comma decimal under some locales (e.g. de_DE);
 # stripping everything but digits keeps this fork-free and locale-proof,

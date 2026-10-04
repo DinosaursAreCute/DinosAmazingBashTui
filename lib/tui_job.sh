@@ -20,18 +20,16 @@
 #
 # The loop calls _tui_job.tick on every pass while a job is pending (tui.tick.add); no timers, no signals.
 
-declare -gi TUI_JOB_SPINNER_MS="${TUI_JOB_SPINNER_MS:-100}"
 declare -g TUI_JOB_PREFIX=""
-# 0 runs every job to its end before tui.job.run returns (DONEFN included): no concurrency, to measure what the
-# background hides
-declare -gi TUI_JOB_BACKGROUND="${TUI_JOB_BACKGROUND:-1}"
+
+# Internal aliases from tui_configuration.sh (for backward compatibility with code using _TJ_* names)
+_TJ_FRAME_US="$TUI_JOB_FRAME_US"
+_TJ_GLYPHS=("${TUI_JOB_SPINNER_GLYPHS[@]}")
 
 declare -ga _TJ_IDS=()
 declare -gA _TJ_PID=() _TJ_FILES=() _TJ_START=() _TJ_DELAY=() _TJ_LABEL=() _TJ_DONE=() _TJ_SHOWN=()
 declare -g _TJ_ROOT="" _TJ_SEQ=0 _TJ_ON=0 _TJ_FRAME=-1
-declare -ga _TJ_GLYPHS=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
-declare -gi _TJ_FRAME_US=80000 # time per spinner frame
-declare -gi _TJ_DRAWN=0        # 1 while the spinner's cells are on screen and nothing has repainted them
+declare -gi _TJ_DRAWN=0 # 1 while the spinner's cells are on screen and nothing has repainted them
 
 tui.job.run() {
 	local delay="$TUI_JOB_SPINNER_MS" label="Working..." silent=0

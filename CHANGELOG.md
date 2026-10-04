@@ -9,8 +9,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - XML Markup now supports adding widgets within pane tags. When placed within pane tags the `pane` attribute is automatically inferred. Use the `Pane` attribute for templates and includes.
 - `Row` attribute for widgets is no longer required and is inferred based on its position in the markup. If row is specified it will be ensured.  
 - Widgets can now be added to scrollable panes. (beta arrow key navigation conflicts between scrolling and changing focus)
+- Panes can be fused (neighbours share one border line), resized with the mouse or `alt+r`, and collapsed to a title bar, a rail or nothing. The new Workspace demo page (an on-call console) shows all three and replaces the Styles page.
+- Pages can keep their state: input values, selections, scroll offsets, collapsed panes and pane sizes survive page changes (`keep_value`, `keep_collapsed`, `keep_size`, `keep_state`), can be stored on disk (`persist="disk"`), and can be reset with `alt+shift+r`.
 
 ### NOTES
+- Shells (`<tui shell="...">` with `<outlet/>`) are not part of this release: the code is in the tree but untested and unfinished, with no validator rules, docs or demo conversion yet. Treat them as unavailable.
+- The page-state file under `TUI_HOME/state/store` is plain data (one escaped `page TAB id TAB field TAB value` line per entry) and is never sourced.
+- Framework defaults from `~/.config/DABT/defaults` are now used only when their `install.meta` version equals the running version; otherwise the checkout's `share/defaults` apply. Older installs no longer shadow newer keybinds and theme classes.
+- New profiler scenarios `workspace`, `state` and `scrollform`, and five new micro-benches in `tools/bench/run.sh` (`resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`). `tools/bench/baseline.txt` is not regenerated.
+- Measured costs to improve: hover between two zones about 38 ms, collapse toggle about 45 ms, one resize step about 32 ms (about 52 ms with the full frame), saving and restoring 30 inputs about 95 ms.
 - The Profiler navigation key results and addon build times are architechtually speaking sound but do not reflect the reality when running the demo. We are investigating the issue but are yet to find the source of the bug
 - The Profiler currently does not have a metric to show where sub processes come from in non hot paths. We are considering to add that as it can be hard to determine if there are forks in known paths like caching or if time is lost in other paths that might require more optimizations.
 - The Widget scrolling is tested and generally speaking complete but work is still needed to improve the focus cycling and navigation behavior.
@@ -19,10 +26,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Pane Focus Switching via `alt + n` does not work in control panes
 - The input field in the terminal page currently does not send its input into the process.
 - Grid layouts focus order follows the logical layout of buttons not the visual layout leading to confusing jumps when cycling through grid pane options.
+- A text input consumes `alt+c`, so the collapse shortcut does nothing while typing; use a pane's `collapse_key` instead.
+- Resizing can land one cell off the requested size because weights are rounded per step.
+- `collapse_to="rail"` needs buttons with `collapsed_text`; without one the rail is empty (the validator warns).
+- A page's reset defaults are captured on its first visit. If `on_visit` fills a list differently on a later visit, the first values remain the reset target.
+- `tui.store.get` sees on-disk entries only after the page they belong to has been restored.
 
 
 ### Added
 
+* Fused panes: `fuse="true"` on every child of a split makes siblings share one border line with correct junction glyphs. New pane attributes `divider`, `divider_class`, `title_pos="top|bottom"` and `title_align="left|center|right"`; setters `tui.pane_fuse`, `tui.pane_divider`, `tui.pane_divider_class`, `tui.pane_title_pos`, `tui.pane_title_align`. Both titles are drawn on a shared line.
+* Resizing: `resizable="x|y|both"` and `handle="corner|edge|divider|none"` (default `none`: keyboard only). Dragging moves weight between the two siblings that share the border, respecting `min_*`/`max_*`; the last pane of a split resizes by its leading edge. Handles show a hover style, a double click resets the pane, and `on_resize` is called with the new size. `alt+r` enters keyboard resize mode (arrows ±1, shift+arrows ±5, Enter/Esc leaves) with a `[resize]` marker on the pane; held arrow repeats are coalesced. API: `tui.pane_resizable`, `tui.pane_handle`, `tui.resize`, `tui.resize.reset`, `tui.action.resize_mode`.
+* Collapsing: `collapsible="true"`, `default="expanded|collapsed"` (`collapsed="true"` as alias), `collapse_to="title|0|rail"`, `collapsed_text` on buttons (shown on the rail), `on_toggle`, `keep_collapsed`, `collapse_key="KEY"` (a direct shortcut for one pane) and `collapse_class`. A two-cell button on the border corner of the moving edge points in the direction the pane will move (`◀ ▶ ▲ ▼`) and has its own hover style; `alt+c` toggles the focused pane and the footer shows it when it applies. Tags `<details>` and `<accordion>` (`multiple="true"` allows several open). API: `tui.collapse ID [toggle|on|off]`, `tui.collapsed ID`, `tui.action.collapse_toggle`.
+* Theme classes `.resize_handle`, `.resize_handle:hover`, `.collapse_button`, `.collapse_button:hover` and the new `.collapse_button:collapsed` state, in the default theme, the demo theme and all 13 bundled themes; a test checks that every theme defines them.
+* Page state store (`lib/state/tui_store.sh`): one store keyed `page|id|field` for value, cursor, scroll, selection, collapsed state and pane size. Attributes `keep_value`, `keep_collapsed`, `keep_size`, `<tui keep_state="true">`, `persist="session|disk"`, `keep_focus="true"` and `<tui focus_on_enter="ID|keep|first">`. API: `tui.store.set|get|unset|has|register_type|flush|file`, `tui.page.reset`, `tui.page.reset_field`, `tui.page.reset_all`, `tui.page.resettable`, actions `tui.action.page_reset*`, palette commands "Reset page", "Reset field" and "Reset all pages", and `alt+shift+r` with a footer item shown while the page has resettable state.
+* Validator rules and XSD entries for all of the above (bad `title_pos`, `resizable`, `handle`, `collapse_to` or `persist` values, conflicting `default`/`collapsed`, duplicate or malformed `collapse_key`, `focus_on_enter` naming a missing widget, `keep_focus` on a non-focusable widget).
+* Demo page `workspace.xml`: a services list, fused log and event viewers with streaming example data, a details pane with read-only host metrics from `/proc`, and a command line with simulated commands (`help`, `status`, `logs`, `restart`, `ack`, `clear`; nothing touches the host). Keys `r`, `a`, `c` and `/`.
+* Test runner: `_t_fixture NAME FUNC` in `tools/t.sh` builds a page once per run and replays its state, so tests that only read a built page stay fast.
 * `tui.scroll.to TARGET [top|center|bottom]`: public API to scroll a widget or pane to a position in its viewport (top, center, bottom, or minimal move if position is omitted).
 * Scrollable widget panes: a pane with `scroll="v"`, `"h"` or `"both"` now holds widgets; content height is from the widgets, scroll offset follows wheel/keys (innermost widget first, then the pane), a scrollbar is drawn in the right border column, and Tab automatically scrolls focused widgets into view.
 * `pin="top"` attribute: marks a widget row in a scrolling pane to stay pinned to the first viewport row (e.g., a header label that does not scroll with the content).
@@ -31,6 +51,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Switches to measure what the background hides: `TUI_JOB_BACKGROUND=0` runs every `tui.job.run` job to its end (DONEFN included) before the call returns; `TUI_REFRESH_CACHE_JOB=0` skips the cache job that follows `tui.page.refresh`. Both are for profiling; the profiler passes the environment through.
 
 ### Changed
+
+* The Styles demo page is replaced by Workspace (nav entry `btn_workspace`).
+* The collapse control is a separate two-cell button on the frame corner and no longer a glyph inside the pane title; its click zone ranks above the resize divider that shares the cell.
+* `lib/tui_home.sh` picks the installed defaults only when their version matches the running version (see NOTES).
+* The footer rebuild stamp includes focus, resize mode and layout generation so conditional items such as "Resize", "Collapse" and "Reset page" refresh when they start to apply.
+* Configuration centralization: all tunable framework parameters (15 settings: input timeouts, job/spinner behavior, performance limits, widget defaults) now consolidated into `lib/tui_configuration.sh`. Previously scattered across `tui.sh`, `tui_job.sh`, `perf.sh`, and `state.sh`. Single source of truth for audit, override, and documentation; no functional changes (all values remain identical). Sourcing order: config → state → perf.
 
 * The Scrolling demo page now showcases scrolling widgets next to the two `tui.output` viewports: a form with a pinned heading, a `select`, checkboxes and a `list` (the wheel scrolls the list first, then the form), Tab scrolling the focused field into view, and buttons that call `tui.scroll.to`. A widget taller than what is left of a scrolling pane's viewport is now cut at the pane's bottom edge instead of painting over its border.
 
@@ -46,6 +72,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+* Tick functions (`_TUI_TICK_FN`, `tui.tick.add` listeners, `tui.every`, `tui.exec`) ran once per input-loop iteration, and every mouse event ends the poll read early, so moving the pointer (e.g. onto a new button) made them fire faster; the monitor panes refreshed on hover. `tui.run` now dispatches ticks by elapsed time (`TUI_INPUT_POLL_TIMEOUT`), independent of input.
 * Profiler: in a full run the `theme` steps clicked `[ Reset to defaults ]` instead of the *Default* theme button (the needle `default` matched `defaults`), leaving a confirm dialog open that swallowed every later step, so all `compose` groups failed. Text lookup now matches whole words.
 * Profiler: a step that cannot do its job (text not on screen, `compose.open` not landing on the page) is now a warning and a red *steps failed* finding, and its group is never rated good. Unit tests for both.
 

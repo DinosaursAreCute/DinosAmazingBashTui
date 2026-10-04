@@ -1,0 +1,10 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd">
+  <pane id="root" split="h">
+    <pane id="left" fuse="true" title="Left" border="double"/>
+    <pane id="mid" fuse="true" split="v" weight="2">
+      <pane id="top" fuse="true" title="Top" title_align="center" border="single"/>
+      <pane id="bot" fuse="true" title="Bottom" title_pos="bottom" title_align="right" border="single"/>
+    </pane>
+    <pane id="right" fuse="true" title="Right" border="heavy" divider="heavy"/>
+  </pane>
+</tui>

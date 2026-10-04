@@ -62,7 +62,7 @@ declare -gA _TUI_W_WIDTH=() _TUI_W_HEIGHT=() # id -> 2A unit-token size spec (ce
 declare -gA _TUI_W_LABEL_ALIGN=()
 declare -gA _TUI_W_RETAIN=() _TUI_W_STICKY=() # input focus policy: explicit retain (1/0) and sticky (see tui.input.retain / .sticky)
 declare -gA _TUI_W_PIN=()                     # per widget: pin directive (only "top" accepted); pinned widgets stick at pane viewport top when scrolled past
-declare -g TUI_INPUT_RETAIN_ON_SUBMIT=1       # default when an input has no retain_input_on_submit of its own
+# TUI_INPUT_RETAIN_ON_SUBMIT default is set in tui_configuration.sh (sourced before this)
 declare -gA _TUI_W_LABEL_WIDTH=()
 declare -ga _TUI_W_ORDER=()
 declare -ga _TUI_FOCUSABLE=()

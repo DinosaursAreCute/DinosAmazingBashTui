@@ -245,14 +245,12 @@ _tui_scroll.repaint() {
 	[[ -n "$buf" ]] && _tui._flush "$buf"
 }
 
-# _tui_scroll.apply PANE - applies scroll offset clamping and repaints a widget pane
-# if the offset changed. For output panes, queues a render instead.
-# Caller must set _SC_OLD before calling to the offset BEFORE mutation.
-# For widget panes: measures content, computes max, clamps offset, repaints if moved.
-# For output panes: calls _tui._queue_render.
-# _tui_scroll.is_output PANE - rc 0 for a pane that scrolls tui.output text (content or a line count), 1 for one that scrolls widgets
+# _tui_scroll.is_output PANE - rc 0 for a pane that scrolls tui.output text (content or line count), 1 for widget panes.
 _tui_scroll.is_output() { [[ -n "${_TUI_PANE_CONTENT[$1]:-}" ]] || ((${_TUI_P_LINES[$1]:-0} > 0)); }
 
+# _tui_scroll.apply PANE - applies scroll offset clamping and repaints if offset moved.
+#   Caller must set _SC_OLD to the offset before mutation. Widget panes repaint if offset changed;
+#   output panes queue a render. Measures content, computes max, clamps offset, and updates stuck pins.
 _tui_scroll.apply() {
 	local pane="$1"
 	local old_offset="${_SC_OLD:-0}"

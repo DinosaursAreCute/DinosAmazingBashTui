@@ -63,7 +63,17 @@ declare -g TUI_PLUGINS_DIR="${TUI_PLUGINS_DIR:-$TUI_HOME/plugins}"
 declare -g TUI_LOG_DIR="${TUI_LOG_DIR:-$TUI_APP_CONF/logs}" # tui.log writes <yyyy-mm-dd>_<TUI_APP_NAME>.log here
 # the defaults (keybinds, commands, theme, default pages): the config home's copy when installed, else the ones shipped in share/
 if [[ -z "${TUI_DEFAULTS_DIR:-}" ]]; then
-	if [[ -d "$TUI_HOME/defaults" ]]; then TUI_DEFAULTS_DIR="$TUI_HOME/defaults"; else TUI_DEFAULTS_DIR="$TUI_ROOT/share/defaults"; fi
+	TUI_DEFAULTS_DIR="$TUI_ROOT/share/defaults"
+	# the config home's copy only while it belongs to this version: a checkout newer than the install must not run
+	# on the install's stale keybinds (new binds such as alt+r would silently not exist)
+	if [[ -d "$TUI_HOME/defaults" && -r "$TUI_HOME/install.meta" ]]; then
+		while IFS= read -r line; do
+			[[ "$line" == version=* && "${line#version=}" == "$TUI_VERSION" ]] && TUI_DEFAULTS_DIR="$TUI_HOME/defaults"
+		done <"$TUI_HOME/install.meta"
+	elif [[ -d "$TUI_HOME/defaults" ]]; then
+		TUI_DEFAULTS_DIR="$TUI_HOME/defaults"
+	fi
+	unset line
 fi
 declare -g TUI_DEFAULTS_DIR
 

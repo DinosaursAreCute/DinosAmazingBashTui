@@ -431,6 +431,7 @@ _tui_input.key_event() {
     if [[ "$name" == "$_TUI_SUSPEND_NAME" ]]; then tui.keys.suspend toggle; return 0; fi
     # An open modal (command palette, dialogs) owns the keyboard: bindings, focus and scrolling are suspended.
     if [[ -n "$_TUI_MODAL" ]]; then "$_TUI_MODAL_KEYFN" "$name"; return 0; fi
+    [[ -n "$_TUI_RESIZE_PANE" ]] && _tui_resize.key "$name" "$TUI_EVENT_COUNT" && return 0                # keyboard resize mode (tui_resize.sh)
     [[ -n "${_TPL_HOOK[key]:-}" ]] && tui.hook.fire key "$name" && return 0          # a plugin consumed the key
     if (( _TUI_KEYS_SUSPENDED )); then
         # Every binding, user and default, is off. A focused text input still
@@ -468,6 +469,8 @@ _tui_input.mouse_event() {
     [[ -z "$name" ]] && return 1
     # A modal owns the pointer too: its handler gets the event, everything else is ignored.
     if [[ -n "$_TUI_MODAL" ]]; then [[ -n "$_TUI_MODAL_MOUSEFN" ]] && "$_TUI_MODAL_MOUSEFN" "$name" "$3" "$4"; return 0; fi
+    [[ "$_HIT_ARG" == cv-* ]] && _tui_collapse.mouse "$name" && return 0                                  # chevron zones (tui_collapse.sh)
+    [[ "$_HIT_ARG" == rz-* || -n "$_TUI_RZ_ID" ]] && _tui_resize.mouse "$name" "$3" "$4" && return 0   # pane resize handles (tui_resize.sh)
     _tui_input.dispatch "$name"
 }
 
@@ -835,7 +838,8 @@ _tui_input.coalesce_key() {     # CHAR SEQ
     [[ -n "$_TUI_PENDING_INPUT" ]] && return 0
     [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]:-}" == input ]] && return 0
     if [[ -n "$1" ]]; then _tui_input.name_char "$1"; else _tui_input.name_seq "$2"; fi
-    _tui_input.coalescible "$_KEY" || return 0
+    # resize mode: a held arrow is one batch (_tui_resize.key takes the count), not one frame per repeat
+    [[ -n "$_TUI_RESIZE_PANE" && -z "$_TUI_MODAL" && "$_KEY" == @(|shift+)@(left|right|up|down) ]] || _tui_input.coalescible "$_KEY" || return 0
     if [[ -n "$1" ]]; then _tui_input.coalesce key "$1"; else _tui_input.coalesce key "$2"; fi
 }
 

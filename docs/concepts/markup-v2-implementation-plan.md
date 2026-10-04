@@ -25,10 +25,10 @@ Status: `todo` · `wip` · `done` · `blocked`. Update the row when a task chang
 | 2B Paint + canvas | `lib/render/tui_paint.sh`, `tui_canvas.sh` | medium | done |
 | 2C Hit + focus | `lib/input/tui_hit.sh`, `tui_focus.sh` | medium | done |
 | 2D Node ops | `lib/markup/tui_ops.sh`, `tui_compose.sh`, `tui_addon.sh`, `tui_refresh.sh` | medium | done |
-| 3A Fused/resize/collapse | `lib/layout/tui_frame.sh` | medium | todo |
+| 3A Fused/resize/collapse | `lib/layout/tui_frame.sh`, `tui_resize.sh`, `tui_collapse.sh` | medium | done |
 | 3B Layers | `lib/chrome/tui_layer.sh` | medium | todo |
 | 3C Scroll widgets | `lib/layout/tui_scroll.sh` | medium | done |
-| 3D Page state | `lib/state/tui_store.sh` | medium | todo |
+| 3D Page state | `lib/state/tui_store.sh`, `lib/markup/tui_shell.sh` | medium | wip (store, reset, disk, focus done; shells unverified) |
 | 4.1 Cascade | `lib/style/tui_cascade.sh` | medium | todo |
 | 4.2 Reactive | `lib/state/tui_reactive.sh` | medium | todo |
 | 4.3 CSS lint | `lib/style/tui_style_lint.sh` | medium | todo |
@@ -67,7 +67,41 @@ Done and unit-tested (suite: 500 pass, 0 fail). Gates G1–G8, benches, golden f
 - Visual check (G7) of 3C: Tab through `scroll_form.xml`, wheel and pinned heading, scrollbar thumb, click after scrolling, the Scrolling demo's `tui.output` panes unchanged.
 - Known and left alone by request: `tests/unit/cache.t.sh` (replay re-reads the real terminal size) and two `updater.bats` tests fail only with a controlling tty, because `tui.update.cli` silences stderr for good via a bare `exec 3<… 2>/dev/null`.
 
-**Next:** 3A, then 3D, then 3B (3B's `persist="layout"` needs the 3D store). `DABT_someApp` is migrated at the very end as the user's validation step, not as part of any feature.
+## Progress (2026-10-04)
+
+Suite at the last verified run: 767 pass, 0 fail (before the shell work started). `tools/gen_api_docs.sh --check` and the validator on `workspace.xml` and `widgets.xml` were clean.
+
+| What | Where | Notes |
+|---|---|---|
+| 3A fused panes and titles | `lib/layout/tui_frame.sh` | `fuse`, `divider`, `divider_class`, `title_pos`, `title_align`; the title of a lower fused pane is drawn on the shared line. |
+| 3A resize | `lib/layout/tui_resize.sh` | `resizable`, `handle`, `on_resize`; mouse drag, double-click reset, `alt+r` keyboard mode with a `[resize]` marker, held-arrow coalescing. The last pane of a split resizes by its leading edge. Hover style on handles and dividers (`.resize_handle`). |
+| 3A collapse | `lib/layout/tui_collapse.sh` | `collapsible`, `default`, `collapse_to`, `collapsed_text`, `on_toggle`, `collapse_key`, `collapse_class`, `<details>`, `<accordion>`; a two-cell direction button on the border corner of the moving edge (`.collapse_button`, `:hover`, `:collapsed`); `alt+c`. |
+| 3A showcase | `share/demo/workspace.xml` | An on-call console replaces `styles.xml`; nav entry `btn_workspace`. |
+| 3D store and reset | `lib/state/tui_store.sh` | One `page\|id\|field` store (value, cursor, scroll, sel, collapsed, size, focus); `keep_value`, `keep_collapsed`, `keep_size`, `keep_state`; `tui.page.reset`, `reset_field`, `reset_all`, `resettable`; `alt+shift+r` and a footer item. |
+| 3D disk and focus | `lib/state/tui_store.sh` | `persist="disk"` writes `TUI_HOME/state/store` (data-only, never sourced, 0600); `keep_focus`, `focus_on_enter`. |
+| Profiler | `tools/profiler/dprof/scenarios.py`, `tools/bench/run.sh` | Scenarios `workspace`, `state`, `scrollform`; micro-benches `resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`. |
+| Test runner | `tools/t.sh` | `_t_fixture NAME FUNC` builds a page once per run and replays its globals. |
+
+**Deviations from the stage 3 spec**
+- `corner` handles move the nearest ancestor edge and have no edge to move on a pane that is last in every split; the last pane resizes by its leading edge instead.
+- The collapse control is a separate two-cell button on the frame corner, not a chevron in the title. `collapse_to="rail"` needs a button with `collapsed_text`.
+- Enter/Space on a focused chevron is not implemented; `alt+c`, a click and `collapse_key` toggle.
+- `alt+shift+r` is bound to `tui.action.page_reset`.
+- `persist="disk"` implies the keep flags unless `keep` is explicitly `false`; values equal to the first-build default are not written; `tui.store.get` sees disk entries only after the page is restored; the first-build defaults are captured once, on first restore.
+- `lib/tui_home.sh` uses the installed defaults only when their `install.meta` version equals `TUI_VERSION` (an older install used to shadow newer keybinds and theme classes). No unit test covers the version rule.
+- The unit speed budget forced several multi-relayout tests into the integration tier (`ti_*`).
+
+**Unverified: shells (3D-3).** `lib/markup/tui_shell.sh` and hooks in `tui.sh`, `tui_build.sh` (a `tag.pane` child loop moved into `_tui_build.pane_kids`, the `<outlet>` tag), `tui_markup.sh`, `tui_cache.sh` and `tui_store.sh` were written and never run. `tui_shell.sh` is sourced from `tui.sh`, so a syntax error there breaks every page. Not done: `tests/unit/shell.t.sh`, validator rules, XSD, the guide section, the `tui.shell.file` API entry, `share/demo/_shell.xml` and the page conversion, the `tui.page.refresh` fallback, shell-first cache warm-up and the timing against a full `tui.goto`. First step: `bash -n` on the six files, then `tools/t.sh` (expect 767 pass).
+
+**Owed by the user (not run by the implementer)**
+- Golden frames (G4): re-record every demo page (the nav changed; the update banner is stored in the frames, so `t_golden.sh --check` reported every frame as changed before this work).
+- G3 benches: `tools/bench/run.sh --compare tools/bench/baseline.txt`; `baseline.txt` is not regenerated. The old `mouse_hit` bench probably measures an empty index because `tui.load` resets the terminal size to 0 without a tty.
+- G7 visual check in a real terminal: Workspace page (shared border of the fused logs, divider hover and drag, the collapse button arrows, `alt+r` mode), the scroll form, and no stray glyphs after a divider drag.
+- `bats tests/` already failed at HEAD (update banner, tty).
+
+**Measured costs to improve** (from the new micro-benches): hover between two zones about 38 ms, collapse toggle about 45 ms, one resize step about 32 ms (about 52 ms with the full frame; render dominates: the junction pass about 18 ms, widgets about 13 ms), saving and restoring 30 inputs about 95 ms. Hit lookup is 0.15 ms.
+
+**Next:** finish 3D-3 (shells), then the performance items above, then 3B (its `persist="layout"` needs the 3D store). The comment sweep covers the 3A files; the 3D files, `tui_markup.sh`, `tui_build.sh`, `tui_cache.sh`, `tui_footer.sh`, the validator rules and the store tests still need it. `DABT_someApp` is migrated at the very end as the user's validation step, not as part of any feature.
 
 ## How this plan is built
 

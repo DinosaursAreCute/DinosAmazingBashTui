@@ -133,3 +133,26 @@
 .toast_success { fg: #fdf6e3; bg: #859900; }
 .toast_warn { fg: #fdf6e3; bg: #b58900; }
 .toast_error { fg: #fdf6e3; bg: #dc322f; mods: bold; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #268bd2;
+}
+.resize_handle:hover {
+  fg: #657b83;
+  mods: bold;
+}
+.collapse_button {
+  fg: #268bd2;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #fdf6e3;
+  bg: #268bd2;
+  mods: bold;
+}
+.collapse_button:collapsed {
+  fg: #fdf6e3;
+  bg: #93a1a1;
+  mods: bold;
+}

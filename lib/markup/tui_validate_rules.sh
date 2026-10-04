@@ -3,7 +3,7 @@
 # Add, drop or loosen a check here; nothing else needs to change. Apps/plugins can register more the same way.
 
 # -- vocabulary ----------------------------------------------------------
-tui.validate.container tui pane tabs
+tui.validate.container tui pane tabs details accordion
 tui.validate.widget label input button checkbox password textarea list table select progress
 tui.validate.tag script theme include footer bind tab
 # composition (lib/markup/tui_compose.sh) and addons (tui_addon.sh): expanded away before the build
@@ -46,12 +46,30 @@ tui.validate.enum '*' label_align "left|center|right"
 tui.validate.enum pane split "h|v|grid|fixed"
 tui.validate.enum pane border "single|double|heavy|none"
 tui.validate.enum pane scroll "none|v|h|both"
+tui.validate.enum pane divider "single|double|heavy"
+tui.validate.enum pane title_pos "top|bottom"
+tui.validate.enum pane title_align "left|center|right"
+tui.validate.enum pane resizable "x|y|both"
+tui.validate.enum pane handle "corner|edge|divider|none"
 tui.validate.enum pane fit "pack|stretch"
+for _tv_a in pane details; do
+	tui.validate.enum "$_tv_a" collapse_to "title|0|rail"
+	tui.validate.enum "$_tv_a" default "expanded|collapsed"
+	for _tv_b in collapsible collapsed keep_collapsed; do tui.validate.enum "$_tv_a" "$_tv_b" "true|false"; done
+done
+tui.validate.enum accordion multiple "true|false"
+tui.validate.enum tui keep_state "true|false"
+tui.validate.enum pane keep_size "true|false"
+tui.validate.enum details keep_size "true|false"
+for _tv_b in input password textarea checkbox select list table progress; do tui.validate.enum "$_tv_b" keep_value "true|false"; done
+tui.validate.enum '*' persist "session|disk"
+tui.validate.enum '*' keep_focus "true|false"
+unset _tv_b
 tui.validate.enum tabs style "framed|compact"
 tui.validate.enum bind scope "global"
 tui.validate.enum '*' focus_nav "arrows|tab|both"
 for _tv_a in focusable tabbable focus_wrap autofocus; do tui.validate.enum '*' "$_tv_a" "true|false"; done
-for _tv_a in pane.strict_fit pane.newline input.retain_input_on_submit input.sticky checkbox.checked \
+for _tv_a in pane.fuse pane.strict_fit pane.newline input.retain_input_on_submit input.sticky checkbox.checked \
 	tab.default bind.pass bind.always; do
 	tui.validate.enum "${_tv_a%%.*}" "${_tv_a#*.}" "true|false"
 done
@@ -82,7 +100,9 @@ tui.validate.parent tab tabs
 
 # ═══ custom rules ═══════════════════════════════════════════════════════
 declare -gA _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=()
-declare -gA _TVR_TABORD_N=() _TVR_TABORD_AT=()
+declare -gA _TVR_TABORD_N=() _TVR_TABORD_AT=() _TVR_RAIL_AT=() _TVR_RAIL_OK=() _TVR_CKEY=() _TVR_CCLASS=()
+declare -ga _TVR_THEMES=()
+declare -g _TVR_FOE="" _TVR_FOE_AT=""
 
 # a <component name="box"/> makes <box> a known tag for the rest of that page
 declare -ga _TVR_COMP=()
@@ -101,7 +121,7 @@ _tui_vrule.component() {
 }
 tui.validate.rule element _tui_vrule.component
 
-_tui_vrule.reset() { _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=() _TVR_TABORD_N=() _TVR_TABORD_AT=(); }
+_tui_vrule.reset() { _TVR_GRID_ROWS=() _TVR_GRID_COLS=() _TVR_GRID_CELL=() _TVR_TABS_AT=() _TVR_TABS_HP=() _TVR_TABS_CP=() _TVR_TABS_N=() _TVR_TABS_DEF=() _TVR_TABORD_N=() _TVR_TABORD_AT=() _TVR_RAIL_AT=() _TVR_RAIL_OK=() _TVR_CKEY=() _TVR_CCLASS=() _TVR_THEMES=() _TVR_FOE="" _TVR_FOE_AT=""; }
 tui.validate.rule page _tui_vrule.reset
 
 # a widget written directly under <tui> (or in an included fragment) names its pane and row; one written inside a
@@ -139,6 +159,98 @@ _tui_vrule.pane() {
 	fi
 }
 tui.validate.rule element _tui_vrule.pane
+
+# handle draws mouse zones for a resizable pane: without resizable it does nothing
+_tui_vrule.handle() {
+	[[ "$TUI_V_TAG" == pane && -n "${_TV_A[handle]:-}" && "${_TV_A[handle]}" != none && -z "${_TV_A[resizable]:-}" ]] &&
+		tui.validate.warn "pane '${_TV_A[id]:-?}' has handle=\"${_TV_A[handle]}\" but no resizable - the handle is ignored" handle
+	return 0
+}
+tui.validate.rule element _tui_vrule.handle
+
+# collapse: default and the collapsed alias must agree; collapse_to="rail" needs a button with collapsed_text to show
+_tui_vrule.collapse() {
+	if [[ "$TUI_V_TAG" == button && -n "${_TV_A[collapsed_text]:-}" ]]; then
+		_TVR_RAIL_OK[${_TV_A[pane]:-$TUI_V_PARENT_ID}]=1
+		return 0
+	fi
+	[[ "$TUI_V_TAG" == @(pane|details) ]] || return 0
+	local d="${_TV_A[default]:-}" c="${_TV_A[collapsed]:-}"
+	if [[ -n "$d" && -n "$c" && ("$d" == expanded && "$c" == true || "$d" == collapsed && "$c" == false) ]]; then
+		tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has default=\"$d\" and collapsed=\"$c\" - they contradict, use one" collapsed
+	fi
+	if [[ "${_TV_A[collapse_to]:-}" == rail && -n "${_TV_A[id]:-}" ]]; then
+		tui.validate.here collapse_to
+		_TVR_RAIL_AT[${_TV_A[id]}]="$REPLY"
+	fi
+	return 0
+}
+tui.validate.rule element _tui_vrule.collapse
+
+_tui_vrule.collapse_end() {
+	local id
+	for id in "${!_TVR_RAIL_AT[@]}"; do
+		[[ -n "${_TVR_RAIL_OK[$id]:-}" ]] || tui.validate.warn_at "${_TVR_RAIL_AT[$id]}" "pane '$id' has collapse_to=\"rail\" but no button with collapsed_text - the rail would be empty"
+	done
+	return 0
+}
+tui.validate.rule end _tui_vrule.collapse_end
+
+# collapse_key="KEY": a valid key name, unique on the page (also against the page's own <bind key=>s);
+# collapse_class="NAME": a class the effective theme (the loaded one, the defaults, the page's <theme src>) defines
+declare -g _TVR_KEY_RE='^((ctrl|control|alt|meta|shift)[+-])*(.|space|spc|enter|return|ret|tab|esc|escape|backspace|bs|delete|del|insert|ins|up|down|left|right|home|end|pgup|pgdn|pageup|pagedown|page_up|page_down|plus|minus|f([1-9]|1[0-2]))$'
+_tui_vrule.collapse_key() {
+	local k n
+	if [[ "$TUI_V_TAG" == theme && -n "${_TV_A[src]:-}" ]]; then
+		_TVR_THEMES+=("${TUI_V_FILE%/*}/${_TV_A[src]}")
+		return 0
+	fi
+	if [[ "$TUI_V_TAG" == bind && -n "${_TV_A[key]:-}" && -z "${_TV_A[pane]:-}" ]]; then
+		_tui_input.norm "${_TV_A[key]}"
+		[[ -n "${_TVR_CKEY[$_KEY]:-}" ]] || _TVR_CKEY[$_KEY]="bind"
+		return 0
+	fi
+	[[ "$TUI_V_TAG" == @(pane|details) ]] || return 0
+	if [[ -n "${_TV_A[collapse_class]:-}" ]]; then
+		tui.validate.here collapse_class
+		_TVR_CCLASS[${_TV_A[collapse_class]}]="$REPLY|${_TV_A[id]:-?}"
+	fi
+	k="${_TV_A[collapse_key]:-}"
+	[[ -n "$k" ]] || return 0
+	if [[ ! "${k,,}" =~ $_TVR_KEY_RE ]]; then
+		tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has collapse_key=\"$k\" - not a key name (e.g. ctrl+1, alt+c, f5)" collapse_key
+		return 0
+	fi
+	_tui_input.norm "$k"
+	n="$_KEY"
+	if [[ -n "${_TVR_CKEY[$n]:-}" ]]; then
+		tui.validate.error "collapse_key=\"$k\" on '${_TV_A[id]:-?}' is already used on this page (by ${_TVR_CKEY[$n]})" collapse_key
+	else
+		_TVR_CKEY[$n]="'${_TV_A[id]:-?}'"
+	fi
+	return 0
+}
+tui.validate.rule element _tui_vrule.collapse_key
+
+_tui_vrule.collapse_class_end() {
+	local c f at id found
+	for c in "${!_TVR_CCLASS[@]}"; do
+		at="${_TVR_CCLASS[$c]%|*}" id="${_TVR_CCLASS[$c]##*|}" found=0
+		if [[ -n "${_TUI_CLASS_FG[$c]:-}${_TUI_CLASS_BG[$c]:-}${_TUI_CLASS_MOD[$c]:-}" ]]; then
+			found=1
+		else
+			for f in "${_TVR_THEMES[@]}" "${TUI_DEFAULTS_DIR:-}/theme.css"; do
+				[[ -r "$f" ]] && grep -qE "^[[:space:]]*\.$c[[:space:]]*[{:]" "$f" && {
+					found=1
+					break
+				}
+			done
+		fi
+		((found)) || tui.validate.warn_at "$at" "pane '$id' has collapse_class=\"$c\", which no theme defines - the button falls back to the plain look"
+	done
+	return 0
+}
+tui.validate.rule end _tui_vrule.collapse_class_end
 
 # min_* larger than max_*
 _tui_vrule.minmax() {
@@ -242,8 +354,22 @@ tui.validate.rule end _tui_vrule.refs
 
 # focus: tabbable needs focusable; tab_order values 1..N should each appear once (gaps and duplicates are warnings)
 _tui_vrule.focus() {
+	if [[ "$TUI_V_TAG" == tui && -n "${_TV_A[focus_on_enter]:-}" ]]; then
+		_TVR_FOE="${_TV_A[focus_on_enter]}"
+		tui.validate.here focus_on_enter
+		_TVR_FOE_AT="$REPLY"
+	fi
 	[[ -n "${_TV_WIDGET[$TUI_V_TAG]:-}" ]] || return 0
 	local n="${_TV_A[tab_order]:-}"
+	if [[ "${_TV_A[keep_focus]:-}" == true ]]; then
+		local kf=1
+		if [[ "${_TV_A[focusable]:-}" == false ]]; then
+			kf=0
+		elif [[ -z "${_TV_A[focusable]:-}" ]]; then
+			_tui_focus.default_focusable "$TUI_V_TAG" || kf=0
+		fi
+		((kf)) || tui.validate.warn "'${_TV_A[id]:-?}' has keep_focus but is not focusable: there is no focus to keep" keep_focus
+	fi
 	if [[ "${_TV_A[tabbable]:-}" == true ]]; then
 		local can=1
 		if [[ "${_TV_A[focusable]:-}" == false ]]; then
@@ -260,6 +386,14 @@ _tui_vrule.focus() {
 	_TVR_TABORD_AT[$n]="${_TVR_TABORD_AT[$n]:-$REPLY}"
 }
 tui.validate.rule element _tui_vrule.focus
+
+# focus_on_enter on <tui>: keep, first or the id of a widget on the page
+_tui_vrule.focus_on_enter_end() {
+	[[ -n "$_TVR_FOE" && "$_TVR_FOE" != keep && "$_TVR_FOE" != first ]] || return 0
+	[[ -n "${TUI_V_WIDGETS[$_TVR_FOE]:-}" ]] || tui.validate.error_at "$_TVR_FOE_AT" "focus_on_enter=\"$_TVR_FOE\" is not keep, first or the id of a widget on this page"
+	return 0
+}
+tui.validate.rule end _tui_vrule.focus_on_enter_end
 
 _tui_vrule.tab_order_end() {
 	local n max=0 k

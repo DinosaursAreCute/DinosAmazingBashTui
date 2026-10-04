@@ -32,6 +32,8 @@
 #   Every widget also takes: focusable/tabbable="true|false" tab_order="N" (0 first, -1 last) focus_group="g" focus_nav="arrows|tab|both"
 #   focus_wrap="true|false" focus_next="id" focus_prev="id" autofocus="true" hit_pad="N" hitbox="DY DX H W"  (lib/input/tui_focus.sh, tui_hit.sh);
 #   <tui focus_wrap="false"> stops Tab at the ends of the list.
+#   keep_value="true" (widgets), keep_collapsed / keep_size="true" (panes), <tui keep_state="true">: state kept across page switches, persist="session|disk" (lib/state/tui_store.sh).
+#   keep_focus="true" (widgets): focus stays on the same id on the next page; <tui focus_on_enter="ID|keep|first">: where focus lands on entry.
 #   <password id pane row placeholder label submit/>   <textarea id pane row placeholder rows value submit on_change/>
 #   <list id pane row action rows items="a|b|c" on_change/>   <table id pane row action rows columns="H1|H2" data="a|b;c|d"/>
 #   <select id pane row label action items="a|b|c" value on_change/>   <progress id pane row label value/>   (see docs/guide/widgets.md)
@@ -114,14 +116,31 @@ tui.load() {
 	_TUI_MARKUP_FILE="$_CANON"
 	_TUI_MARKUP_DIR="${_CANON%/*}"
 
+	# a page of a shell: the shell is built first (unless it is live) and the page goes into its outlet
+	_tui_shell.scan "$_TUI_MARKUP_FILE" 1
+	local _ld_shell="$_SH_OF"
+	[[ -z "$_ld_shell" && -n "$_TUI_SHELL_FILE" && "$_TUI_SHELL_FILE" != "$_TUI_MARKUP_FILE" ]] && tui.reset_ui # a page without a shell never builds on top of one
+	if [[ -n "$_ld_shell" ]]; then
+		_tui_shell.ensure "$_ld_shell" 0 || return 1
+	fi
+
 	# framework default theme first: every app gets the shared classes; its own <theme> tags override
-	if [[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]]; then
+	if [[ -z "$_ld_shell" && -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]]; then
 		tui.log.debug "tui.load: loading framework default theme for $file"
 		tui.load_theme "$TUI_DEFAULTS_DIR/theme.css"
 	fi
 
 	tui_build.load "$file"
-	_tui_cache_relayout
+	[[ -n "$_TUI_SHELL_FILE" && "$_TUI_SHELL_FILE" == "$_TUI_MARKUP_FILE" ]] && _tui_shell.collect_ids
+	if [[ -n "$_ld_shell" ]]; then
+		_tui.layout_bump
+		_tui._layout "$_TUI_OUTLET"
+		_TUI_P_ALL=()
+		_TUI_P_LEAVES=()
+		_tui._collect_leaves root
+	else
+		_tui_cache_relayout
+	fi
 
 	# <tui on_visit="fn"> - runs once the page's panes/widgets are fully
 	# built, so a page can, say, scan a directory and build dynamic tabs
@@ -182,6 +201,11 @@ tui.reset_ui() {
 	_TUI_P_MAXW=()
 	_TUI_P_MAXH=()
 	_TUI_P_GAP=()
+	_TUI_P_FUSE=() _TUI_P_DIVIDER=() _TUI_P_DIVIDER_CLASS=() _TUI_P_TITLE_POS=() _TUI_P_TITLE_ALIGN=()
+	_tui_resize.clear
+	_tui_collapse.clear
+	_tui_store.clear
+	_TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT="" _TUI_SHELL_AT=0 _TUI_SHELL_IDS=() _TUI_PAGE_IDS=() _TUI_PAGE_UNDO=""
 	_TUI_P_STRICT_FIT=()
 	_TUI_P_EFFECTIVE_MINW=()
 	_TUI_P_EFFECTIVE_MINH=()
@@ -290,12 +314,15 @@ tui.goto() {
 
 	# Reloading the SAME page (theme switch, tui.theme.reload) keeps the user where they were:
 	# remember the focused widget + cursor and put focus back if that id exists again.
-	local keep_id="" keep_cur=0 canon
+	local keep_id="" keep_cur=0 canon carry=""
 	_tui_path_canon "$resolved"
 	canon="$_CANON"
 	if [[ "$canon" == "${_TUI_MARKUP_FILE:-}" ]]; then
 		keep_id="$_TUI_FOCUS_ID"
 		keep_cur=$_TUI_CURSOR
+	else
+		_tui_store.carry
+		carry="$_SF"
 	fi
 	# page history for tui.action.back: remember where we came from (not on a same-page reload, not while going back)
 	if [[ "$canon" != "${_TUI_MARKUP_FILE:-}" && -n "${_TUI_MARKUP_FILE:-}" && -z "$_TUI_GOING_BACK" ]]; then
@@ -305,20 +332,43 @@ tui.goto() {
 
 	# One synchronized frame: the terminal never shows the cleared, half-built page.
 	((_TUI_RUNNING)) && mode.sync_start
-	tui.reset_ui
+	# a page of the live shell (not a reload of the current page): only the previous page's panes and widgets go
+	local _gt_soft=0 _gt_fid="$_TUI_FOCUS_ID" _gt_fcur=$_TUI_CURSOR
+	if [[ -n "$_TUI_SHELL_FILE" && "$canon" != "${_TUI_MARKUP_FILE:-}" ]]; then
+		_tui_shell.scan "$canon"
+		[[ "$_SH_OF" == "$_TUI_SHELL_FILE" ]] && _gt_soft=1
+	fi
+	if ((_gt_soft)); then
+		_SHL_SOFT=1
+		_tui_store.save_page
+		_tui_store.save_focus
+		_tui_store.flush_disk
+		_tui_shell.leave_page
+	else
+		_tui_store.save_page
+		_tui_store.save_focus
+		_tui_store.flush_disk
+		tui.reset_ui
+	fi
 	# on_visit code often ends with tui.render (layout changes); the render below covers it, so skip those.
 	# A goto made from inside an on_visit leaves the decision to the outermost goto.
 	local _gt_defer=$_TUI_DEFER_RENDER
 	_TUI_DEFER_RENDER=1
 	tui.load_cached "$resolved"
 	_TUI_DEFER_RENDER=$_gt_defer
-	if [[ -n "$keep_id" && -n "${_TUI_W_TYPE[$keep_id]:-}" ]]; then
+	_tui_store.restore_page
+	_SHL_SOFT=0
+	if ((_gt_soft)); then
+		_tui_shell.enter_focus "$_gt_fid" "$_gt_fcur" "$carry"
+	elif [[ -n "$keep_id" && -n "${_TUI_W_TYPE[$keep_id]:-}" ]]; then
 		_tui_focus.ensure
 		if [[ -n "${_TUI_FOCUS_POS[$keep_id]+x}" ]]; then
 			_TUI_FOCUS_ID="$keep_id"
 			_TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$keep_id]}"
 			_TUI_CURSOR=$keep_cur
 		fi
+	else
+		_tui_store.enter_focus "$carry"
 	fi
 	if ((_TUI_RUNNING)); then
 		tui.render
@@ -346,6 +396,8 @@ tui.start() {
 		_master_cleanup
 		return 1
 	fi
+	_tui_store.restore_page
+	_tui_store.enter_focus
 	_tui_validate.notify
 	tui.run
 }

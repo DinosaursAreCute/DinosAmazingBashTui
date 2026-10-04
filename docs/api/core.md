@@ -53,7 +53,7 @@ Each function has its own page; the summary tables link to them, and the full en
 
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
-<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_scroll_into_view tui.scroll.to tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
+<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_fuse tui.pane_divider tui.pane_divider_class tui.pane_title_pos tui.pane_title_align tui.pane_resizable tui.pane_handle tui.resize tui.resize.reset tui.collapse tui.collapsed tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_scroll_into_view tui.scroll.to tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
 
 | Function | Summary |
 |---|---|
@@ -65,6 +65,17 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 | [`tui.pane_border`](core/tui.pane_border.md) | Sets the border style of a pane. |
 | [`tui.pane_pad`](core/tui.pane_pad.md) | Sets blank columns (`HPAD`) and rows (`VPAD`) on each side inside the pane. |
 | [`tui.pane_gap`](core/tui.pane_gap.md) | Gets or sets the gap between children of a split pane. |
+| [`tui.pane_fuse`](core/tui.pane_fuse.md) | Fuses a pane with its siblings so neighbouring borders share one line. |
+| [`tui.pane_divider`](core/tui.pane_divider.md) | Sets the border style of the line a fused pane shares with its neighbour. |
+| [`tui.pane_divider_class`](core/tui.pane_divider_class.md) | Sets the theme class that colours the line a fused pane shares with its neighbour. |
+| [`tui.pane_title_pos`](core/tui.pane_title_pos.md) | Sets which border line carries a pane's title. |
+| [`tui.pane_title_align`](core/tui.pane_title_align.md) | Sets where along its border line a pane's title sits. |
+| [`tui.pane_resizable`](core/tui.pane_resizable.md) | Allows a pane to be resized on one or both axes, by mouse handle or keyboard. |
+| [`tui.pane_handle`](core/tui.pane_handle.md) | Chooses the mouse handle that resizes a resizable pane. |
+| [`tui.resize`](core/tui.resize.md) | Grows `PANE` by `DW` columns and `DH` rows (negative values shrink) with the same clamping as a drag. |
+| [`tui.resize.reset`](core/tui.resize.reset.md) | Restores the split weights recorded before the first resize, for the split holding `PANE` and every split above it. |
+| [`tui.collapse`](core/tui.collapse.md) | Collapses (`on`), expands (`off`) or toggles (default) a collapsible pane, then lays out again. |
+| [`tui.collapsed`](core/tui.collapsed.md) | Reports whether a pane is collapsed. |
 | [`tui.pane_align`](core/tui.pane_align.md) | Sets the default horizontal alignment for widgets in the pane. |
 | [`tui.pane_valign`](core/tui.pane_valign.md) | Sets the default vertical anchor for widgets in the pane. Default: `top`. |
 | [`tui.pane_minsize`](core/tui.pane_minsize.md) | Sets the smallest size at which the pane shows its content. Below it, the pane shows a `min space = WxH` notice instead. |
@@ -101,6 +112,28 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 
 {% include_relative core/tui.pane_gap.md %}
 
+{% include_relative core/tui.pane_fuse.md %}
+
+{% include_relative core/tui.pane_divider.md %}
+
+{% include_relative core/tui.pane_divider_class.md %}
+
+{% include_relative core/tui.pane_title_pos.md %}
+
+{% include_relative core/tui.pane_title_align.md %}
+
+{% include_relative core/tui.pane_resizable.md %}
+
+{% include_relative core/tui.pane_handle.md %}
+
+{% include_relative core/tui.resize.md %}
+
+{% include_relative core/tui.resize.reset.md %}
+
+{% include_relative core/tui.collapse.md %}
+
+{% include_relative core/tui.collapsed.md %}
+
 {% include_relative core/tui.pane_align.md %}
 
 {% include_relative core/tui.pane_valign.md %}
@@ -134,6 +167,58 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.redraw.md %}
 
 {% include_relative core/tui.frame.request.md %}
+
+</div>
+
+<!-- /api -->
+
+## Page state
+
+A page can keep state while the user visits other pages. In markup: `keep_value="true"` on a widget (value, cursor, scroll, selection), `keep_collapsed="true"` and `keep_size="true"` on a pane, or `keep_state="true"` on `<tui>` for every widget and pane of the page. `persist="session"` (the default) keeps it for this run; `persist="disk"` (on a widget, a pane or `<tui>`) implies the keeping and also writes the fields to `$TUI_HOME/state/store`, so they are back the next time the app starts. State is saved when the page is left and restored after it is built again, also after `tui.page.refresh` rebuilt panes. The store is `_TUI_STORE["PAGE|ID|FIELD"]`.
+
+The disk file is data only (`# dabt-state 1`, then one escaped `PAGE TAB ID TAB FIELD TAB VALUE` line per entry; fields `value cursor scroll sel collapsed size focus`). It is read with `read -r` and never sourced, so `TUI_HOME` is not a code-execution boundary; lines that do not parse are skipped. It is loaded on first use, written when a page is left or the app exits (only if something changed) and by `tui.store.flush`. `tui.page.reset`, `tui.page.reset_field` and `tui.page.reset_all` also remove the matching disk entries.
+
+Focus can be kept too. `keep_focus="true"` on a widget: when it has the focus as a page is left and the next page has a widget with the same id, focus lands on it before the first render (and a keep_focus widget is focused again when you return to its page). `<tui focus_on_enter="ID|keep|first">` sets where focus lands on entry: `first` (the default), `keep` (the id focused when the page was last left, kept in the store as field `focus`) or the id of a widget; an id that does not exist falls back to `first`.
+
+<!-- api: tui.store.set tui.store.get tui.store.unset tui.store.has tui.store.register_type tui.page.reset tui.page.reset_field tui.page.reset_all tui.page.resettable tui.store.flush tui.store.file -->
+
+| Function | Summary |
+|---|---|
+| [`tui.store.set`](core/tui.store.set.md) | Stores one field of a widget or pane in the page-state store. |
+| [`tui.store.get`](core/tui.store.get.md) | Reads one stored field into `REPLY`. |
+| [`tui.store.unset`](core/tui.store.unset.md) | Drops stored state: one field, every field of one id, or a whole page. |
+| [`tui.store.has`](core/tui.store.has.md) | Reports whether anything is stored for a page, or for one id. |
+| [`tui.store.register_type`](core/tui.store.register_type.md) | Sets which fields a widget type keeps. |
+| [`tui.page.reset`](core/tui.page.reset.md) | Forgets the stored state of a page and puts the current page back to its first-build state. |
+| [`tui.page.reset_field`](core/tui.page.reset_field.md) | Puts one kept widget or pane back to its first-build state. |
+| [`tui.page.reset_all`](core/tui.page.reset_all.md) | Empties the whole store (every page) and resets the current page. |
+| [`tui.page.resettable`](core/tui.page.resettable.md) | Reports whether a reset would change anything on the current page. |
+| [`tui.store.flush`](core/tui.store.flush.md) | Writes the disk image of the page-state store to `tui.store.file` now. |
+| [`tui.store.file`](core/tui.store.file.md) | Prints the path of the file that holds the `persist="disk"` page state: `$TUI_HOME/state/store`. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.store.set.md %}
+
+{% include_relative core/tui.store.get.md %}
+
+{% include_relative core/tui.store.unset.md %}
+
+{% include_relative core/tui.store.has.md %}
+
+{% include_relative core/tui.store.register_type.md %}
+
+{% include_relative core/tui.page.reset.md %}
+
+{% include_relative core/tui.page.reset_field.md %}
+
+{% include_relative core/tui.page.reset_all.md %}
+
+{% include_relative core/tui.page.resettable.md %}
+
+{% include_relative core/tui.store.flush.md %}
+
+{% include_relative core/tui.store.file.md %}
 
 </div>
 

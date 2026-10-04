@@ -62,6 +62,15 @@ def _click(x, y):
     return b"\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x, y, x, y)
 
 
+# SGR mouse reports: move (no button), press, drag (left held), release, wheel down / up
+_MOUSE = {"m": (35, "M"), "p": (0, "M"), "d": (32, "M"), "r": (0, "m"), "w": (65, "M"), "W": (64, "M")}
+
+
+def _mouse(code, x, y):
+    b, end = _MOUSE[code]
+    return b"\x1b[<%d;%d;%d%s" % (b, x, y, end.encode())
+
+
 def us_to_s(us):
     return us / 1e6
 
@@ -398,6 +407,18 @@ class Session:
             t_last, out0, presses = t_send, self.out_bytes, []
             if kind == "resize":
                 self.resize(*payload)
+            elif kind == "pointer":
+                # mouse events placed relative to an on-screen text (the layout moves with the terminal size): the needle
+                # is located now, each event is one terminal write, then the pump keeps reading like a terminal would
+                needle, evs, gap = payload
+                pos = self.locate(needle)
+                if pos is None:
+                    res.update(ok=False, note=f"'{needle}' not on screen")
+                    return res
+                for code, dx, dy in evs:
+                    t_last = now()
+                    self.send(_mouse(code, pos[0] + dx, pos[1] + dy))
+                    self.pump(gap, until=lambda: not self.alive)
             elif kind == "repeat":
                 # a held key: one press per repeat interval; the pause keeps reading the app's output like a terminal
                 key, count, gap = payload
@@ -411,7 +432,7 @@ class Session:
             if self.probes:
                 done = lambda: (not self.alive) or (
                     self.open_work == 0 and len(self.events) > mark and self.last_work_end >= t_send - 0.001
-                    and now() - self.last_work_end >= step.quiet and (kind != "repeat" or now() - self.last_out >= step.quiet))
+                    and now() - self.last_work_end >= step.quiet and (kind not in ("repeat", "pointer") or now() - self.last_out >= step.quiet))
                 ok = self.pump(step.timeout, until=done)
                 m = self.measure_since(mark, t_send) or {}
                 if kind == "repeat" and m:

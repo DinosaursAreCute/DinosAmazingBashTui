@@ -40,6 +40,12 @@
   <bind key="home" action="tui.action.scroll_top"           group="scroll" desc="Top"/>
   <bind key="end"  action="tui.action.scroll_bottom"        group="scroll" desc="Bottom"/>
 
+  <!-- resize: keyboard resize of resizable panes (arrows +-1, shift+arrows +-5, Enter/Esc leave; tui_resize.sh) -->
+  <bind key="alt+r"       action="tui.action.resize_mode"   group="resize" desc="Resize the focused pane"/>
+  <bind key="alt+shift+r" action="tui.action.page_reset" group="resize" desc="Reset the page layout"/>
+  <!-- collapse: toggles the collapsible pane around the focus (tui_collapse.sh) -->
+  <bind key="alt+c"       action="tui.action.collapse_toggle" group="resize" desc="Collapse or expand the focused pane"/>
+
   <!-- help -->
   <bind key="f1" action="tui.action.text_keys" group="help" desc="Show the text-editing keys"/>
 

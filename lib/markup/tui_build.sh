@@ -84,7 +84,26 @@ _tui_build.dispatch() {
 	tui.registered tag "$type" || return 0
 	local fn="${_TUI_REGISTERED##* }" # last registration wins, same rule as every other registry kind
 	"$fn" "$node"
-	case "$type" in label | input | button | checkbox | password | textarea | list | table | select | progress) _tui_build.focus_attrs "$node" ;; esac
+	case "$type" in label | input | button | checkbox | password | textarea | list | table | select | progress)
+		_tui_build.focus_attrs "$node"
+		_tui_build.store_attrs "$node" widget
+		;;
+	esac
+}
+
+# _tui_build.store_attrs NODE widget|pane [ID] - keep_value (widget) / keep_size (pane), persist and keep_focus, handed to lib/state/tui_store.sh
+_tui_build.store_attrs() {
+	local id="${3:-}" keep pers kf
+	[[ -n "$id" ]] || _tui_build.attrv "$1" id id
+	[[ -n "$id" ]] || return 0
+	_tui_build.attrv "$1" persist pers
+	if [[ "$2" == widget ]]; then _tui_build.attrv "$1" keep_value keep; else _tui_build.attrv "$1" keep_size keep; fi
+	[[ -n "$keep" || "$pers" == disk ]] && _tui_store.build_"$2" "$id" "$keep" "$pers"
+	if [[ "$2" == widget ]]; then
+		_tui_build.attrv "$1" keep_focus kf
+		[[ "$kf" == true ]] && _tui_store.build_focus "$id"
+	fi
+	return 0
 }
 
 # focus and hit attributes shared by every widget tag (see lib/input/tui_focus.sh, tui_hit.sh)
@@ -110,14 +129,24 @@ _tui_build.tag.tui() {
 	local visit
 	_tui_build.attrv "$node" on_visit visit
 	[[ -n "$visit" ]] && _TUI_BUILD_ON_VISIT="$visit"
-	local ddef dg fwrap
+	local ddef dg fwrap kstate kpers foe
 	local -a dgs=()
 	_tui_build.attrv "$node" focus_wrap fwrap
+	_tui_build.attrv "$node" keep_state kstate
+	_tui_build.attrv "$node" persist kpers
+	_tui_build.attrv "$node" focus_on_enter foe
+	_tui_store.build_page "$kstate" "$kpers" "$foe"
 	[[ "$fwrap" == false ]] && _TUI_FOCUS_WRAP=0
 	_tui_build.attrv "$node" defaults ddef
 	if [[ -n "$ddef" ]]; then
 		IFS=',' read -ra dgs <<<"$ddef"
 		for dg in "${dgs[@]}"; do [[ "$dg" == -* ]] && tui.defaults.off --page "${dg#-}"; done
+	fi
+	local shell
+	_tui_build.attrv "$node" shell shell
+	if [[ -n "$shell" && -n "$_TUI_SHELL_FILE" && "$_TUI_MARKUP_FILE" != "$_TUI_SHELL_FILE" ]]; then
+		_tui_shell.build_page "$node" # <tui shell="..."> on a live shell: the children build inside its outlet
+		return 0
 	fi
 	_tui_build.dispatch_children "$node" # <tui> is a transparent wrapper: its children build at the same level
 }
@@ -160,7 +189,8 @@ _tui_build.tag.pane() {
 	fi
 
 	local split weight title border align valign minw minh maxw maxh class scroll strictfit scroll_into_view
-	local rows cols fit roww colw sizew sizeh hpad vpad gap
+	local rows cols fit roww colw sizew sizeh hpad vpad gap fuse divider dclass tpos talign
+	local ccol cdef ccoll ckeep cto ctog ckey cclass
 	_tui_build.attrv "$node" split split
 	_tui_build.attrv "$node" weight weight
 	_tui_build.attrv "$node" title title
@@ -185,6 +215,22 @@ _tui_build.tag.pane() {
 	_tui_build.attrv "$node" hpad hpad
 	_tui_build.attrv "$node" vpad vpad
 	_tui_build.attrv "$node" gap gap
+	_tui_build.attrv "$node" fuse fuse
+	_tui_build.attrv "$node" divider divider
+	_tui_build.attrv "$node" divider_class dclass
+	_tui_build.attrv "$node" title_pos tpos
+	_tui_build.attrv "$node" title_align talign
+	_tui_build.attrv "$node" resizable resizable
+	_tui_build.attrv "$node" handle handle
+	_tui_build.attrv "$node" on_resize onresize
+	_tui_build.attrv "$node" collapsible ccol
+	_tui_build.attrv "$node" default cdef
+	_tui_build.attrv "$node" collapsed ccoll
+	_tui_build.attrv "$node" keep_collapsed ckeep
+	_tui_build.attrv "$node" collapse_to cto
+	_tui_build.attrv "$node" on_toggle ctog
+	_tui_build.attrv "$node" collapse_key ckey
+	_tui_build.attrv "$node" collapse_class cclass
 
 	[[ -n "$title" ]] && _TUI_BUILD_TITLE[$id]="$title"
 	[[ -n "$border" ]] && _TUI_BUILD_BORDER[$id]="$border"
@@ -194,18 +240,32 @@ _tui_build.tag.pane() {
 	tui.pane_maxsize "$id" "$maxw" "$maxh"
 	tui.pane_pad "$id" "$hpad" "$vpad"
 	tui.pane_gap "$id" "$gap"
+	_tui_frame.build "$id" "$fuse" "$divider" "$dclass" "$tpos" "$talign"
+	_tui_resize.build "$id" "$resizable" "$handle" "$onresize"
+	_tui_collapse.build "$id" "$ccol" "$cdef" "$ccoll" "$ckeep" "$cto" "$ctog" "$ckey" "$cclass"
+	_tui_build.store_attrs "$node" pane "$id"
 	_tui_cache_class "$id" "$class"
 	tui.pane_scroll "$id" "$scroll"
 	tui.pane_scroll_into_view "$id" "$scroll_into_view"
 	[[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 
+	_tui_build.pane_kids "$id" "$node" "$split" "$rows" "$cols" "$fit" "$roww" "$colw" "$sizew" "$sizeh"
+	_TUI_BUILD_LAST_ID="$id"
+}
+
+# _tui_build.pane_kids ID NODE SPLIT ROWS COLS FIT ROW_WEIGHTS COL_WEIGHTS SIZE_W SIZE_H [META] - builds the children of
+# NODE into pane ID, which is split SPLIT: pane-typed children become its split members, every other child is a widget
+# placed at the next row of ID. META 1 (the children of a page's <tui> in a shell outlet): script/theme/bind/footer
+# children do not take a row.
+_tui_build.pane_kids() {
+	local id="$1" node="$2" split="$3" rows="$4" cols="$5" fit="$6" roww="$7" colw="$8" sizew="$9" sizeh="${10}" meta="${11:-0}"
 	tui_node.children "$node"
 	local -a kids=("${_N_CHILDREN[@]}")
 	local k ctype pending="" row=0 # the first widget in a pane sits on its first line (rows count from 0, as in an explicit row="0")
 	for k in "${kids[@]}"; do
 		ctype="${_N_TYPE[$k]}"
 		case "$ctype" in
-			pane | row | col | spacer | divider | group)
+			pane | row | col | spacer | divider | group | details | accordion | outlet)
 				_tui_build.dispatch "$k"
 				local cid="$_TUI_BUILD_LAST_ID"
 				if [[ "$split" == "grid" ]]; then
@@ -238,7 +298,7 @@ _tui_build.tag.pane() {
 				_TUI_BUILD_CTX_PANE="$id"
 				_TUI_BUILD_CTX_ROW=$row
 				_tui_build.dispatch "$k"
-				((row++))
+				if ((meta)); then case "$ctype" in script | theme | bind | footer | tab) ;; *) ((row++)) ;; esac else ((row++)); fi
 				;;
 		esac
 	done
@@ -250,7 +310,7 @@ _tui_build.tag.pane() {
 	elif [[ -n "$pending" ]]; then
 		if [[ "$split" == "v" ]]; then tui.vsplit "$id" $pending; else tui.hsplit "$id" $pending; fi
 	fi
-	_TUI_BUILD_LAST_ID="$id"
+	((${#_TUI_P_COLLAPSIBLE[@]})) && _tui_collapse.init_children "$id" "$node"
 }
 
 # _tui_build.resolve_grid ID PENDING ROWS COLS FIT ROWW COLW - same
@@ -340,13 +400,41 @@ _tui_build.tag.col() {
 }
 _tui_build.tag.group() { _tui_build.tag.pane "$1"; }
 _tui_build.tag.spacer() { _tui_build.tag.pane "$1"; }
+# <outlet id="..." weight= border= class= split= /> - in a shell file: the pane the page's content is built into (id
+# defaults to "outlet"). It is built like a pane without children; a page of this shell later fills it.
+_tui_build.tag.outlet() {
+	local node="$1" oid osplit
+	_tui_build.attrv "$node" id oid
+	if [[ -z "$oid" ]]; then
+		oid=outlet
+		tui_node.attr_set "$node" id outlet
+	fi
+	_tui_build.attrv "$node" split osplit
+	_TUI_OUTLET="$oid"
+	_TUI_OUTLET_SPLIT="$osplit"
+	_TUI_SHELL_FILE="$_TUI_MARKUP_FILE"
+	_TUI_SHELL_AT=${#_TUI_W_ORDER[@]}
+	_tui_build.tag.pane "$node"
+}
+tui.register tag outlet _tui_build.tag.outlet
+
 _tui_build.tag.divider() {
 	tui_node.attr_get "$1" border || tui_node.attr_set "$1" border single
 	_tui_build.tag.pane "$1"
 }
 tui.register tag row _tui_build.tag.row
 tui.register tag col _tui_build.tag.col
+_tui_build.tag.details() { # a collapsible pane with a chevron on its title (tui_collapse.sh)
+	tui_node.attr_get "$1" collapsible || tui_node.attr_set "$1" collapsible true
+	_tui_build.tag.pane "$1"
+}
+_tui_build.tag.accordion() { # a v split (split="h" allowed) of <details> that open one at a time; multiple="true" lifts that
+	tui_node.attr_get "$1" split || tui_node.attr_set "$1" split v
+	_tui_build.tag.pane "$1"
+}
 tui.register tag group _tui_build.tag.group
+tui.register tag details _tui_build.tag.details
+tui.register tag accordion _tui_build.tag.accordion
 tui.register tag spacer _tui_build.tag.spacer
 tui.register tag divider _tui_build.tag.divider
 
@@ -502,6 +590,9 @@ _tui_build.tag.button() {
 	_tui_build.attrv "$node" padding bpadding
 	[[ -n "$bwidth" ]] && tui.width "$bid" "$bwidth"
 	[[ -n "$bheight" ]] && tui.height "$bid" "$bheight"
+	local bcollapsed
+	_tui_build.attrv "$node" collapsed_text bcollapsed
+	[[ -n "$bcollapsed" ]] && _TUI_W_COLLAPSED_TEXT[$bid]="$bcollapsed"
 	_tui_cache_class "$bid" "$bclass"
 	local bhpad bvpad
 	_tui_build.attrv "$node" hpad bhpad

@@ -69,6 +69,26 @@
   bg: #2c3e50;
 }
 
+/* resizable pane borders (handle / divider): the look of the segment under the pointer or being dragged */
+.resize_handle {
+  fg: #61afef;
+}
+.resize_handle:hover {
+  fg: #ffffff;
+  mods: bold;
+}
+
+/* the collapse button of a collapsible pane, drawn on its border */
+.collapse_button {
+  fg: #61afef;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #1c2336;
+  bg: #61afef;
+  mods: bold;
+}
+
 .sidebar {
   fg: #dbe4ff;
   bg: #1a1c2c;
@@ -304,3 +324,10 @@
 /* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
 .field_label       { fg: #c9d6e3; mods: bold; }
 .field_label:focus { fg: #61afef; mods: bold; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.collapse_button:collapsed {
+  fg: #1c2336;
+  bg: #61afef;
+  mods: bold;
+}

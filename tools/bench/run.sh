@@ -34,12 +34,71 @@ _b_scroll_burst() {
 	_tui._scroll_kb down
 	_tui._flush_pending_render >/dev/null
 }
+# v2 benches: a fused, resizable, collapsible page (the Workspace demo) and a 30-widget keep_state page.
+# _BENCH_FLIP alternates the sign so a drag step never hits the clamp.
+WS_PAGE="$REPO/share/demo/workspace.xml"
+_BENCH_FLIP=1
+_b_resize_drag_step() {
+	((_BENCH_FLIP = -_BENCH_FLIP))
+	tui.resize logs 0 "$_BENCH_FLIP"
+}
+_b_collapse_toggle() {
+	tui.collapse services on
+	tui.collapse services off
+}
+_b_hit_with_handles() { _tui_hit.at "$_BENCH_HX" "$_BENCH_HY"; }
+_b_hover_zone_move() {
+	_tui_hit.at "$_BENCH_HX" "$_BENCH_HY"
+	_tui_hit.hover >/dev/null
+	_tui_hit.at "$_BENCH_MX" "$_BENCH_MY"
+	_tui_hit.hover >/dev/null
+}
+_b_store_save_restore() {
+	_tui_store.save_page
+	_tui_store.restore_page
+}
 
 tui.load "$PAGE" >/dev/null
 _tui._layout root
 tui.render >/dev/null
 _BENCH_WID="${_TUI_W_ORDER[0]:-}"
 _BENCH_PANE="${_TUI_P_ALL[0]:-root}"
+
+# _bench_size - tui.load resets the screen size (0x0 without a tty): the layout and the hit index need the fixed one
+_bench_size() {
+	_TUI_ROWS=30 _TUI_COLS=100
+	_TUI_P_ROW[root]=1 _TUI_P_COL[root]=1 _TUI_P_H[root]=$_TUI_ROWS _TUI_P_W[root]=$_TUI_COLS
+}
+
+# _bench_v2 - loads the v2 pages and runs their benches (after the stage-0 ones, which use $PAGE)
+_bench_v2() {
+	local f="$_BENCH_ROOT/keep30.xml" i
+	{
+		printf '<tui keep_state="true"><pane id="root" split="v" border="single" class="panel">\n'
+		for ((i = 0; i < 30; i++)); do printf '<input id="k%d" label="f%d:" label_width="5"/>\n' "$i" "$i"; done
+		printf '</pane></tui>\n'
+	} >"$f"
+	tui.load "$WS_PAGE" >/dev/null
+	_bench_size
+	_tui._layout root
+	tui.render >/dev/null
+	# a point on the logs/events divider (the bottom row of logs) and a point inside the details pane
+	_BENCH_HX=$((_TUI_P_COL[logs] + 2)) _BENCH_HY=$((_TUI_P_ROW[logs] + _TUI_P_H[logs] - 1))
+	_BENCH_MX=$((_TUI_P_COL[details] + 2)) _BENCH_MY=$((_TUI_P_ROW[details] + 3))
+	_bench_run resize_drag_step 30 _b_resize_drag_step
+	_bench_run collapse_toggle 20 _b_collapse_toggle
+	_tui_hit.at "$_BENCH_HX" "$_BENCH_HY" # builds the index once: the bench measures lookups
+	_bench_run hit_with_handles 100 _b_hit_with_handles
+	_TUI_RUNNING=1 # the hover repaint only runs on a live screen; its output goes to /dev/null
+	_bench_run hover_zone_move 30 _b_hover_zone_move
+	_TUI_RUNNING=0
+	tui.load "$f" >/dev/null
+	_bench_size
+	_tui._layout root
+	tui.render >/dev/null
+	for ((i = 0; i < 30; i++)); do _TUI_W_VALUE[k$i]="value $i"; done
+	_bench_run store_save_restore 30 _b_store_save_restore
+}
 
 {
 	_bench_run cold_page_load 10 _b_cold_load
@@ -50,6 +109,7 @@ _BENCH_PANE="${_TUI_P_ALL[0]:-root}"
 	_bench_run mouse_hit 100 _b_mouse_hit
 	_bench_run resize_relayout 30 _b_resize_relayout
 	_bench_run scroll_burst 30 _b_scroll_burst
+	_bench_v2
 } >"$BENCH_REPO/tools/bench/.run_out.$$"
 
 if [[ -z "$_BENCH_COMPARE" ]]; then

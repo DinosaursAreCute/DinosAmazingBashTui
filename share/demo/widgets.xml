@@ -19,7 +19,7 @@
       </pane>
       <pane id="wx_right" split="v" weight="54" border="none">
         <pane id="wx_form" weight="42" title="Form (input, password, select, progress)" border="single" class="panel" hpad="1">
-          <input    id="wx_user" label="User:" label_width="6" placeholder="name" submit="wx_login"/>
+          <input    id="wx_user" label="User:" label_width="6" placeholder="name" submit="wx_login" keep_value="true"/>
           <password id="wx_pass" label="Pass:" label_width="6" placeholder="password" submit="wx_login"/>
           <select   id="wx_mode" row="3" label="Mode:" items="fast|balanced|careful" value="balanced" action="wx_mode_picked"/>
           <button   id="wx_go" row="5" text="[ Sign in ]" action="wx_login" class="success_button" align="fill"/>

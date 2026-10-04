@@ -108,3 +108,5 @@ tui.register.style_contract list "focusable:yes" "states:focus hover" "classes:.
 tui.register.style_contract table "focusable:yes" "states:focus hover" "classes:.table_head .table_sel"
 tui.register.style_contract tabs "states:" "classes:.tab_header .tab_header_compact"
 tui.register.style_contract pane "states:border title focus"
+tui.register.style_contract resize_handle "states:hover"
+tui.register.style_contract collapse_button "states:hover collapsed"

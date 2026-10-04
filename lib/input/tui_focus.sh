@@ -61,11 +61,13 @@ tui.focus.set() {
 	_TUI_FOCUS_DIRTY=1
 }
 
+# _tui_focus.ensure - rebuilds focus indices if marked dirty; otherwise a no-op.
 _tui_focus.ensure() {
 	((_TUI_FOCUS_DIRTY)) && _tui_focus.rebuild
 	return 0
 }
 
+# _tui_focus.rebuild - rebuilds _TUI_FOCUSABLE (document order) and _TUI_FOCUS_TAB (tab order) from widget attributes.
 _tui_focus.rebuild() {
 	_tui_perf.begin focus_index
 	local id g t o f i j n
@@ -75,6 +77,7 @@ _tui_focus.rebuild() {
 	_TUI_FOCUS_DIRTY=0
 
 	for id in "${_TUI_W_ORDER[@]}"; do
+		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue # in a collapsed pane
 		if [[ -n "${_TUI_W_FOCUSABLE[$id]:-}" ]]; then
 			((_TUI_W_FOCUSABLE[$id])) || continue
 		else

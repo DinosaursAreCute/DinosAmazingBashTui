@@ -90,6 +90,10 @@ _tui.emit_style() {
 # a named colour.
 _tui.emit_ring() {
 	local key="$1" fb="$2" id="$3" fg bg mods
+	if [[ -n "$_TUI_RESIZE_PANE" && "$id" == "$_TUI_RESIZE_PANE" ]]; then # keyboard resize mode: the target's border looks hovered
+		if _tui_hit.class_sgr resize_handle 1 "$id"; then _tui.emit "$_SGR"; else _tui.emit $'\e[1;97m'; fi
+		return
+	fi
 	fg="${_TUI_STYLE_FG[$key]:-${_TUI_STYLE_FG[$fb]:-}}"
 	mods="${_TUI_STYLE_MOD[$key]:-${_TUI_STYLE_MOD[$fb]:-}}"
 	bg="${_TUI_STYLE_BG[$fb]:-${_TUI_STYLE_BG[${id}_normal]:-}}"

@@ -45,7 +45,7 @@ _tui_refresh.reset() {
 }
 
 _tui_refresh.is_pane() {
-	case "$1" in pane | row | col | spacer | divider | group) return 0 ;; esac
+	case "$1" in pane | row | col | spacer | divider | group | details | accordion) return 0 ;; esac
 	return 1
 }
 
@@ -226,7 +226,7 @@ _tui_engine.forget_pane() {
 		'_TUI_P_TITLE[$id]' '_TUI_P_BORDER[$id]' '_TUI_P_ALIGN[$id]' '_TUI_P_VALIGN[$id]' \
 		'_TUI_P_MINW[$id]' '_TUI_P_MINH[$id]' '_TUI_P_MAXW[$id]' '_TUI_P_MAXH[$id]' \
 		'_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_STUCK[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]' '_TUI_P_NOREVEAL[$id]' \
-		'_TUI_P_GAP[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]' '_TUI_P_CONTENT_H[$id]'
+		'_TUI_P_GAP[$id]' '_TUI_P_FUSE[$id]' '_TUI_P_DIVIDER[$id]' '_TUI_P_DIVIDER_CLASS[$id]' '_TUI_P_TITLE_POS[$id]' '_TUI_P_TITLE_ALIGN[$id]' '_TUI_P_RESIZABLE[$id]' '_TUI_P_HANDLE[$id]' '_TUI_P_ON_RESIZE[$id]' '_TUI_P_WEIGHTS0[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]' '_TUI_P_CONTENT_H[$id]'
 }
 
 # _tui_engine.forget_styles ID... - the class styles baked for these ids (keys "ID_normal", "ID_hover", ...)
@@ -303,6 +303,7 @@ tui.page.refresh() {
 		_tui_perf.end page_refresh
 		return 0
 	fi
+	_tui_store.save_page
 	_TUI_BUILD_TITLE=()
 	_TUI_BUILD_BORDER=()
 	for key in "${_RF_TARGETS[@]}"; do
@@ -322,6 +323,7 @@ tui.page.refresh() {
 	_TUI_P_LEAVES=()
 	_tui._collect_leaves root
 	_tui_refresh.after_teardown
+	_tui_store.restore_page
 	_tui_refresh.adopt
 	tui.cache.forget "$file" # the cached page predates this change: a visit before the refresh below lands rebuilds it
 	_tui_perf.end page_refresh

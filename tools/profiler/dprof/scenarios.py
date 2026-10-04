@@ -70,6 +70,21 @@ GROUP_INFO = {
     "compose.tab": ("Compose: switch tab (whole view swapped by tui.page.refresh)", "nav", 100),
     "compose.cond": ("Compose: change a conditional (environment, tui.page.refresh)", "nav", 100),
     "compose.addons": ("Compose: apply 5 example addons (tui.page.refresh)", "nav", 100),
+    # the v2 pages: Workspace (fused panes, resizable dividers, collapsible Services pane), the page-state store, the scrolling form
+    "workspace.open": ("Workspace page, first visit", "nav", 150),
+    "workspace.hover_handle": ("Workspace: pointer onto / off a divider (hover repaint)", "input", 30),
+    "workspace.drag": ("Workspace: divider drag, one pointer step (press, 12 moves, release)", "input", 60),
+    "workspace.resize_key": ("Workspace: keyboard resize (alt+r, arrows, shift+arrow, Enter)", "input", 60),
+    "workspace.collapse_click": ("Workspace: collapse / expand Services by its button", "input", 100),
+    "workspace.collapse_key": ("Workspace: collapse / expand Services by alt+c", "input", 100),
+    "workspace.tick": ("Workspace: idle 3 s while the log streams (tui.every refreshes)", "idle", 0),
+    "state.plain_goto": ("Page switch without kept state (Monitor and back)", "nav", 100),
+    "state.save_restore": ("Page switch with a kept input (Widgets and back: save, rebuild, restore)", "nav", 150),
+    "state.reset": ("Reset the page layout (alt+shift+r after a resize and a collapse)", "input", 100),
+    "scrollform.tab": ("Scroll form: Tab to the next field (scroll_into_view)", "input", 50),
+    "scrollform.wheel": ("Scroll form: wheel over a widget", "input", 60),
+    "scrollform.pgdn": ("Scroll form: Page Down", "input", 100),
+    "scrollform.click": ("Scroll form: click after scrolling", "input", 100),
     "resize": ("Terminal resize", "resize", 250),
     "idle": ("Idle (3 s, nothing happening)", "idle", 0),
     "shutdown": ("Quit", "shutdown", 500),
@@ -85,6 +100,12 @@ class Step:
 
     def describe(self):
         return f"{self.group} · {self.detail}"
+
+
+def _pointer(needle, code, dx=0, dy=0, gap=0.03):
+    """Payload of a "pointer" step: one mouse event (code: m move, p press, d drag, r release, w/W wheel down/up) placed at
+    (dx, dy) cells from the first character of NEEDLE on screen, which is found when the step runs."""
+    return (needle, [(code, dx, dy)], gap)
 
 
 def _move(x, y):
@@ -113,6 +134,9 @@ SCENARIOS = [
     ("theme", "Theme switching on the Settings page", {"theme.first", "theme.again"}),
     ("resize", "Terminal resize", {"resize"}),
     ("compose", "Compose demo page: open it, add a task, switch tabs, change a conditional, apply the five example addons (tui.page.refresh: only the changed panes are rebuilt)", {"compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"}),
+    ("workspace", "Workspace demo page: first visit, hover and drag of the resize dividers, keyboard resize, collapsing the Services pane by button and alt+c, the page's tui.every ticks", {g for g in GROUP_INFO if g.startswith("workspace.")}),
+    ("state", "Page-state store (keep_value): a page switch with a kept input vs. a plain switch, and alt+shift+r reset on the Workspace page", {"state.plain_goto", "state.save_restore", "state.reset"}),
+    ("scrollform", "Scrolling demo's form (scroll='v' pane): Tab through every field, wheel over a widget, Page Down, click after scrolling", {g for g in GROUP_INFO if g.startswith("scrollform.")}),
     ("idle", "Idle: what the app does when nothing happens", {"idle"}),
 ]
 SCENARIO_NAMES = [n for n, _, _ in SCENARIOS]
@@ -164,6 +188,111 @@ APPLY = "[ Apply and rebuild"
 ADD_TASK = "[ Add task"
 REMOVE_TASK = "[ Remove last"
 CYCLE_ENV = "[ Cycle environment"
+
+
+WORKSPACE_GROUPS = ["workspace.open", "workspace.hover_handle", "workspace.drag", "workspace.resize_key",
+                    "workspace.collapse_click", "workspace.collapse_key", "workspace.tick"]
+STATE_GROUPS = ["state.plain_goto", "state.save_restore", "state.reset"]
+SCROLLFORM_GROUPS = ["scrollform.tab", "scrollform.wheel", "scrollform.pgdn", "scrollform.click"]
+# Needles on the Workspace page: pane titles locate the dividers (a fused border is the next pane's title row; a column border
+# is two cells left of the next pane's title), the collapse buttons are the glyphs the Services pane draws (◀ open, ▶ collapsed)
+WS_LIST = "api-gateway"
+WS_EVENTS, WS_LOGS = "Events", "Logs"
+WS_COLLAPSE, WS_EXPAND = "◀", "▶"
+KEEP_PAGE, KEEP_LABEL, KEEP_VALUE = "Widgets", "User:", "keepme42"   # widgets.xml: wx_user has keep_value="true"
+ALT_R, ALT_SHIFT_R, ALT_C = ESC + b"r", ESC + b"R", ESC + b"c"
+
+
+def _workspace_steps(want, quick):
+    """The Workspace page (share/demo/workspace.xml). Order: open, hover, drags, keyboard resize, collapse by button and key, idle."""
+    S = []
+    add = S.append
+    if want("workspace.open"):
+        add(Step("workspace.open", "click", "click_text", "Workspace", quiet=0.4, timeout=8.0, expect="Services"))
+    else:
+        add(Step("setup", "Workspace", "click_text", "Workspace", quiet=0.4, timeout=8.0))
+    add(Step("setup", "workspace settles", "idle", 0.5))
+    if want("workspace.hover_handle"):
+        for i in range(3 if quick else 5):
+            add(Step("workspace.hover_handle", f"onto divider {i + 1}", "pointer", _pointer(WS_EVENTS, "m", 12, 0), quiet=0.08, timeout=1.5))
+            add(Step("workspace.hover_handle", f"off divider {i + 1}", "pointer", _pointer(WS_EVENTS, "m", 12, 4), quiet=0.08, timeout=1.5))
+    if want("workspace.drag"):
+        # the title the divider sits next to moves with it, so every step is placed one cell beyond where the divider is now
+        for name, needle, dx, dy, mx, my in (("logs/events", WS_EVENTS, 12, 0, 0, 1), ("services/logs", WS_LOGS, -3, 2, 1, 0)):
+            add(Step("workspace.drag", f"{name} press", "pointer", _pointer(needle, "p", dx, dy), quiet=0.08, timeout=3.0))
+            for k in range(12):
+                add(Step("workspace.drag", f"{name} move {k + 1}", "pointer", _pointer(needle, "d", dx + mx, dy + my), quiet=0.08, timeout=3.0))
+            add(Step("workspace.drag", f"{name} release", "pointer", _pointer(needle, "r", dx, dy), quiet=0.1, timeout=3.0))
+    if want("workspace.resize_key"):
+        add(_setup(WS_LIST))   # focus inside the resizable Services pane
+        add(Step("workspace.resize_key", "alt+r", "key", ALT_R, quiet=0.1, timeout=3.0))
+        for i in range(5):
+            add(Step("workspace.resize_key", f"right {i + 1}", "key", ESC + b"[C", quiet=0.08, timeout=3.0))
+        add(Step("workspace.resize_key", "shift+right", "key", ESC + b"[1;2C", quiet=0.1, timeout=3.0))
+        add(Step("workspace.resize_key", "enter", "key", b"\r", quiet=0.1, timeout=3.0))
+    if want("workspace.collapse_click"):
+        add(Step("workspace.collapse_click", "collapse", "click_text", WS_COLLAPSE, quiet=0.2, timeout=5.0))
+        add(Step("workspace.collapse_click", "expand", "click_text", WS_EXPAND, quiet=0.2, timeout=5.0))
+    if want("workspace.collapse_key"):
+        add(_setup(WS_LIST))
+        add(Step("workspace.collapse_key", "alt+c collapse", "key", ALT_C, quiet=0.2, timeout=5.0))
+        add(Step("workspace.collapse_key", "alt+c expand", "key", ALT_C, quiet=0.2, timeout=5.0))
+    if want("workspace.tick"):
+        add(Step("workspace.tick", "3 s", "idle", 1.5 if quick else 3.0))
+    return S
+
+
+def _state_steps(want, quick):
+    """keep_value round trip (Widgets, with the User input kept) next to a plain switch, then the page reset on Workspace."""
+    S = []
+    add = S.append
+    laps = 2 if quick else 4
+    if want("state.plain_goto", "state.save_restore"):
+        add(_setup("Monitor"))
+        for i in range(laps):
+            add(Step("state.plain_goto", f"lap {i + 1} components", "click_text", "Components", quiet=0.15))
+            add(Step("state.plain_goto", f"lap {i + 1} monitor", "click_text", "Monitor", quiet=0.15))
+    if want("state.save_restore"):
+        add(_setup(KEEP_PAGE))
+        S.extend(_fill(KEEP_LABEL, KEEP_VALUE))
+        for i in range(laps):
+            add(Step("state.save_restore", f"lap {i + 1} away (save)", "click_text", "Components", quiet=0.15))
+            add(Step("state.save_restore", f"lap {i + 1} back (restore)", "click_text", KEEP_PAGE, quiet=0.15, expect=KEEP_VALUE))
+    if want("state.reset"):
+        add(_setup("Workspace"))
+        add(Step("setup", "workspace settles", "idle", 0.5))
+        add(_setup(WS_LIST))
+        add(Step("setup", "alt+r", "key", ALT_R, quiet=0.1))
+        for i in range(3):
+            add(Step("setup", f"right {i + 1}", "key", ESC + b"[C", quiet=0.08))
+        add(Step("setup", "enter", "key", b"\r", quiet=0.1))
+        add(Step("setup", "collapse", "click_text", WS_COLLAPSE, quiet=0.2))
+        add(Step("state.reset", "alt+shift+r", "key", ALT_SHIFT_R, quiet=0.2, timeout=5.0))
+    return S
+
+
+def _scrollform_steps(want, quick):
+    """The form on the Scrolling page: a scroll='v' pane of 7 inputs, a select, 4 checkboxes, 5 inputs and a list."""
+    S = []
+    add = S.append
+    add(_setup("Scrolling"))
+    add(Step("setup", "scroll data loads", "idle", 0.5))
+    add(_setup("First name:"))   # focus the first field
+    if want("scrollform.tab"):
+        for i in range(8 if quick else 18):
+            add(Step("scrollform.tab", f"tab {i + 1}", "key", b"\t", quiet=0.08))
+    if want("scrollform.wheel"):
+        for i in range(2 if quick else 4):
+            add(Step("scrollform.wheel", f"up {i + 1}", "pointer", _pointer("Last name:", "W", 4, 0), quiet=0.15, timeout=3.0))
+        for i in range(2 if quick else 4):
+            add(Step("scrollform.wheel", f"down {i + 1}", "pointer", _pointer("Last name:", "w", 4, 0), quiet=0.15, timeout=3.0))
+    if want("scrollform.pgdn"):
+        for i in range(3):
+            add(Step("scrollform.pgdn", f"pgdn {i + 1}", "key", ESC + b"[6~", quiet=0.15))
+    if want("scrollform.click"):
+        for label in ("Last name:", "Email:", "Phone:"):
+            add(Step("scrollform.click", label, "click_text", label, quiet=0.15, timeout=4.0))
+    return S
 
 
 def interaction_steps(rows, cols, quick=False, wanted=None):
@@ -281,6 +410,12 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
                 add(Step("compose.tab", "board", "click_text", "Board", quiet=0.3, timeout=10.0))
         add(Step("setup", "cache refresh ends", "idle", 1.0))   # the quiet rebuild of the cached page runs in the background
         add(_setup("Home"))
+    if want(*WORKSPACE_GROUPS):
+        S.extend(_workspace_steps(want, quick))
+    if want("state.plain_goto", "state.save_restore", "state.reset"):
+        S.extend(_state_steps(want, quick))
+    if want(*SCROLLFORM_GROUPS):
+        S.extend(_scrollform_steps(want, quick))
     if want("resize"):
         for r, c in ((max(20, rows - 6), max(70, cols - 24)), (rows + 8, cols + 30), (rows, cols)):
             add(Step("resize", f"{c}x{r}", "resize", (r, c), quiet=0.3, timeout=8.0))
@@ -314,6 +449,9 @@ UNIT_GROUPS = [
     ("palette", ["palette.open", "palette.type", "palette.close"]),
     ("theme", ["theme.first", "theme.again"]),
     ("compose", ["compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"]),
+    ("workspace", WORKSPACE_GROUPS),
+    ("state", STATE_GROUPS),
+    ("scrollform", SCROLLFORM_GROUPS),
     ("resize", ["resize"]),
     ("idle", ["idle"]),
     ("shutdown", ["shutdown"]),

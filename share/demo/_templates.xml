@@ -22,7 +22,7 @@
   <button id="btn_case"          pane="nav" row="6"  text="  Case Study" page="case_study.xml" class="nav_link" align="left"/>
   <button id="btn_documentation" pane="nav" row="7"  text="  Docs"       page="docu.xml"       class="nav_link" align="left"/>
   <button id="btn_features"      pane="nav" row="8"  text="  Layout"     page="features.xml"   class="nav_link" align="left"/>
-  <button id="btn_styles"        pane="nav" row="9" text="  Styles"     page="styles.xml"     class="nav_link" align="left"/>
+  <button id="btn_workspace"     pane="nav" row="9" text="  Workspace"  page="workspace.xml"  class="nav_link" align="left"/>
   <button id="btn_widgets"       pane="nav" row="10" text="  Widgets"    page="widgets.xml"    class="nav_link" align="left"/>
   <label  id="divider_debug"     pane="nav" row="11" text="--- Debugging Tools---"  class="nav_divider" align="left"/>
   <button id="btn_keys"          pane="nav" row="12" text="     Keys"       page="keys.xml"       class="nav_link" align="left"/>

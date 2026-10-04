@@ -85,6 +85,28 @@ _t_restore_prepare() {
 _t_restore_prepare
 _t_restore() { eval "$_T_RESTORE_SRC"; }
 
+# _t_fixture NAME FUNC: build an expensive page once per run, replay it per call.
+# First call runs FUNC and records every _TUI_*/TUI_*/_<FILE>_ global it left behind
+# (wider than the per-test snapshot above); later calls eval that record (~ms) instead
+# of rebuilding (~300 ms). FUNC must only produce state in variables (no stdout/fds).
+declare -gA _T_FIX=()
+_t_fixture() {
+	local name="$1" line src="" flags
+	if [[ -z "${_T_FIX[$name]+x}" ]]; then
+		"$2"
+		while IFS= read -r line; do
+			[[ "$line" == "declare -"* ]] || continue
+			flags="${line#declare }"
+			[[ "${flags%% *}" == *r* ]] && continue
+			if [[ "$line" == "declare --"* ]]; then line="declare -g${line#declare --}"; else line="declare -g${line#declare -}"; fi
+			src+="$line"$'\n'
+		done < <(declare -p $(compgen -v | grep -E '^(_?TUI_|_TUI_|_WS_|_RZP_)') 2>/dev/null)
+		_T_FIX[$name]="$src"
+		return 0
+	fi
+	eval "${_T_FIX[$name]}" 2>/dev/null
+}
+
 # ── assertions ────────────────────────────────────────────────────────────
 _t_fail() {
 	local frame

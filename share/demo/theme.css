@@ -296,3 +296,26 @@
 .table_head    { fg: #9fb0c9; mods: bold underline; }
 .progress      { fg: #4a5068; }
 .progress_fill { fg: #33cc66; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #61afef;
+}
+.resize_handle:hover {
+  fg: #c9d6e3;
+  mods: bold;
+}
+.collapse_button {
+  fg: #61afef;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #1c2336;
+  bg: #61afef;
+  mods: bold;
+}
+.collapse_button:collapsed {
+  fg: #1c2336;
+  bg: #de61ef;
+  mods: bold;
+}

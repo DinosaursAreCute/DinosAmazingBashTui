@@ -239,3 +239,26 @@
 /* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
 .field_label       { fg: #1d4ed8; mods: bold; }
 .field_label:focus { fg: #1d4ed8; mods: bold underline; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #1d4ed8;
+}
+.resize_handle:hover {
+  fg: #2b2b3a;
+  mods: bold;
+}
+.collapse_button {
+  fg: #1d4ed8;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #fbf9f4;
+  bg: #1d4ed8;
+  mods: bold;
+}
+.collapse_button:collapsed {
+  fg: #fbf9f4;
+  bg: #8b5cf6;
+  mods: bold;
+}

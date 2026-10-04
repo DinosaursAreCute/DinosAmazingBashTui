@@ -88,7 +88,7 @@ def choose_scenario():
           f"{c('type a number (several allowed: 2,7), Enter = 1', 'dim')}")
     print()
     for i, (name, desc, _) in enumerate(SCENARIOS, 1):
-        print(f"   {c(str(i), 'cyan', bold=True)}  {c(f'{name:<8}', 'white')} {c(desc, 'dim')}")
+        print(f"   {c(str(i), 'cyan', bold=True)}  {c(f'{name:<10}', 'white')} {c(desc, 'dim')}")
     print()
     while True:
         try:
@@ -109,7 +109,7 @@ def main():
 
     if a.list_scenarios:
         for i, (name, desc, _) in enumerate(SCENARIOS, 1):
-            print(f"{i}  {name:<8} {desc}")
+            print(f"{i}  {name:<10} {desc}")
         return 0
 
     if a.report:

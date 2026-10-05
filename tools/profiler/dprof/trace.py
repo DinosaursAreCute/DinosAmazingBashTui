@@ -105,8 +105,8 @@ class Aggregator:
         sid = len(self.stack_info)
         self.stack_info.append((tuple(frames), probe_top))
         work = any(f in WORK_FRAMES for f in frames)
-        if not work and "_tui_overlay.draw_all" in frames:   # overlay redraw: ambient only when the main loop itself asks
-            i = frames.index("_tui_overlay.draw_all")
+        if not work and "_tui_layer.draw_all" in frames:   # overlay redraw: ambient only when the main loop itself asks
+            i = frames.index("_tui_layer.draw_all")
             work = i > 0 and frames[i - 1] != "tui.run"
         self.work_sid.append(work)
         self.stack_ids[raw] = sid

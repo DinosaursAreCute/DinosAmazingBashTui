@@ -529,11 +529,10 @@ tui.cache.replay() {
 			tui.class "$_rc_id" "$_rc_cls"
 		done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
 	fi
-	# _TUI_OVERLAY_FNS (lib/chrome/tui_modal.sh) isn't page state, so it isn't in the
+	# _TUI_FL_ORDER (lib/chrome/tui_layer.sh) isn't page state, so it isn't in the
 	# snapshot: tui.reset_ui's _tui_footer.reset always removes _tui_footer.draw from it,
 	# and restoring _TUI_FOOTER_ON=1 alone wouldn't re-add it without this.
-	((_TUI_L_N)) && tui.overlay.add _tui_layer.draw # reset_ui took the layers' overlay off; the replay brought the layers back
-	[[ -z "$shell" ]] && ((_TUI_FOOTER_ON)) && tui.overlay.add _tui_footer.draw
+	[[ -z "$shell" ]] && ((_TUI_FOOTER_ON)) && tui.layer.fn_add _tui_footer.draw ambient
 	# a recorded script's exec controls came back with the snapshot, but the instance they belonged to is gone: the re-sourced script starts a new one
 	local s ns live=" ${_EXEC_NS[*]} "
 	for ns in "${!_TUI_FACTORY_IDS[@]}"; do

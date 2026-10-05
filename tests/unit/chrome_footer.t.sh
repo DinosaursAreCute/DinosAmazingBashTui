@@ -64,16 +64,15 @@ t_footer_redraws_when_the_content_or_the_size_changes() {
 	ok '[[ "$_TUI_FRAME" == *$'"'"'\e[30;1H'"'"'* ]]'
 }
 
-t_overlay_draw_all_without_output_does_not_flush() {
+t_layer_draw_all_without_output_does_not_flush() {
 	_footer_setup
-	_TUI_OVERLAY_FNS=(_tui_footer.draw)
-	_tui_overlay.draw_all >/dev/null # paints the footer
+	_TUI_FL_ORDER=(_tui_footer.draw) _TUI_FL_AMBIENT=([_tui_footer.draw]=1)
+	_tui_layer.draw_all >/dev/null # paints the footer
 	local gen=$_TUI_FLUSH_GEN out
-	_tui_overlay.draw_all >"$_T_ROOT/ov.out"
+	_tui_layer.draw_all >"$_T_ROOT/ov.out"
 	out="$(<"$_T_ROOT/ov.out")"
 	eq "" "$out" # no synchronized frame either
 	eq "$gen" "$_TUI_FLUSH_GEN"
-	eq "$_TUI_FLUSH_GEN" "$_TUI_OVL_GEN"
 }
 
 t_reverse_keys_default_tier_follows_its_inputs() {

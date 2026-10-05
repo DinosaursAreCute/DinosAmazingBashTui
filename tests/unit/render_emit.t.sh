@@ -76,3 +76,60 @@ t_emit_multiple_calls_accumulate_in_order() {
 	_tui.emit_reset
 	eq $'\e[1;1Hhi\e[0m' "$_TUI_FRAME"
 }
+
+_re_frame() { # ROWS -> REPLY: rows of an absolute cursor move, a style and 100 cells, each ending in a reset
+	local r
+	REPLY=""
+	for ((r = 1; r <= $1; r++)); do REPLY+=$'\e['"$r;1H"$'\e[38;5;99m'"$(printf 'x%.0s' {1..100})"$'\e[0m'; done
+}
+
+t_write_chunks_a_small_frame_is_one_piece() {
+	_tui._write_chunks "abc" ""
+	eq 1 "${#_TW_CHUNKS[@]}"
+	eq abc "${_TW_CHUNKS[0]}"
+}
+
+t_write_chunks_cuts_only_before_a_cursor_move_and_every_piece_stands_alone() {
+	local sty=$'\e[48;2;1;2;3m' c n=0 bad=0
+	_re_frame 120
+	_tui._write_chunks "$sty$REPLY" "$sty"
+	ok '(( ${#_TW_CHUNKS[@]} > 2 ))'
+	for c in "${_TW_CHUNKS[@]}"; do
+		((${#c} <= _TUI_WRITE_MAX)) || bad=1
+		[[ "$c" == "$sty"* || $((n)) == 0 ]] || bad=1
+		[[ "${c#"$sty"}" == $'\e['[0-9]*';'[0-9]*H* ]] || bad=1 # starts at a cursor move
+		((n++ < ${#_TW_CHUNKS[@]} - 1)) && { [[ "$c" == *$'\e[0m' ]] || bad=1; }
+	done
+	eq 0 "$bad"
+}
+
+t_write_wraps_in_one_synchronized_update_and_loses_nothing() {
+	local out="$_T_ROOT/tw_$RANDOM" sty=$'\e[48;2;1;2;3m'
+	_re_frame 120
+	_tui.write "$sty$REPLY" "$sty" >"$out"
+	local got
+	got="$(
+		cat "$out"
+		printf x
+	)"
+	got="${got%x}"
+	ok '[[ "$got" == $'"'"'\e[?2026h'"'"'* && "$got" == *$'"'"'\e[?2026l'"'"' ]]'
+	eq 1 "$(grep -o $'\e\\[?2026h' "$out" | wc -l)"
+	eq 1 "$(grep -o $'\e\\[?2026l' "$out" | wc -l)"
+	eq 120 "$(grep -o $'\e\\[[0-9]*;1H' "$out" | wc -l)" # every row arrived, none twice
+}
+
+t_write_chunks_a_long_row_of_single_cell_styles_is_cut_between_sequences_and_in_bytes() {
+	local cell=$'\e[38;2;201;214;227;48;2;28;35;54m│\e[0m' row=$'\e[10;1H' c i n=0 bad=0
+	for ((i = 0; i < 300; i++)); do row+="$cell"; done # one row of 300 cells: ~12 KB in bytes, no second cursor move
+	_tui._write_chunks "$row" ""
+	ok '(( ${#_TW_CHUNKS[@]} >= 3 ))'
+	for c in "${_TW_CHUNKS[@]}"; do
+		(($(
+			LC_ALL=C
+			echo -n "${#c}"
+		) <= _TUI_WRITE_MAX)) || bad=1
+		[[ "$c" == *$'\e[38;2;201;214;227;48;2;28;35;54m' || "$c" == *$'\e[0m' ]] || bad=1 # never ends inside a sequence
+	done
+	eq 0 "$bad"
+}

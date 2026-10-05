@@ -1,7 +1,8 @@
 # modal_dismiss.t.sh - tui.modal.dismiss replays the saved base frame only while it still matches the screen.
 
+_md_draw() { :; }
 _md_open_valid() {
-	_TUI_MODAL=m _TUI_MODAL_DRAWFN=_md_draw _TUI_OVERLAY_FNS=(_md_draw)
+	_TUI_MODAL=m _TUI_MODAL_DRAWFN=_md_draw _TUI_FL_ORDER=(_md_draw) _TUI_FL_TOP=1
 	_TUI_BASE_FRAME="BASEFRAME"
 	_TUI_DISMISS_REPLAY=1
 	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0

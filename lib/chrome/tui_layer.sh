@@ -5,7 +5,7 @@
 #   <window id= title= x= y= width= height= anchor= float= shadow= closable= fullscreen= minimizable= modal= open=> ...</window>
 #
 # A layer is a pane that hangs outside the page's split tree: it has a rectangle of its own, children like any pane, and
-# is drawn after the page (as an overlay: it is redrawn after every full render and whenever something painted under it).
+# is drawn after the page, on top of it: _tui._flush appends the stack to every write that repaints the page.
 #   anchor   screen (default) | parent (the pane the tag sits in) | #id (a pane or widget)
 #   x, y     offset from the anchor's top-left, in cells; x: center|right, y: center|bottom|below|above
 #   width, height   cells, N% of the screen, or fill; the rectangle is clamped to the screen
@@ -17,7 +17,7 @@
 #   _TUI_L_ROW/COL/H/W   the layer's current rectangle      _TUI_L_F[L.flag]   float modal shadow closable fullscreen minimizable
 #                                                           hidden minimized zoomed moved
 # The page's own loops (render, hit index, focus order) see a layer's panes and widgets like any other; the three places
-# that must treat them differently ask _TUI_P_LAYER: tui.render skips them (the overlay draws them on top), the hit index
+# that must treat them differently ask _TUI_P_LAYER: tui.render skips them (the layer stack draws them on top), the hit index
 # ranks a layer's zones above the page's, the focus order drops what is outside a modal layer.
 # requires: tui_registry
 
@@ -46,7 +46,6 @@ _tui_layer.add() {
 	for f in $8; do _TUI_L_F["$id.$f"]=1; done
 	_TUI_L_TIMEOUT[$id]="${9:-}"
 	_tui_layer.sync
-	tui.overlay.add _tui_layer.draw
 	_TUI_P_ALL=() _TUI_P_LEAVES=()
 	_tui._collect_leaves root
 	_TUI_FOCUS_DIRTY=1
@@ -90,7 +89,6 @@ _tui_layer.clear() {
 	_TUI_L_ANCHOR=() _TUI_L_PARENT=() _TUI_L_SX=() _TUI_L_SY=() _TUI_L_SW=() _TUI_L_SH=() _TUI_L_F=()
 	_TUI_L_ROW=() _TUI_L_COL=() _TUI_L_H=() _TUI_L_W=() _TUI_L_RANK=() _TUI_L_PANES=() _TUI_L_SAVED_FOCUS=() _TUI_P_LAYER=() _TUI_L_ORIGIN=()
 	_TUI_P_DETACHABLE=() _TUI_P_DOCK_GROUP=() _TUI_P_LEAVE=() _TUI_P_ON_DETACH=() _TUI_P_ON_DOCK=() _TUI_P_LAYOUT_KEEP=()
-	tui.overlay.remove _tui_layer.draw
 }
 
 # _tui_layer.is_visible ID - rc 0 for a layer that is shown
@@ -323,7 +321,7 @@ _tui_layer.shadow_buf() {
 	_tui.emit_reset
 }
 
-# _tui_layer.draw - draws every visible layer, bottom to top, into _TUI_FRAME (an overlay: tui.overlay.add)
+# _tui_layer.draw - draws every visible pane layer, bottom to top, into _TUI_FRAME
 _tui_layer.draw() {
 	((_TUI_L_N || ${#_TUI_P_DETACHABLE[@]})) || return 0
 	local L p w
@@ -868,7 +866,6 @@ _tui_layer.build_pane() {
 	[[ -n "$5" ]] && _TUI_P_ON_DETACH[$id]="$5"
 	[[ -n "$6" ]] && _TUI_P_ON_DOCK[$id]="$6"
 	[[ "$7" == layout ]] && _TUI_P_LAYOUT_KEEP[$id]=1
-	[[ "$2" == true ]] && tui.overlay.add _tui_layer.draw
 	return 0
 }
 
@@ -907,4 +904,72 @@ _tui_layer.state_put() {
 	_TUI_P_ALL=() _TUI_P_LEAVES=()
 	_tui._collect_leaves root
 	_TUI_HZ_DIRTY=1
+}
+
+# ── function layers ───────────────────────────────────────────────────────
+# A layer that is drawn by a function instead of a pane tree: the footer, the job spinner, toasts, the command palette and
+# dialogs (tui_modal.sh, tui_dialog.sh), a plugin's overlay. One stack with the pane layers, in this order, bottom to top:
+#   ambient fns   drawn with the page (render, _tui_layer.draw_all) and never again on a page repaint: they own cells no page
+#                 paint reaches (the footer row)
+#   pane layers   the windows, popups and toasts of the markup (_tui_layer.draw)
+#   top fns       in the order they were added: drawn after every repaint of the page, so a repaint cannot leave one half covered
+# A function appends its bytes to _TUI_FRAME (absolute cursor moves, no state) and may return without output when unchanged.
+#   tui.layer.fn_add FN [ambient]      tui.layer.fn_remove FN      tui.overlay.add/remove FN are the same, for plugins
+declare -ga _TUI_FL_ORDER=()
+declare -gA _TUI_FL_AMBIENT=()
+declare -gi _TUI_FL_TOP=0 # how many of them are not ambient
+
+tui.layer.fn_add() {
+	local f
+	for f in "${_TUI_FL_ORDER[@]}"; do [[ "$f" == "$1" ]] && return 0; done
+	_TUI_FL_ORDER+=("$1")
+	if [[ "${2:-}" == ambient ]]; then _TUI_FL_AMBIENT[$1]=1; else _TUI_FL_TOP+=1; fi
+}
+tui.layer.fn_remove() {
+	local f found=0
+	local -a keep=()
+	for f in "${_TUI_FL_ORDER[@]}"; do if [[ "$f" == "$1" ]]; then found=1; else keep+=("$f"); fi; done
+	((found)) || return 0
+	_TUI_FL_ORDER=("${keep[@]}")
+	if [[ -n "${_TUI_FL_AMBIENT[$1]:-}" ]]; then unset '_TUI_FL_AMBIENT[$1]'; else _TUI_FL_TOP+=-1; fi
+}
+tui.overlay.add() {
+	tui.layer.fn_add "$1"
+	_tui_plugin.own overlay "$1"
+}
+tui.overlay.remove() { tui.layer.fn_remove "$1"; }
+
+# _tui_layer.cover - appends what a page repaint must be followed by (the pane layers, then the top fns) to _TUI_FRAME
+_tui_layer.cover() {
+	local f
+	_tui_layer.draw
+	((_TUI_FL_TOP)) || return 0
+	for f in "${_TUI_FL_ORDER[@]}"; do [[ -n "${_TUI_FL_AMBIENT[$f]:-}" ]] || "$f"; done
+}
+
+# _tui_layer.collect_all - appends the whole stack to _TUI_FRAME, without flushing: tui.render sends the page and its stack
+# as one write, so a layer is never on screen without the page under it (or the page without its layers)
+_tui_layer.collect_all() {
+	local f
+	for f in "${_TUI_FL_ORDER[@]}"; do [[ -n "${_TUI_FL_AMBIENT[$f]:-}" ]] && "$f"; done
+	_tui_layer.draw
+	((_TUI_FL_TOP)) || return 0
+	for f in "${_TUI_FL_ORDER[@]}"; do [[ -n "${_TUI_FL_AMBIENT[$f]:-}" ]] || "$f"; done
+}
+
+# _tui_layer.draw_all - the stack on its own (a function layer changed): its own frame and its own synchronized flush,
+# beside whatever _TUI_FRAME holds (see _tui._render_output in lib/tui.sh for the save/reset/build/flush/restore shape)
+_tui_layer.draw_all() {
+	local _oda_saved="$_TUI_FRAME"
+	_TUI_FRAME=""
+	_tui_layer.collect_all
+	if [[ -z "$_TUI_FRAME" ]]; then # everything was already on screen unchanged (the footer): no write, no sync frame
+		_TUI_FRAME="$_oda_saved"
+		return 0
+	fi
+	_TUI_OVL_FLUSHING=1 # the stack's bytes are not part of the base frame
+	_tui._flush "$_TUI_FRAME"
+	_TUI_OVL_FLUSHING=0
+	_TUI_FRAME="$_oda_saved"
+	_TUI_OVL_FLUSHES+=1
 }

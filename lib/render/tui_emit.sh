@@ -18,6 +18,68 @@
 
 declare -g _TUI_FRAME=""
 
+# ── the write path ─────────────────────────────────────────────────────────
+# Every writer that shares the terminal (the main loop's flush, every background painter) sends its bytes through _tui.write, so
+# two writers never mix. Two rules make that hold:
+#   1. one write(2) per piece. A tty serialises whole write calls (Linux: the tty's atomic_write_lock), and bash's printf makes
+#      exactly one for up to 4096 bytes and splits above that: a piece is at most _TUI_WRITE_MAX bytes.
+#   2. a piece stands alone. A frame over the limit is cut only in front of an absolute cursor move; every piece after the first
+#      starts with PREFIX (the style the frame set up front) and every piece ends in a reset, so it does not matter which other
+#      writer's piece lands between two of them.
+declare -gi _TUI_WRITE_MAX=4000
+declare -gi _TUI_WRITE_GEN=0 # the main loop counts its writes in a file (_TUI_ASYNC_DIR/gen) while a painter runs: a painter whose count moved since its last frame holds that frame
+declare -gi _TUI_OUT_FD=1    # the terminal: painters keep it on a private fd and have their stdout closed (tui.async.start)
+declare -ga _TW_CHUNKS=()
+
+# _tui._write_chunks FRAME [PREFIX] -> _TW_CHUNKS: FRAME as pieces of at most _TUI_WRITE_MAX bytes (PREFIX and a reset included).
+# The cut goes in front of the last absolute cursor move that fits; a row with none (a long row of single-cell styles) is cut in
+# front of the last escape sequence instead, so a sequence is never split (what follows then continues from the cursor).
+_tui._write_chunks() {
+	local LC_ALL=C # bytes: the limit is the tty's, not a character count
+	local rest="$1" prefix="${2:-}" head pre tail cut room=$((_TUI_WRITE_MAX - 4 - ${#2}))
+	local esc=$'\e[' rst=$'\e[0m'
+	_TW_CHUNKS=()
+	while ((${#rest} > _TUI_WRITE_MAX)); do
+		head="${rest:0:room}"
+		cut=0
+		while [[ "$head" == *"$esc"* ]]; do
+			pre="${head%"$esc"*}"
+			tail="${head:${#pre}}"
+			if [[ "$tail" =~ ^$'\e'\[[0-9]+\;[0-9]+H ]]; then
+				cut=${#pre}
+				break
+			fi
+			head="$pre"
+		done
+		if ((cut == 0)); then # no cursor move in reach: in front of the last escape sequence
+			head="${rest:0:room}"
+			pre="${head%"$esc"*}"
+			cut=${#pre}
+			((cut > 0 && cut < ${#head})) || cut=$room # none at all: a hard cut (a frame of this shape is a bug)
+		fi
+		_TW_CHUNKS+=("${rest:0:cut}$rst")
+		rest="$prefix${rest:cut}"
+	done
+	_TW_CHUNKS+=("$rest")
+}
+
+# _tui.write FRAME [PREFIX] - FRAME to the terminal inside one synchronized update, in as few write calls as the rules above allow.
+# Two shortcuts keep it as cheap as a bare printf for what the main loop sends most: a frame of at most 1000 characters is under
+# the limit in bytes too (4 bytes a character at most), and with no painter running (the main loop alone) nothing can land
+# between two pieces, so a big frame goes out whole.
+_tui.write() {
+	local c
+	((_TUI_OUT_FD == 1 && ${#_TUI_ASYNC_PID[@]})) && printf '%s' "$((++_TUI_WRITE_GEN))" >"$_TUI_ASYNC_DIR/gen" # before the write: painters give way
+	if ((${#1} <= 1000)) || { ((_TUI_OUT_FD == 1 && ${#_TUI_ASYNC_PID[@]} == 0)); }; then
+		printf '\e[?2026h%s\e[?2026l' "$1" >&"$_TUI_OUT_FD"
+		return 0
+	fi
+	_tui._write_chunks "$1" "${2:-}"
+	_TW_CHUNKS[0]=$'\e[?2026h'"${_TW_CHUNKS[0]}"
+	_TW_CHUNKS[-1]+=$'\e[?2026l'
+	for c in "${_TW_CHUNKS[@]}"; do printf '%s' "$c" >&"$_TUI_OUT_FD"; done
+}
+
 # _tui.emit TEXT... - appends TEXT (args joined by IFS) to _TUI_FRAME.
 # Native += (no fork), not self-referencing printf -v (printf -v _TUI_FRAME
 # '%s%s' "$_TUI_FRAME" ...): that re-materializes the whole (growing) string

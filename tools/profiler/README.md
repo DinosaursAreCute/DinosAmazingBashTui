@@ -70,6 +70,14 @@ After the screen is updated, a quiet background job brings the cached copy of th
 
 The steps type into the *Title:* input and click buttons and tabs by their on-screen text, so they depend on the labels in `share/demo/compose.xml`. If a label changes, change the needles at the top of the scenario steps (`ADD_TASK`, `REMOVE_TASK`, `CYCLE_ENV`, `ADDON_BOXES`, `APPLY` in `dprof/scenarios.py`). `tests/unit/profiler_scenarios.t.sh` checks that every group has a title, a budget and steps.
 
+## Scenario for the Home page
+
+`--scenario home` (part of `full`) profiles the animated Home page (`share/demo/home.xml`, `home_callbacks.sh`). Groups: `home.open` (click Home in the nav to the hero built, budget 150 ms), `home.render` (kind `idle`, 3 s with the animation running), `home.hover` (pointer onto a tour button and back over the hero, 30 ms) and `home.click` (click a tour button, page switch away from Home, 100 ms; alt+1 returns as setup).
+
+Needles start with `~`: the rain writes about 100 KB a second and pushes the page's text out of the output tail the profiler reads, so a `remember` step stores the positions once and the later steps use them.
+
+`home.render` reports what the animation costs: main-loop frames and busy time, every byte the terminal received (the rain painter writes around the main loop's frames), and CPU and memory of the whole process tree, since the rain runs in a child process the usual per-step CPU figure would miss. The report shows them as the *HOME ANIMATION* tile. Needles are the tour button texts (`HOME_BUTTONS`, `HOME_CLICK` in `dprof/scenarios.py`); if `home.xml` changes them, edit those.
+
 ## Scenarios for the v2 pages
 
 `--scenario workspace`, `--scenario state` and `--scenario scrollform` (all part of `full`, about 15 s each) profile the v2 behaviour. Each is a unit of its own (see `UNIT_GROUPS`). Steps that need a spot on screen use the `pointer` step kind (`session.py`): one mouse event (`_pointer` in `scenarios.py`: move, press, drag, release, wheel) placed relative to the on-screen text of a pane title, so the coordinates follow the terminal size and the divider the pointer drags.

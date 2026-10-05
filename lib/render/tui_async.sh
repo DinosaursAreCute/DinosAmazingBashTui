@@ -9,13 +9,17 @@
 #   tui.async.put NAME KEY VALUE       the main loop's way to tell a painter something (a size, a mask): a small file.
 #   tui.async.get KEY VAR              the painter's side: VAR = the file's content ("" when absent).
 #   tui.async.wait SECONDS             inside a painter: sleep without a fork (it waits on a pipe nobody writes to).
+#   tui.async.emit FRAME [PREFIX]      inside a painter: FRAME (absolute cursor moves and cells) to the terminal; PREFIX is the
+#                                      style it starts with, repeated if the frame is cut in pieces
+#   tui.async.get gen VAR              the count of the main loop's writes (_tui.write bumps it before each): a painter that sees it
+#                                      move since its last frame skips that frame, so a highlight never queues behind animation
 #   tui.async.covered                  inside a painter: rc 0 while something is open over the page (a modal, the command
 #                                      palette, a layer): paint nothing then, so what is on top stays intact.
 #
 # One more thing keeps painters out of the way: _tui_async.cover_changed (called when a modal or a layer opens or closes)
 # writes the "covered" flag the painters read.
-# A painter writes a whole frame in one printf, as small as it can (changes only): the tty takes one write call whole, so a
-# frame is never torn by what the main loop writes between two of its own.
+# A painter draws with tui.async.emit only (its stdout is closed): the frame goes out through _tui.write, one write call per
+# piece, so it never lands inside what the main loop is writing and the main loop's never inside it.
 # requires:
 
 declare -gA _TUI_ASYNC_PID=()
@@ -39,7 +43,8 @@ tui.async.start() {
 	_TUI_ASYNC_PARENT=$BASHPID
 	(
 		trap 'exit 0' TERM HUP INT
-		exec </dev/null
+		exec </dev/null 9>&1 >/dev/null # the terminal is fd 9 and only tui.async.emit writes to it: a stray printf goes nowhere
+		_TUI_OUT_FD=9
 		"$fn" "$@"
 	) &
 	_TUI_ASYNC_PID[$name]=$!
@@ -94,6 +99,8 @@ tui.async.wait() {
 	exec 8<&-
 	return 0
 }
+
+tui.async.emit() { _tui.write "$1" "${2:-}"; }
 
 # tui.async.covered - rc 0 while the flag says something is open over the page
 tui.async.covered() {

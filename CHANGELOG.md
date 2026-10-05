@@ -41,7 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - A page's reset defaults are captured on its first visit. If `on_visit` fills a list differently on a later visit, the first values remain the reset target.
 - `tui.store.get` sees on-disk entries only after the page they belong to has been restored.
 
-- The older `tui.modal.*`, the dialogs and the command palette are not rebuilt as layer presets and still use the overlay registry; a modal layer holds focus and the pointer but global key bindings still work inside it.
+- The layer stack replaces the overlay registry: the footer, job spinner, toasts, the command palette, dialogs and `tui.overlay.add` functions are function layers (`tui.layer.fn_add FN [ambient]`) in the same stack as windows, and `tui.modal.*` is its modal preset. A modal layer holds focus and the pointer but global key bindings still work inside it.
 - A drag of a window repaints the whole page (about 38 ms a step); a damage rectangle would cut that.
 - `dock_group` targets are explicit (`tui.layer.dock LAYER PANE`); there is no drag-to-dock yet.
 

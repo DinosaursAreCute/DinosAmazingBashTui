@@ -167,6 +167,13 @@ def latency_groups(rounds):
         g["details"] = _details(acts)
         if gid == "nav.key" and g["went_false"] == len(acts):
             g["rating"], g["note"] = "slow", "key does nothing: no page change"
+        if kind == "idle" and gid.startswith("home."):   # the animation's cost: the whole process tree (the rain painter is a child) and every byte the terminal got
+            secs = sum(a.get("idle_s", 0) for a in acts) or 1
+            fr = sum(a["frames"] for a in acts)
+            g["idle"] = {"frames_per_s": fr / secs, "bytes_per_s": sum(a["out_bytes"] for a in acts) / secs,
+                         "cpu_pct": sum(a["tree_cpu_ms"] for a in acts) / (secs * 10), "busy_pct": sum(a["busy_ms"] for a in acts) / (secs * 10),
+                         "ms_per_frame": sum(a["busy_ms"] for a in acts) / fr if fr else 0.0,
+                         "rss_mb": max(a["tree_rss_kb"] for a in acts) / 1024, "procs": max(a["procs"] for a in acts)}
         if gid == "idle":
             secs = sum(a.get("idle_s", 0) for a in acts) or 1
             g["idle"] = {"frames_per_s": sum(a["frames"] for a in acts) / secs,

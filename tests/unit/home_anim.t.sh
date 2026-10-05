@@ -153,7 +153,8 @@ t_home_anim_tagline_badge_and_news_take_their_colours_from_the_theme_classes() {
 
 _ha_rain_setup() { # W H - a grid and an empty mask, as the painter has them after reading the published files
 	_HOME_W=$1 _HOME_H=$2 _HOME_STRIDE=$(($1 + 1)) _HOME_DT=0 _HOME_SEED=7
-	_HR_MASK=() _HR_PREV=() _HR_Y=() _HR_SP=() _HR_LEN=()
+	_HR_MASK=()
+	_home_rain_init
 }
 
 t_home_anim_painter_frame_is_cursor_moves_inside_the_pane_in_one_synchronised_block() {
@@ -163,7 +164,7 @@ t_home_anim_painter_frame_is_cursor_moves_inside_the_pane_in_one_synchronised_bl
 		_HOME_DT=$((_HOME_DT + 1))
 		_home_rain_frame 5 3 $'\e[48;2;1;2;3m'
 	done
-	ok '[[ "$_HR_OUT" == $'"'"'\e[?2026h'"'"'* && "$_HR_OUT" == *$'"'"'\e[0m\e[?2026l'"'"' ]]'
+	ok '[[ "$_HR_OUT" == $'"'"'\e[48;2;1;2;3m'"'"'* ]]' # the style first; tui.async.emit wraps and cuts it
 	local -a moves
 	local bad=0 m r c
 	while IFS=';' read -r r c; do
@@ -171,7 +172,6 @@ t_home_anim_painter_frame_is_cursor_moves_inside_the_pane_in_one_synchronised_bl
 		((r >= 5 && r < 5 + 13 && c >= 3 && c < 3 + 80)) || bad=1
 	done < <(grep -o $'\e\\[[0-9]*;[0-9]*H' <<<"$_HR_OUT" | sed -E $'s/\e\\[([0-9]+;[0-9]+)H/\\1/')
 	eq 0 "$bad"
-	ok '(( ${#_HR_OUT} < 4000 ))' # a frame is one write call of the tty: never torn by the main loop's own writes
 }
 
 t_home_anim_painter_frame_sends_only_changes_and_blanks_what_the_rain_left() {
@@ -187,9 +187,7 @@ t_home_anim_painter_frame_sends_only_changes_and_blanks_what_the_rain_left() {
 	_home_rain_frame 1 1 ""
 	first="$_HR_OUT"
 	ok '(( ${#first} < 3500 ))'
-	for i in "${!_HR_SP[@]}"; do _HR_SP[i]=1000000; done # no column moves on the next frame: nothing changed, nothing to send
-	_home_rain_frame 1 1 ""
-	_home_rain_frame 1 1 ""
+	_home_rain_frame 1 1 "" # the same tick again: nothing changed, nothing to send
 	eq "" "$_HR_OUT"
 	_HR_PREV[5]=$'\e[38;5;100mx' # a cell the rain no longer has
 	_home_rain_frame 1 1 ""
@@ -226,5 +224,47 @@ t_home_anim_publish_tells_the_painter_the_rect_the_mask_and_the_style() {
 	ok '[[ "$log" == *"rect=2 3 146 13 147;"*"mask="*"style="*"ver=1;"* ]]'
 	eval "$saved_put"
 	eval "$saved_active"
+	_ha_done
+}
+
+t_home_anim_rain_repeats_exactly_every_loop_length_so_the_bake_can_replay_it() {
+	_ha_rain_setup 80 13
+	local t a b bad=0
+	eq 0 $((_HR_ROWS % 6))
+	eq $((6 * _HR_ROWS)) "$_HR_L"
+	for t in 0 1 7 50 $((_HR_L - 1)); do
+		_home_rain_state "$t"
+		a="$(declare -p _HR_NOW)"
+		_home_rain_state $((t + _HR_L))
+		b="$(declare -p _HR_NOW)"
+		[[ "$a" == "$b" ]] || bad=1
+	done
+	eq 0 "$bad"
+}
+
+t_home_anim_rain_is_the_same_for_the_same_size_on_every_run_and_moves_between_ticks() {
+	_ha_rain_setup 80 13
+	local a b
+	_home_rain_state 10
+	a="$(declare -p _HR_NOW)"
+	_ha_rain_setup 80 13
+	_home_rain_state 10
+	eq "$a" "$(declare -p _HR_NOW)"
+	_home_rain_state 12
+	ok '[[ "$a" != "$(declare -p _HR_NOW)" ]]'
+}
+
+t_home_anim_rain_mask_is_fixed_rectangles_that_do_not_follow_the_text() {
+	_ha_setup
+	local a
+	_home_mask_cells
+	a="$_HOME_MASKSTR"
+	ok '[[ -n "$a" ]]'
+	_HOME_TIP=3 _HOME_TYPED=7
+	_home_mask_cells
+	eq "$a" "$_HOME_MASKSTR"
+	local top=$(((_HOME_H - 11) / 2)) x=$(((_HOME_W - 19) / 2))
+	ok '[[ " $a " == *" $((top * _HOME_STRIDE + x)) "* ]]'                 # a cell of the banner
+	ok '[[ " $a " == *" $(((top + 8) * _HOME_STRIDE + _HOME_W / 2)) "* ]]' # a cell of the tagline
 	_ha_done
 }

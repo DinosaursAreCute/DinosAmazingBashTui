@@ -127,3 +127,33 @@ ti_async_hold_pauses_the_painters_until_the_next_cover_check() {
 	ok '! tui.async.covered'
 	tui.async.stop_all
 }
+
+_as_stray_writer() { # a painter that prints to stdout instead of using tui.async.emit
+	printf 'STRAY'
+	tui.async.emit "PAINT"
+	tui.async.wait 0.05
+}
+
+ti_async_a_painters_stdout_goes_nowhere_and_only_emit_reaches_the_terminal() {
+	local out="$_T_ROOT/as_out_$RANDOM"
+	tui.async.start stray _as_stray_writer >"$out"
+	tui.async.wait 0.2
+	tui.async.stop_all
+	ok '[[ "$(cat "$out")" != *STRAY* ]]'
+	ok '[[ "$(cat "$out")" == *PAINT* ]]'
+}
+
+ti_async_the_main_loops_writes_are_counted_for_painters_only_while_one_runs() {
+	local g
+	_TUI_ASYNC_PID=() _TUI_WRITE_GEN=0 _TUI_OUT_FD=1
+	_tui.write "x" >/dev/null
+	eq 0 "$_TUI_WRITE_GEN" # no painter: nothing to tell
+	tui.async.put job x 1  # makes the folder
+	_TUI_ASYNC_PID[job]=$$
+	_tui.write "x" >/dev/null
+	_tui.write "y" >/dev/null
+	tui.async.get gen g
+	eq 2 "$g"
+	_TUI_ASYNC_PID=()
+	tui.async.stop_all
+}

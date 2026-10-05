@@ -254,21 +254,13 @@ fi
 if want overlay; then
 	hdr overlay
 	tui.goto "$PAGES_DIR/$home.xml" >/dev/null 2>&1
-	printf '  registered overlays: %s\n' "${_TUI_OVERLAY_FNS[*]}"
-	T "_tui_overlay.draw_all" '_tui_overlay.draw_all'
+	printf '  function layers: %s\n' "${_TUI_FL_ORDER[*]}"
+	T "_tui_layer.draw_all" '_tui_layer.draw_all'
 	: >"$SINK"
-	_tui_overlay.draw_all >"$SINK" 2>&1
-	printf '  bytes per overlay pass: %d\n' "$(wc -c <"$SINK")"
-	# simulated idle loop: same gate as tui.run (redraw only when a flush happened since the last pass)
+	_tui_layer.draw_all >"$SINK" 2>&1
+	printf '  bytes per layer-stack pass: %d\n' "$(wc -c <"$SINK")"
+	# an idle loop draws nothing: the stack is appended to page repaints only (_tui._flush), never redrawn on a tick
 	: >"$SINK"
-	_TUI_FLUSH_GEN=0
-	_TUI_OVL_GEN=0
-	for ((i = 0; i < 100; i++)); do
-		((${#_TUI_OVERLAY_FNS[@]} && _TUI_FLUSH_GEN != _TUI_OVL_GEN)) && {
-			_TUI_OVL_GEN=$_TUI_FLUSH_GEN
-			_tui_overlay.draw_all
-		}
-	done >>"$SINK" 2>&1
 	printf '  bytes over 100 idle ticks (target 0): %d\n' "$(wc -c <"$SINK")"
 fi
 

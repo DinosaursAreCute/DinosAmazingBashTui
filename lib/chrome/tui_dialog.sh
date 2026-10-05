@@ -514,7 +514,7 @@ _tui_dialog.draw_view() {
 	_TUI_FRAME+="$out"
 }
 
-# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
+# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_layer.draw_all's build/flush cycle.
 _tui_dialog.draw() {
 	tui.modal.active dialog || return 0
 	[[ "$_DLG_KIND" == view ]] && {
@@ -713,9 +713,9 @@ tui.notify() {
 	TUI_NOTIFY_ID=$id
 	if ((! _TST_ON)); then
 		_TST_ON=1
-		tui.overlay.add _tui_dialog.toast_draw
+		tui.layer.fn_add _tui_dialog.toast_draw
 	fi
-	((_TUI_RUNNING)) && _tui_overlay.draw_all
+	((_TUI_RUNNING)) && _tui_layer.draw_all
 	return 0
 }
 
@@ -764,7 +764,7 @@ tui.notify.clear() {
 	_TST_EXP=("${nexp[@]}")
 	((${#_TST_ID[@]})) || {
 		_TST_ON=0
-		tui.overlay.remove _tui_dialog.toast_draw
+		tui.layer.fn_remove _tui_dialog.toast_draw
 	}
 	((_TUI_RUNNING)) && tui.frame.request
 	return 0
@@ -787,7 +787,7 @@ _tui_dialog.reset() {
 	done
 }
 
-# overlay DRAWFN: appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
+# top function layer: appends to _TUI_FRAME, always called from _tui_layer.draw_all's build/flush cycle.
 _tui_dialog.toast_draw() {
 	local n=${#_TST_ID[@]}
 	((n)) || return 0

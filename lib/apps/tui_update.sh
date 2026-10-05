@@ -364,7 +364,7 @@ tui.update.cli() {
 		_tui_update.cli_help
 		return 0
 	}; done
-	exec 3<"${TUI_UPDATE_TTY:-/dev/tty}" 2>/dev/null || exec 3</dev/null{ exec 3<"${TUI_UPDATE_TTY:-/dev/tty}"; } 2>/dev/null || exec 3</dev/null
+	{ exec 3<"${TUI_UPDATE_TTY:-/dev/tty}"; } 2>/dev/null || exec 3</dev/null
 	while (($#)); do
 		case "$1" in
 			--check) check=1 ;; --path)

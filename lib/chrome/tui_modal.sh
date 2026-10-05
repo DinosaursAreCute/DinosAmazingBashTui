@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# tui_modal.sh - overlay registry + modal input capture. The foundation for the command palette
-# (tui_cmd.sh) and, later, dialogs / prompts / toasts.
+# tui_modal.sh - the modal preset of the layer stack (tui_layer.sh): a function layer that also owns the input. The
+# foundation for the command palette (tui_cmd.sh), dialogs and prompts. Its draw function is a top function layer, so
+# every repaint of the page under it is followed by it (_tui._flush); removing it is a full repaint (tui.relayout).
 #
-# OVERLAYS are things drawn over the panes. Panes repaint under them (timers, resizes), so every overlay
-# is REDRAWN after each full render and once per main-loop iteration - nothing that repaints underneath
-# can leave one half covered. Removing one is a full repaint (tui.relayout), which wipes it.
-#   tui.overlay.add FN | tui.overlay.remove FN     FN draws itself (absolute cursor moves, no state)
-#
-# A MODAL is an overlay that also owns the input: while one is open every key goes to its handler and the
+# A MODAL is a layer that owns the input: while one is open every key goes to its handler and the
 # mouse goes to its mouse handler (or is ignored) - bindings, focus, scrolling and the pointer are
 # suspended. Only the terminal-control chord (ctrl+alt+p) and quit-on-SIGINT still work.
 #   tui.modal.open NAME KEYFN DRAWFN [MOUSEFN]
@@ -17,64 +13,20 @@
 #   tui.modal.close             remove it and repaint the screen
 #   tui.modal.active [NAME]     rc 0 while a modal (or that one) is open
 #   tui.modal.redraw            draw now (call after your state changes)
-# requires:
-declare -ga _TUI_OVERLAY_FNS=()
+# requires: tui_layer
 declare -g _TUI_MODAL="" _TUI_MODAL_KEYFN="" _TUI_MODAL_DRAWFN="" _TUI_MODAL_MOUSEFN=""
 
-tui.overlay.add() {
-	local f
-	for f in "${_TUI_OVERLAY_FNS[@]}"; do [[ "$f" == "$1" ]] && return 0; done
-	_TUI_OVERLAY_FNS+=("$1")
-	_tui_plugin.own overlay "$1"
-}
-tui.overlay.remove() {
-	local f
-	local -a keep=()
-	for f in "${_TUI_OVERLAY_FNS[@]}"; do [[ "$f" == "$1" ]] || keep+=("$f"); done
-	_TUI_OVERLAY_FNS=("${keep[@]}")
-}
 declare -gi _TUI_FLUSH_GEN=0
-_TUI_OVL_GEN=0
 # Last full-render frame (saved by tui.render). tui.modal.dismiss replays it instead of re-composing the page
 # while nothing but overlays has painted since: _TUI_FLUSH_GEN - _TUI_BASE_GEN counts every flush after the base,
-# _TUI_OVL_FLUSHES the ones that were overlay draws. Other paints are folded into it (_tui_modal.base_fold); an erase, restyle or resize invalidates it.
+# _TUI_OVL_FLUSHES the ones that were layer-stack draws. Other paints are folded into it (_tui_modal.base_fold); an erase, restyle or resize invalidates it.
 declare -g _TUI_BASE_FRAME=""
 declare -gi _TUI_BASE_GEN=-1 _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=-1 _TUI_BASE_ROWS=0 _TUI_BASE_COLS=0
 declare -gi _TUI_OVL_FLUSHING=0
 declare -gi _TUI_DISMISS_REPLAY="${TUI_DISMISS_REPLAY:-1}"
-# _tui_overlay.draw_all - standalone (see _tui._render_output in lib/tui.sh for the
-# save/reset/build/flush/restore shape): overlays draw independently of a page's base
-# render (their own trigger, after tui.render already flushed once), so this owns its
-# own frame and its own synchronized flush rather than folding into tui.render's.
-# _tui_overlay.collect - appends every overlay's bytes to _TUI_FRAME without flushing: tui.render sends the page and its
-# overlays as one write, so a layer is never on screen without the page under it (or the page without its layers)
-_tui_overlay.collect() {
-	local f
-	for f in "${_TUI_OVERLAY_FNS[@]}"; do "$f"; done
-}
-
-_tui_overlay.draw_all() {
-	local f _oda_saved="$_TUI_FRAME"
-	_TUI_FRAME=""
-	for f in "${_TUI_OVERLAY_FNS[@]}"; do "$f"; done
-	if [[ -z "$_TUI_FRAME" ]]; then # every overlay was already on screen unchanged (the footer): no write, no sync frame
-		_TUI_FRAME="$_oda_saved"
-		_TUI_OVL_GEN=$_TUI_FLUSH_GEN
-		return 0
-	fi
-	_TUI_OVL_FLUSHING=1 # overlay bytes are not part of the base frame
-	_tui._flush "$_TUI_FRAME"
-	_TUI_OVL_FLUSHING=0
-	_TUI_FRAME="$_oda_saved"
-	_TUI_OVL_FLUSHES+=1
-	# after the flush, which bumps _TUI_FLUSH_GEN: marking the generation before it made the main loop
-	# see "something flushed since the last overlay draw" after every overlay draw, i.e. redraw forever
-	_TUI_OVL_GEN=$_TUI_FLUSH_GEN
-}
-
 tui.modal.active() { [[ -n "$_TUI_MODAL" && (-z "${1:-}" || "$_TUI_MODAL" == "$1") ]]; }
 tui.modal.redraw() {
-	[[ -n "$_TUI_MODAL_DRAWFN" ]] && _tui_overlay.draw_all
+	[[ -n "$_TUI_MODAL_DRAWFN" ]] && _tui_layer.draw_all
 	return 0
 }
 
@@ -84,15 +36,15 @@ tui.modal.open() {
 	_TUI_MODAL_KEYFN="$2"
 	_TUI_MODAL_DRAWFN="$3"
 	_TUI_MODAL_MOUSEFN="${4:-}"
-	tui.overlay.add "$3"
+	tui.layer.fn_add "$3"
 	_tui_async.cover_changed
-	((_TUI_RUNNING)) && _tui_overlay.draw_all
+	((_TUI_RUNNING)) && _tui_layer.draw_all
 	return 0
 }
 
 tui.modal.close() {
 	[[ -n "$_TUI_MODAL" ]] || return 0
-	tui.overlay.remove "$_TUI_MODAL_DRAWFN"
+	tui.layer.fn_remove "$_TUI_MODAL_DRAWFN"
 	_TUI_MODAL=""
 	_TUI_MODAL_KEYFN=""
 	_TUI_MODAL_DRAWFN=""
@@ -141,7 +93,7 @@ tui.modal.dismiss() {
 	_TUI_BASE_GEN=$_TUI_FLUSH_GEN
 	_TUI_OVL_FLUSHES=0
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
-	((${#_TUI_OVERLAY_FNS[@]})) && _tui_overlay.draw_all
+	_tui_layer.draw_all
 	mode.sync_end
 	_tui_perf.end dismiss
 }
@@ -149,7 +101,7 @@ tui.modal.dismiss() {
 # tui.reset_ui: a modal never survives a page change
 _tui_modal.reset() {
 	[[ -n "$_TUI_MODAL" ]] || return 0
-	tui.overlay.remove "$_TUI_MODAL_DRAWFN"
+	tui.layer.fn_remove "$_TUI_MODAL_DRAWFN"
 	_TUI_MODAL=""
 	_TUI_MODAL_KEYFN=""
 	_TUI_MODAL_DRAWFN=""
@@ -158,7 +110,7 @@ _tui_modal.reset() {
 }
 
 # tui.overlay.box ROW COL WIDTH SGR TITLE LINE... - appends a framed box to _TUI_FRAME (for overlay/modal
-# DRAWFNs, always called from _tui_overlay.draw_all's build/flush cycle - never prints directly).
+# DRAWFNs, always called from _tui_layer.draw_all's build/flush cycle - never prints directly).
 #   SGR: the colours as SGR parameters, e.g. "1;97;44".  LINEs are cut/padded to the inner width. No state kept.
 tui.overlay.box() {
 	local row="$1" col="$2" w="$3" sgr="$4" title="$5"

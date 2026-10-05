@@ -31,7 +31,7 @@ tui.footer.set() {
 	_TUI_FOOTER_STAMP=""
 	if ((! _TUI_FOOTER_ON)); then
 		_TUI_FOOTER_ON=1
-		tui.overlay.add _tui_footer.draw
+		tui.layer.fn_add _tui_footer.draw ambient
 	fi
 	return 0
 }
@@ -47,7 +47,7 @@ tui.footer.add() { tui.footer.show "${_TUI_FOOTER_ITEMS:-$TUI_FOOTER_DEFAULT};$1
 tui.footer.hide() {
 	((_TUI_FOOTER_ON)) || return 0
 	_TUI_FOOTER_ON=0
-	tui.overlay.remove _tui_footer.draw
+	tui.layer.fn_remove _tui_footer.draw
 	if ((_TUI_RUNNING)); then
 		_tui._root_w
 		_tui._root_h
@@ -59,7 +59,7 @@ _tui_footer.reset() {
 	_TUI_FOOTER_ON=0
 	_TUI_FOOTER_ITEMS=""
 	_TUI_FOOTER_STAMP=""
-	tui.overlay.remove _tui_footer.draw
+	tui.layer.fn_remove _tui_footer.draw
 }
 
 # the outermost pane leaves the last row to the footer
@@ -103,7 +103,7 @@ _tui_footer.build() {
 	_TUI_FOOTER_STR="${s_bar}${out}${pad}"$'\e[0m'
 }
 
-# overlay DRAWFN: appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
+# overlay DRAWFN: appends to _TUI_FRAME, an ambient function layer (tui_layer.sh).
 _tui_footer.draw() {
 	((_TUI_FOOTER_ON)) || return 0
 	local stamp="$_TUI_BIND_GEN:$_TUI_COLS:${#_TUI_PAGE_HISTORY[@]}:$_TUI_FOOTER_ITEMS:$_TUI_FOCUS_ID:$_TUI_PANE_FOCUS:$_TUI_RESIZE_PANE:$_TUI_LY_GEN"

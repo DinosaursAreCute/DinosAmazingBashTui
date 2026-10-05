@@ -26,10 +26,12 @@ Detaching removes the pane from its h or v split (children and size specs), reco
 
 Layers are page state: `_TUI_L_*` is part of the page cache and `tui.reset_ui` clears it. On a shell page the layers a page declares leave with it and the shell's stay. `persist="layout"` stores a window's rectangle and visibility, or a detachable pane's floating state, as the store field `layout`.
 
-## Overlays and background painters
+## The stack, function layers and background painters
 
-`_tui._flush` appends every overlay (the layers, the command palette, dialogs, toasts) to any write that repaints the page under them, so a clock tick or an animation frame never shows the page over a layer or the palette, not even for one frame. Background painters (`tui.async.*`, lib/render/tui_async.sh) are processes that draw straight to the terminal; while a modal or a layer is open, and while a resize is applied, a "covered" flag tells them to draw nothing, so they never write over what is on top.
+There is one stack and no separate overlay registry. Pane layers (the markup tags) and function layers (a draw function: the footer, the job spinner, toasts, the command palette, dialogs, a plugin's `tui.overlay.add`) are drawn in this order, bottom to top: ambient function layers, pane layers, the other function layers in the order they were added (`tui.layer.fn_add FN [ambient]`, `lib/chrome/tui_layer.sh`). An ambient layer owns cells no page paint reaches (the footer row), so it is drawn with the page and never after a repaint. `tui.modal.*` (`lib/chrome/tui_modal.sh`) is the modal preset: a function layer plus the input capture and the saved-frame replay of `tui.modal.dismiss`.
+
+`_tui._flush` appends the stack (pane layers and the non-ambient function layers) to any write that repaints the page under them, so a clock tick or an animation frame never shows the page over a layer or the palette, not even for one frame. Background painters (`tui.async.*`, lib/render/tui_async.sh) are processes that draw straight to the terminal; while a modal or a layer is open, and while a resize is applied, a "covered" flag tells them to draw nothing, so they never write over what is on top.
 
 ## Not done
 
-The `tui.modal.*` API, dialogs and the command palette still use the older overlay registry and input capture. A drag repaints the whole page; a damage rectangle would cut that cost.
+There is no main-loop redraw of the stack any more: it rides on page writes (`_tui._flush`, the standalone `_tui._draw_pane` / `_tui._draw_widget`) and is drawn alone only when a function layer itself changes (`_tui_layer.draw_all`). A drag repaints the whole page; a damage rectangle would cut that cost.

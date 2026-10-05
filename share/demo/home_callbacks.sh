@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# home_callbacks.sh - the Home demo page (share/demo/home.xml). The hero is one pane with two painters:
+# home_callbacks.sh - the Home demo page (share/demo/home.xml). The hero is one pane with two painters (the rain is off unless
+# TUI_HOME_RAIN=1 is set: it is disabled, not removed):
 #
 #   the text   the DABT banner, its name typed out underneath, the tagline and the news. The main loop paints it with
 #              tui.set_canvas, and only when it changes (a character typed, the glint moved, the news turned). Cells the text
@@ -14,14 +15,14 @@ tui.require terminal_renderer
 # the four pastels of the start-up splash, one per letter of DABT, and the words each letter stands for
 declare -ga _HOME_RGB=("255;140;191" "168;216;255" "255;243;168" "255;158;158")
 declare -ga _HOME_WORDS=(Dinos Amazing Bash Tui)
-declare -gi _HOME_TYPED=0 _HOME_WAIT=0 _HOME_CURSOR=1 _HOME_LEN=0 _HOME_GLINT=4 _HOME_RAIN=${TUI_HOME_RAIN:-1} _HOME_DT=0 _HOME_SEED=7 _HOME_VER=0
+declare -gi _HOME_TYPED=0 _HOME_WAIT=0 _HOME_CURSOR=1 _HOME_LEN=0 _HOME_GLINT=4 _HOME_RAIN=${TUI_HOME_RAIN:-0} _HOME_DT=0 _HOME_SEED=7 _HOME_VER=0
 declare -gi _HOME_DIRTY=1 _HOME_W=0 _HOME_H=0 _HOME_STRIDE=1 # the size the grid was built for; a row is _HOME_W cells and one more that ends the line
 for _hw in "${_HOME_WORDS[@]}"; do _HOME_LEN=$((_HOME_LEN + ${#_hw})); done
 unset _hw
 declare -g _HOME_SKIP=$'\e[C' # a cell of the grid the text does not use: the cursor moves over it and what is there stays
 declare -ga _HOME_BLANK=() _HOME_CELL=() _HOME_TXT_I=() _HOME_TXT_V=() _HOME_TXTPREV=() _HOME_FADE=()
-declare -gA _HOME_CACHED=()               # which banner / pills parts of the text layer are built (b0..b5, p0..)
-declare -ga _HR_Y=() _HR_SP=() _HR_LEN=() # rain state (in the painter), index = column
+declare -gA _HOME_CACHED=()      # which banner / pills parts of the text layer are built (b0..b5, p0..)
+declare -ga _HR_SP=() _HR_LEN=() # rain columns (in the painter), index = column
 declare -g _HR_TEXT="" _HR_R=0
 
 # _home_rand MOD -> _HR_R: a number below MOD (a small generator, so the rain is the same on every run)
@@ -72,6 +73,7 @@ _home_size() {
 		_HOME_CELL=("${_HOME_BLANK[@]}")
 		_HOME_TXTPREV=() _HOME_FADE=() _HOME_CACHED=()
 		_HOME_DIRTY=1 # the text has to be laid on the new grid
+		((_HOME_RAIN)) && _home_mask_cells
 	fi
 }
 
@@ -174,6 +176,39 @@ _home_class_sgr() {
 	else _HS="$2"; fi
 }
 
+# _home_tagline WIDTH -> _HT_TAG: the longest tagline that fits a pane WIDTH cells wide
+_home_tagline() {
+	_HT_TAG="A declarative, file-based terminal UI framework in pure bash  -  bash + POSIX utils + awk"
+	((${#_HT_TAG} + 20 > $1)) && _HT_TAG="A declarative, file-based terminal UI framework in pure bash"
+	((${#_HT_TAG} + 20 > $1)) && _HT_TAG="Terminal UIs in pure bash"
+	return 0
+}
+
+# _home_mask_cells -> _HOME_MASKSTR: the indices of the cells the rain never draws on: the rectangles of the banner and its name,
+# the tagline and the widest news line. They depend on the size only, not on what is typed or shown, so the rain is baked once.
+declare -g _HOME_MASKSTR=""
+_home_mask_cells() {
+	local LC_ALL=C.UTF-8
+	local w=$_HOME_W h=$_HOME_H top x tip widest=0 r c i
+	local -a rect
+	top=$(((h - 11) / 2))
+	x=$(((w - 19) / 2))
+	for tip in "${_HOME_TIPS[@]}"; do ((${#tip} > widest)) && widest=${#tip}; done
+	_home_tagline "$w"
+	rect=("$((x - 3))" "$((top - 1))" 25 8
+		"$(((w - ${#_HT_TAG} - 15) / 2 - 2))" "$((top + 8))" "$((${#_HT_TAG} + 19))" 1
+		"$(((w - widest - 9) / 2 - 2))" "$((top + 9))" "$((widest + 13))" 1)
+	_HOME_MASKSTR=""
+	for ((i = 0; i < ${#rect[@]}; i += 4)); do
+		for ((r = rect[i + 1]; r < rect[i + 1] + rect[i + 3]; r++)); do
+			((r >= 0 && r < h)) || continue
+			for ((c = rect[i]; c < rect[i] + rect[i + 2]; c++)); do
+				((c >= 0 && c < w)) && _HOME_MASKSTR+="$((r * _HOME_STRIDE + c)) "
+			done
+		done
+	done
+}
+
 # _home_pills_part TIP - the tagline, the badge and the news line TIP, each on a background from the theme (.home_tag,
 # .home_badge, .home_new, .home_news), with a blank margin: built once per news line and size
 _home_pills_part() {
@@ -190,9 +225,8 @@ _home_pills_part() {
 	new_sgr="$_HS"
 	_home_class_sgr home_news $'\e[38;2;168;216;255;48;2;38;44;66m'
 	news_sgr="$_HS"
-	tag="A declarative, file-based terminal UI framework in pure bash  -  bash + POSIX utils + awk"
-	((${#tag} + 20 > w)) && tag="A declarative, file-based terminal UI framework in pure bash"
-	((${#tag} + 20 > w)) && tag="Terminal UIs in pure bash"
+	_home_tagline "$w"
+	tag="$_HT_TAG"
 	news="${_HOME_TIPS[$1]}"
 	((_HOME_RAIN)) && {
 		_home_clear $(((w - ${#tag} - 15) / 2 - 2)) $((top + 8)) $((${#tag} + 19)) 1
@@ -235,7 +269,7 @@ _home_text_layer() {
 # _home_text_apply - the text layer onto the grid: the cells of the last one are blanked (for one paint, then they are skip cells
 # again), the new ones drawn. Only when the text changed.
 _home_text_apply() {
-	local i
+	local i fresh=$_HOME_DIRTY
 	_home_text_layer
 	for i in "${_HOME_TXTPREV[@]}"; do
 		_HOME_CELL[i]=" "
@@ -244,7 +278,7 @@ _home_text_apply() {
 	for i in "${!_HOME_TXT_I[@]}"; do _HOME_CELL[_HOME_TXT_I[i]]="${_HOME_TXT_V[i]}"; done
 	_HOME_TXTPREV=("${_HOME_TXT_I[@]}")
 	_HOME_DIRTY=0
-	_home_publish
+	((fresh)) && _home_publish
 }
 
 # _home_paint - the grid as one frame (every row ends in its own reset and newline, so it is a single join)
@@ -256,13 +290,14 @@ _home_paint() {
 	_HOME_FADE=()
 }
 
-# _home_publish - tells the rain painter where the hero is, which cells the text covers and the pane's style
+# _home_publish - tells the rain painter where the hero is, which cells it must leave alone and the pane's style: a new size, which
+# makes it bake the rain again
 _home_publish() {
 	tui.async.active home_rain || return 0
 	_tui._content_rect home_hero
 	_tui._style_v home_hero_normal
 	tui.async.put home_rain rect "$_CR_R $_CR_C $_HOME_W $_HOME_H $_HOME_STRIDE"
-	tui.async.put home_rain mask "${_HOME_TXT_I[*]}"
+	tui.async.put home_rain mask "$_HOME_MASKSTR"
 	tui.async.put home_rain style "$_SGR"
 	tui.async.put home_rain ver "$((++_HOME_VER))"
 }
@@ -332,90 +367,147 @@ _home_publish_first() {
 	_tui._content_rect home_hero
 	_tui._style_v home_hero_normal
 	tui.async.put home_rain rect "$_CR_R $_CR_C $_HOME_W $_HOME_H $_HOME_STRIDE"
-	tui.async.put home_rain mask "${_HOME_TXT_I[*]}"
+	tui.async.put home_rain mask "$_HOME_MASKSTR"
 	tui.async.put home_rain style "$_SGR"
 	tui.async.put home_rain ver "$((++_HOME_VER))"
 }
 
 # ── the rain painter (a process of its own) ───────────────────────────────
+#
+# The rain is a pure function of the tick T and repeats exactly every _HR_L ticks, so it is baked: the first pass draws and keeps
+# each frame (the changes since the one before) as it plays, and every pass after that sends the kept string and calculates
+# nothing. A column has a start row, a speed (1-3 ticks a row) and a tail length for good; its head is at (start + T / speed)
+# mod _HR_ROWS, and the letters shimmer with T / 3 mod 12. _HR_ROWS is a multiple of 6 and _HR_L = 6 * _HR_ROWS, so every speed, and the
+# shimmer, come round together at _HR_L. The text covers fixed rectangles (_home_mask_cells), so what is baked never depends on
+# the text: it is baked again only for a new size.
 
-# _home_column COLUMN - a fresh start for one column of rain: a position above the top (up to a screen's worth of waiting), a
-# speed of 1-3 ticks a row, a tail of 4-8
-_home_column() {
-	_home_rand "$((_HOME_H + 4))"
-	_HR_Y[$1]=$((-_HR_R))
-	_home_rand 3
-	_HR_SP[$1]=$((_HR_R + 1))
-	_home_rand 5
-	_HR_LEN[$1]=$((_HR_R + 4))
+declare -gi _HR_ROWS=0 _HR_L=0
+declare -ga _HR_Y0=() _HR_FR=()
+declare -gA _HR_NOW=()
+
+# _home_rain_init - the columns of a grid of _HOME_W x _HOME_H, the loop length and an empty bake (the same every run)
+_home_rain_init() {
+	local c
+	_HOME_SEED=7
+	_HR_Y0=() _HR_SP=() _HR_LEN=() _HR_FR=() _HR_PREV=() _HR_NOW=()
+	_HR_ROWS=$((((2 * _HOME_H + 8 + 5) / 6) * 6)) # a column is idle for about a screen between two drops
+	_HR_L=$((6 * _HR_ROWS))
+	for ((c = 0; c < _HOME_W; c += 2)); do
+		_home_rand "$_HR_ROWS"
+		_HR_Y0[c]=$_HR_R
+		_home_rand 3
+		_HR_SP[c]=$((_HR_R + 1))
+		_home_rand 5
+		_HR_LEN[c]=$((_HR_R + 4))
+	done
 }
 
-# _home_rain_frame ROW0 COL0 STYLE - one frame of the rain as a string of cursor moves and cells -> _HR_OUT, in the painter.
-# Only what changed: a cell that is the same as the last frame is not sent, a cell the rain left is blanked. Uses the arrays
-# the loop keeps: _HR_MASK (cells the text covers), _HR_PREV (cell index -> what is drawn there).
-declare -g _HR_OUT=""
-declare -gA _HR_MASK=() _HR_PREV=()
-_home_rain_frame() {
-	local w=$_HOME_W h=$_HOME_H st=$_HOME_STRIDE c y len k kmax r idx pb base n=${#_HR_CH[@]} sh=$((_HOME_DT / 3)) cell
-	local -A now=()
-	_HR_OUT=""
+# _home_rain_state T -> _HR_NOW: the cell index -> the cell the rain has at tick T, outside the mask (_HR_MASK)
+_home_rain_state() {
+	local w=$_HOME_W h=$_HOME_H st=$_HOME_STRIDE c y len k kmax r idx pb base n=${#_HR_CH[@]} sh=$(($1 / 3 % 12))
+	_HR_NOW=()
 	for ((c = 0; c < w; c += 2)); do
-		[[ -n "${_HR_LEN[$c]:-}" ]] || _home_column "$c"
-		y=${_HR_Y[$c]}
-		if ((y < 0)); then # still waiting above the screen: it only counts down
-			((_HOME_DT % _HR_SP[c] == 0)) && _HR_Y[c]=$((y + 1))
-			continue
-		fi
-		len=${_HR_LEN[$c]} pb=$((c / 2 % 4 * 6)) base=$((c * 7 + sh))
+		y=$(((_HR_Y0[c] + $1 / _HR_SP[c]) % _HR_ROWS))
+		len=${_HR_LEN[c]} pb=$((c / 2 % 4 * 6)) base=$((c * 7 + sh))
 		for ((k = y >= h ? y - h + 1 : 0, kmax = y < len ? y : len - 1; k <= kmax; k++)); do # only the cells of the tail that are on screen
 			r=$((y - k))
 			idx=$((r * st + c))
 			[[ -n "${_HR_MASK[$idx]:-}" ]] && continue
-			cell="${_HR_PAL[pb + _HR_STEP[len * 10 + k]]}${_HR_CH[(base + r * 13) % n]}"
-			now[$idx]="$cell"
-			[[ "${_HR_PREV[$idx]:-}" == "$cell" ]] || _HR_OUT+=$'\e['$(($1 + r))';'$(($2 + c))'H'"$cell"
+			_HR_NOW[$idx]="${_HR_PAL[pb + _HR_STEP[len * 10 + k]]}${_HR_CH[(base + r * 13) % n]}"
 		done
-		if ((_HOME_DT % _HR_SP[c] == 0)); then
-			_HR_Y[c]=$((y + 1))
-			((y - len > h)) && _home_column "$c" # off the bottom: start again above the top
-		fi
+	done
+}
+
+# _home_rain_frame ROW0 COL0 STYLE - the frame for tick _HOME_DT as a string of cursor moves and cells -> _HR_OUT: only what
+# changed since the last call (_HR_PREV), a cell the rain left blanked. STYLE comes first.
+declare -g _HR_OUT=""
+declare -gA _HR_MASK=() _HR_PREV=()
+_home_rain_frame() {
+	local st=$_HOME_STRIDE idx
+	_home_rain_state "$_HOME_DT"
+	_HR_OUT=""
+	for idx in "${!_HR_NOW[@]}"; do
+		[[ "${_HR_PREV[$idx]:-}" == "${_HR_NOW[$idx]}" ]] || _HR_OUT+=$'\e['$(($1 + idx / st))';'$(($2 + idx % st))'H'"${_HR_NOW[$idx]}"
 	done
 	for idx in "${!_HR_PREV[@]}"; do # what the last frame drew and this one does not
-		[[ -n "${now[$idx]:-}" ]] || _HR_OUT+=$'\e['$(($1 + idx / st))';'$(($2 + idx % st))'H '
+		[[ -n "${_HR_NOW[$idx]:-}" ]] || _HR_OUT+=$'\e['$(($1 + idx / st))';'$(($2 + idx % st))'H '
 	done
 	_HR_PREV=()
-	for idx in "${!now[@]}"; do _HR_PREV[$idx]="${now[$idx]}"; done
-	[[ -n "$_HR_OUT" ]] && _HR_OUT=$'\e[?2026h'"$3$_HR_OUT"$'\e[0m\e[?2026l'
+	for idx in "${!_HR_NOW[@]}"; do _HR_PREV[$idx]="${_HR_NOW[$idx]}"; done
+	[[ -n "$_HR_OUT" ]] && _HR_OUT="$3$_HR_OUT"
+	return 0
+}
+
+# _home_rain_full ROW0 COL0 STYLE - every cell of _HR_NOW as one frame -> _HR_OUT: for the first frame after something covered
+# the page, when what is on screen is not known
+_home_rain_full() {
+	local st=$_HOME_STRIDE idx
+	_HR_OUT="$3"
+	for idx in "${!_HR_NOW[@]}"; do _HR_OUT+=$'\e['$(($1 + idx / st))';'$(($2 + idx % st))'H'"${_HR_NOW[$idx]}"; done
 	return 0
 }
 
 # _home_rain_child - the painter's loop. It reads what the main loop published when the version changes, stops drawing while
-# something is open over the page (and starts again from a full frame), and ends when the main process does.
+# something is open over the page (and starts again from a full frame), and ends when the main process does. Per tick: while
+# the first pass is on, the frame is made and kept (_home_rain_frame); after it, the kept one is sent.
 _home_rain_child() {
-	local ver="" cur rect mask sty r0 c0 st wasc=0 i
+	local ver="" cur rect mask sty r0 c0 st i t=0 k synced=0 baked=0 wrapped=0 out gen lastgen=""
 	local -a m
 	while kill -0 "$_TUI_ASYNC_PARENT" 2>/dev/null; do
 		tui.async.get home_rain.ver cur
-		if [[ "$cur" != "$ver" ]]; then # a new size, new text cells: start from a clean frame
+		if [[ "$cur" != "$ver" ]]; then # a new size: start from a clean frame and bake again
 			ver="$cur"
 			tui.async.get home_rain.rect rect
 			tui.async.get home_rain.mask mask
 			tui.async.get home_rain.style sty
 			read -r r0 c0 _HOME_W _HOME_H st <<<"$rect"
 			_HOME_STRIDE=${st:-1}
-			_HR_MASK=() _HR_PREV=() _HR_Y=() _HR_SP=() _HR_LEN=()
+			_HR_MASK=()
 			read -ra m <<<"$mask"
 			for i in "${m[@]}"; do _HR_MASK[$i]=1; done
+			_home_rain_init
+			t=0 synced=0 baked=0 wrapped=0
 		fi
 		if tui.async.covered; then
-			_HR_PREV=() # whatever was drawn is under the overlay or gone: a full frame when it closes
+			synced=0 # whatever was drawn is under the overlay or gone: a full frame when it closes
 			tui.async.wait 0.1
 			continue
 		fi
+		tui.async.get gen gen
+		if [[ "$gen" != "$lastgen" ]]; then # the main loop wrote since the last tick (a highlight, a repaint): the tick is its
+			lastgen="$gen"                     # own. The rain holds where it is, so the next frame still follows the one on screen.
+			tui.async.wait 0.03
+			continue
+		fi
 		if [[ -n "$rect" ]]; then
-			_HOME_DT=$((_HOME_DT + 1))
-			_home_rain_frame "$r0" "$c0" "$sty"
-			[[ -n "$_HR_OUT" ]] && printf '%s' "$_HR_OUT"
+			k=$((t % _HR_L))
+			if ((baked < _HR_L)); then # the first pass: make this frame and keep it
+				_HOME_DT=$t
+				_home_rain_frame "$r0" "$c0" "$sty"
+				_HR_FR[k]="$_HR_OUT"
+				((++baked))
+				out="$_HR_OUT"
+				((synced)) || {
+					_home_rain_full "$r0" "$c0" "$sty"
+					out="$_HR_OUT"
+				}
+			else
+				if ((! wrapped && k == 0)); then # frame 0 as it follows the last one (the first pass drew it from an empty screen)
+					_HOME_DT=$_HR_L
+					_home_rain_frame "$r0" "$c0" "$sty"
+					_HR_FR[0]="$_HR_OUT"
+					wrapped=1
+				fi
+				out="${_HR_FR[k]}"
+				((synced)) || {
+					_home_rain_state "$k"
+					_home_rain_full "$r0" "$c0" "$sty"
+					out="$_HR_OUT"
+				}
+			fi
+			synced=1
+			[[ -n "$out" ]] && tui.async.emit "$out" "$sty"
+			((t++))
 		fi
 		tui.async.wait 0.03
 	done

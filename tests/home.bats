@@ -49,7 +49,7 @@ locate() { bash -c 'source "$REPO/lib/tui_home.sh"; echo "$TUI_HOME_SOURCE|$TUI_
 }
 
 @test "installed config: defaults come from the config home, and install.meta marks it installed" {
-    mkdir -p "$XDG_CONFIG_HOME/DABT/defaults"; echo "version=1" > "$XDG_CONFIG_HOME/DABT/install.meta"
+    mkdir -p "$XDG_CONFIG_HOME/DABT/defaults"; echo "version=$(<"$REPO/VERSION")" > "$XDG_CONFIG_HOME/DABT/install.meta"
     run locate
     [ "$output" = "default|$XDG_CONFIG_HOME/DABT|1|$XDG_CONFIG_HOME/DABT/defaults" ]
 }

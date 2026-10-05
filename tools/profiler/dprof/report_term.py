@@ -87,6 +87,10 @@ def verdict(rep, W):
                        min(1.0, f / 20), w))
     else:
         t.append(None)
+    home = lat.get("home.render", {}).get("idle")
+    if home:
+        t.append(_tile("HOME ANIMATION", f"{home['cpu_pct']:.0f}% cpu", f"{home['bytes_per_s'] / 1024:.0f} KB/s · {home['rss_mb']:.0f} MB · {home['procs']} procs",
+                       "green" if home["cpu_pct"] < 50 else "yellow" if home["cpu_pct"] < 100 else "red", min(1.0, home["cpu_pct"] / 100), w))
     t = [x for x in t if x]
     rows = max(len(x) for x in t) if t else 0
     return [(" " * gap).join(pad(x[i], w) for x in t) for i in range(rows)]

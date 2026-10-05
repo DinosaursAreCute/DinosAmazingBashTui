@@ -59,8 +59,6 @@ source "${SCRIPT_DIR}/layout/tui_layout.sh"
 source "${SCRIPT_DIR}/core/tui_loop.sh"
 # shellcheck source=markup/tui_markup.sh
 source "${SCRIPT_DIR}/markup/tui_markup.sh"
-# shellcheck source=chrome/tui_modal.sh
-source "${SCRIPT_DIR}/chrome/tui_modal.sh"
 # shellcheck source=input/tui_mouse.sh
 source "${SCRIPT_DIR}/input/tui_mouse.sh"
 # shellcheck source=markup/tui_node.sh
@@ -85,6 +83,8 @@ source "${SCRIPT_DIR}/tui_registry.sh"
 source "${SCRIPT_DIR}/markup/tui_build.sh"
 # shellcheck source=chrome/tui_layer.sh
 source "${SCRIPT_DIR}/chrome/tui_layer.sh"
+# shellcheck source=chrome/tui_modal.sh
+source "${SCRIPT_DIR}/chrome/tui_modal.sh"
 # shellcheck source=layout/tui_resize.sh
 source "${SCRIPT_DIR}/layout/tui_resize.sh"
 # shellcheck source=render/tui_rowcache.sh

@@ -1430,6 +1430,7 @@ _tui._draw_pane() {
 	_tui_hit.overlay "$1"
 	_tui_modal.base_fold "$_TUI_FRAME"
 	((_TUI_FLUSH_GEN++))
+	((_TUI_L_N || _TUI_FL_TOP || ${#_TUI_P_DETACHABLE[@]})) && _tui_layer.cover # the page repaint is followed by what is on top of it
 	printf '%s' "$_TUI_FRAME"
 	_TUI_FRAME="$_dp_saved"
 }
@@ -1591,6 +1592,7 @@ _tui._draw_widget() {
 	_tui._draw_widget_buf "$1"
 	_tui_modal.base_fold "$_TUI_FRAME" # painted outside _tui._flush
 	((_TUI_FLUSH_GEN++))
+	((_TUI_L_N || _TUI_FL_TOP || ${#_TUI_P_DETACHABLE[@]})) && _tui_layer.cover
 	printf '%s' "$_TUI_FRAME"
 	_TUI_FRAME="$_dw_saved"
 }
@@ -1793,8 +1795,9 @@ _tui._now_us() {
 }
 
 # _tui._flush BUF - the one place a fully-composed frame actually reaches
-# the terminal: wraps it in DEC synchronized-output mode and prints it in
-# a single write, exactly as every call site here already did before this
+# the terminal: wraps it in DEC synchronized-output mode and prints it with
+# _tui.write (tui_emit.sh: one write call per piece, so a painter's frame never
+# lands in the middle of it), exactly as every call site here already did before this
 # existed - consolidated so there's one place to add instrumentation
 # instead of five near-identical copies of the same three lines. Timing
 # only happens while _TUI_PERF_TRACKING is on.
@@ -1804,18 +1807,16 @@ _tui._flush() {
 	((_TUI_FLUSH_GEN++))
 	# a repaint of the page (a clock tick, an animation, a hover) may cross a layer, the command palette or a dialog: what is
 	# open over the page goes out in the same write, so the page is never on screen over it, not even for one frame
-	if ((! _TUI_OVL_FLUSHING && ! _TUI_L_DRAWING)) && [[ -n "$out" ]] && { ((_TUI_L_N)) || [[ -n "$_TUI_MODAL" ]]; }; then
+	if ((! _TUI_OVL_FLUSHING && ! _TUI_L_DRAWING)) && [[ -n "$out" ]] && ((_TUI_L_N || _TUI_FL_TOP || ${#_TUI_P_DETACHABLE[@]})); then
 		local _fl_saved="$_TUI_FRAME"
 		_TUI_FRAME="" _TUI_L_DRAWING=1
-		_tui_overlay.collect
+		_tui_layer.cover
 		out+="$_TUI_FRAME"
 		_TUI_FRAME="$_fl_saved" _TUI_L_DRAWING=0
 	fi
 	if ((! _TUI_PERF_TRACKING)); then
 		[[ -z "$out" ]] && return
-		mode.sync_start
-		printf '%s' "$out"
-		mode.sync_end
+		_tui.write "$out"
 		return
 	fi
 
@@ -1824,11 +1825,7 @@ _tui._flush() {
 	_tui_perf.count bytes_suppressed "$((${#buf} - ${#out}))"
 	_tui._now_us
 	local t0=$_TUI_NOW_US
-	[[ -n "$out" ]] && {
-		mode.sync_start
-		printf '%s' "$out"
-		mode.sync_end
-	}
+	[[ -n "$out" ]] && _tui.write "$out"
 	_tui._now_us
 	local t1=$_TUI_NOW_US
 	_tui_perf.end flush
@@ -1924,14 +1921,13 @@ tui.render() {
 	# Targeted redraws (_tui._draw_ids_now) go through _tui_paint.flush instead.
 	_TUI_BASE_FRAME="$_TUI_FRAME"
 	_TUI_BASE_GEN=-1 # this flush is the base itself: no fold
-	# layers draw over the page: their bytes ride in the same write, so a drag or a resize never shows the page without them
-	{ ((_TUI_L_N)) || [[ -n "$_TUI_MODAL" ]]; } && _tui_overlay.collect
-	_TUI_L_DRAWING=1 # the overlays are in the frame already
+	# the layer stack draws over the page: its bytes ride in the same write, so a drag or a resize never shows the page without them
+	_tui_layer.collect_all
+	_TUI_L_DRAWING=1 # the stack is in the frame already
 	_tui._flush "$_TUI_FRAME"
 	_TUI_L_DRAWING=0
 	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=$_TUI_RC_EPOCH _TUI_BASE_ROWS=$_TUI_ROWS _TUI_BASE_COLS=$_TUI_COLS
 	((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
-	if ((_TUI_L_N)) || [[ -n "$_TUI_MODAL" ]]; then _TUI_OVL_GEN=$_TUI_FLUSH_GEN; elif ((${#_TUI_OVERLAY_FNS[@]})); then _tui_overlay.draw_all; fi
 	_tui_perf.end render
 }
 

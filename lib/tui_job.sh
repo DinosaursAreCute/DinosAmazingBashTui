@@ -184,17 +184,17 @@ _tui_job.sync_spinner() {
 	if ((want)); then
 		if ((! _TJ_ON)); then
 			_TJ_ON=1
-			tui.overlay.add _tui_job.spinner_draw
+			tui.layer.fn_add _tui_job.spinner_draw
 		elif ((frame == _TJ_FRAME)); then
 			return 0
 		fi
 		_TJ_FRAME=$frame
 		_TJ_DRAWN=1
-		((_TUI_RUNNING)) && _tui_overlay.draw_all
+		((_TUI_RUNNING)) && _tui_layer.draw_all
 	elif ((_TJ_ON)); then
 		_TJ_ON=0
 		_TJ_FRAME=-1
-		tui.overlay.remove _tui_job.spinner_draw
+		tui.layer.fn_remove _tui_job.spinner_draw
 		if [[ "${1:-}" == erase ]] && ((_TJ_DRAWN && _TUI_RUNNING)); then
 			_TJ_DRAWN=0
 			tui.render
@@ -203,7 +203,7 @@ _tui_job.sync_spinner() {
 	return 0
 }
 
-# overlay DRAWFN: appends to _TUI_FRAME (see _tui_overlay.draw_all). Top-right corner, on the frame's top row.
+# top function layer: appends to _TUI_FRAME (see _tui_layer.draw_all). Top-right corner, on the frame's top row.
 _tui_job.spinner_draw() {
 	local id label="" n=0 txt x
 	for id in "${_TJ_IDS[@]}"; do

@@ -82,20 +82,20 @@ ti_job_spinner_appears_only_after_the_delay() {
 	tui.job.run --delay 0 j1 _jb_work_slow _jb_done
 	_tui_job.tick
 	eq 1 "$_TJ_ON"
-	ok '[[ " ${_TUI_OVERLAY_FNS[*]} " == *" _tui_job.spinner_draw "* ]]'
+	ok '[[ " ${_TUI_FL_ORDER[*]} " == *" _tui_job.spinner_draw "* ]]'
 	tui.job.cancel j1
 	eq 0 "$_TJ_ON"
-	ok '[[ " ${_TUI_OVERLAY_FNS[*]} " != *" _tui_job.spinner_draw "* ]]'
+	ok '[[ " ${_TUI_FL_ORDER[*]} " != *" _tui_job.spinner_draw "* ]]'
 }
 
 ti_job_spinner_is_gone_before_the_done_function_runs() {
 	_jb_reset
-	_jb_done_spin() { _JB_LOG+="on=$_TJ_ON;overlay=${_TUI_OVERLAY_FNS[*]};"; }
+	_jb_done_spin() { _JB_LOG+="on=$_TJ_ON;overlay=${_TUI_FL_ORDER[*]};"; }
 	tui.job.run --delay 0 j1 _jb_work_slow _jb_done_spin
 	_tui_job.tick # past the delay: the spinner is on
 	eq 1 "$_TJ_ON"
 	_jb_wait j1
-	eq "on=0;overlay=${_TUI_OVERLAY_FNS[*]};" "$_JB_LOG"
+	eq "on=0;overlay=${_TUI_FL_ORDER[*]};" "$_JB_LOG"
 	ok '[[ "$_JB_LOG" != *_tui_job.spinner_draw* ]]'
 }
 

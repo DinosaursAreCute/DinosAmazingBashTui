@@ -318,7 +318,7 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 
 Painters run in background processes and draw directly to the terminal with absolute cursor moves, so their frames cost the main loop nothing and a hover or focus highlight is never queued behind them. A painter receives updates from the main loop through small state files and sleeps without forking.
 
-<!-- api: tui.async.start tui.async.stop tui.async.stop_all tui.async.active tui.async.put tui.async.get tui.async.wait tui.async.covered -->
+<!-- api: tui.async.start tui.async.stop tui.async.stop_all tui.async.active tui.async.put tui.async.get tui.async.wait tui.async.emit tui.async.covered -->
 
 | Function | Summary |
 |---|---|
@@ -329,6 +329,7 @@ Painters run in background processes and draw directly to the terminal with abso
 | [`tui.async.put`](core/tui.async.put.md) | The main loop's way to send a small value to a painter: writes VALUE to a temporary file that the painter can read with [`tui.async.get`](/api/core/tui.async.get.html). |
 | [`tui.async.get`](core/tui.async.get.md) | Inside a painter: reads a value sent by the main loop via [`tui.async.put`](/api/core/tui.async.put.html) into VAR. |
 | [`tui.async.wait`](core/tui.async.wait.md) | Inside a painter: sleeps without forking, by waiting on a pipe that is held open and never written. Returns immediately after the timeout, or when the main process exits. |
+| [`tui.async.emit`](core/tui.async.emit.md) | Inside a painter: sends FRAME to the terminal. A painter's stdout is closed, so this is the only way it draws. |
 | [`tui.async.covered`](core/tui.async.covered.md) | Inside a painter: returns 0 while something is open over the page (a modal, the command palette, a dialog, or a layer); 1 when the page is fully visible. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
@@ -346,6 +347,8 @@ Painters run in background processes and draw directly to the terminal with abso
 {% include_relative core/tui.async.get.md %}
 
 {% include_relative core/tui.async.wait.md %}
+
+{% include_relative core/tui.async.emit.md %}
 
 {% include_relative core/tui.async.covered.md %}
 

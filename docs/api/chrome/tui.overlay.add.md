@@ -4,7 +4,7 @@
 tui.overlay.add DRAWFN
 ```
 
-Registers a function that draws on top of the panes after every repaint.
+Adds a function layer that draws on top of the panes after every repaint (an alias of [`tui.layer.fn_add`](/api/chrome/tui.layer.fn_add.html) that a plugin owns).
 
 **Parameters**
 

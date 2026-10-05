@@ -20,7 +20,7 @@ KEY_PAGE = {"1": "home", "2": "components", "3": "settings", "4": "monitor", "5"
 # "page-switch floor" section. A call stack that contains one of them is attributed to it, unpruned.
 FOCUS_ROOTS = ("tui.goto", "tui.reset_ui", "tui.load_cached", "tui.cache.replay", "_tui_cache_restore",
                "_tui_cache_run_on_visit", "_tui_cache_source", "tui.render", "_tui._draw_pane_buf",
-               "_tui._draw_widget_buf", "_tui._render_output_buf", "_tui_overlay.draw_all", "_tui._flush")
+               "_tui._draw_widget_buf", "_tui._render_output_buf", "_tui_layer.draw_all", "_tui._flush")
 
 REPEAT_S = 0.033        # key repeat of a held key: ~30 per second (X11 default 25/s, macOS/Windows ~30/s)
 HELD_BUDGET_MS = 50     # key release to last frame painted
@@ -85,6 +85,11 @@ GROUP_INFO = {
     "scrollform.wheel": ("Scroll form: wheel over a widget", "input", 60),
     "scrollform.pgdn": ("Scroll form: Page Down", "input", 100),
     "scrollform.click": ("Scroll form: click after scrolling", "input", 100),
+    # the animated Home page (share/demo/home.xml, home_callbacks.sh): typed banner and matrix rain in the hero, the tour list below
+    "home.open": ("Home page, open from another page (hero built, rain started)", "nav", 150),
+    "home.render": ("Home: animation running, 3 s (frames, bytes, cpu and memory of the app and the rain process)", "idle", 0),
+    "home.hover": ("Home: pointer onto a tour button / back over the animated hero", "input", 30),
+    "home.click": ("Home: click a tour button (page switch away from the animated page)", "input", 100),
     "resize": ("Terminal resize", "resize", 250),
     "idle": ("Idle (3 s, nothing happening)", "idle", 0),
     "shutdown": ("Quit", "shutdown", 500),
@@ -137,6 +142,7 @@ SCENARIOS = [
     ("workspace", "Workspace demo page: first visit, hover and drag of the resize dividers, keyboard resize, collapsing the Services pane by button and alt+c, the page's tui.every ticks", {g for g in GROUP_INFO if g.startswith("workspace.")}),
     ("state", "Page-state store (keep_value): a page switch with a kept input vs. a plain switch, and alt+shift+r reset on the Workspace page", {"state.plain_goto", "state.save_restore", "state.reset"}),
     ("scrollform", "Scrolling demo's form (scroll='v' pane): Tab through every field, wheel over a widget, Page Down, click after scrolling", {g for g in GROUP_INFO if g.startswith("scrollform.")}),
+    ("home", "Home page (home.xml): open it, the animation's frames, bytes, cpu and memory for 3 s, hover over the tour buttons and the hero, click a tour button", {g for g in GROUP_INFO if g.startswith("home.")}),
     ("idle", "Idle: what the app does when nothing happens", {"idle"}),
 ]
 SCENARIO_NAMES = [n for n, _, _ in SCENARIOS]
@@ -192,6 +198,7 @@ CYCLE_ENV = "[ Cycle environment"
 
 WORKSPACE_GROUPS = ["workspace.open", "workspace.hover_handle", "workspace.drag", "workspace.resize_key",
                     "workspace.collapse_click", "workspace.collapse_key", "workspace.tick"]
+HOME_GROUPS = ["home.open", "home.render", "home.hover", "home.click"]
 STATE_GROUPS = ["state.plain_goto", "state.save_restore", "state.reset"]
 SCROLLFORM_GROUPS = ["scrollform.tab", "scrollform.wheel", "scrollform.pgdn", "scrollform.click"]
 # Needles on the Workspace page: pane titles locate the dividers (a fused border is the next pane's title row; a column border
@@ -239,6 +246,40 @@ def _workspace_steps(want, quick):
         add(Step("workspace.collapse_key", "alt+c expand", "key", ALT_C, quiet=0.2, timeout=5.0))
     if want("workspace.tick"):
         add(Step("workspace.tick", "3 s", "idle", 1.5 if quick else 3.0))
+    return S
+
+
+# Needles on the Home page: the tour buttons' texts (the page has no menu, so Home is reached by alt+1 and left by a button)
+# The rain writes ~100 KB a second, which pushes the page's text out of the output tail the profiler reads: the needles start with
+# "~" (the position remembered by a "remember" step right after the page is up), and the idle measurement comes last.
+HOME_BUTTONS = ["~Components  every", "~Settings    switch", "~Monitor     CPU", "~Scrolling   wheel"]
+HOME_CLICK, HOME_BACK = "~Layout      alignment", ESC + b"1"   # a light page; alt+1 (the nav template's key) returns
+
+
+def _home_steps(want, quick):
+    """The Home page. Order: open (from Components, by click on the nav), the animation idle, hover, click-through laps."""
+    S = []
+    add = S.append
+    if want("home.open"):
+        add(Step("home.open", "click", "click_text", "Home", quiet=0.4, timeout=8.0, expect="Where to go"))
+    else:
+        add(Step("setup", "Home", "click_text", "Home", quiet=0.4, timeout=8.0))
+    add(Step("setup", "home settles", "idle", 0.5))
+    add(Step("setup", "remember the buttons", "remember", [n[1:] for n in HOME_BUTTONS + [HOME_CLICK]]))
+    if want("home.hover"):
+        for i in range(3 if quick else 6):
+            needle = HOME_BUTTONS[i % len(HOME_BUTTONS)]
+            add(Step("home.hover", f"onto {needle.lstrip("~").split()[0]}", "pointer", _pointer(needle, "m", 3, 0), quiet=0.08, timeout=1.5))
+            add(Step("home.hover", f"back over the hero {i + 1}", "pointer", _pointer(HOME_BUTTONS[0], "m", 3, -5), quiet=0.08, timeout=1.5))
+    if want("home.click"):
+        add(Step("setup", "prime layout", "click_text", HOME_CLICK, quiet=0.2, timeout=6.0))   # first visit of the target is not the measurement
+        add(Step("setup", "back home", "key", HOME_BACK, quiet=0.3, timeout=6.0))
+        for i in range(3 if quick else 6):
+            add(Step("home.click", f"lap {i + 1} layout", "click_text", HOME_CLICK, quiet=0.2, timeout=6.0, expect="Layout"))
+            add(Step("setup", f"lap {i + 1} back home", "key", HOME_BACK, quiet=0.3, timeout=6.0))
+        add(Step("setup", "home settles again", "idle", 0.5))
+    if want("home.render"):
+        add(Step("home.render", "3 s", "idle", 1.5 if quick else 3.0))
     return S
 
 
@@ -412,6 +453,8 @@ def interaction_steps(rows, cols, quick=False, wanted=None):
         add(_setup("Components"))
     if want(*WORKSPACE_GROUPS):
         S.extend(_workspace_steps(want, quick))
+    if want(*HOME_GROUPS):
+        S.extend(_home_steps(want, quick))
     if want("state.plain_goto", "state.save_restore", "state.reset"):
         S.extend(_state_steps(want, quick))
     if want(*SCROLLFORM_GROUPS):
@@ -450,6 +493,7 @@ UNIT_GROUPS = [
     ("theme", ["theme.first", "theme.again"]),
     ("compose", ["compose.open", "compose.add", "compose.tab", "compose.cond", "compose.addons"]),
     ("workspace", WORKSPACE_GROUPS),
+    ("home", HOME_GROUPS),
     ("state", STATE_GROUPS),
     ("scrollform", SCROLLFORM_GROUPS),
     ("resize", ["resize"]),

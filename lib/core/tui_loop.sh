@@ -139,10 +139,6 @@ tui.run() {
 			[[ -n "${_TUI_TICK_FN:-}" ]] && "$_TUI_TICK_FN"
 		fi
 		((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
-		((${#_TUI_OVERLAY_FNS[@]} && _TUI_FLUSH_GEN != _TUI_OVL_GEN)) && {
-			_TUI_OVL_GEN=$_TUI_FLUSH_GEN
-			_tui_overlay.draw_all
-		}
 		if ((_tick_last_us == _tick_now_us && ${#_TUI_TICK_LISTENERS[@]} > 0)); then
 			local _tick_listener
 			for _tick_listener in "${_TUI_TICK_LISTENERS[@]}"; do

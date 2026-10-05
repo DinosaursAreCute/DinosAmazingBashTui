@@ -258,7 +258,7 @@ _tui_cmd.pad() {
     _PADS="$s$sp"
 }
 
-# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
+# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_layer.draw_all's build/flush cycle.
 _tui_cmd.palette_draw() {
     tui.modal.active palette || return 0
     local w=72 h n=${#_PAL_IDS[@]} r i idx id line hint title room desc foot bar hz

@@ -480,3 +480,59 @@ ti_layer_grows_to_fit_what_is_inside_instead_of_showing_the_size_warning() {
 	eq "$((_TUI_L_H[dlg]))" "${_TUI_P_H[dlg]}"
 	ok '(( _TUI_L_COL[dlg] + _TUI_L_W[dlg] <= 81 ))' # and still inside the screen
 }
+
+# ── function layers: the footer, spinner, toasts, the palette and dialogs share the stack ──
+
+_fl_reset() { _TUI_FL_ORDER=() _TUI_FL_AMBIENT=() _TUI_FL_TOP=0; }
+_fl_a() { _TUI_FRAME+="A"; }
+_fl_b() { _TUI_FRAME+="B"; }
+_fl_c() { _TUI_FRAME+="C"; }
+
+t_function_layers_are_counted_by_tier_and_added_once() {
+	_fl_reset
+	tui.layer.fn_add _fl_a ambient
+	tui.layer.fn_add _fl_b
+	tui.layer.fn_add _fl_b
+	eq "_fl_a _fl_b" "${_TUI_FL_ORDER[*]}"
+	eq 1 "$_TUI_FL_TOP" # the ambient one is not a top layer
+	tui.layer.fn_remove _fl_a
+	tui.layer.fn_remove _fl_b
+	tui.layer.fn_remove _fl_b # removing twice changes nothing
+	eq "" "${_TUI_FL_ORDER[*]}"
+	eq 0 "$_TUI_FL_TOP"
+	_fl_reset
+}
+
+t_collect_all_draws_ambient_first_and_cover_leaves_ambient_out() {
+	_fl_reset
+	tui.layer.fn_add _fl_b
+	tui.layer.fn_add _fl_a ambient
+	tui.layer.fn_add _fl_c
+	_TUI_FRAME=""
+	_tui_layer.collect_all
+	eq "ABC" "$_TUI_FRAME"
+	_TUI_FRAME=""
+	_tui_layer.cover # a page repaint cannot reach what an ambient layer owns
+	eq "BC" "$_TUI_FRAME"
+	_fl_reset
+	_TUI_FRAME=""
+}
+
+t_overlay_add_and_remove_are_function_layers() {
+	_fl_reset
+	tui.overlay.add _fl_a
+	eq "_fl_a" "${_TUI_FL_ORDER[*]}"
+	eq 1 "$_TUI_FL_TOP"
+	tui.overlay.remove _fl_a
+	eq 0 "${#_TUI_FL_ORDER[@]}"
+	_fl_reset
+}
+
+t_a_page_repaint_is_followed_by_the_function_layers() {
+	_fl_reset
+	tui.layer.fn_add _fl_a
+	local out
+	out="$(_TUI_FRAME="" _TUI_OVL_FLUSHING=0 _TUI_L_DRAWING=0 _tui._flush "page" 2>&1)"
+	ok '[[ "$out" == *page*A* ]]' # one write: the page, then the layer
+	_fl_reset
+}

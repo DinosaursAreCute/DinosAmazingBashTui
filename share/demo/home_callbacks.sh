@@ -130,7 +130,7 @@ declare -ga _HOME_TIPS=(
 	"alt+c folds the menu, alt+r resizes it"
 	"Pages are data: templates, loops, addons"
 )
-declare -gi _HOME_TIP=0
+declare -gi _HOME_TIP=0 _HOME_BLINK=0
 
 # _home_cache_part NAME - the cells being built (_HOME_TXT_I / _HOME_TXT_V) kept as arrays _HC_I_NAME / _HC_V_NAME
 _home_cache_part() {
@@ -152,7 +152,7 @@ _home_banner_part() {
 	_banner_font_init
 	top=$(((_HOME_H - 11) / 2))
 	x=$(((_HOME_W - 19) / 2))
-	_home_clear $((x - 3)) $((top - 1)) 25 8
+	((_HOME_RAIN)) && _home_clear $((x - 3)) $((top - 1)) 25 8
 	for ((i = 0; i < 4; i++)); do
 		ch="DABT"
 		IFS='|' read -ra glyph <<<"${_BANNER_FONT[${ch:i:1}]}"
@@ -252,6 +252,7 @@ _home_text_layer() {
 	local -n _bi="_HC_I_b$_HOME_GLINT" _bv="_HC_V_b$_HOME_GLINT" _pi="_HC_I_p$_HOME_TIP" _pv="_HC_V_p$_HOME_TIP"
 	_HOME_TXT_I=("${_bi[@]}" "${_pi[@]}")
 	_HOME_TXT_V=("${_bv[@]}" "${_pv[@]}")
+	_HOME_NB=${#_bi[@]} _HOME_NP=${#_pi[@]} # the banner cells come first, then the pills: _home_text_apply skips the pills when the news did not turn
 	top=$(((_HOME_H - 11) / 2))
 	x=$(((_HOME_W - 19) / 2))
 	j=$x
@@ -267,25 +268,101 @@ _home_text_layer() {
 }
 
 # _home_text_apply - the text layer onto the grid: the cells of the last one are blanked (for one paint, then they are skip cells
-# again), the new ones drawn. Only when the text changed.
+# again), the new ones drawn. Only when the text changed. While the frame on screen is the grid as it stands (tui.canvas.fresh),
+# the cells that differ are also listed in _HOME_CHG, which _home_paint sends instead of the whole canvas.
+declare -gA _HOME_CHG=()
+declare -gi _HOME_PATCH=0 _HOME_NB=0 _HOME_NP=0 _HOME_PNB=0 _HOME_PNP=0 _HOME_PTIP=-1 # the banner / pill counts and the news line of the last text layer
 _home_text_apply() {
-	local i fresh=$_HOME_DIRTY
+	local i s n pn=${#_HOME_TXTPREV[@]} fresh=$_HOME_DIRTY
+	local -a seg=() pseg=() # [from, to) ranges of the new and the last cells that are looked at
+	local -A nv=()
 	_home_text_layer
-	for i in "${_HOME_TXTPREV[@]}"; do
-		_HOME_CELL[i]=" "
-		_HOME_FADE+=("$i")
+	n=${#_HOME_TXT_I[@]}
+	_HOME_CHG=()
+	_HOME_PATCH=0
+	seg=(0 "$n") pseg=(0 "$pn")
+	if ((! fresh)) && tui.canvas.fresh; then
+		_HOME_PATCH=1
+		# the pills (tagline, badge, news) are most of the cells and change only when the news turns: left out of everything below
+		((_HOME_TIP == _HOME_PTIP && _HOME_NP == _HOME_PNP)) && {
+			seg=(0 "$_HOME_NB" "$((_HOME_NB + _HOME_NP))" "$n")
+			pseg=(0 "$_HOME_PNB" "$((_HOME_PNB + _HOME_PNP))" "$pn")
+		}
+		for ((s = 0; s < ${#seg[@]}; s += 2)); do
+			for ((i = seg[s]; i < seg[s + 1]; i++)); do nv[${_HOME_TXT_I[i]}]="${_HOME_TXT_V[i]}"; done
+		done
+		for ((s = 0; s < ${#pseg[@]}; s += 2)); do
+			for ((i = pseg[s]; i < pseg[s + 1]; i++)); do
+				[[ -n "${nv[${_HOME_TXTPREV[i]}]+x}" ]] || _HOME_CHG[${_HOME_TXTPREV[i]}]=" " # a cell the text left
+			done
+		done
+		for i in "${!nv[@]}"; do [[ "${_HOME_CELL[i]}" == "${nv[$i]}" ]] || _HOME_CHG[$i]="${nv[$i]}"; done
+	fi
+	_HOME_PNB=$_HOME_NB _HOME_PNP=$_HOME_NP _HOME_PTIP=$_HOME_TIP
+	for ((s = 0; s < ${#pseg[@]}; s += 2)); do
+		for ((i = pseg[s]; i < pseg[s + 1]; i++)); do
+			_HOME_CELL[_HOME_TXTPREV[i]]=" "
+			_HOME_FADE+=("${_HOME_TXTPREV[i]}")
+		done
 	done
-	for i in "${!_HOME_TXT_I[@]}"; do _HOME_CELL[_HOME_TXT_I[i]]="${_HOME_TXT_V[i]}"; done
+	for ((s = 0; s < ${#seg[@]}; s += 2)); do
+		for ((i = seg[s]; i < seg[s + 1]; i++)); do _HOME_CELL[_HOME_TXT_I[i]]="${_HOME_TXT_V[i]}"; done
+	done
 	_HOME_TXTPREV=("${_HOME_TXT_I[@]}")
 	_HOME_DIRTY=0
 	((fresh)) && _home_publish
 }
 
-# _home_paint - the grid as one frame (every row ends in its own reset and newline, so it is a single join)
+# _home_patch_bytes -> _HP: the cells in _HOME_CHG as cursor moves, a run of neighbours under one move, each in the pane's style
+_home_patch_bytes() {
+	local i r c lo hi start v seg sty res=$'\e[0m' run
+	local -A cell=() rmin=() rmax=()
+	_HP=""
+	((${#_HOME_CHG[@]})) || return 0
+	_tui._content_rect home_hero
+	_tui._style_v home_hero_normal
+	sty="$_SGR"
+	for i in "${!_HOME_CHG[@]}"; do
+		r=$((i / _HOME_STRIDE)) c=$((i % _HOME_STRIDE))
+		cell[$r,$c]="${_HOME_CHG[$i]}"
+		((${rmin[$r]:-9999} <= c)) || rmin[$r]=$c
+		((${rmax[$r]:--1} >= c)) || rmax[$r]=$c
+	done
+	for r in "${!rmin[@]}"; do
+		start=-1 run="" lo=${rmin[$r]} hi=${rmax[$r]}
+		for ((c = lo; c <= hi + 1; c++)); do
+			if ((c <= hi)) && [[ -n "${cell[$r,$c]+x}" ]]; then
+				((start >= 0)) || start=$c
+				v="${cell[$r,$c]}"
+				run+="${v//"$res"/"$res$sty"}"
+			elif ((start >= 0)); then
+				printf -v seg '\e[%d;%dH%s%s%s' $((_CR_R + r)) $((_CR_C + start)) "$sty" "$run" "$res"
+				_HP+="$seg"
+				start=-1 run=""
+			fi
+		done
+	done
+}
+
+# _home_raw PANE - the whole frame from the grid (tui.canvas.source: a page render, a resize or a layer closing paints it all)
+_home_raw() {
+	local text
+	printf -v text '%s' "${_HOME_CELL[@]}"
+	_TUI_PANE_RAW[$1]="${text%$'\n'}"
+}
+
+# _home_paint - the cells that changed as one small write while the screen still shows the grid, else the grid as one frame (every
+# row ends in its own reset and newline, so it is a single join)
 _home_paint() {
 	local i
-	printf -v _HR_TEXT '%s' "${_HOME_CELL[@]}"
-	tui.set_canvas home_hero "${_HR_TEXT%$'\n'}"
+	if ((_HOME_PATCH)) && tui.canvas.fresh; then
+		_home_patch_bytes
+		tui.canvas.patch home_hero "$_HP"
+	else
+		printf -v _HR_TEXT '%s' "${_HOME_CELL[@]}"
+		tui.set_canvas home_hero "${_HR_TEXT%$'\n'}"
+	fi
+	_HOME_PATCH=0
 	for i in "${_HOME_FADE[@]}"; do [[ "${_HOME_CELL[i]}" == " " ]] && _HOME_CELL[i]="$_HOME_SKIP"; done
 	_HOME_FADE=()
 }
@@ -329,11 +406,11 @@ _home_type_tick() {
 	return 0
 }
 
-# _home_idle_tick - the finished name: the cursor blinks and a white glint travels over the letters
+# _home_idle_tick - the finished name: the cursor blinks (one change every two ticks) and a white glint travels over the letters
 _home_idle_tick() {
 	_home_size || return 0
-	_HOME_CURSOR=$((1 - _HOME_CURSOR))
-	_HOME_GLINT=$(((_HOME_GLINT + 1) % 6)) # 0-3 a letter, 4-5 none
+	((++_HOME_BLINK % 2)) || _HOME_CURSOR=$((1 - _HOME_CURSOR)) # the cursor changes every other tick: half the speed of the glint
+	_HOME_GLINT=$(((_HOME_GLINT + 1) % 6))                      # 0-3 a letter, 4-5 none
 	_home_text_apply
 	_home_paint
 }
@@ -514,8 +591,9 @@ _home_rain_child() {
 }
 
 on_home_visit() {
-	_HOME_TYPED=0 _HOME_WAIT=12 _HOME_CURSOR=1 _HOME_GLINT=4 _HOME_DT=0 _HOME_TIP=0 _HOME_SEED=7 _HOME_W=0 _HOME_H=0 _HOME_VER=0 # DABT stands alone for a moment
+	_HOME_TYPED=0 _HOME_WAIT=12 _HOME_CURSOR=1 _HOME_GLINT=4 _HOME_DT=0 _HOME_BLINK=0 _HOME_TIP=0 _HOME_SEED=7 _HOME_W=0 _HOME_H=0 _HOME_VER=0 # DABT stands alone for a moment
 	_TUI_ON_RESIZE_FN=_home_on_resize
+	tui.canvas.source home_hero _home_raw
 	if _home_size; then
 		_home_text_apply
 		_home_paint

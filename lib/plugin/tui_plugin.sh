@@ -112,6 +112,21 @@ _tui_plugin.parse() {   # FILE -> _PL_NAME _PL_TITLE _PL_VER _PL_DESC _PL_AUTHOR
     done < "$1"
 }
 
+# tui_plugin.deps ARRAYNAME - appends the files of every enabled plugin (a directory plugin: all its .sh files), so a cached page
+# is rebuilt when a plugin it ran with changes
+tui_plugin.deps() {
+    local -n _pd_deps="$1"
+    local _pd_name _pd_file
+    for _pd_name in "${_TPL_ORDER[@]}"; do
+        [[ "${_TPL_STATE[$_pd_name]:-}" == enabled ]] || continue
+        _pd_deps+=("${_TPL_FILE[$_pd_name]}")
+        [[ "${_TPL_KIND[$_pd_name]:-}" == dir ]] || continue
+        for _pd_file in "${_TPL_FILE[$_pd_name]%/*}"/*.sh; do
+            [[ "$_pd_file" == "${_TPL_FILE[$_pd_name]}" ]] || _pd_deps+=("$_pd_file")
+        done
+    done
+}
+
 tui.plugin.dir_add() { local d; for d in "${_TPL_DIRS[@]}"; do [[ "$d" == "$1" ]] && return 0; done; _TPL_DIRS+=("$1"); }
 
 # tui.plugin.add PATH [SOURCE]   SOURCE = builtin | app | user (where it came from)

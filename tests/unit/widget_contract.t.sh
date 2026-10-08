@@ -56,6 +56,24 @@ t_widget_contract_draw_dispatches_registered_type() {
 	_wc_reset
 }
 
+# the cleared cells of a registered type take the pane's background, not the terminal default
+t_widget_contract_clears_the_cells_in_the_pane_style() {
+	_wc_reset
+	_TUI_REGISTRY_CURRENT_PLUGIN=""
+	tui.register widget wc_t - wc_draw -
+	_TUI_P_ROW[wcp]=2 _TUI_P_COL[wcp]=3 _TUI_P_H[wcp]=10 _TUI_P_W[wcp]=24
+	unset '_TUI_P_CHILDREN[wcp]'
+	_TUI_P_BORDER[wcp]=none _TUI_P_BORDER_EXPL[wcp]=1 _TUI_P_HPAD[wcp]=0 _TUI_P_VPAD[wcp]=0
+	_TUI_STYLE_BG[wcp_normal]="#102030"
+	_ps.widgets.set wc_w type wc_t
+	_ps.widgets.set wc_w pane wcp
+	_ps.widgets.set wc_w row 0
+	_TUI_FRAME=""
+	_tui._draw_widget_buf wc_w
+	match "$_TUI_FRAME" '48;2;16;32;48m +'
+	_wc_reset
+}
+
 # MEASURE ID WIDTH -> _R rows
 wc_measure() { _R=3; }
 t_widget_contract_measure_sets_widget_height() {

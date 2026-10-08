@@ -74,7 +74,9 @@ tui.job.run() {
 		tui.hook.on exit _tui_job.shutdown
 	fi
 	# files, not a directory per job: redirects create them with no process; the whole root goes at exit
-	local dir="$_TJ_ROOT/$((++_TJ_SEQ))."
+	# BASHPID in the name: a job's work is a copy of this shell with the same counter, and a job it starts itself (a page's
+	# on_visit runs inside a page build) must not write into the numbers this shell is about to use
+	local dir="$_TJ_ROOT/$BASHPID.$((++_TJ_SEQ))."
 	if ((TUI_JOB_BACKGROUND)); then
 		_tui_job.work "$dir" "$work" "$@" &
 		_TJ_PID[$id]=$!
@@ -102,6 +104,9 @@ _tui_job.work() {
 	shift 2
 	(
 		TUI_JOB_PREFIX="$dir"
+		# the copy of the job table belongs to the main shell: a job of the same ID started in here would stop the main
+		# shell's process (tui.job.cancel kills the recorded PID)
+		_TJ_IDS=() _TJ_PID=() _TJ_FILES=() _TJ_START=() _TJ_DELAY=() _TJ_LABEL=() _TJ_DONE=() _TJ_SHOWN=()
 		"$work" "$@"
 	) </dev/null >"${dir}out" 2>"${dir}err"
 	printf '%s' "$?" >"${dir}rc"

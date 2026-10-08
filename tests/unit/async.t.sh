@@ -157,3 +157,23 @@ ti_async_the_main_loops_writes_are_counted_for_painters_only_while_one_runs() {
 	_TUI_ASYNC_PID=()
 	tui.async.stop_all
 }
+
+ti_canvas_sends_only_the_rows_that_changed_while_nothing_else_painted() {
+	_TUI_P_ROW[cv]=1 _TUI_P_COL[cv]=1 _TUI_P_H[cv]=3 _TUI_P_W[cv]=20 _TUI_P_BORDER[cv]=none _TUI_P_BORDER_EXPL[cv]=1 _TUI_P_HPAD[cv]=0 _TUI_P_VPAD[cv]=0
+	local out
+	_TUI_RAW_ROWS=() _TUI_RAW_GEN=-1 _TUI_PANE_RAW[cv]=$'aaa\nbbb\nccc'
+	_TUI_FRAME=""
+	_tui._render_raw_buf cv diff
+	ok '[[ "$_TUI_FRAME" == *aaa*bbb*ccc* ]]' # nothing is known to be on screen: every row goes out
+	_TUI_RAW_GEN=$_TUI_FLUSH_GEN
+	_TUI_PANE_RAW[cv]=$'aaa\nBBB\nccc'
+	_TUI_FRAME=""
+	_tui._render_raw_buf cv diff
+	ok '[[ "$_TUI_FRAME" == *BBB* && "$_TUI_FRAME" != *aaa* && "$_TUI_FRAME" != *ccc* ]]'
+	_TUI_FLUSH_GEN+=1 # something else painted: what the screen shows is no longer known
+	_TUI_FRAME=""
+	_tui._render_raw_buf cv diff
+	ok '[[ "$_TUI_FRAME" == *aaa*BBB*ccc* ]]'
+	_TUI_RAW_GEN=-1 _TUI_RAW_ROWS=()
+	unset '_TUI_PANE_RAW[cv]'
+}

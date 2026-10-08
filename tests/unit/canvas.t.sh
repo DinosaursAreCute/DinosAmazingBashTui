@@ -106,3 +106,41 @@ t_canvas_junction_unknown_style_is_single_and_empty_mask_blank() {
 	_tui_canvas.junction single 0
 	eq " " "$_TC_J"
 }
+
+t_canvas_register_adds_a_border_style() {
+	tui.border.register notch ┌ ┐ └ ┘ ─ │ ┐ ┌
+	_tui_canvas.glyphs notch
+	eq "┌" "$_TC_TL"
+	eq "│" "$_TC_VT"
+	eq "┐" "$_TC_CAP_L"
+	eq "┌" "$_TC_CAP_R"
+}
+
+t_canvas_builtin_styles_cap_titles_with_spaces() {
+	tui.border.register notch ┌ ┐ └ ┘ ─ │ ┐ ┌
+	_tui_canvas.glyphs notch
+	_tui_canvas.glyphs heavy
+	eq " " "$_TC_CAP_L"
+	eq " " "$_TC_CAP_R"
+}
+
+t_canvas_register_without_caps_uses_spaces() {
+	tui.border.register plain ╭ ╮ ╰ ╯ ─ │
+	_tui_canvas.glyphs plain
+	eq "╭" "$_TC_TL"
+	eq " " "$_TC_CAP_L"
+	eq " " "$_TC_CAP_R"
+}
+
+t_canvas_register_needs_seven_glyphs() {
+	! tui.border.register short ┌ ┐ └
+	eq "" "${_TC_CUSTOM[short]:-}"
+}
+
+t_canvas_register_extends_the_border_validator_once() {
+	tui.border.register notch ┌ ┐ └ ┘ ─ │
+	tui.border.register notch ┌ ┐ └ ┘ ─ │
+	match "${_TV_ENUM[pane.border]}" '(^|\|)notch(\||$)'
+	eq 1 "$(grep -o 'notch' <<<"${_TV_ENUM[pane.border]}" | wc -l)"
+	match "${_TV_ENUM[pane.divider]}" 'notch'
+}

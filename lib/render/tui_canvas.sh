@@ -10,7 +10,28 @@
 # Fork-free (a case statement, no command substitution), same convention as
 # every other hot-render-path helper in this file.
 # requires:
+declare -gA _TC_CUSTOM=()              # NAME -> "TL US TR US ... CAP_R", US = 0x1f (tui.border.register)
+declare -g _TC_CAP_L=" " _TC_CAP_R=" " # the glyphs either side of a pane title; a space for the built-in styles
+
+# tui.border.register NAME TL TR BL BR HZ VT [CAP_L CAP_R] - adds a border style usable as border="NAME" (and divider="NAME").
+# CAP_L / CAP_R replace the spaces around a pane title, e.g. "┤" and "├" for btop's  ┤ cpu ├  look. Each argument is one cell.
+# Junctions of a registered style are drawn as "single".
+tui.border.register() {
+	(($# >= 7)) || return 1
+	local us=$'\x1f'
+	_TC_CUSTOM[$1]="$2$us$3$us$4$us$5$us$6$us$7$us${8:- }$us${9:- }"
+	local k
+	for k in pane.border pane.divider; do
+		[[ "|${_TV_ENUM[$k]:-}|" == *"|$1|"* ]] || _TV_ENUM[$k]="${_TV_ENUM[$k]:+${_TV_ENUM[$k]}|}$1"
+	done
+}
+
 _tui_canvas.glyphs() {
+	_TC_CAP_L=" " _TC_CAP_R=" "
+	if [[ -n "${_TC_CUSTOM[$1]:-}" ]]; then
+		IFS=$'\x1f' read -r _TC_TL _TC_TR _TC_BL _TC_BR _TC_HZ _TC_VT _TC_CAP_L _TC_CAP_R <<<"${_TC_CUSTOM[$1]}"
+		return
+	fi
 	case "$1" in
 		double) _TC_TL="╔" _TC_TR="╗" _TC_BL="╚" _TC_BR="╝" _TC_HZ="═" _TC_VT="║" ;;
 		heavy) _TC_TL="┏" _TC_TR="┓" _TC_BL="┗" _TC_BR="┛" _TC_HZ="━" _TC_VT="┃" ;;

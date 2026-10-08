@@ -69,6 +69,12 @@
   bg: #2c3e50;
 }
 
+/* the character a title marks with "^" (a hotkey): title="^menu" */
+.title_key {
+  fg: #e06c75;
+  mods: bold;
+}
+
 /* resizable pane borders (handle / divider): the look of the segment under the pointer or being dragged */
 .resize_handle {
   fg: #61afef;
@@ -353,6 +359,8 @@
 .list_sel      { fg: #10131c; bg: #61afef; mods: bold; }
 .table_sel     { fg: #10131c; bg: #61afef; mods: bold; }
 .table_head    { fg: #9fb0c9; mods: bold underline; }
+.table_warn    { fg: #e5c07b; }
+.table_hot     { fg: #e06c75; }
 .progress      { fg: #4a5068; }
 .progress_fill { fg: #33cc66; }
 

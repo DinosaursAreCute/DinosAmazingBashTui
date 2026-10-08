@@ -9,7 +9,13 @@
 declare -gA _TUI_CFG=()
 declare -g  TUI_CONFIG_FILE="${TUI_CONFIG_FILE:-$TUI_APP_CONF/dabt.conf}"
 
-tui.config.get()   { printf '%s' "${_TUI_CFG[$1]-${2:-}}"; }
+# tui.config.get KEY [DEFAULT [VAR]] - the value: printed, or stored in VAR without a subshell
+tui.config.get() {
+	if [[ -n "${3:-}" ]]; then
+		local -n _cg_out="$3"
+		_cg_out="${_TUI_CFG[$1]-${2:-}}"
+	else printf '%s' "${_TUI_CFG[$1]-${2:-}}"; fi
+}
 tui.config.set()   { _TUI_CFG[$1]="$2"; tui.config.save; }
 tui.config.keys()  { printf '%s\n' "${!_TUI_CFG[@]}" | sort; }
 tui.config.unset() { unset '_TUI_CFG[$1]'; tui.config.save; }

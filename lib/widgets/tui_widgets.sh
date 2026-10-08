@@ -28,6 +28,7 @@
 # requires:
 
 declare -gA _TUI_W_ROWSPAN=() _WXSEL=() _WXTOP=() _WXCOLS=() _WXH=() _WXPCT=() _WXF=()
+declare -gA _WXAL=() _WXHW=() _WXHH=() # table column alignment ("ID:COL" -> l|r) and heat thresholds ("ID:COL" -> warn / hot)
 declare -g _WX_TARGET="" _WX_CLICK_T=0 _WX_CLICK_ID="" _WX_CLICK_I=-1
 
 # _tui_wx.new ID TYPE PANE ROW FOCUSABLE : common widget bookkeeping (the same fields tui.button sets)
@@ -152,10 +153,15 @@ tui.list.selected() {
 		printf '%s\n' "${_WXSEL[$1]:--1}"
 	fi
 }
+# tui.list.item ID [INDEX [VAR]] - the item at INDEX (default: the selected one): printed, or stored in VAR without a subshell
 tui.list.item() {
 	_tui_wx.arr "$1"
 	local i="${2:-${_WXSEL[$1]:--1}}"
-	((i >= 0 && i < ${#_WXA[@]})) && printf '%s\n' "${_WXA[i]}"
+	if [[ -n "${3:-}" ]]; then
+		local -n _li_out="$3"
+		_li_out=""
+		((i >= 0 && i < ${#_WXA[@]})) && _li_out="${_WXA[i]}"
+	else ((i >= 0 && i < ${#_WXA[@]})) && printf '%s\n' "${_WXA[i]}"; fi
 	return 0
 }
 tui.list.select() {
@@ -166,15 +172,58 @@ tui.list.select() {
 	_WXSEL[$1]=$i
 	_tui_wx.redraw "$1"
 }
+# tui.table.set [--keep COL] ID HEADER ROW... - replaces header and rows. Default: selects the first row. --keep COL (0-based):
+# the selection follows the row whose cell COL equals the selected row's, at the same screen position, so a live table does
+# not jump; a row that is gone leaves the selected index and scroll offset, clamped.
 tui.table.set() {
-	local id="$1" head="$2"
+	local keep=""
+	[[ ${1:-} == --keep ]] && { keep=$2; shift 2; }
+	local id="$1" head="$2" key="" sel=${_WXSEL[$1]:--1} offset i
 	shift 2
 	_tui_wx.arr "$id"
 	_WXCOLS[$id]="$head"
+	if [[ -n $keep ]] && ((sel >= 0)); then
+		local -a cells
+		IFS='|' read -ra cells <<<"${_WXA[sel]:-}"
+		key=${cells[keep]:-}
+		offset=$((sel - ${_WXTOP[$id]:-0}))
+	fi
 	_WXA=("$@")
-	((${#_WXA[@]})) && _WXSEL[$id]=0 || _WXSEL[$id]=-1
-	_WXTOP[$id]=0
+	if [[ -z $keep ]]; then
+		((${#_WXA[@]})) && _WXSEL[$id]=0 || _WXSEL[$id]=-1
+		_WXTOP[$id]=0
+	elif ((sel < 0 || ${#_WXA[@]} == 0)); then
+		((${#_WXA[@]})) && _WXSEL[$id]=0 || _WXSEL[$id]=-1
+		_WXTOP[$id]=0
+	else
+		local found=-1
+		for i in "${!_WXA[@]}"; do
+			IFS='|' read -ra cells <<<"${_WXA[i]}"
+			[[ ${cells[keep]:-} == "$key" ]] && { found=$i; break; }
+		done
+		if ((found >= 0)); then
+			_WXSEL[$id]=$found
+			((_WXTOP[$id] = found - offset < 0 ? 0 : found - offset))
+		else
+			((sel >= ${#_WXA[@]})) && sel=$((${#_WXA[@]} - 1))
+			_WXSEL[$id]=$sel
+		fi
+	fi
 	_tui_wx.redraw "$id"
+}
+# tui.table.align ID SPEC - per-column alignment, SPEC = "l|r|l" (l left, r right; missing columns stay left); repaints
+tui.table.align() {
+	local id="$1" c spec
+	IFS='|' read -ra spec <<<"$2"
+	for c in "${!spec[@]}"; do _WXAL[$id:$c]=${spec[c]}; done
+	_tui_wx.redraw "$id"
+}
+# tui.table.heat ID COL WARN HOT - colours the cells of column COL (0-based) with a whole-number value >= WARN with the
+# table_warn class (yellow) and >= HOT with table_hot (red); the selected row keeps its selection colours; repaints
+tui.table.heat() {
+	_WXHW[$1:$2]=$3
+	_WXHH[$1:$2]=$4
+	_tui_wx.redraw "$1"
 }
 tui.table.add() { tui.list.add "$@"; }
 tui.table.clear() { tui.list.clear "$1"; }
@@ -550,7 +599,16 @@ _tui_wx.draw_rows() {
 	((hdr)) && cls=table_sel
 	tui.class.sgr "$cls"
 	local selsgr="${TUI_SGR:-$'\e[0;97;48;2;62;92;138m'}"
-	local rowi=0
+	local rowi=0 colored=0 warnsgr hotsgr
+	if ((hdr && total <= fw)); then # heat colours only when no column was cut short
+		for c in "${!cw[@]}"; do [[ -n "${_WXHH[$id:$c]:-}" ]] && colored=1; done
+	fi
+	if ((colored)); then
+		tui.class.sgr table_warn
+		warnsgr=${TUI_SGR:-$'\e[33m'}
+		tui.class.sgr table_hot
+		hotsgr=${TUI_SGR:-$'\e[31m'}
+	fi
 	if ((hdr)); then
 		_tui.emit_goto "$sr" "$sc"
 		tui.class.sgr table_head
@@ -558,7 +616,7 @@ _tui_wx.draw_rows() {
 		IFS='|' read -ra cells <<<"${_WXCOLS[$id]}"
 		line=""
 		for c in "${!cw[@]}"; do
-			_tui_text.padc "${cells[c]}" "${cw[c]}"
+			_tui_wx.cell "$id" "$c" "${cells[c]:-}" "${cw[c]}"
 			line+="$_PADC  "
 		done
 		_tui_text.padc "$line" "$fw"
@@ -574,12 +632,19 @@ _tui_wx.draw_rows() {
 				IFS='|' read -ra cells <<<"${_WXA[idx]}"
 				line=""
 				for c in "${!cw[@]}"; do
-					_tui_text.padc "${cells[c]}" "${cw[c]}"
-					line+="$_PADC  "
+					_tui_wx.cell "$id" "$c" "${cells[c]:-}" "${cw[c]}"
+					if ((colored && idx != sel)) && [[ -n "${_WXHH[$id:$c]:-}" && "${cells[c]:-}" =~ ^[0-9]+ ]]; then
+						if ((BASH_REMATCH[0] >= _WXHH[$id:$c])); then line+="$hotsgr$_PADC"$'\e[39m  '
+						elif ((BASH_REMATCH[0] >= _WXHW[$id:$c])); then line+="$warnsgr$_PADC"$'\e[39m  '
+						else line+="$_PADC  "; fi
+					else line+="$_PADC  "; fi
 				done
 			else line=" ${_WXA[idx]}"; fi
-			_tui_text.padc "$line" "$fw"
-			line="$_PADC"
+			# a colored row holds escapes, which _tui_text.padc would count as text: it is padded by hand instead
+			if ((colored && idx != sel)); then printf -v line '%s%*s' "$line" "$((fw - total))" ""; else
+				_tui_text.padc "$line" "$fw"
+				line="$_PADC"
+			fi
 			if ((idx == sel)); then
 				if ((focused)); then
 					_tui.emit_printf '%s%s%s%s' "$selsgr" "$line" $'\e[0m' "$base"
@@ -595,12 +660,24 @@ _tui_wx.draw_rows() {
 	_tui.emit_reset
 }
 
+# _tui_wx.cell ID COL TEXT WIDTH -> _PADC: one table cell cut and padded to WIDTH, aligned by tui.table.align
+_tui_wx.cell() {
+	if [[ "${_WXAL[$1:$2]:-l}" == r ]]; then
+		local t="${3:0:$4}" sp
+		printf -v sp '%*s' "$(($4 - ${#t}))" ''
+		_PADC="$sp$t"
+	else _tui_text.padc "$3" "$4"; fi
+}
+
 # page reset / factory clear: drop widget-only state
 _tui_wx.reset() {
 	_TUI_W_ROWSPAN=()
 	_WXSEL=()
 	_WXTOP=()
 	_WXCOLS=()
+	_WXAL=()
+	_WXHW=()
+	_WXHH=()
 	_WXH=()
 	_TUI_W_CHANGE=()
 	_TXC=()
@@ -627,6 +704,8 @@ _tui_wx.forget() {
 	local id="$1"
 	unset '_TUI_W_ROWSPAN[$id]' '_WXSEL[$id]' '_WXTOP[$id]' '_WXCOLS[$id]' '_WXH[$id]' '_TUI_W_CHANGE[$id]' \
 		'_TXC[$id]' '_TXA[$id]' '_TXS[$id]' '_TXT[$id]' '_TXW[$id]' '_TXH[$id]' '_TXUN[$id]' '_TXRN[$id]' '_TXLK[$id]' '_TXLP[$id]'
+	local k
+	for k in "${!_WXAL[@]}" "${!_WXHH[@]}"; do [[ $k == "$id:"* ]] && unset '_WXAL[$k]' '_WXHW[$k]' '_WXHH[$k]'; done
 }
 
 # markup: <password|textarea|list|table|select|progress ...>  (called by tui_markup.sh)

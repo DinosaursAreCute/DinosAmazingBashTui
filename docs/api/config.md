@@ -23,7 +23,7 @@ Functions return `0` unless stated.
 
 | Function | Summary |
 |---|---|
-| [`tui.config.get`](config/tui.config.get.md) | Prints the saved value of a setting. |
+| [`tui.config.get`](config/tui.config.get.md) | Prints the saved value of a setting, or stores it in `VAR`, which costs no subshell. |
 | [`tui.config.set`](config/tui.config.set.md) | Stores a setting and writes the config file immediately. |
 | [`tui.config.unset`](config/tui.config.unset.md) | Removes a setting and writes the config file immediately. |
 | [`tui.config.keys`](config/tui.config.keys.md) | Prints every stored key, sorted, one per line. |

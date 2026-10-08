@@ -188,3 +188,17 @@ XML
 	eq "again" "${_TUI_W_VALUE[zl]:-${_TUI_W_LABEL[zl]:-}}"
 	rm -f "$TUI_APP_CONF/addons/y.xml"
 }
+
+# a tag a plugin registered builds like a plain widget, so a change around it can be applied incrementally
+t_refresh_plain_tags_include_the_tags_plugins_register() {
+	_TUI_PLUGIN_OWNS[rfp]="tag:rfx:fn_x widget:rfx:m:d tag:rfy:fn_y"
+	_tui_refresh.plugin_tags
+	ok '_tui_refresh.is_plain_tag rfx'
+	ok '_tui_refresh.is_plain_tag rfy'
+	ok '_tui_refresh.is_plain_tag label'
+	ok '! _tui_refresh.is_plain_tag tabs'
+	ok '! _tui_refresh.is_plain_tag m'
+	unset '_TUI_PLUGIN_OWNS[rfp]'
+	_tui_refresh.plugin_tags
+	ok '! _tui_refresh.is_plain_tag rfx'
+}

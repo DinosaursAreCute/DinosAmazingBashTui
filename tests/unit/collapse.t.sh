@@ -699,3 +699,33 @@ ti_collapse_button_second_cell_toggles_and_the_zone_follows_the_button() {
 	ok '! tui.collapsed services'
 	eq "services:collapsed;services:expanded;" "$_CL_TOGGLES"
 }
+
+t_collapse_hides_the_widgets_of_nested_panes() {
+	_cl_setup
+	tui.hsplit root a b
+	tui.vsplit a a1 a2
+	_cl_pane a
+	tui.button deep a1 0 Deep
+	tui.button deeper a2 0 Deeper
+	tui.button outside b 0 Out
+	_tui._layout root
+	tui.collapse a on
+	eq "1 1 " "${_TUI_W_HIDDEN[deep]:-} ${_TUI_W_HIDDEN[deeper]:-} ${_TUI_W_HIDDEN[outside]:-}"
+	tui.collapse a off
+	eq "  " "${_TUI_W_HIDDEN[deep]:-} ${_TUI_W_HIDDEN[deeper]:-} ${_TUI_W_HIDDEN[outside]:-}"
+}
+
+t_collapse_expanding_keeps_widgets_of_a_nested_collapsed_pane_hidden() {
+	_cl_setup
+	tui.hsplit root a b
+	tui.vsplit a a1 a2
+	_cl_pane a
+	_cl_pane a2
+	tui.button top1 a1 0 Top
+	tui.button low a2 0 Low
+	_tui._layout root
+	tui.collapse a2 on
+	tui.collapse a on
+	tui.collapse a off
+	eq " 1" "${_TUI_W_HIDDEN[top1]:-} ${_TUI_W_HIDDEN[low]:-}"
+}

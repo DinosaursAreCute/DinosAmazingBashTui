@@ -192,7 +192,11 @@ _tui_store.get.collapsed() {
 	[[ -n "${_TUI_P_COLLAPSED[$1]:-}" ]] && _SF=1 || _SF=0
 }
 declare -gi _ST_RELAYOUT=0 # 1 when a restore moved a pane edge: the geometry laid out before it is stale
+declare -gi _ST_PUT=0      # 1 when a restore wrote a value, cursor, selection, scroll or layout back
 _tui_store.put.collapsed() {
+	local now=0
+	[[ -z "${_TUI_P_COLLAPSED[$1]:-}" ]] || now=1
+	((now == ${2:-0})) && return 0 # already as stored: nothing moves, nothing to lay out again
 	_ST_RELAYOUT=1
 	((${2:-0})) && _tui_collapse.flip "$1" 1 || _tui_collapse.flip "$1" 0
 	_CL_CHANGED=()
@@ -214,8 +218,10 @@ _tui_store.get.size() {
 	_SF="${spec[*]}"
 }
 _tui_store.put.size() {
-	_ST_RELAYOUT=1
-	_tui_resize.parent "$1" && _tui_store.put_weights "$_RZ_P" "$2"
+	_tui_resize.parent "$1" || { _ST_RELAYOUT=1; return 1; }
+	local was="${_TUI_P_WEIGHTS[$_RZ_P]:-}"
+	_tui_store.put_weights "$_RZ_P" "$2"
+	[[ "${_TUI_P_WEIGHTS[$_RZ_P]:-}" == "$was" ]] || _ST_RELAYOUT=1 # the stored sizes are the ones already there: no new layout
 }
 
 # _tui_store.put_weights SPLIT "SPECS" - SPLIT's size specs, panes that are collapsed now keep their collapsed size and
@@ -274,6 +280,23 @@ _tui_store.ids() {
 }
 declare -ga _SIDS=()
 
+# _tui_store.kept_ids -> _SIDS: only the widgets and panes that keep something (a page with keep_state keeps all of them: the
+# same list as _tui_store.ids). Saving and restoring walk this list, so a page that keeps one pane costs one lookup, not one per widget.
+_tui_store.kept_ids() {
+	local id L
+	[[ -z "$_TUI_P_KEEP_STATE" ]] || { _tui_store.ids; return 0; }
+	_SIDS=()
+	for id in "${!_TUI_W_KEEP[@]}"; do [[ -n "${_TUI_W_TYPE[$id]+x}" ]] && _SIDS+=("$id"); done
+	((${#_TUI_P_KEEP_SIZE[@]} || ${#_TUI_P_KEEP_COLLAPSED[@]} || ${#_TUI_P_LAYOUT_KEEP[@]})) || return 0
+	for id in "${_TUI_P_ALL[@]}"; do
+		[[ -n "${_TUI_P_KEEP_SIZE[$id]:-}${_TUI_P_KEEP_COLLAPSED[$id]:-}${_TUI_P_LAYOUT_KEEP[$id]:-}" ]] && _SIDS+=("$id")
+	done
+	for L in "${_TUI_L_ORDER[@]}"; do # a hidden layer is out of the pane list but keeps its layout
+		[[ -n "${_TUI_L_F[$L.hidden]:-}" && -n "${_TUI_P_KEEP_SIZE[$L]:-}${_TUI_P_KEEP_COLLAPSED[$L]:-}${_TUI_P_LAYOUT_KEEP[$L]:-}" ]] && _SIDS+=("$L")
+	done
+	return 0
+}
+
 # _tui_store.page -> _SP
 _tui_store.page() { _SP="${_TUI_MARKUP_FILE##*/}"; }
 
@@ -290,7 +313,7 @@ _tui_store.save_page() {
 	[[ -n "${_TUI_MARKUP_FILE:-}" ]] || return 0
 	_tui_store.active || return 0
 	local id f page
-	_tui_store.ids
+	_tui_store.kept_ids
 	for id in "${_SIDS[@]}"; do
 		((_SHL_SOFT)) && [[ -z "${_TUI_PAGE_IDS[$id]+x}" ]] && continue # a page switch inside a shell leaves the shell's state alone
 		_tui_store.owner "$id"
@@ -332,7 +355,7 @@ _tui_store.capture() {
 	((fresh_page || fresh_shell)) || return 0
 	((fresh_page)) && _TUI_STORE_DEFAULTED[$page]=1
 	((fresh_shell)) && _TUI_STORE_DEFAULTED[$shell_page]=1
-	_tui_store.ids
+	_tui_store.kept_ids
 	for id in "${_SIDS[@]}"; do
 		_tui_store.owner "$id"
 		page="$_SP"
@@ -360,6 +383,7 @@ _tui_store.restore_widget() {
 		[[ "$f" == size ]] && [[ "${2:-}" != size ]] && continue
 		[[ "$f" != size ]] && [[ "${2:-}" == size ]] && continue
 		tui.store.get "$page" "$id" "$f" || continue
+		[[ "$f" == @(size|collapsed) ]] || _ST_PUT=1
 		"_tui_store.put.$f" "$id" "$REPLY" 2>/dev/null
 	done
 	return 0
@@ -376,15 +400,16 @@ _tui_store.restore_page() {
 	_tui_store.page
 	tui.store.has "$_SP" || { [[ -n "${_TUI_SHELL_FILE:-}" ]] && tui.store.has "${_TUI_SHELL_FILE##*/}"; } || return 0
 	local id pass
-	_tui_store.ids
+	_ST_PUT=0
+	_tui_store.kept_ids
 	for pass in all size; do
+		[[ "$pass" == all ]] || [[ -n "$_TUI_P_KEEP_STATE" ]] || ((${#_TUI_P_KEEP_SIZE[@]})) || continue # the size pass only has panes' sizes to put back
 		for id in "${_SIDS[@]}"; do
 			((_SHL_SOFT)) && [[ -z "${_TUI_PAGE_IDS[$id]+x}" ]] && continue
 			_tui_store.restore_widget "$id" "$pass"
 		done
 	done
-	_tui.epoch_bump layout
-	_tui.epoch_bump widgets
+	((_ST_PUT || _ST_RELAYOUT)) && _tui.epoch_bump layout widgets
 	if ((_ST_RELAYOUT)); then
 		_ST_RELAYOUT=0
 		_tui._layout root

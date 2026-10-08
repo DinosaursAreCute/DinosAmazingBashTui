@@ -111,7 +111,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`). Theme classes (all optional): `.list_sel .table_head .table_sel .progress .progress_fill .select .selection .field_label .field_label:focus`.
 
-<!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change -->
+<!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.table.align tui.table.heat tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change -->
 
 | Function | Summary |
 |---|---|
@@ -126,15 +126,17 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 | [`tui.list.clear`](widgets/tui.list.clear.md) | Removes all items and clears the selection. |
 | [`tui.list.select`](widgets/tui.list.select.md) | Moves the selection to `INDEX` (0-based), clamped to the list. A negative index clears it. |
 | [`tui.list.selected`](widgets/tui.list.selected.md) | Prints the selected index, or `-1` when nothing is selected. With `VAR` the index is stored in that variable instead, which costs no subshell. |
-| [`tui.list.item`](widgets/tui.list.item.md) | Prints the item at `INDEX`, default the selected one. Prints nothing for an index out of range. |
+| [`tui.list.item`](widgets/tui.list.item.md) | Prints the item at `INDEX`, default the selected one. Prints nothing for an index out of range. With `VAR` the item is stored in that variable instead (empty for an index out of range), which costs no subshell. Pass `""` as `INDEX` for the selected item. |
 | [`tui.list.count`](widgets/tui.list.count.md) | Prints the number of items. |
-| [`tui.table.set`](widgets/tui.table.set.md) | Replaces the header and all rows, and selects the first row. |
+| [`tui.table.set`](widgets/tui.table.set.md) | Replaces the header and all rows, and selects the first row. With `--keep COL` the selection stays on its row instead. |
 | [`tui.table.add`](widgets/tui.table.add.md) | Appends rows (`\|`-separated cells). Selects the first row when nothing was selected. |
 | [`tui.table.clear`](widgets/tui.table.clear.md) | Removes all rows and clears the selection. The header is kept. |
 | [`tui.table.count`](widgets/tui.table.count.md) | Prints the number of rows (the header not counted). |
 | [`tui.table.select`](widgets/tui.table.select.md) | Moves the selection to row `INDEX` (0-based), clamped. Does not call `on_change`. |
 | [`tui.table.selected`](widgets/tui.table.selected.md) | Prints the selected row index, or `-1`. |
-| [`tui.table.row`](widgets/tui.table.row.md) | Prints a row as `a\|b\|c`, default the selected one. |
+| [`tui.table.row`](widgets/tui.table.row.md) | Prints a row as `a\|b\|c`, default the selected one. With `VAR` the row is stored in that variable instead, which costs no subshell. |
+| [`tui.table.align`](widgets/tui.table.align.md) | Sets the alignment of each table column (header and cells). |
+| [`tui.table.heat`](widgets/tui.table.heat.md) | Colours the numeric cells of a column by size: the `table_warn` class from `WARN` up, `table_hot` from `HOT` up. |
 | [`tui.select.set`](widgets/tui.select.set.md) | Replaces the options. The current value stays selected when it is among the new options. |
 | [`tui.select.index`](widgets/tui.select.index.md) | Prints the index of the current value among the options, or `-1`. |
 | [`tui.select.pick`](widgets/tui.select.pick.md) | Chooses option `INDEX` (0-based) as if the user picked it: sets the value, redraws, then calls the `on_change` function and the action. |
@@ -182,6 +184,10 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 {% include_relative widgets/tui.table.selected.md %}
 
 {% include_relative widgets/tui.table.row.md %}
+
+{% include_relative widgets/tui.table.align.md %}
+
+{% include_relative widgets/tui.table.heat.md %}
 
 {% include_relative widgets/tui.select.set.md %}
 

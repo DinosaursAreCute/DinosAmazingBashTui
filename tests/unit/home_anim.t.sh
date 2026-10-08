@@ -3,7 +3,7 @@
 
 source "$REPO/share/demo/home_callbacks.sh"
 
-_HA_REAL="$(declare -f tui.set_canvas tui.every tui.every.cancel)"
+_HA_REAL="$(declare -f tui.set_canvas tui.every tui.every.cancel tui.canvas.patch)"
 _ha_setup() { # [RAIN]
 	_TUI_P_ROW[home_hero]=1 _TUI_P_COL[home_hero]=1 _TUI_P_H[home_hero]=15 _TUI_P_W[home_hero]=150
 	_TUI_P_BORDER[home_hero]=single _TUI_P_BORDER_EXPL[home_hero]=1 _TUI_P_HPAD[home_hero]=0 _TUI_P_VPAD[home_hero]=0 # the content area: 146 x 13
@@ -70,8 +70,11 @@ t_home_anim_each_word_has_its_letters_colour_and_the_idle_tick_blinks_and_glints
 	ok '[[ "$_HA_OUT" == *"38;2;255;243;168mB"* ]]'
 	ok '[[ "$_HA_OUT" == *"38;2;255;158;158mT"* ]]'
 	local cursor=$_HOME_CURSOR glint=$_HOME_GLINT
+	_HOME_BLINK=0
 	_home_idle_tick
-	ok '(( _HOME_CURSOR != cursor && _HOME_GLINT != glint ))'
+	ok '(( _HOME_CURSOR == cursor && _HOME_GLINT != glint ))' # the glint moves every tick, the cursor every other one
+	_home_idle_tick
+	ok '(( _HOME_CURSOR != cursor ))'
 	_ha_done
 }
 
@@ -266,5 +269,56 @@ t_home_anim_rain_mask_is_fixed_rectangles_that_do_not_follow_the_text() {
 	local top=$(((_HOME_H - 11) / 2)) x=$(((_HOME_W - 19) / 2))
 	ok '[[ " $a " == *" $((top * _HOME_STRIDE + x)) "* ]]'                 # a cell of the banner
 	ok '[[ " $a " == *" $(((top + 8) * _HOME_STRIDE + _HOME_W / 2)) "* ]]' # a cell of the tagline
+	_ha_done
+}
+
+t_home_anim_ticks_after_the_first_frame_send_only_the_cells_that_changed_and_leave_the_same_grid() {
+	_ha_setup
+	local -a sizes=()
+	local i a b full
+	tui.canvas.patch() {
+		_HA_PATCH="$2"
+		_TUI_RAW_GEN=$_TUI_FLUSH_GEN
+	}
+	_home_paint # the first frame is the whole canvas
+	full=${#_HA_OUT}
+	_TUI_RAW_GEN=$_TUI_FLUSH_GEN # ... and now the screen shows it
+	_HOME_TYPED=$_HOME_LEN
+	for ((i = 0; i < 8; i++)); do
+		_HA_PATCH=""
+		_home_idle_tick
+		sizes+=("${#_HA_PATCH}")
+	done
+	_home_raw home_hero
+	a="${_TUI_PANE_RAW[home_hero]}"
+	ok '(( ${sizes[0]} > 0 && ${sizes[3]} > 0 ))'               # something changed: the cursor and the glint
+	ok '(( ${sizes[0]} * 4 < full && ${sizes[1]} * 4 < full ))' # a fraction of the canvas
+	_ha_setup                                                   # the same ticks, every one a whole frame
+	_HOME_TYPED=$_HOME_LEN
+	_TUI_RAW_GEN=-1
+	for ((i = 0; i < 8; i++)); do _home_idle_tick; done
+	_home_raw home_hero
+	b="${_TUI_PANE_RAW[home_hero]}"
+	eq "$b" "$a"
+	_TUI_RAW_GEN=-1
+	_ha_done
+}
+
+t_home_anim_typing_ticks_patched_leave_the_same_grid_as_whole_frames() {
+	_ha_setup
+	local i a b
+	tui.canvas.patch() { _TUI_RAW_GEN=$_TUI_FLUSH_GEN; }
+	_home_paint
+	_TUI_RAW_GEN=$_TUI_FLUSH_GEN
+	for ((i = 0; i < 30; i++)); do _home_type_tick; done # the name typed out, cursor and all
+	_home_raw home_hero
+	a="${_TUI_PANE_RAW[home_hero]}"
+	_ha_setup
+	_TUI_RAW_GEN=-1
+	for ((i = 0; i < 30; i++)); do _home_type_tick; done
+	_home_raw home_hero
+	b="${_TUI_PANE_RAW[home_hero]}"
+	eq "$b" "$a"
+	_TUI_RAW_GEN=-1
 	_ha_done
 }

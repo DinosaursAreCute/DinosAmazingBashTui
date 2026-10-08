@@ -563,7 +563,13 @@ _tui._layout_r() {
 	done
 }
 
-tui.pane_title() { _TUI_P_TITLE[$1]="$2"; }
+# tui.pane_title PANE TEXT - while the app runs a changed title repaints only the pane's border: no relayout
+tui.pane_title() {
+	[[ "${_TUI_P_TITLE[$1]:-}" == "$2" ]] && return 0
+	_TUI_P_TITLE[$1]="$2"
+	((_TUI_RUNNING)) && _tui._draw_pane_borders_now "$1"
+	return 0
+}
 tui.pane_border() {
 	_ps.panes.set "$1" border "$2"
 	_ps.panes.set "$1" border_expl 1
@@ -1656,7 +1662,10 @@ _tui._draw_widget_buf() {
 	fi
 
 	_tui.emit_goto "$sr" "$sc"
+	# a registered type is cleared in its pane's style: unstyled, the cells would show the terminal's own background
+	[[ -n "${_TUI_WT_DRAW[$type]-}" ]] && _tui.emit_style "${_TUI_W_PANE[$id]}_normal"
 	_tui.emit_printf '%*s' "$sw" ""
+	[[ -n "${_TUI_WT_DRAW[$type]-}" ]] && _tui.emit_reset
 	_tui.emit_goto "$sr" "$sc"
 
 	local pane_id="${_TUI_W_PANE[$id]}"
@@ -2364,9 +2373,14 @@ _tui._vslice() {
 # returns after every reset inside a line), without measuring or cutting them. The frame is split by word splitting on
 # newlines (a here-string would cost a temporary file per frame), the style restored line by line (a replacement over the
 # whole frame is several times slower in a UTF-8 locale).
+declare -gA _TUI_RAW_ROWS=() # "PANE,ROW" -> the line last sent for that row of a canvas
+declare -gi _TUI_RAW_GEN=-1  # _TUI_FLUSH_GEN right after the last canvas frame: while it still matches, _TUI_RAW_ROWS is what the screen shows
 _tui._render_raw_buf() {
 	local - # set -f below ends with the function
-	local pane="$1" i=0 line sty res=$'\e[0m' seg frame="" IFS=$'\n'
+	local pane="$1" i=0 line sty res=$'\e[0m' seg frame="" IFS=$'\n' same=0
+	[[ "${2:-}" == diff || -z "${_TUI_PANE_RAW_FN[$pane]:-}" ]] || "${_TUI_PANE_RAW_FN[$pane]}" "$pane" # a full paint: the frame as it is now
+	((_TUI_RAW_GEN == _TUI_FLUSH_GEN)) && [[ "${2:-}" == diff ]] && same=1                              # the rows sent last are still on screen: send what differs
+	((same)) || _TUI_RAW_GEN=-1
 	local -a rows
 	_tui._content_rect "$pane"
 	# a frame made for another size would run past the pane: it waits for the page to make one that fits (tui.on_resize hook)
@@ -2376,11 +2390,16 @@ _tui._render_raw_buf() {
 	set -f # the text holds * and [: no pathname expansion
 	rows=(${_TUI_PANE_RAW[$pane]})
 	for line in "${rows[@]:0:_CR_H}"; do
+		if ((same)) && [[ "${_TUI_RAW_ROWS[$pane,$i]-}" == "$line" ]]; then
+			i=$((i + 1))
+			continue
+		fi
+		_TUI_RAW_ROWS[$pane,$i]="$line"
 		printf -v seg '\033[%d;%dH%s%s%s' $((_CR_R + i)) "$_CR_C" "$sty" "${line//"$res"/"$res$sty"}" "$res"
 		frame+="$seg"
 		i=$((i + 1))
 	done
-	_tui.emit "$frame"
+	[[ -n "$frame" ]] && _tui.emit "$frame"
 }
 
 _tui._render_output_buf() {

@@ -386,3 +386,146 @@ ti_fuse_validator_rejects_bad_values() {
 	match "$_FV" "title_align"
 	match "$_FV" "divider"
 }
+
+t_frame_edge_wraps_a_title_in_the_style_caps() {
+	tui.border.register notch ┌ ┐ └ ┘ ─ │ ┐ ┌
+	_ps.panes.set tp border notch
+	_TUI_P_H[tp]=5 _TUI_P_W[tp]=22
+	_TUI_FRAME=""
+	_tui_frame.edge tp top ┌ ┐ ─ 20 cpu tp_border ""
+	match "$_TUI_FRAME" '┐cpu┌'
+}
+
+_tp_setup() {
+	_TUI_P_ROW[tp]=1 _TUI_P_COL[tp]=1 _TUI_P_H[tp]=5 _TUI_P_W[tp]=30
+	_TUI_P_BORDER[tp]=single _TUI_P_TITLE[tp]=""
+	unset '_TUI_P_CHILDREN[tp]'
+	_TP_FLUSHED=""
+	_tp_orig_flush="$(declare -f _tui_paint.flush)"
+	_tui_paint.flush() { _TP_FLUSHED+="$1"; }
+	# focus.t.sh stubs this and never restores it: put the real one back
+	_tui._draw_pane_borders_now() { _tui._draw_ids_now _tui._draw_pane_border_buf "$@"; }
+}
+_tp_teardown() {
+	eval "$_tp_orig_flush"
+	_TUI_RUNNING=0
+}
+
+t_pane_title_repaints_only_the_border_while_running() {
+	_tp_setup
+	_TUI_RUNNING=1
+	tui.pane_title tp "hello"
+	_tp_teardown
+	match "$_TP_FLUSHED" 'hello'
+	eq "hello" "${_TUI_P_TITLE[tp]}"
+}
+
+t_pane_title_does_not_repaint_an_unchanged_title() {
+	_tp_setup
+	_TUI_P_TITLE[tp]="same"
+	_TUI_RUNNING=1
+	tui.pane_title tp "same"
+	_tp_teardown
+	eq "" "$_TP_FLUSHED"
+}
+
+t_pane_title_does_not_paint_before_the_app_runs() {
+	_tp_setup
+	_TUI_RUNNING=0
+	tui.pane_title tp "hello"
+	_tp_teardown
+	eq "" "$_TP_FLUSHED"
+	eq "hello" "${_TUI_P_TITLE[tp]}"
+}
+
+_ta_pane() {
+	_TUI_P_H[tp]=5 _TUI_P_W[tp]=30
+	_TUI_P_BORDER[tp]=single
+}
+
+t_frame_title_parse_marks_the_accent_characters() {
+	_tui_frame.title_parse "^1cpu ^menu"
+	eq "1cpu menu" "$_TT_PLAIN"
+	eq " 0 5" "$_TT_ACC"
+}
+
+t_frame_title_parse_without_a_caret_is_the_title() {
+	_tui_frame.title_parse "plain title"
+	eq "plain title" "$_TT_PLAIN"
+	eq "" "$_TT_ACC"
+}
+
+t_frame_title_parse_double_caret_is_a_literal_caret() {
+	_tui_frame.title_parse "a^^b"
+	eq "a^b" "$_TT_PLAIN"
+	eq "" "$_TT_ACC"
+}
+
+t_frame_title_parse_trailing_caret_is_kept() {
+	_tui_frame.title_parse "ab^"
+	eq "ab^" "$_TT_PLAIN"
+	eq "" "$_TT_ACC"
+}
+
+t_frame_edge_paints_the_accent_character_in_its_own_style() {
+	_ta_pane
+	_TUI_FRAME=""
+	_tui_frame.edge tp top ┌ ┐ ─ 28 "^menu" tp_border ""
+	match "$_TUI_FRAME" $'\e\\[1;31mm'
+	match "$_TUI_FRAME" 'enu'
+	[[ "$_TUI_FRAME" != *'^'* ]]
+}
+
+t_frame_edge_title_with_accent_is_as_wide_as_without() {
+	_ta_pane
+	_TUI_FRAME=""
+	_tui_frame.edge tp top ┌ ┐ ─ 28 "menu" tp_border ""
+	local plain_len=${#_TUI_FRAME} plain="$_TUI_FRAME"
+	_TUI_FRAME=""
+	_tui_frame.edge tp top ┌ ┐ ─ 28 "^menu" tp_border ""
+	# the accent adds escape bytes only: remove every escape sequence and the text is identical
+	local stripped="$_TUI_FRAME" out=""
+	while [[ "$stripped" == *$'\e['* ]]; do
+		out+="${stripped%%$'\e['*}"
+		stripped="${stripped#*$'\e['}"
+		stripped="${stripped#*m}"
+	done
+	out+="$stripped"
+	local base="$plain" out2=""
+	while [[ "$base" == *$'\e['* ]]; do
+		out2+="${base%%$'\e['*}"
+		base="${base#*$'\e['}"
+		base="${base#*m}"
+	done
+	out2+="$base"
+	eq "$out2" "$out"
+}
+
+t_frame_title_span_ignores_the_caret() {
+	_ta_pane
+	_TUI_P_ROW[tp]=1 _TUI_P_COL[tp]=1
+	_TUI_P_TITLE[tp]="menu"
+	_tui_frame.title_span tp
+	local a=$_TS0 b=$_TS1
+	_TUI_P_TITLE[tp]="^menu"
+	_tui_frame.title_span tp
+	eq "$a $b" "$_TS0 $_TS1"
+}
+
+t_frame_edge_left_title_uses_the_registered_style_edge_glyph() {
+	_ta_pane
+	tui.border.register heavyx ┏ ┓ ┗ ┛ ━ ┃ ┫ ┣
+	_ps.panes.set tp border heavyx
+	_TUI_FRAME=""
+	_tui_frame.edge tp top ┏ ┓ ━ 28 "cpu" tp_border ""
+	match "$_TUI_FRAME" '┏━'
+	[[ "$_TUI_FRAME" != *'┏─'* ]]
+}
+
+t_frame_edge_left_title_keeps_the_thin_dash_for_builtin_styles() {
+	_ta_pane
+	_ps.panes.set tp border double
+	_TUI_FRAME=""
+	_tui_frame.edge tp top ╔ ╗ ═ 28 "cpu" tp_border ""
+	match "$_TUI_FRAME" '╔─'
+}

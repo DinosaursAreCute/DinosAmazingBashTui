@@ -123,7 +123,8 @@ tui.set_text() {
 # tui.set_canvas PANE TEXT - the pane's content as a ready-made frame: one line per row, each already as wide as the pane's
 # content area (ANSI colours allowed), lines past the area are dropped. Nothing is measured or cut, so it costs a fraction of
 # tui.set_text with colours, and it is drawn at once (no debounce): it is for animation. Skipped when TEXT is what it set
-# last time. Any width the pane remembers from earlier text is dropped, so a canvas pane never reports itself too small.
+# last time, and only the rows that differ from the last frame go out while nothing else has painted since (a blinking cursor is
+# one row, not the whole canvas). Any width the pane remembers from earlier text is dropped, so a canvas pane never reports itself too small.
 tui.set_canvas() {
 	local pane="$1" text="$2" buf saved
 	[[ "${_TUI_PANE_RAW[$pane]-}" == "$text" && -n "${_TUI_PANE_CONTENT[$pane]:-}" ]] && return 0
@@ -137,12 +138,29 @@ tui.set_canvas() {
 	if ((_TUI_RUNNING && ${_TUI_P_H[$pane]:-0} > 0 && ${_TUI_P_W[$pane]:-0} > 0)); then
 		saved="$_TUI_FRAME"
 		_TUI_FRAME=""
-		_tui._render_raw_buf "$pane"
+		_tui._render_raw_buf "$pane" diff
 		buf="$_TUI_FRAME"
 		_TUI_FRAME="$saved"
 		[[ -n "$buf" ]] && _tui._flush "$buf"
+		_TUI_RAW_GEN=$_TUI_FLUSH_GEN
 	fi
 	return 0
+}
+
+# tui.canvas.source PANE FN - the frame of a canvas pane is kept by the caller (an animation that draws changes with
+# tui.canvas.patch): FN PANE sets _TUI_PANE_RAW[PANE] to the whole frame, and runs before every full paint of the pane
+tui.canvas.source() { _TUI_PANE_RAW_FN[$1]="$2"; }
+
+# tui.canvas.fresh - rc 0 while the last canvas frame (or patch) is still what the screen shows: nothing else has painted since
+tui.canvas.fresh() { ((_TUI_RAW_GEN == _TUI_FLUSH_GEN)); }
+
+# tui.canvas.patch PANE BYTES - draws BYTES (absolute cursor moves and cells) over the canvas now, one flush. Only for a canvas
+# that is fresh (tui.canvas.fresh): the caller keeps its frame in step (tui.canvas.source) and sends the cells that changed
+tui.canvas.patch() {
+	[[ -n "$2" ]] || return 0
+	_tui._flush "$2"
+	_TUI_RAW_ROWS=() # the rows sent by tui.set_canvas are not what the screen shows any more
+	_TUI_RAW_GEN=$_TUI_FLUSH_GEN
 }
 
 # ── scheduler ────────────────────────────────────────────────────────────
@@ -441,7 +459,13 @@ tui.hist.push() {
 	((${#a[@]} > max)) && a=("${a[@]: -max}")
 	_TA_HIST[$name]="${a[*]}"
 }
-tui.hist.get() { printf '%s' "${_TA_HIST[$1]:-}"; }
+# tui.hist.get KEY [VAR] - the history: printed, or stored in VAR without a subshell
+tui.hist.get() {
+	if [[ -n "${2:-}" ]]; then
+		local -n _hg_out="$2"
+		_hg_out="${_TA_HIST[$1]:-}"
+	else printf '%s' "${_TA_HIST[$1]:-}"; fi
+}
 
 # ── ready-made monitor ───────────────────────────────────────────────────
 

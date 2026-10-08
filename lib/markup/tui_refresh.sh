@@ -39,6 +39,25 @@ declare -gi TUI_REFRESH_CACHE_JOB="${TUI_REFRESH_CACHE_JOB:-1}"
 # tags the incremental build knows how to rebuild (panes are handled by their own rule)
 _RF_PLAIN_TAGS=" label button input checkbox password textarea list table select progress text "
 
+# the tags plugins registered (widgets such as <graph>): the build dispatches them like the plain tags above, so they do not stop
+# a change from being applied pane by pane
+declare -g _RF_PLUGIN_TAGS=" "
+
+# _tui_refresh.plugin_tags - _RF_PLUGIN_TAGS from the registry's record of what each plugin owns ("KIND:NAME:FN ...")
+_tui_refresh.plugin_tags() {
+	local owned entry kind name
+	_RF_PLUGIN_TAGS=" "
+	for owned in "${_TUI_PLUGIN_OWNS[@]}"; do
+		for entry in $owned; do
+			IFS=: read -r kind name _ <<<"$entry"
+			[[ "$kind" == tag ]] && _RF_PLUGIN_TAGS+="$name "
+		done
+	done
+}
+
+# _tui_refresh.is_plain_tag TAG - rc 0 for a tag the incremental build handles
+_tui_refresh.is_plain_tag() { [[ "$_RF_PLAIN_TAGS" == *" $1 "* || "$_RF_PLUGIN_TAGS" == *" $1 "* ]]; }
+
 _tui_refresh.reset() {
 	_TUI_P_RAW=""
 	_TUI_P_SIG_OWN=() _TUI_P_SIG_FULL=() _TUI_P_SIG_PLAIN=()
@@ -57,7 +76,7 @@ _tui_refresh.is_pane() {
 _tui_refresh.node_sig() {
 	local n="$1" a k
 	_RF_S+="<${_N_TYPE[$n]}"
-	[[ "$_RF_PLAIN_TAGS" == *" ${_N_TYPE[$n]} "* ]] || _RF_BAD=1
+	_tui_refresh.is_plain_tag "${_N_TYPE[$n]}" || _RF_BAD=1
 	for a in ${_N_ANAMES[$n]:-}; do
 		[[ "$a" == __* ]] && continue
 		_RF_S+=$'\x1f'"$a=${_N_ATTR["$n.$a"]}"
@@ -138,6 +157,7 @@ _tui_refresh.sign_top() {
 _tui_refresh.sign_tree() {
 	_RF_OWN=() _RF_FULL=() _RF_PLAIN=() _RF_NODE=() _RF_KIDS=() _RF_FLAT=()
 	_RF_TOPKEYS=() _RF_TOP="" _RF_ANON=0 _RF_BAD=0
+	_tui_refresh.plugin_tags
 	_tui_refresh.sign_top "$_P_ROOT"
 }
 

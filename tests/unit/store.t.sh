@@ -514,3 +514,38 @@ XML
 	eq b_value "${_TUI_W_VALUE[name]}"
 	eq "" "$(<"$_T_ROOT/st.err")"
 }
+
+# ── only what is kept is walked, and an unchanged restore lays nothing out again ──
+
+t_store_kept_ids_lists_only_the_widgets_and_panes_that_keep_something() {
+	_st_setup
+	_st_w a input
+	_st_w b input
+	_TUI_P_ALL=(root p1 p2)
+	_TUI_W_KEEP=() _TUI_P_KEEP_SIZE=() _TUI_P_KEEP_COLLAPSED=() _TUI_P_LAYOUT_KEEP=() _TUI_P_KEEP_STATE=""
+	_tui_store.kept_ids
+	eq 0 "${#_SIDS[@]}" # a page that keeps nothing walks nothing
+	_TUI_W_KEEP[b]=1 _TUI_P_KEEP_SIZE[p2]=1
+	_tui_store.kept_ids
+	eq "b p2" "${_SIDS[*]}"
+	_TUI_P_KEEP_STATE=1
+	_tui_store.kept_ids
+	eq "a b root p1 p2" "${_SIDS[*]}" # keep_state keeps every widget and pane
+	_TUI_W_KEEP=() _TUI_P_KEEP_SIZE=() _TUI_P_KEEP_STATE="" _TUI_P_ALL=(root) _TUI_W_ORDER=() _TUI_W_TYPE=()
+}
+
+ti_store_restoring_what_is_already_there_does_not_lay_out_again() {
+	_st_setup
+	_st_split true
+	tui.collapse a on
+	_tui_store.save_page
+	local _real_layout _lays=0
+	_real_layout="$(declare -f _tui._layout)"
+	_tui._layout() { _lays+=1; }
+	_tui_store.restore_page # the page is as it was saved
+	eval "$_real_layout"
+	eq 0 "$_lays"
+	tui.collapse a off
+	_tui_store.restore_page # now it differs: the pane is collapsed again and the geometry is stale until the layout runs
+	ok 'tui.collapsed a'
+}

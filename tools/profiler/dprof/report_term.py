@@ -3,7 +3,7 @@ import textwrap
 
 from . import term
 from .term import c, pad, vlen, bar, spark, fmt_ms, fmt_bytes, fmt_num, panel, LAYER_COLOR, RATING_COLOR
-from .analyze import LAYERS, LAYER_ORDER, layer_of
+from .analyze import LAYERS, LAYER_ORDER, layer_of, NOISY_CORES
 from .insights import short_path
 
 SHORT = {"input": "Input", "loop": "Loop", "focus": "Focus", "scroll": "Scroll", "markup": "Markup", "cache": "Cache",
@@ -536,6 +536,9 @@ def compare_block(rep, W):
     if not cmp_ or not cmp_["rows"]:
         return []
     lines = [c(f"against {cmp_.get('commit') or 'previous run'} ({cmp_.get('when') or ''})", "dim")]
+    for which, n in (("this run", cmp_.get("new_noise")), ("the earlier run", cmp_.get("old_noise"))):
+        if n is not None and n >= NOISY_CORES:
+            lines.append(c(f"  {which} ran while ~{n:.1f} cores were busy with other work: its timings are inflated, so the changes below may be noise", "yellow"))
     for r in cmp_["rows"]:
         d = r["delta_pct"]
         big = abs(r["new"] - r["old"]) >= 2.0          # sub-2 ms moves are jitter, not change

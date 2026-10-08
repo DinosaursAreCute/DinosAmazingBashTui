@@ -71,8 +71,45 @@ _tui_frame.fused() {
 # _tui_frame.edge ID WHICH LC RC HZ INNER TITLE RING_KEY TITLE_FB - appends one border line (top|bottom) with the
 # ring colour, the corners LC/RC, HZ runs and, when ID's title_pos is WHICH, the title tag placed by title_align.
 # The caller has already moved the cursor to the line's first cell.
+# _tui_frame.title_parse TITLE -> _TT_PLAIN _TT_ACC: a "^" marks the next character as an accent (a hotkey): "^1cpu" is "1cpu"
+# with index 0 accented. "^^" is a literal caret; a caret at the end is kept. _TT_ACC lists the indices, each led by a space.
+_tui_frame.title_parse() {
+	_TT_PLAIN="$1" _TT_ACC=""
+	[[ "$1" == *'^'* ]] || return 0
+	local t="$1" out="" i c n=${#1}
+	for ((i = 0; i < n; i++)); do
+		c="${t:i:1}"
+		if [[ "$c" == '^' ]] && ((i + 1 < n)); then
+			i=$((i + 1))
+			c="${t:i:1}"
+			[[ "$c" != '^' ]] && _TT_ACC+=" ${#out}"
+		fi
+		out+="$c"
+	done
+	_TT_PLAIN="$out"
+}
+
+# _tui_frame.title_accented ID TFB TITLE ACC CAP_L CAP_R - the title tag with its accent characters in the title_key class
+# (bold red without a theme rule), the rest in the pane's title style
+_tui_frame.title_accented() {
+	local id="$1" tfb="$2" title="$3" acc="$4" pos=0 idx
+	_tui.emit "$5"
+	for idx in $acc; do
+		((idx >= ${#title})) && break
+		_tui.emit "${title:pos:idx-pos}"
+		tui.class.sgr title_key
+		_tui.emit "${TUI_SGR:-$'\e[1;31m'}"
+		_tui.emit "${title:idx:1}"
+		_tui.emit_reset
+		_tui.emit_style "${id}_title" "$tfb" "${id}_normal"
+		pos=$((idx + 1))
+	done
+	_tui.emit "${title:pos}"
+	_tui.emit "$6"
+}
+
 _tui_frame.edge() {
-	local id="$1" which="$2" lc="$3" rc="$4" hz="$5" inner="$6" title="$7" key="$8" tfb="$9"
+	local id="$1" which="$2" lc="$3" rc="$4" hz="$5" inner="$6" title="$7" key="$8" tfb="$9" acc=""
 	_tui.emit_ring "$key" "${id}_border" "$id"
 	if [[ -z "$title" || "${_TUI_P_TITLE_POS[$id]:-top}" != "$which" ]]; then
 		_tui.emit "$lc"
@@ -81,10 +118,14 @@ _tui_frame.edge() {
 		_tui.emit_reset
 		return
 	fi
+	_tui_frame.title_parse "$title"
+	title="$_TT_PLAIN" acc="$_TT_ACC"
 	local max_t=$((inner - 4))
 	((max_t < 1)) && max_t=1
 	((${#title} > max_t)) && title="${title:0:$max_t}"
-	local tag=" ${title} "
+	_tui._eff_border "$id"
+	_tui_canvas.glyphs "$_TB"
+	local tag="${_TC_CAP_L}${title}${_TC_CAP_R}"
 	local rest=$((inner - ${#tag})) left right
 	((rest < 0)) && rest=0
 	case "${_TUI_P_TITLE_ALIGN[$id]:-left}" in
@@ -95,14 +136,16 @@ _tui_frame.edge() {
 	((left < 0)) && left=0
 	((right < 0)) && right=0
 	if [[ "${_TUI_P_TITLE_ALIGN[$id]:-left}" == left ]]; then
-		_tui.emit "${lc}─" # historic: the literal single-line dash, kept so default titles stay byte-identical
+		# historic: the literal single-line dash for the built-in styles, so their titles stay byte-identical; a registered style
+		# leads in with its own edge glyph
+		if [[ -n "${_TC_CUSTOM[$_TB]:-}" ]]; then _tui.emit "${lc}${hz}"; else _tui.emit "${lc}─"; fi
 	else
 		_tui.emit "$lc"
 		_tui.emit_repeat "$hz" "$left"
 	fi
 	_tui.emit_reset
 	_tui.emit_style "${id}_title" "$tfb" "${id}_normal"
-	_tui.emit "$tag"
+	if [[ -z "$acc" ]]; then _tui.emit "$tag"; else _tui_frame.title_accented "$id" "$tfb" "$title" "$acc" "$_TC_CAP_L" "$_TC_CAP_R"; fi
 	_tui.emit_reset
 	_tui.emit_ring "$key" "${id}_border" "$id"
 	_tui.emit_repeat "$hz" "$right"
@@ -115,6 +158,8 @@ _tui_frame.edge() {
 _tui_frame.title_span() {
 	local id="$1" title="${_TUI_P_TITLE[$1]:-}" inner max_t rest left
 	[[ -n "$title" ]] || return 1
+	_tui_frame.title_parse "$title"
+	title="$_TT_PLAIN"
 	_tui._eff_border "$id"
 	[[ "$_TB" == none ]] && return 1
 	inner=$((${_TUI_P_W[$id]} - 2))

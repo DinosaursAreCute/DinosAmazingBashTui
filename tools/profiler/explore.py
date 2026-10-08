@@ -8,6 +8,8 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from dprof.analyze import noise  # noqa: E402
 REPORTS = os.path.join(HERE, "reports")
 
 
@@ -26,6 +28,7 @@ def _summary(rid, d):
         "machine": {k: m.get(k) for k in ("id", "cpu_model", "logical_cpus", "physical_cores", "ram_gb", "kernel", "distro", "virtualization")} if m else None,
         "warnings": len(d.get("warnings") or []), "insights": ins, "groups": groups,
         "startup": {k: (v or {}).get("ready_ms") for k, v in st.items()},
+        "noise": noise(d.get("resources")),
         "traced": bool(d.get("attr", {}).get("groups")), "has_setup": bool(d.get("setup")), "has_resources": bool(d.get("resources")),
     }
 

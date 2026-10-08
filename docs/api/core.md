@@ -288,7 +288,7 @@ Constructors for layouts whose shape is only known at runtime. Ids are generated
 
 Text content of leaf panes. Repaints are queued and coalesced, so several updates in one callback cost one frame.
 
-<!-- api: tui.output tui.output_append tui.output_clear tui.set_text tui.set_canvas -->
+<!-- api: tui.output tui.output_append tui.output_clear tui.set_text tui.set_canvas tui.canvas.source tui.canvas.fresh tui.canvas.patch -->
 
 | Function | Summary |
 |---|---|
@@ -297,6 +297,9 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 | [`tui.output_clear`](core/tui.output_clear.md) | Empties the pane's content and repaints the pane immediately. |
 | [`tui.set_text`](core/tui.set_text.md) | Replaces the pane's content like [`tui.output`](/api/core/tui.output.html), but skips the work when `TEXT` equals what it set last time. |
 | [`tui.set_canvas`](core/tui.set_canvas.md) | Sets the pane's content to a ready-made frame: one line per row, each already as wide as the pane's content area. The pane draws the lines as they are, in its own style. |
+| [`tui.canvas.source`](core/tui.canvas.source.md) | Names the function that keeps the frame of a canvas pane, for an animation that draws changes with [`tui.canvas.patch`](/api/core/tui.canvas.patch.html) instead of sending the whole frame. |
+| [`tui.canvas.fresh`](core/tui.canvas.fresh.md) | Returns `0` while the last canvas frame (or patch) is still what the screen shows, because nothing else has painted since. Returns `1` otherwise. |
+| [`tui.canvas.patch`](core/tui.canvas.patch.md) | Draws `BYTES` over the canvas at once, in one flush: absolute cursor moves and cells, for example only the cells an animation changed. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -309,6 +312,12 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 {% include_relative core/tui.set_text.md %}
 
 {% include_relative core/tui.set_canvas.md %}
+
+{% include_relative core/tui.canvas.source.md %}
+
+{% include_relative core/tui.canvas.fresh.md %}
+
+{% include_relative core/tui.canvas.patch.md %}
 
 </div>
 
@@ -400,7 +409,7 @@ Timers, clocks, watches and the system samplers share one tick listener, cost no
 | [`tui.sys.load`](core/tui.sys.load.md) | Reads the load averages from `/proc/loadavg`. |
 | [`tui.sys.uptime`](core/tui.sys.uptime.md) | Reads the system uptime from `/proc/uptime`. |
 | [`tui.hist.push`](core/tui.hist.push.md) | Appends a value to a named rolling series, dropping the oldest beyond `MAX`. |
-| [`tui.hist.get`](core/tui.hist.get.md) | Prints a series, oldest first. |
+| [`tui.hist.get`](core/tui.hist.get.md) | Prints a series, oldest first. With `VAR` the series is stored in that variable instead, which costs no subshell. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 

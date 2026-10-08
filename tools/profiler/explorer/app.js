@@ -52,7 +52,7 @@ function pickFolder() {
       const m = d.machine || (d.meta && d.meta.machine);
       INDEX.push({ id, meta: Object.fromEntries(Object.entries(d.meta || {}).filter(([k]) => k !== 'machine' && k !== 'warnings')), machine: m || null, warnings: (d.warnings || []).length, insights: {},
         groups: Object.fromEntries((d.latency || []).map((g) => [g.id, [g.value, g.rating, g.n, g.budget_ms, g.failed || 0]])), startup: Object.fromEntries(Object.entries(d.startup || {}).map(([k, v]) => [k, v && v.ready_ms])),
-        traced: !!(d.attr && Object.keys(d.attr.groups || {}).length) });
+        noise: noiseOf(d.resources), traced: !!(d.attr && Object.keys(d.attr.groups || {}).length) });
       (d.insights || []).forEach((i) => { const e = INDEX[INDEX.length - 1]; e.insights[i.sev] = (e.insights[i.sev] || 0) + 1; });
     }
     INDEX.sort((a, b) => a.id < b.id ? -1 : 1);
@@ -158,9 +158,12 @@ function overviewPage() {
 }
 
 // ── runs page ────────────────────────────────────────────────────────────────
+// other work (in cores) above this while a run was measured inflates its timings (dprof/analyze.py NOISY_CORES)
+const NOISY = 0.5;
+function noiseOf(res) { const v = (res || []).filter((u) => (u.jobs || 1) === 1 && u.other_cores != null).map((u) => u.other_cores); return v.length ? Math.max(...v) : null; }
 function runsPage() {
   const sel = new Set(store.get('sel', []).filter((id) => entry(id)));
-  const f = Object.assign({ q: '', machine: '', mode: '', branch: '', scenario: '', traced: false }, store.get('filter', {}));
+  const f = Object.assign({ q: '', machine: '', mode: '', branch: '', scenario: '', traced: false, quiet: false }, store.get('filter', {}));
   const uniq = (fn) => [...new Set(INDEX.map(fn).filter(Boolean))].sort();
   const root = h('div');
   const body = h('div');
@@ -170,6 +173,7 @@ function runsPage() {
     h('input', { placeholder: 'filter: id, commit, scenario…', value: f.q, oninput: (e) => { f.q = e.target.value; store.set('filter', f); redraw(); } }),
     input('machine', uniq((r) => r.machine && r.machine.id), 'any machine'), input('branch', uniq((r) => r.meta.branch), 'any branch'),
     input('mode', uniq((r) => r.meta.mode), 'any mode'), input('scenario', uniq((r) => r.meta.scenario), 'any scenario'),
+    h('label', h('input', { type: 'checkbox', checked: f.quiet, onchange: (e) => { f.quiet = e.target.checked; store.set('filter', f); redraw(); } }), ' hide noisy runs'),
     h('label', h('input', { type: 'checkbox', checked: f.traced, onchange: (e) => { f.traced = e.target.checked; store.set('filter', f); redraw(); } }), ' with trace'),
     h('span.grow'),
     h('button', { onclick: () => { const ids = [...sel].sort(); ids.length >= 2 ? go('#/compare/' + ids.join(',')) : alert('tick at least two runs'); } }, 'Compare ticked'),
@@ -179,7 +183,7 @@ function runsPage() {
 
   const filtered = () => INDEX.filter((r) => (!f.q || JSON.stringify([r.id, r.meta.commit, r.meta.branch, r.meta.scenario, r.meta.mode]).toLowerCase().includes(f.q.toLowerCase()))
     && (!f.machine || (r.machine && r.machine.id === f.machine)) && (!f.branch || r.meta.branch === f.branch) && (!f.mode || r.meta.mode === f.mode)
-    && (!f.scenario || r.meta.scenario === f.scenario) && (!f.traced || r.traced));
+    && (!f.scenario || r.meta.scenario === f.scenario) && (!f.traced || r.traced) && (!f.quiet || !(r.noise >= NOISY)));
 
   function redraw() {
     const runs = filtered();
@@ -191,6 +195,7 @@ function runsPage() {
       { key: 'scenario', label: 'Scenario', get: (r) => r.meta.scenario },
       { key: 'mode', label: 'Mode', get: (r) => r.meta.mode },
       { key: 'machine', label: 'Machine', get: (r) => r.machine && r.machine.id, render: (r) => r.machine ? tip(h('span.mono', r.machine.id), esc(`${r.machine.cpu_model} · ${r.machine.logical_cpus} threads · ${r.machine.ram_gb} GB`)) : h('span.dim', 'unknown') },
+      { key: 'noise', label: 'Other load', num: true, get: (r) => r.noise, render: (r) => r.noise == null ? '–' : r.noise.toFixed(1) + ' cores', cls: (r) => r.noise >= NOISY ? 'slow' : '' },
       { key: 'jobs', label: 'Jobs', num: true, get: (r) => r.meta.jobs ?? 1 },
       { key: 'rounds', label: 'Rounds', num: true, get: (r) => r.meta.rounds },
       { key: 'groups', label: 'Groups', num: true, get: (r) => Object.keys(r.groups).length },
@@ -426,6 +431,8 @@ async function comparePage(ids, tab) {
       INDEX.filter((r) => !ids.includes(r.id)).reverse().map((r) => h('option', { value: r.id }, label(r.id) + ' ' + (r.meta.scenario || '')))),
     ids.length > 1 ? h('button', { onclick: () => go('#/compare/' + ids.slice().reverse().join(',') + '/' + tab) }, 'reverse') : null);
   view.replaceChildren(h('h1', 'Compare'), pills, h('div.tabs', CMP_TABS.map(([k, t]) => h('a', { class: k === tab ? 'on' : '', href: `#/compare/${ids.join(',')}/${k}` }, t))), content);
+  const loud = ids.filter((id) => (entry(id).noise ?? 0) >= NOISY);
+  if (loud.length) content.append(h('p.slow', `${loud.map(label).join(', ')} ran while other work kept the machine busy: its timings are inflated, so differences may be noise`));
   if (ids.length < 2) return content.append(h('p.dim', 'add at least one more run'));
   content.append((CMP_VIEWS[tab] || CMP_VIEWS.latency)(runs, ids));
 }

@@ -412,6 +412,7 @@ tui.cache.record() {
 	local -a deps=()
 	tui.cache.deps_of "$file" deps
 	tui_addon.deps deps
+	tui_plugin.deps deps
 	if [[ -n "$_rec_shell" ]]; then # changing the shell invalidates every page that uses it
 		tui.cache.deps_of "$_rec_shell" deps
 		tui_addon.deps deps

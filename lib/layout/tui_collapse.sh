@@ -202,6 +202,21 @@ _tui_collapse.size() {
 # _tui_collapse.flip ID STATE - STATE 1 collapses, 0 expands: rewrites ID's size spec in its parent, hides or relabels
 # its widgets and, in an exclusive accordion, collapses the siblings of an expanded pane. No layout, no callbacks; the
 # changed panes are appended to _CL_CHANGED. rc 1 when nothing changed.
+# _tui_collapse.subtree ID SKIP -> _CL_SUB: " ID child grandchild ... " (space-padded for glob matching). With SKIP=1 a nested collapsed pane
+# and everything under it is left out, so expanding ID does not reveal what that pane still hides.
+_tui_collapse.subtree() {
+	_CL_SUB=" $1 "
+	_tui_collapse.subtree_add "$1" "$2"
+}
+_tui_collapse.subtree_add() {
+	local c
+	for c in ${_TUI_P_CHILDREN[$1]:-}; do
+		((${2})) && [[ -n "${_TUI_P_COLLAPSED[$c]:-}" ]] && continue
+		_CL_SUB+="$c "
+		_tui_collapse.subtree_add "$c" "$2"
+	done
+}
+
 _tui_collapse.flip() {
 	local id="$1" st="$2" p i axis w ct sib
 	local -a spec ch
@@ -221,11 +236,12 @@ _tui_collapse.flip() {
 		unset '_TUI_P_COLLAPSE_SAVED[$id]' '_TUI_P_COLLAPSED[$id]'
 	fi
 	_ps.panes.set "$p" weights "${spec[*]}"
+	_tui_collapse.subtree "$id" "$((! st))" # widgets of nested panes follow their ancestor: hidden with it, shown again with it
 	for w in "${_TUI_W_ORDER[@]}"; do
-		[[ "${_TUI_W_PANE[$w]:-}" == "$id" ]] || continue
+		[[ "$_CL_SUB" == *" ${_TUI_W_PANE[$w]:-} "* ]] || continue
 		ct="${_TUI_W_COLLAPSED_TEXT[$w]:-}"
 		if ((st)); then
-			if [[ "${_TUI_P_COLLAPSE_TO[$id]:-title}" == rail && -n "$ct" ]]; then
+			if [[ "${_TUI_P_COLLAPSE_TO[$id]:-title}" == rail && -n "$ct" && "${_TUI_W_PANE[$w]}" == "$id" ]]; then
 				_ps.widgets.set "$w" label_saved "${_TUI_W_LABEL[$w]:-}"
 				_ps.widgets.set "$w" label "$ct"
 			else

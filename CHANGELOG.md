@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 ### News 
+- Jobs: a job started from inside another job's work (a page build runs the page's `on_visit`) no longer stops the main shell's job of the same ID, and its temp files no longer reuse the numbers of the main shell's jobs. Before, a quick second page refresh could hand the main shell another process's result file and print `tui_job.sh: ...N.blob: No such file or directory`.
+- `tui.page.refresh` applies a change next to plugin widgets (tags a plugin registered, such as a graph) pane by pane instead of rebuilding the whole page in the background.
+- Collapsing a pane now also hides the widgets of the panes nested in it (they used to keep drawing over the space the siblings took); expanding it again leaves a nested pane that is itself collapsed hidden.
+- Pane titles take hotkey accents: a `^` marks the next character, drawn in the `title_key` theme class (`title="^menu"`); `^^` is a literal caret. A registered border style now leads its left-aligned title in with its own edge glyph.
+- The page cache now also depends on the files of the enabled plugins: editing a plugin rebuilds the pages that ran with it (before, a stale widget layout survived until the cache files were deleted).
+- Tables: `tui.table.set --keep COL` keeps the selection and its screen position across refreshes; `tui.table.align` and `tui.table.heat` align and colour columns. `tui.pane_title` repaints only the border. `tui.config.get`, `tui.hist.get`, `tui.list.item` and `tui.table.row` take an optional variable to store the result in.
+- New `tui.border.register NAME TL TR BL BR HZ VT [CAP_L CAP_R]`: add a border style for `border="NAME"`, with optional glyphs either side of pane titles (btop's `┐title┌`).
 - XML Markup now supports adding widgets within pane tags. When placed within pane tags the `pane` attribute is automatically inferred. Use the `Pane` attribute for templates and includes.
 - `Row` attribute for widgets is no longer required and is inferred based on its position in the markup. If row is specified it will be ensured.  
 - Widgets can now be added to scrollable panes. (beta arrow key navigation conflicts between scrolling and changing focus)

@@ -16,7 +16,8 @@ Sets the pane's content to a ready-made frame: one line per row, each already as
 - Nothing is measured or cut, which makes it much cheaper than [`tui.set_text`](/api/core/tui.set_text.html) with coloured text, and it is drawn at once, not debounced. Use it for animation (the Home page's matrix rain is drawn this way, at over 20 frames a second).
 - The pane's style returns after every `ESC[0m` inside a line, so a styled cell does not turn the cells after it into the terminal's default colours.
 - The pane does not report itself too small for its content: no width is measured, and any width remembered from earlier text is dropped.
-- Skipped when `TEXT` equals what it set last time. Cleared on page change.
+- Skipped when `TEXT` equals what it set last time. While nothing else has painted since the last frame, only the rows that differ from it are sent (a blinking cursor is one row). Cleared on page change.
+- For an animation that changes a few cells, [`tui.canvas.patch`](/api/core/tui.canvas.patch.html) sends only those cells.
 
 **Example**
 

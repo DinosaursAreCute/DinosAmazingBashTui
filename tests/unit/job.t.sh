@@ -202,3 +202,35 @@ ti_job_runs_in_the_foreground_when_background_jobs_are_off() {
 	ok '! tui.job.running j9'
 	eq "" "$_JB_STATE" # still a child process: the work cannot change this shell
 }
+
+# A job's work is a copy of the main shell: it holds the same job table and counter. Jobs it starts itself (a page's on_visit
+# runs inside a page build) must neither stop the main shell's jobs nor reuse their file numbers.
+_jb_work_inner() {
+	sleep 0.02
+	printf inner
+}
+_jb_work_spawn() {
+	tui.job.run inner _jb_work_inner _jb_done
+	printf '%s' "${_TJ_FILES[inner]}"
+}
+_jb_work_clash() { tui.job.run outer _jb_work_ok _jb_done 9; }
+
+ti_job_a_job_started_inside_work_leaves_the_main_shells_jobs_alone() {
+	_jb_reset
+	tui.job.run outer _jb_work_slow _jb_done
+	tui.job.run clash _jb_work_clash _jb_done
+	ok '_jb_wait clash'
+	ok '_jb_wait outer'
+	match "$_JB_LOG" 'done:outer:0:slow;'
+}
+
+ti_job_files_of_a_job_started_inside_work_do_not_reuse_the_main_shells_numbers() {
+	_jb_reset
+	tui.job.run spawn _jb_work_spawn _jb_done
+	ok '_jb_wait spawn'
+	local nested=${_JB_LOG#done:spawn:0:}
+	nested=${nested%;}
+	tui.job.run next _jb_work_ok _jb_done 1
+	[[ -n "$nested" && "${_TJ_FILES[next]}" != "$nested" ]] || _t_fail "nested job dir [$nested] equals the next job's [${_TJ_FILES[next]}]"
+	_jb_wait next
+}

@@ -184,7 +184,7 @@ tui.reset_ui() {
 	_EXEC_PANE_CTL_ROW=()
 	for _pc in "${!_TUI_PANE_CONTENT[@]}"; do unset "_TUI_PANE_CONTENT_${_pc}"; done
 	_TUI_PANE_CONTENT=()
-	_TUI_PANE_RAW=() _TUI_PANE_RAW_SIZE=()
+	_TUI_PANE_RAW=() _TUI_PANE_RAW_SIZE=() _TUI_PANE_RAW_FN=() _TUI_RAW_ROWS=() _TUI_RAW_GEN=-1
 	_TUI_P_ROW=()
 	_TUI_P_COL=()
 	_TUI_P_H=()

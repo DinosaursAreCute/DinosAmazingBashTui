@@ -47,6 +47,49 @@ ti_cache_editing_page_invalidates_it() {
 	ok '! tui.cache.valid "$_CF"'
 }
 
+# the _TPL_* registry is not in the runner snapshot: a test that registers a plugin removes it again
+_cache_drop_plugin() {
+	local n
+	local -a keep=()
+	for n in "${_TPL_ORDER[@]}"; do [[ "$n" == cachep ]] || keep+=("$n"); done
+	_TPL_ORDER=("${keep[@]}")
+}
+
+ti_cache_editing_an_enabled_plugin_invalidates_the_page() {
+	_t_needs_caches || return 0
+	local plug="$_T_ROOT/cachep.plugin.sh"
+	printf '# plugin: cachep\n' >"$plug"
+	_TPL_ORDER+=(cachep)
+	_TPL_FILE[cachep]="$plug"
+	_TPL_STATE[cachep]=enabled
+	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
+	touch -d '@1000000000' "$_CF" "$plug"
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	ok 'tui.cache.valid "$_CF"'
+	touch -d '@2000000000' "$plug"
+	ok '! tui.cache.valid "$_CF"'
+	_cache_drop_plugin
+	unset '_TPL_FILE[cachep]' '_TPL_STATE[cachep]'
+}
+
+ti_cache_a_disabled_plugin_does_not_invalidate_the_page() {
+	_t_needs_caches || return 0
+	local plug="$_T_ROOT/cachep.plugin.sh"
+	printf '# plugin: cachep\n' >"$plug"
+	_TPL_ORDER+=(cachep)
+	_TPL_FILE[cachep]="$plug"
+	_TPL_STATE[cachep]=disabled
+	_cache_fixture page.xml '<tui><pane id="root" split="v"><pane id="a" weight="1"/></pane></tui>'
+	touch -d '@1000000000' "$_CF" "$plug"
+	tui.reset_ui
+	tui.cache.record "$_CF"
+	touch -d '@2000000000' "$plug"
+	ok 'tui.cache.valid "$_CF"'
+	_cache_drop_plugin
+	unset '_TPL_FILE[cachep]' '_TPL_STATE[cachep]'
+}
+
 # Regression test (bug report): (1) `declare -p` prints an untyped scalar as
 # `declare -- NAME=…` (no -a/-A/-i) - a blind `${dump//declare -/declare -g}`
 # turns that "--" into "-g-" (invalid option); (2) even once that's fixed,

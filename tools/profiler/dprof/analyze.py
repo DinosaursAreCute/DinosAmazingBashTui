@@ -586,6 +586,16 @@ def calibration_check(rounds, attr):
             "n": len(scored)}
 
 
+NOISY_CORES = 0.5   # other work above this many cores while a unit ran: its timings are inflated
+
+
+def noise(resources):
+    """The most other-work cores any single-job unit saw (None when unknown). Side-by-side units compete with each other
+    by design, so only single-job units count."""
+    vals = [u["other_cores"] for u in resources or [] if u.get("jobs", 1) == 1 and u.get("other_cores") is not None]
+    return max(vals) if vals else None
+
+
 def resource_view(rounds):
     """Per unit, the machine load while it ran, averaged over the rounds (numbers only; max stays a max)."""
     by = {}
@@ -670,4 +680,5 @@ def compare(report, base):
             continue
         rows.append({"id": g["id"], "title": g["title"], "old": o["value"], "new": g["value"],
                      "delta_pct": (g["value"] - o["value"]) / o["value"] * 100 if o["value"] else 0.0})
-    return {"when": base.get("meta", {}).get("when"), "commit": base.get("meta", {}).get("commit"), "rows": rows}
+    return {"when": base.get("meta", {}).get("when"), "commit": base.get("meta", {}).get("commit"), "rows": rows,
+            "old_noise": noise(base.get("resources")), "new_noise": noise(report.get("resources"))}

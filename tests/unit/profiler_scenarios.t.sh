@@ -156,3 +156,36 @@ print(n, [r["id"] for r in idx], idx[0]["groups"]["nav.first"][0], idx[0]["start
 	rm -rf "$d"
 	eq '2 [\x2720260101-010101\x27, \x2720260102-020202\x27] 12.5 300 {\x27crit\x27: 1} True True' "$(printf '%s' "$out" | sed "s/'/\\\\x27/g")" # `latest` is skipped; new runs need no manual step
 }
+
+ti_profiler_flags_noisy_runs_and_the_html_report_script_parses() {
+	command -v python3 >/dev/null || return 0
+	local out
+	out="$(
+		cd "$REPO/tools/profiler" && python3 - <<'PY'
+import json, re, subprocess, tempfile
+from dprof import analyze, report_html, report_term
+bad = []
+res = [{"unit": "a", "jobs": 1, "other_cores": 0.2}, {"unit": "b", "jobs": 1, "other_cores": 1.4}, {"unit": "c", "jobs": 4, "other_cores": 9.0}]
+if analyze.noise(res) != 1.4:
+    bad.append("noise: single-job units only, the maximum")
+if analyze.noise([]) is not None or analyze.noise([{"jobs": 4, "other_cores": 3}]) is not None:
+    bad.append("noise: unknown without a single-job unit")
+rep = {"latency": [{"id": "nav.first", "title": "T", "value": 20.0}], "resources": res}
+base = {"latency": [{"id": "nav.first", "value": 10.0}], "resources": [{"unit": "a", "jobs": 1, "other_cores": 0.1}], "meta": {}}
+cmp_ = analyze.compare(rep, base)
+if (cmp_["new_noise"], cmp_["old_noise"]) != (1.4, 0.1):
+    bad.append("compare: noise of both runs")
+if "inflated" not in "\n".join(report_term.compare_block({"compare": cmp_}, 100)):
+    bad.append("terminal compare: no warning for the noisy run")
+src = report_html.TEMPLATE.replace("__DATA__", "{}")   # the page's script is static: a duplicate declaration blanks the whole report
+js = re.findall(r"<script[^>]*>([\s\S]*?)</script>", src)[-1]
+if subprocess.run(["bash", "-c", "command -v node >/dev/null"]).returncode == 0:
+    with tempfile.NamedTemporaryFile("w", suffix=".js") as f:
+        f.write(js); f.flush()
+        if subprocess.run(["node", "--check", f.name], capture_output=True).returncode:
+            bad.append("html report script has a syntax error")
+print(" ".join(bad))
+PY
+	)"
+	eq "" "$out"
+}

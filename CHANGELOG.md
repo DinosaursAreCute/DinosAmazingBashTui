@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 ### News 
+- Markdown renderer: `lib/markdown/` turns Markdown into styled, width-fitted rows without a terminal (`tui.md.render`, `tui.md.style`). Headings, lists, quotes, fenced code with bash/json highlighting, tables, links, task lists, strikethrough, autolinks, reference links and a small HTML subset; `#` and `##` can be drawn in block fonts. It runs in the Docs and Case study pages, in `<textarea mode="markdown">` and in the new `<markdown>` tag. Settings > Markdown styles every element, with a live preview and a "Theme default" profile. Pictures draw in kitty and Ghostty (local PNG, converted SVG/GIF/JPEG, remote images when fetching is on). Guide: `docs/guide/markdown.md`.
+- Settings is one page with a category sidebar (collapses to a rail), a search that filters every setting while you type, a details pane, and Markdown and Plugins folded in.
 - Jobs: a job started from inside another job's work (a page build runs the page's `on_visit`) no longer stops the main shell's job of the same ID, and its temp files no longer reuse the numbers of the main shell's jobs. Before, a quick second page refresh could hand the main shell another process's result file and print `tui_job.sh: ...N.blob: No such file or directory`.
 - `tui.page.refresh` applies a change next to plugin widgets (tags a plugin registered, such as a graph) pane by pane instead of rebuilding the whole page in the background.
 - Collapsing a pane now also hides the widgets of the panes nested in it (they used to keep drawing over the space the siblings took); expanding it again leaves a nested pane that is itself collapsed hidden.
@@ -54,6 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+* Markdown: `tui.md.render`, `tui.md.style`, `tui.md.style_lines`, `tui.md.show`, `tui.md.show_file`, `tui.md.forget`, `tui.md.strip`, `tui.md.row_for_line`, `tui.md.line_for_row`. Settings of the look: `tui.md.fonts`, `tui.md.heading_font`, `tui.md.style_spec`, `tui.md.style_reset`, `tui.md.profile`, `tui.md.tables`, `tui.md.table_overflow`, `tui.md.images`, `tui.md.breaks`, `tui.md.mono`, `tui.md.highlight`, saved as `md.*` config keys. Style specs take a background (`white/#102030:bold`); classes include `page`, `table` and `table_head`; a theme defines `.md_CLASS` rules for the "Theme default" profile.
+* Markdown in panes: `tui.md.link_next` / `link_prev` / `link_open`, `back`, `search` with `search_next` / `search_prev`, `outline_choose`, `fold_toggle` and `copy`, `#anchor` and relative `.md` links with a back stack, and the `<markdown pane="ID" src="FILE"/>` tag. A pane re-wraps when it is resized, also by dragging a divider.
+* `<textarea mode="markdown">` (and `tui.text.mode`) styles the source while you type; characters, columns, cursor and selection are unchanged.
+* Images in rendered Markdown: `tui.md.images graphics` draws local PNG, SVG, GIF, JPEG and WebP pictures in kitty and Ghostty through the graphics protocol with Unicode placeholders, several side by side like badges. SVG needs `rsvg-convert`, other formats ImageMagick or `ffmpeg`. `TUI_MD_IMAGE_FETCH=1` fetches remote images in the background. `tui.md.image_protocol` reports what the terminal speaks.
+* New hook event `layout` (a divider drag, a collapse or a keyboard resize changed pane sizes) and `tui.scroll.reset PANE`. Activating another tab resets the scroll position of the shared content pane.
+* `<input on_change="fn">` is honoured (it was ignored): a live filter while typing.
+* `examples/md-editor`: a full-screen Markdown editor with a rendered source, a split preview, literal line breaks and a static document view (`run.sh [FILE.md [STATIC.md]]`).
 * Fused panes: `fuse="true"` on every child of a split makes siblings share one border line with correct junction glyphs. New pane attributes `divider`, `divider_class`, `title_pos="top|bottom"` and `title_align="left|center|right"`; setters `tui.pane_fuse`, `tui.pane_divider`, `tui.pane_divider_class`, `tui.pane_title_pos`, `tui.pane_title_align`. Both titles are drawn on a shared line.
 * Resizing: `resizable="x|y|both"` and `handle="corner|edge|divider|none"` (default `none`: keyboard only). Dragging moves weight between the two siblings that share the border, respecting `min_*`/`max_*`; the last pane of a split resizes by its leading edge. Handles show a hover style, a double click resets the pane, and `on_resize` is called with the new size. `alt+r` enters keyboard resize mode (arrows ±1, shift+arrows ±5, Enter/Esc leaves) with a `[resize]` marker on the pane; held arrow repeats are coalesced. API: `tui.pane_resizable`, `tui.pane_handle`, `tui.resize`, `tui.resize.reset`, `tui.action.resize_mode`.
 * Collapsing: `collapsible="true"`, `default="expanded|collapsed"` (`collapsed="true"` as alias), `collapse_to="title|0|rail"`, `collapsed_text` on buttons (shown on the rail), `on_toggle`, `keep_collapsed`, `collapse_key="KEY"` (a direct shortcut for one pane) and `collapse_class`. A two-cell button on the border corner of the moving edge points in the direction the pane will move (`◀ ▶ ▲ ▼`) and has its own hover style; `alt+c` toggles the focused pane and the footer shows it when it applies. Tags `<details>` and `<accordion>` (`multiple="true"` allows several open). API: `tui.collapse ID [toggle|on|off]`, `tui.collapsed ID`, `tui.action.collapse_toggle`.
@@ -83,6 +92,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Menu of the demo (shell): collapsible to a rail (`alt+c`), resizable (drag the edge or `alt+r`), and it keeps both across page switches and reloads.
 
 ### Changed
+- The Docs page shows a list of documents (resizable, collapsible, scrollable) instead of a header bar, and renders them with the Markdown renderer: tables, links, code blocks and block-letter headings instead of raw text. The Case study document tab does the same.
+- Settings: the three-column page and the separate Plugins tab become one page with category sidebar, search and details. Plugins are rows (Enter enables or disables) with the plugin browser one row away; the Markdown settings live in the same page.
+- Block fonts for headings default to on in DABT apps unless `md.fonts` is saved; `tui.config.apply` applies the `md.*` keys.
+- `TUI_DEFAULTS_DIR` exported before `tui.sh` is sourced now wins, so a checkout can run on its own `share/defaults` while an older install exists.
 - `tui.exec` runs on plain pipes when util-linux `script(1)` is missing (or `TUI_EXEC_PTY=off`): streaming, stdin and the exit status are unchanged, the child just sees no tty. `TUI_EXEC_PTY=auto|on|off`; see `docs/concepts/portability.md`.
 - `tui.exec` runs its command with the Bash that runs the app instead of `$SHELL`, so a fish or zsh login shell no longer changes what the command means.
 - Bash 5 is checked when `tui.sh` is sourced: an older shell stops with a clear message instead of a `declare` error.
@@ -119,6 +132,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+* The "Free terminal shortcuts" setting aborted the app: its value was read with `tui.plugin.config NAME KEY 0`, which writes the value and prints nothing, leaving an arithmetic expression with no operand. It is read with `tui.config.get` now, and the toggles no longer compute on stored values.
+* Pages built with `<markdown>` or `tui.md.show` kept the width of their first render when a pane was resized by dragging its border; they re-wrap after the drag pauses.
 * Tick functions (`_TUI_TICK_FN`, `tui.tick.add` listeners, `tui.every`, `tui.exec`) ran once per input-loop iteration, and every mouse event ends the poll read early, so moving the pointer (e.g. onto a new button) made them fire faster; the monitor panes refreshed on hover. `tui.run` now dispatches ticks by elapsed time (`TUI_INPUT_POLL_TIMEOUT`), independent of input.
 * Profiler: in a full run the `theme` steps clicked `[ Reset to defaults ]` instead of the *Default* theme button (the needle `default` matched `defaults`), leaving a confirm dialog open that swallowed every later step, so all `compose` groups failed. Text lookup now matches whole words.
 * Profiler: a step that cannot do its job (text not on screen, `compose.open` not landing on the page) is now a warning and a red *steps failed* finding, and its group is never rated good. Unit tests for both.

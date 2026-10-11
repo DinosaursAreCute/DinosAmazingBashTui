@@ -51,6 +51,9 @@ tui.config.apply() {
     for g in ${_TUI_CFG[defaults.off]:-}; do _TUI_DEF_OFF[$g]=1; done
     [[ -n "${_TUI_CFG[notify.position]:-}" ]] && tui.notify.position "${_TUI_CFG[notify.position]}" 2>/dev/null
     [[ -n "${_TUI_CFG[notify.seconds]:-}" ]]  && tui.notify.seconds "${_TUI_CFG[notify.seconds]}"
+    declare -F tui.md.config_apply >/dev/null && tui.md.config_apply
+    # DABT draws # and ## headings in block letters unless the user turned that off (Settings > Markdown)
+    [[ -z "${_TUI_CFG[md.fonts]:-}" ]] && TUI_MD_FONTS=1
     [[ -n "${_TUI_CFG[input.retain]:-}" ]]   && TUI_INPUT_RETAIN_ON_SUBMIT="${_TUI_CFG[input.retain]}"
     [[ -n "${_TUI_CFG[input.coalesce]:-}" ]] && TUI_INPUT_COALESCE="${_TUI_CFG[input.coalesce]}"
     return 0

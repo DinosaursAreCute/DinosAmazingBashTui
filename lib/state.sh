@@ -52,6 +52,7 @@ declare -gA _TUI_W_PANE=()
 declare -gA _TUI_W_ROW=()
 declare -gA _TUI_W_LABEL=()
 declare -gA _TUI_W_VALUE=()
+declare -gA _TUI_W_SELECTED=() # widget id -> 1 while tui.select marked it selected
 declare -gA _TUI_W_ACTION=()
 declare -gA _TUI_W_SUBMIT=()
 declare -gA _TUI_W_PH=()

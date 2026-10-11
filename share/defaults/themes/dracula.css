@@ -83,10 +83,12 @@
 /* <tabs> headers */
 .tab_header { fg: #f8f8f2; bg: #393a45; }
 .tab_header:hover { fg: #f8f8f2; bg: #4d4f58; }
-.tab_header:focus { fg: #282a36; bg: #bd93f9; mods: bold; }
+.tab_header:focus { fg: #f8f8f2; bg: #4d4f58; }
+.tab_header:selected { fg: #282a36; bg: #bd93f9; mods: bold; }
 .tab_header_compact { fg: #6272a4; bg: #21222c; }
 .tab_header_compact:hover { fg: #f8f8f2; bg: #41424a; }
-.tab_header_compact:focus { fg: #282a36; bg: #bd93f9; mods: bold; }
+.tab_header_compact:focus { fg: #f8f8f2; bg: #41424a; }
+.tab_header_compact:selected { fg: #282a36; bg: #bd93f9; mods: bold; }
 
 /* checkboxes, progress bars */
 .check { fg: #6272a4; }
@@ -195,3 +197,27 @@
   bg: #6272a4;
   mods: bold;
 }
+
+/* Markdown (Settings > Markdown > Profile "Theme default"): one .md_CLASS rule per style class of the renderer: h1..h6 strong em
+ * code codeblock quote bullet link hr marker strike page hl_keyword hl_string hl_comment hl_number hl_var. A class left out
+ * keeps DABT's own look. .md_page is the document background, .md_codeblock the code blocks'. */
+.md_h1 { fg: #ff79c6; mods: bold underline; }
+.md_h2 { fg: #bd93f9; mods: bold; }
+.md_h3 { fg: #8be9fd; mods: bold; }
+.md_h4 { fg: #50fa7b; mods: bold; }
+.md_strong { fg: #f8f8f2; mods: bold; }
+.md_em { fg: #f1fa8c; mods: italic; }
+.md_code { fg: #f1fa8c; bg: #21222c; }
+.md_codeblock { fg: #f8f8f2; bg: #21222c; }
+.md_quote { fg: #6272a4; }
+.md_bullet { fg: #50fa7b; }
+.md_link { fg: #8be9fd; mods: underline; }
+.md_hr { fg: #44475a; }
+.md_marker { fg: #6272a4; }
+.md_table { fg: #6272a4; }
+.md_table_head { fg: #bd93f9; mods: bold; }
+.md_hl_keyword { fg: #ff79c6; mods: bold; }
+.md_hl_string { fg: #f1fa8c; }
+.md_hl_comment { fg: #6272a4; mods: italic; }
+.md_hl_number { fg: #bd93f9; }
+.md_hl_var { fg: #8be9fd; }

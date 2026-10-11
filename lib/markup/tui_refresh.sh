@@ -229,7 +229,7 @@ _tui_engine.collect_panes() {
 _tui_engine.forget_widget() {
 	local id="$1"
 	unset '_TUI_W_TYPE[$id]' '_TUI_W_PANE[$id]' '_TUI_W_ROW[$id]' '_TUI_W_LABEL[$id]' \
-		'_TUI_W_VALUE[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
+		'_TUI_W_VALUE[$id]' '_TUI_W_SELECTED[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
 		'_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
 		'_TUI_W_MINH[$id]' '_TUI_W_MAXH[$id]' '_TUI_W_EXPAND[$id]' \
 		'_TUI_W_WIDTH[$id]' '_TUI_W_HEIGHT[$id]' \

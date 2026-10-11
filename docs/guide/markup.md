@@ -121,6 +121,7 @@ Attributes every widget has:
 | `<bind key="ctrl+e" action="fn" desc="Export"/>` | a key for this page |
 | `<footer items="@tui.action.quit"/>` | the key hints in the bottom row |
 | `<theme src="theme.css"/>` | the stylesheet |
+| `<markdown pane="ID" src="FILE"/>` | renders `FILE` (Markdown, relative to the page) into the scrolling pane `ID`, and again when the pane's width changes |
 
 ## Reusing markup
 

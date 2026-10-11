@@ -175,6 +175,17 @@ tui.register tag tui _tui_build.tag.tui
 tui.register tag script _tui_build.tag.script
 tui.register tag theme _tui_build.tag.theme
 
+# <markdown pane="ID" src="FILE"/>: FILE (relative to the page) rendered as Markdown into the scrolling pane ID.
+_tui_build.tag.markdown() {
+	local node="$1" mpane msrc
+	_tui_build.attrv "$node" pane mpane
+	_tui_build.attrv "$node" src msrc
+	[[ -z "$mpane" || -z "$msrc" ]] && return 0
+	[[ "$msrc" != /* ]] && msrc="${_TUI_MARKUP_DIR}/${msrc}"
+	tui.md.show_file "$mpane" "$msrc"
+}
+tui.register tag markdown _tui_build.tag.markdown
+
 # ── <pane> and its row/col/spacer/divider/group aliases ───────────────────
 
 # A pane node's split member list is exactly its pane-typed children (in
@@ -532,6 +543,9 @@ _tui_build.tag.input() {
 	_tui_build.attrv "$node" label ilabel
 	_tui_build.attrv "$node" submit isubmit
 	tui.input "$iid" "$ipane" "$irow" "$iph" "$ilabel" "$isubmit"
+	local ichange
+	_tui_build.attrv "$node" on_change ichange
+	[[ -n "$ichange" ]] && tui.on_change "$iid" "$ichange" # after every edit: a live filter
 	tui.align "$iid" "$ialign"
 	tui.valign "$iid" "$ivalign"
 	tui.minsize "$iid" "$iminw" "$iminh"

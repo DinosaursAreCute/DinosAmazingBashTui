@@ -48,7 +48,7 @@ An example is in [../../examples/plugins/hello.plugin.sh](https://github.com/Din
 
 ## Hooks
 
-`tui.hook.on EVENT FN` / `tui.hook.off` / `tui.hook.fire EVENT ARGS`. Events: `init` (tui.init done), `ready` (before the first frame), `page FILE` (after each page switch), `resize ROWS COLS`, `key NAME` (before bindings; `FN` returns 0 to **consume** the key), `quit`, `exit` (the terminal is being restored: give things back), `plugin_enabled NAME`, `plugin_disabled NAME`.
+`tui.hook.on EVENT FN` / `tui.hook.off` / `tui.hook.fire EVENT ARGS`. Events: `init` (tui.init done), `ready` (before the first frame), `page FILE` (after each page switch), `resize ROWS COLS`, `layout` (panes changed size: a divider drag, a collapse, a keyboard resize), `key NAME` (before bindings; `FN` returns 0 to **consume** the key), `quit`, `exit` (the terminal is being restored: give things back), `plugin_enabled NAME`, `plugin_disabled NAME`.
 
 ## Changing pages from a plugin: addons
 
@@ -73,7 +73,8 @@ Addon content gets the addon's id as a prefix on its ids (`stats_go`), so a plug
 
 ## Managing plugins
 
-- **Settings > Plugins** (command bar: "DABT: Plugins"): every detected plugin with state and version. Select one to see its details (state, source, location, file count, folders, size, lines, functions, and what it registered: commands, keybinds, hooks, timers), a **file tree** and, when you pick a file, its **content** (with line numbers). Enter / double-click on a plugin moves into its files; Enter on a folder collapses it. Buttons: enable / disable, reload, install (from a file or folder), remove.
+- **Settings > Plugins** (command bar: "DABT: Settings", category *Plugins*): one row per plugin; Enter or a double-click enables or disables it, the details pane shows its info, and the search field finds a plugin by name or description while you type. *Plugin browser ...* opens the page below.
+- **Plugin browser** (command bar: "DABT: Plugins"): every detected plugin with state and version. Select one to see its details (state, source, location, file count, folders, size, lines, functions, and what it registered: commands, keybinds, hooks, timers), a **file tree** and, when you pick a file, its **content** (with line numbers). Enter / double-click on a plugin moves into its files; Enter on a folder collapses it. Buttons: enable / disable, reload, install (from a file or folder), remove.
 - **Command bar**: "Plugin: enable X" / "Plugin: disable X" for each plugin.
 - **Code**: `tui.plugin.list|info|enable|disable|toggle|reload|install|remove|files|stats|root`.
 

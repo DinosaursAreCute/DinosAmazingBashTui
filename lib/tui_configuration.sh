@@ -104,7 +104,7 @@ declare -g TUI_PLUGINS_DIR=""
 declare -g TUI_LOG_DIR=""
 
 # Default keybinds, theme, commands
-declare -g TUI_DEFAULTS_DIR=""
+declare -g TUI_DEFAULTS_DIR="${TUI_DEFAULTS_DIR:-}" # an exported value wins: run a checkout on its own share/defaults
 
 # Framework version (read from $TUI_ROOT/VERSION at runtime)
 declare -g TUI_VERSION="0.0.0"

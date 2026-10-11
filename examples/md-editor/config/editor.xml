@@ -1,0 +1,12 @@
+<tui on_visit="md_visit">
+  <script src="callbacks.sh"/>
+  <theme src="theme.css"/>
+  <footer items="@tui.action.quit"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="src" title="Markdown   alt+m render  alt+p preview  alt+f fonts  alt+b breaks  alt+o static doc" border="single" class="panel">
+      <textarea id="ta_src" rows="0" mode="markdown" keep_value="true" placeholder="type markdown here..." on_change="md_changed"/>
+    </pane>
+    <pane id="view" width="50%" title="Preview" border="single" class="panel" scroll="v" collapsible="true" collapse_to="0"/>
+  </pane>
+</tui>

@@ -57,6 +57,18 @@ source "${SCRIPT_DIR}/tui_job.sh"
 source "${SCRIPT_DIR}/layout/tui_layout.sh"
 # shellcheck source=core/tui_loop.sh
 source "${SCRIPT_DIR}/core/tui_loop.sh"
+# shellcheck source=markdown/tui_markdown.sh
+source "${SCRIPT_DIR}/markdown/tui_markdown.sh"
+# shellcheck source=markdown/tui_markdown_hl.sh
+source "${SCRIPT_DIR}/markdown/tui_markdown_hl.sh"
+# shellcheck source=markdown/tui_markdown_html.sh
+source "${SCRIPT_DIR}/markdown/tui_markdown_html.sh"
+# shellcheck source=markdown/tui_markdown_img.sh
+source "${SCRIPT_DIR}/markdown/tui_markdown_img.sh"
+# shellcheck source=markdown/tui_markdown_table.sh
+source "${SCRIPT_DIR}/markdown/tui_markdown_table.sh"
+# shellcheck source=markdown/tui_markdown_view.sh
+source "${SCRIPT_DIR}/markdown/tui_markdown_view.sh"
 # shellcheck source=markup/tui_markup.sh
 source "${SCRIPT_DIR}/markup/tui_markup.sh"
 # shellcheck source=input/tui_mouse.sh

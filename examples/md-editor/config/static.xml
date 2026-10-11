@@ -1,0 +1,9 @@
+<tui on_visit="md_static_visit">
+  <script src="callbacks.sh"/>
+  <theme src="theme.css"/>
+  <footer items="@tui.action.quit"/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="doc" title="Static document   esc / alt+o: editor  alt+f: fonts  alt+b: line breaks" border="single" class="panel" scroll="v"/>
+  </pane>
+</tui>

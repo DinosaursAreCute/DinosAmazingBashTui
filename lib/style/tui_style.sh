@@ -15,6 +15,8 @@
 #                               panes - pane borders only react to :focus.
 #   .classname:checked { ... } / :unchecked { ... }   a checkbox's look while on / off (focus and hover still
 #                               win; fields left out fall back to the normal look).
+#   .classname:selected { ... }   a button's look while tui.select marked it selected (a current tab or
+#                               nav entry); focus and hover still win, fields left out fall back to normal.
 #
 # fg/bg accept a colors.sh name (e.g. "red") or a "#RRGGBB" hex value.
 # mods is a space-separated list of style.* modifiers (e.g. "bold underline").
@@ -22,7 +24,7 @@
 # tui.load_theme FILE   parses a stylesheet into the class table.
 # tui.class ID CLASS    applies a class's rules to a pane or widget id.
 # tui.style ID:STATE FG BG MODS   sets style directly, bypassing classes.
-#   STATE is one of: normal (default), focus, border, title, hover, checked, unchecked.
+#   STATE is one of: normal (default), focus, border, title, hover, checked, unchecked, selected.
 # requires:
 
 declare -gA _TUI_STYLE_FG=() _TUI_STYLE_BG=() _TUI_STYLE_MOD=()
@@ -44,7 +46,7 @@ tui.style() {
 # re-bake after a theme change clears first: a property the new theme leaves out must not keep the old value.
 _tui.style_clear() {
 	local state
-	for state in normal focus border title hover checked unchecked; do
+	for state in normal focus border title hover checked unchecked selected; do
 		unset '_TUI_STYLE_FG[${1}_$state]' '_TUI_STYLE_BG[${1}_$state]' '_TUI_STYLE_MOD[${1}_$state]'
 	done
 	_tui.epoch_bump style
@@ -205,6 +207,7 @@ _tui._find_theme_collisions() {
 		base="${base%_hover}"
 		base="${base%_collapsed}"
 		base="${base%_unchecked}"
+		base="${base%_selected}"
 		base="${base%_checked}"
 		bases[$base]=1
 	done
@@ -239,7 +242,7 @@ tui.class() {
 	tui.log.debug "tui.class: baking id=$id from class=$cls (bakes _TUI_STYLE_* at build time - not re-run on a cache replay)"
 
 	local state suffix
-	for state in normal focus border title hover checked unchecked; do
+	for state in normal focus border title hover checked unchecked selected; do
 		suffix="$cls"
 		[[ "$state" != "normal" ]] && suffix="${cls}_${state}"
 		if [[ -n "${_TUI_CLASS_FG[$suffix]:-}${_TUI_CLASS_BG[$suffix]:-}${_TUI_CLASS_MOD[$suffix]:-}" ]]; then

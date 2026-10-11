@@ -261,6 +261,7 @@
       <xs:element ref="script"/>
       <xs:element ref="theme"/>
       <xs:element ref="include"/>
+      <xs:element ref="markdown"/>
       <xs:element ref="pane"/>
       <xs:element ref="row"/>
       <xs:element ref="col"/>
@@ -491,6 +492,13 @@
 
   <xs:element name="theme">
     <xs:complexType>
+      <xs:attribute name="src" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="markdown">
+    <xs:complexType>
+      <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="src" type="xs:string" use="required"/>
     </xs:complexType>
   </xs:element>
@@ -770,6 +778,7 @@
       <xs:attribute name="label" type="xs:string"/>
       <xs:attribute name="placeholder" type="xs:string"/>
       <xs:attribute name="submit" type="xs:string"/>
+      <xs:attribute name="on_change" type="xs:string"/>
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
       <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
@@ -953,6 +962,10 @@
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
+      <!-- mode="markdown": the source is styled as Markdown while typing (characters and columns unchanged) -->
+      <xs:attribute name="mode">
+        <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="markdown"/><xs:enumeration value="plain"/></xs:restriction></xs:simpleType>
+      </xs:attribute>
       <xs:attributeGroup ref="focusHitAttrs"/>
       <xs:attributeGroup ref="keepValueAttrs"/>
     </xs:complexType>

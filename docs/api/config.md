@@ -15,6 +15,14 @@ Settings live in `~/.config/DABT/apps/<TUI_APP_NAME>/dabt.conf` as `key=value` l
 | `notify.position` | see [`tui.notify.position`](chrome/tui.notify.position.md) | at start |
 | `notify.seconds` | seconds, `0` = sticky | at start |
 | `confirm.quit` | `1` / `0` | at every quit |
+| `md.fonts` | `1` / `0`: headings with a font are drawn as block letters (default `1` in DABT apps) | at start ([`tui.md.config_apply`](markdown/tui.md.config_apply.md)) |
+| `md.font.1` ... `md.font.6` | `style`, `block5`, `blk3`, `seg3`, `box3` or `half2` | at start |
+| `md.style.CLASS` | a style spec `FG[/BG][:MODS]`, such as `cyan:bold,underline` or `white/#102030:bold` ([`tui.md.style_spec`](markdown/tui.md.style_spec.md)) | at start |
+| `md.breaks`, `md.link_url` | `1` / `0`; `inline` / `hidden` | at start |
+| `md.profile` | `dabt` / `theme` ([`tui.md.profile`](markdown/tui.md.profile.md)) | at start |
+| `md.tables` | `grid` / `rounded` / `plain` / `stacked` ([`tui.md.tables`](markdown/tui.md.tables.md)) | at start |
+| `md.table_overflow` | `wrap` / `truncate` ([`tui.md.table_overflow`](markdown/tui.md.table_overflow.md)) | at start |
+| `md.images` | `placeholder` / `alt` / `hidden` ([`tui.md.images`](markdown/tui.md.images.md)) | at start |
 | `plugin.NAME.enabled`, `plugin.NAME.KEY` | plugin state and settings | by the plugin system |
 
 Functions return `0` unless stated.

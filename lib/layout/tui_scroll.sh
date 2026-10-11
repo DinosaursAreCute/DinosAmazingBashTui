@@ -278,6 +278,17 @@ _tui_scroll.apply() {
 	fi
 }
 
+# tui.scroll.reset PANE - back to the top-left corner of a scrolling pane (its content was replaced by something else);
+# repaints only when the offset was not already 0. Returns 1 for an unknown pane.
+tui.scroll.reset() {
+	[[ -n "${_TUI_P_ROW[$1]:-}" ]] || return 1
+	[[ "${_TUI_P_SOFF_V[$1]:-0}" == 0 && "${_TUI_P_SOFF_H[$1]:-0}" == 0 ]] && return 0
+	_TUI_P_SOFF_V[$1]=0
+	_TUI_P_SOFF_H[$1]=0
+	((${_TUI_RUNNING:-0})) && _tui._queue_render "$1"
+	return 0
+}
+
 # tui.scroll.to TARGET [top|center|bottom] - scrolls the pane containing a
 # widget (or the pane itself) so the widget or pane sits at the specified
 # viewport position. With no position, shows the target with the minimal move

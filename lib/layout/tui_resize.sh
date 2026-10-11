@@ -253,6 +253,7 @@ _tui_resize.commit() {
 		cb="${_TUI_P_ON_RESIZE[$p]:-}"
 		[[ -n "$cb" ]] && declare -F "$cb" >/dev/null && "$cb" "$p" "${_TUI_P_W[$p]}" "${_TUI_P_H[$p]}"
 	done
+	tui.hook.fire layout # panes changed size (a drag, a collapse, a keyboard resize): Markdown panes re-wrap
 	tui.frame.request
 }
 

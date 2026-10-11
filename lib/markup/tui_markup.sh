@@ -236,6 +236,7 @@ tui.reset_ui() {
 	_TUI_W_ROW=()
 	_TUI_W_LABEL=()
 	_TUI_W_VALUE=()
+	_TUI_W_SELECTED=()
 	_TUI_W_ACTION=()
 	_TUI_W_SUBMIT=()
 	_TUI_W_PH=()

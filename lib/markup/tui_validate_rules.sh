@@ -5,17 +5,18 @@
 # -- vocabulary ----------------------------------------------------------
 tui.validate.container tui pane tabs details accordion window modal dialog popup tooltip contextmenu toast
 tui.validate.widget label input button checkbox password textarea list table select progress
-tui.validate.tag script theme include footer bind tab outlet
+tui.validate.tag script theme include footer bind tab outlet markdown
 # composition (lib/markup/tui_compose.sh) and addons (tui_addon.sh): expanded away before the build
 tui.validate.container template use slot fill for if else addon append prepend before after replace
 tui.validate.tag component remove set wrap
-tui.validate.self_closing script theme include footer bind tab outlet \
+tui.validate.self_closing script theme include footer bind tab outlet markdown \
 	label input button checkbox password textarea list table select progress
 
 # -- required attributes -------------------------------------------------
 tui.validate.require pane id
 tui.validate.require script src
 tui.validate.require theme src
+tui.validate.require markdown pane src
 tui.validate.require include src
 tui.validate.require template name
 tui.validate.require use template
@@ -62,6 +63,7 @@ tui.validate.enum tui keep_state "true|false"
 tui.validate.enum pane keep_size "true|false"
 tui.validate.enum details keep_size "true|false"
 for _tv_b in input password textarea checkbox select list table progress; do tui.validate.enum "$_tv_b" keep_value "true|false"; done
+tui.validate.enum textarea mode "markdown|plain"
 tui.validate.enum '*' persist "session|disk|layout"
 tui.validate.enum '*' keep_focus "true|false"
 unset _tv_b
@@ -330,7 +332,7 @@ tui.validate.rule element _tui_vrule.tabs
 _tui_vrule.files() {
 	local a="" base="${TUI_V_PAGE%/*}" p
 	case "$TUI_V_TAG" in
-		script | theme) a=src ;;
+		script | theme | markdown) a=src ;;
 		button) a=page ;;
 		*) return 0 ;;
 	esac

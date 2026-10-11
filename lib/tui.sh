@@ -892,18 +892,54 @@ tui.tabs.build() {
 _tui._tab_activate() { tui.tabs.activate "$1"; }
 
 # tui.tabs.activate TAB_ID - makes TAB_ID the active tab in its group:
-# focuses its header button (reusing this framework's existing focus
-# styling as the "active" indicator instead of a second style state) and
-# calls the developer's own action, which is exactly the unchanged body
-# of whatever callback already populates that content pane today.
+# marks its header button selected (the :selected look, which persists
+# after focus moves away; every sibling is deselected), focuses it, sends
+# a shared content pane back to its top and calls the developer's own
+# action, which is exactly the unchanged body of whatever callback already
+# populates that content pane today.
 tui.tabs.activate() {
 	local tab_id="$1"
 	local tabs_id="${_TUI_TAB_GROUP[$tab_id]:-}"
-	[[ -z "$tabs_id" ]] && return
-	_TUI_TABS_ACTIVE[$tabs_id]="$tab_id"
-	tui.focus "$tab_id"
+	if [[ -z "$tabs_id" ]]; then
+		tui.log.warn "tui.tabs.activate: '$tab_id' belongs to no tabs group (tui.tabs.build not called for it?), nothing activated"
+		return 0
+	fi
+
+	local previous_tab_id="${_TUI_TABS_ACTIVE[$tabs_id]:-}"
+	local content_pane="${_TUI_TABS_CONTENT_PANE[$tabs_id]:-}"
 	local action="${_TUI_TAB_ACTION[$tab_id]:-}"
-	[[ -n "$action" ]] && "$action" "$tab_id"
+	tui.log.debug "tui.tabs.activate: group=$tabs_id tab=$tab_id previous=${previous_tab_id:-<none>} content_pane=${content_pane:-<none>} action=${action:-<none>}"
+
+	_TUI_TABS_ACTIVE[$tabs_id]="$tab_id"
+	_tui_tabs.deselect_siblings "$tabs_id" "$tab_id"
+	tui.select "$tab_id" true
+	tui.focus "$tab_id"
+
+	if [[ -z "$previous_tab_id" || "$previous_tab_id" == "$tab_id" ]]; then
+		tui.log.debug "tui.tabs.activate: '$tab_id' was already active or first in '$tabs_id', content pane keeps its scroll offset"
+	elif [[ -z "$content_pane" ]]; then
+		tui.log.warn "tui.tabs.activate: group '$tabs_id' has no content pane, scroll reset skipped"
+	else
+		tui.log.debug "tui.tabs.activate: '$previous_tab_id' -> '$tab_id', resetting scroll of '$content_pane'"
+		tui.scroll.reset "$content_pane"
+	fi
+
+	[[ -z "$action" ]] && return 0
+	tui.log.debug "tui.tabs.activate: running action '$action' for '$tab_id'"
+	"$action" "$tab_id" || tui.log.warn "tui.tabs.activate: action '$action' for '$tab_id' returned rc=$?"
+	return 0
+}
+
+# _tui_tabs.deselect_siblings TABS_ID KEEP_TAB_ID - clears the selected flag of every other tab of the group.
+# Tab ids repeat across pages, so this looks at the group's members, not just the previously active tab.
+_tui_tabs.deselect_siblings() {
+	local tabs_id="$1" keep_tab_id="$2" sibling_id deselected=""
+	for sibling_id in "${!_TUI_TAB_GROUP[@]}"; do
+		[[ "$sibling_id" == "$keep_tab_id" || "${_TUI_TAB_GROUP[$sibling_id]}" != "$tabs_id" ]] && continue
+		tui.select "$sibling_id" false
+		deselected+=" $sibling_id"
+	done
+	tui.log.debug "tui.tabs.activate: group=$tabs_id kept=$keep_tab_id deselected:${deselected:- <none>}"
 }
 
 # tui.get ID [VAR] - the widget's value: printed, or (with VAR) stored in VAR, which costs no subshell
@@ -924,6 +960,49 @@ tui.update() {
 
 	_ps.widgets.set "$1" value "$2"
 	_tui._draw_widget "$1"
+}
+# tui.select ID [true|false] - marks a button selected (default true) so it draws its .class:selected look
+# even while another widget has focus (focus and hover still win). Redraws ID when the flag changes.
+tui.select() {
+	local widget_id="$1" wanted="${2:-true}"
+	local was_selected="${_TUI_W_SELECTED[$widget_id]:-}" state_label="not selected"
+	[[ -n "$was_selected" ]] && state_label="selected"
+
+	case "$wanted" in
+		true | false) ;;
+		*)
+			tui.log.error "tui.select: '$widget_id': expected true|false, got '$wanted'; selection left unchanged"
+			return 1
+			;;
+	esac
+	if [[ -z "$widget_id" ]]; then
+		tui.log.error "tui.select: called without a widget id"
+		return 1
+	fi
+	tui.log.debug "tui.select: widget=$widget_id wanted=$wanted currently=$state_label"
+
+	if [[ "$wanted" == true ]]; then
+		if [[ -n "$was_selected" ]]; then
+			tui.log.debug "tui.select: '$widget_id' already selected, no change"
+			return 0
+		fi
+		_TUI_W_SELECTED[$widget_id]=1
+	else
+		if [[ -z "$was_selected" ]]; then
+			tui.log.debug "tui.select: '$widget_id' not selected, no change"
+			return 0
+		fi
+		unset '_TUI_W_SELECTED[$widget_id]'
+	fi
+
+	if [[ -z "${_TUI_W_TYPE[$widget_id]:-}" ]]; then
+		tui.log.warn "tui.select: '$widget_id' is not a built widget; flag stored, nothing to redraw"
+		return 0
+	fi
+	[[ "$wanted" == true ]] && state_label="selected" || state_label="not selected"
+	tui.log.debug "tui.select: '$widget_id' is now $state_label, redrawing"
+	_tui._draw_widget "$widget_id"
+	return 0
 }
 tui.on_action() { _TUI_W_ACTION[$1]="$2"; }
 tui.on_submit() { _TUI_W_SUBMIT[$1]="$2"; }
@@ -1658,9 +1737,12 @@ _tui._draw_widget_buf() {
 		label | button | checkbox)
 			if [[ "${_TUI_W_VALUE[$id]:-}${_TUI_W_LABEL[$id]:-}" != *'${'* ]]; then
 				_rc_sk="${id}_normal"
-				if ((focused)); then _rc_sk="${id}_focus"; elif ((hovered)); then _rc_sk="${id}_hover"; fi
+				if ((focused)); then _rc_sk="${id}_focus"; elif ((hovered)); then _rc_sk="${id}_hover"; elif [[ -n "${_TUI_W_SELECTED[$id]:-}" && "$type" == button ]]; then _rc_sk="${id}_selected"; fi
 				_rc_pk="${_TUI_W_PANE[$id]}_normal"
-				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}|${_TUI_STYLE_FG[$_rc_sk]:-}|${_TUI_STYLE_BG[$_rc_sk]:-}|${_TUI_STYLE_MOD[$_rc_sk]:-}|${_TUI_STYLE_FG[$_rc_pk]:-}|${_TUI_STYLE_BG[$_rc_pk]:-}|${_TUI_STYLE_MOD[$_rc_pk]:-}"
+				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_SELECTED[$id]:-}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}|${_TUI_STYLE_FG[$_rc_sk]:-}|${_TUI_STYLE_BG[$_rc_sk]:-}|${_TUI_STYLE_MOD[$_rc_sk]:-}|${_TUI_STYLE_FG[$_rc_pk]:-}|${_TUI_STYLE_BG[$_rc_pk]:-}|${_TUI_STYLE_MOD[$_rc_pk]:-}"
+				if [[ "$type" == button ]]; then # the :selected look and the normal style it falls back to
+					_rc_key+="|${_TUI_STYLE_FG[${id}_normal]:-}|${_TUI_STYLE_BG[${id}_normal]:-}|${_TUI_STYLE_MOD[${id}_normal]:-}"
+				fi
 				if [[ "$type" == checkbox ]]; then # the :checked / :unchecked look and the normal style it falls back to
 					_rc_key+="|${_TUI_STYLE_FG[${id}_checked]:-}|${_TUI_STYLE_BG[${id}_checked]:-}|${_TUI_STYLE_MOD[${id}_checked]:-}|${_TUI_STYLE_FG[${id}_unchecked]:-}|${_TUI_STYLE_BG[${id}_unchecked]:-}|${_TUI_STYLE_MOD[${id}_unchecked]:-}|${_TUI_STYLE_FG[${id}_normal]:-}|${_TUI_STYLE_BG[${id}_normal]:-}|${_TUI_STYLE_MOD[${id}_normal]:-}"
 				fi
@@ -1698,6 +1780,14 @@ _tui._draw_widget_buf() {
 	elif ((hovered)); then
 		style_key="${id}_hover"
 	fi
+	# :selected replaces the normal look of a button (focus and hover still win); fields it leaves out fall back to normal
+	local selected_fallback_key="$pane_key" selected_bg_fallback_key=""
+	if [[ "$type" == button && -n "${_TUI_W_SELECTED[$id]:-}" && "$style_key" == "${id}_normal" ]] &&
+		[[ -n "${_TUI_STYLE_FG[${id}_selected]:-}${_TUI_STYLE_BG[${id}_selected]:-}${_TUI_STYLE_MOD[${id}_selected]:-}" ]]; then
+		style_key="${id}_selected"
+		selected_fallback_key="${id}_normal"
+		selected_bg_fallback_key="$pane_key"
+	fi
 
 	case "$type" in
 		button)
@@ -1708,7 +1798,7 @@ _tui._draw_widget_buf() {
 			_tui._resolve_text_v "${_TUI_W_LABEL[$id]}"
 			lbl="$_R"
 
-			_tui.emit_style "$style_key" "$pane_key"
+			_tui.emit_style "$style_key" "$selected_fallback_key" "$selected_bg_fallback_key"
 			if ((focused)); then
 				[[ -z "${_TUI_STYLE_FG[$style_key]:-}" && -z "${_TUI_STYLE_BG[$style_key]:-}" ]] && _tui.emit_sgr 7
 			else

@@ -773,9 +773,11 @@ _markup_wx() {
 			[[ -n "$pv" ]] && tui.set "$id" "$pv"
 			;;
 	esac
-	local oc
+	local oc wmode
 	_markup_attrv "$line" on_change oc
 	[[ -n "$oc" ]] && tui.on_change "$id" "$oc"
+	_markup_attrv "$line" mode wmode
+	[[ -n "$wmode" ]] && tui.text.mode "$id" "$wmode"
 	_markup_attrv "$line" align _ma1
 	tui.align "$id" "$_ma1"
 	_markup_attrv "$line" valign _ma1

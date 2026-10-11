@@ -197,6 +197,10 @@
 }
 .tab_header:focus {
   fg: #ffffff;
+  bg: #2f5535;
+}
+.tab_header:selected {
+  fg: #ffffff;
   bg: #16a34a;
   mods: bold;
 }
@@ -210,6 +214,10 @@
   bg: #2f5535;
 }
 .tab_header_compact:focus {
+  fg: #ffffff;
+  bg: #2f5535;
+}
+.tab_header_compact:selected {
   fg: #ffffff;
   bg: #16a34a;
   mods: bold;

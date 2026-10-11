@@ -101,7 +101,7 @@ tui.register.style_contract() {
 }
 
 # ── style contracts for every existing widget type and chrome element ─────
-tui.register.style_contract button "focusable:yes" "states:hover focus active disabled"
+tui.register.style_contract button "focusable:yes" "states:hover focus selected active disabled"
 tui.register.style_contract label "states:"
 tui.register.style_contract checkbox "focusable:yes" "states:checked unchecked focus hover"
 tui.register.style_contract input "focusable:yes" "states:focus hover"

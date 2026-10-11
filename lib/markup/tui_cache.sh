@@ -230,6 +230,25 @@ _tui_cache_class() {
 	tui.class "$id" "$cls"
 }
 
+# _tui_cache_select_active_tabs FILE - after a restore, flags exactly each tabs group's active tab as selected.
+# A snapshot recorded before tui.select existed (or under the bug that left sibling flags set) cannot be trusted
+# for the flags, but always carries _TUI_TABS_ACTIVE.
+_tui_cache_select_active_tabs() {
+	local file="$1" tab_id group_id selected=""
+	tui.log.debug "tui.cache.replay: '$file': ${#_TUI_TAB_GROUP[@]} tab(s) in ${#_TUI_TABS_ACTIVE[@]} group(s), rebuilding selected flags"
+	for tab_id in "${!_TUI_TAB_GROUP[@]}"; do unset '_TUI_W_SELECTED[$tab_id]'; done
+	for group_id in "${!_TUI_TABS_ACTIVE[@]}"; do
+		tab_id="${_TUI_TABS_ACTIVE[$group_id]}"
+		if [[ -z "${_TUI_TAB_GROUP[$tab_id]:-}" ]]; then
+			tui.log.warn "tui.cache.replay: '$file': group '$group_id' names active tab '$tab_id', which is in no group; not selected"
+			continue
+		fi
+		_TUI_W_SELECTED[$tab_id]=1
+		selected+=" $tab_id"
+	done
+	tui.log.debug "tui.cache.replay: '$file': selected tabs:${selected:- <none>}"
+}
+
 # Runs a page's on_visit, if it has one - the function body itself runs
 # live, never from a cache, on both a cache miss (tui.cache.record) and a
 # cache hit (tui.cache.replay).
@@ -486,6 +505,7 @@ tui.cache.replay() {
 	fi
 	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
 	_TUI_SNAP_SIZE=""  # a snapshot from an earlier version does not set it
+	_TUI_W_SELECTED=() # likewise lacks the array: must not keep the previous page's selected tabs
 	if [[ -n "$shell" ]]; then
 		_tui_shell.apply "$file"
 	else
@@ -494,6 +514,7 @@ tui.cache.replay() {
 		# snapshot carries the recording's, so an on_visit that reads the focus would see a different page
 		_TUI_FOCUS_ID="" _TUI_FOCUS_IDX=-1 _TUI_CURSOR=0 _TUI_PANE_FOCUS="" _TUI_HOVERED_PANE="" _TUI_HOVERED_WIDGET=""
 	fi
+	_tui_cache_select_active_tabs "$file"
 	_tui.epoch_bump style  # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
 	_tui.epoch_bump layout # the layout memo belongs to the previous page (see _tui_cache_relayout)
 	local _ly_gen=$_TUI_LY_GEN
@@ -791,6 +812,9 @@ tui.cache.warm_with_spinner() {
 		exec </dev/null
 		exec 6>"$_tcw_fifo"
 		exec 1>/dev/null 2>"$_tcw_root/worker.$BASHPID.stderr.log"
+		# a worker that dies without reporting (an error aborting the build) would leave the parent waiting forever
+		trap 'tui.log.error "cache worker $BASHPID: died while recording $_tcw_page without reporting, reporting FAILED"; printf "FAILED %s\n" "$_tcw_page" >&6' EXIT
+		tui.log.debug "cache worker $BASHPID: recording $_tcw_page"
 		tui.init
 		tui.reset_ui
 		if tui.cache.record "$_tcw_page"; then
@@ -799,10 +823,13 @@ tui.cache.warm_with_spinner() {
 			_tcw_tmp="$_tcw_cache_dir/${_tcw_fn}.snap.tmp.$BASHPID"
 			tui.cache.encode "$_tcw_page" >"$_tcw_tmp"
 			mv -f "$_tcw_tmp" "$_tcw_cache_dir/${_tcw_fn}.snap"
+			tui.log.debug "cache worker $BASHPID: $_tcw_page recorded, snapshot at $_tcw_cache_dir/${_tcw_fn}.snap"
 			printf 'DONE %s\n' "$_tcw_page" >&6
 		else
+			tui.log.warn "cache worker $BASHPID: tui.cache.record failed for $_tcw_page"
 			printf 'FAILED %s\n' "$_tcw_page" >&6
 		fi
+		trap - EXIT
 		exec 6>&-
 		_master_cleanup 2>/dev/null
 	}

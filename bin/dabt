@@ -27,6 +27,7 @@ Commands:
   app <command>                                           install and manage DABT applications (dabt app help)
   build [DIR] [options]                                   package an application into a signed .dapk (dabt pkg help)
   pkg <command>                                           verify, inspect, release and publish packages (dabt pkg help)
+  log [--path|--dir] [--app NAME]                         open today's log file in \$PAGER (--path prints its path, --dir the log folder)
   clear-cache                                             delete the page cache (rebuilt on next run)
   reinstall [--yes]                                       reinstall from the install source, overriding local file changes
   uninstall [--yes] [--keep-config] [--keep-apps] [--purge-keys]   remove the program, config home, the dabt command and every app installed with dabt
@@ -45,6 +46,30 @@ _clear_cache() {
     else 
         echo "no cache at $TUI_HOME/cache"; 
     fi
+}
+
+_log() {
+    local mode=open app="" f
+    while (( $# )); do
+        case "$1" in
+            --path|-p) mode=path ;;
+            --dir) mode=dir ;;
+            --app) app="${2:-}"; shift ;;
+            *) echo "dabt log: unknown option '$1'" >&2; exit 1 ;;
+        esac
+        shift
+    done
+    [[ -n "$app" ]] && export TUI_APP_NAME="$app"
+    # shellcheck source=../lib/tui_home.sh
+    source "$TUI_ROOT/lib/tui_home.sh"
+    [[ "$mode" == dir ]] && { echo "$TUI_LOG_DIR"; return 0; }
+    printf -v f '%s/%(%Y-%m-%d)T_%s.log' "$TUI_LOG_DIR" -1 "$TUI_APP_NAME"
+    if [[ ! -f "$f" ]]; then    # nothing logged today: fall back to the newest file of this app
+        local c; for c in "$TUI_LOG_DIR"/*_"$TUI_APP_NAME".log; do [[ -f "$c" ]] && f="$c"; done    # glob is sorted: last = newest
+    fi
+    [[ "$mode" == path ]] && { echo "$f"; return 0; }
+    [[ -f "$f" ]] || { echo "dabt: no log file yet in $TUI_LOG_DIR" >&2; return 1; }
+    ${PAGER:-less} -- "$f"
 }
 
 _reinstall() {
@@ -159,6 +184,7 @@ case "${1:-}" in
         source "$TUI_ROOT/lib/apps/tui_scan.sh"
         tui.scan.cli "$@"; exit $?
         ;;
+    log|logs)               shift; _log "$@" ;;
     clear-cache|--clear-cache) _clear_cache ;;
     reinstall|--reinstall)  shift; yes=0; [[ "${1:-}" == --yes || "${1:-}" == -y ]] && { yes=1; shift; }; _reinstall "$@" ;;
     uninstall|--uninstall)  shift; yes=0; for a in "$@"; do [[ "$a" == --yes || "$a" == -y ]] && yes=1; done; _uninstall "$@" ;;

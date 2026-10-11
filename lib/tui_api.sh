@@ -829,6 +829,7 @@ tui.relayout() {
 		_tui._layout root
 		erase.all
 		tui.render
+		tui.hook.fire layout
 	fi
 	mode.sync_end
 	return 0

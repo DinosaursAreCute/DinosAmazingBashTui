@@ -1,0 +1,3 @@
+/* theme.css - the editor chrome. The Markdown colors come from tui.md.style_set / tui.md.mono, not from here. */
+.panel        { fg: white; }
+.panel:focus  { fg: #ffffff; bg: #2c3e50; }

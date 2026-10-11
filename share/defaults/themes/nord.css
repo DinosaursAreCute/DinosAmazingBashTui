@@ -83,10 +83,12 @@
 /* <tabs> headers */
 .tab_header { fg: #d8dee9; bg: #3c424e; }
 .tab_header:hover { fg: #d8dee9; bg: #4d535e; }
-.tab_header:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.tab_header:focus { fg: #d8dee9; bg: #4d535e; }
+.tab_header:selected { fg: #2e3440; bg: #88c0d0; mods: bold; }
 .tab_header_compact { fg: #4c566a; bg: #3b4252; }
 .tab_header_compact:hover { fg: #d8dee9; bg: #535969; }
-.tab_header_compact:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.tab_header_compact:focus { fg: #d8dee9; bg: #535969; }
+.tab_header_compact:selected { fg: #2e3440; bg: #88c0d0; mods: bold; }
 
 /* checkboxes, progress bars */
 .check { fg: #4c566a; }

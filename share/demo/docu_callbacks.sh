@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# docu_callbacks.sh - builds the documentation page's tabs dynamically
+# docu_callbacks.sh - builds the documentation page's document list dynamically
 # from whatever .md files actually exist (README, docs/README.md, docs/guide/, docs/api/reference.md, docs/design/),
 # instead of a hand-maintained list that goes stale every time a doc is
 # added, renamed, or removed. Driven by <tui on_visit="on_docu_visit">
-# in docu.xml, which fires once the page's panes/widgets are built.
+# in docu.xml, which fires once the page's panes/widgets are built. The documents are drawn by the Markdown renderer.
 tui.require terminal_renderer
 
 _DOCU_ROOT="$TUI_ROOT"
-declare -gA _DOCU_TAB_FILE=()
-declare -gA _DOCU_TAB_TITLE=()
+declare -ga _DOCU_FILES=()
 
-# Short tab label for a markdown file: the part of its first H1 heading
+# Short list label for a markdown file: the part of its first H1 heading
 # before a colon (most of these docs are titled "Title: Subtitle"),
 # capped to a sane length. README gets a fixed label instead of parsing
 # its heading, which starts with an emoji and a trailing <br/>.
@@ -21,37 +20,27 @@ _docu_short_title_v() {
 		[[ "$file" == */docs/README.md ]] && _DOCU_T='Docs index' || _DOCU_T='README'
 		return
 	fi
-	IFS= read -r heading <"$file" || true
-	heading="${heading#\# }"
+	# the first "# " line (front matter or a badge row may come before it); the file name when there is none
+	heading=""
+	local line n=0
+	while IFS= read -r line && ((n++ < 30)); do
+		[[ "$line" == "# "* ]] && {
+			heading="${line#\# }"
+			break
+		}
+	done <"$file"
+	if [[ -z "$heading" ]]; then
+		heading="${base//[_-]/ }"
+	fi
 	heading="${heading%%:*}"
-	_DOCU_T="${heading:0:16}"
+	_DOCU_T="${heading:0:22}"
 }
 _docu_short_title() {
 	_docu_short_title_v "$1"
 	printf '%s' "$_DOCU_T"
 }
 
-# Banner text for a doc: the full part of its first H1 heading before a
-# colon, unlike _docu_short_title above this is not capped to tab-label
-# length - the banner has the width of the whole content pane to work
-# with, not a narrow tab strip. Result in _DOCU_T (no subshell).
-_docu_banner_title_v() {
-	local file="$1" base heading
-	base="${file##*/}"
-	base="${base%.md}"
-	if [[ "${base,,}" == "readme" ]]; then
-		[[ "$file" == */docs/README.md ]] && _DOCU_T='Docs index' || _DOCU_T='README'
-		return
-	fi
-	IFS= read -r heading <"$file" || true
-	heading="${heading#\# }"
-	_DOCU_T="${heading%%:*}"
-}
-
 on_docu_visit() {
-	_DOCU_TAB_FILE=()
-	_DOCU_TAB_TITLE=()
-
 	local -a files=()
 	[[ -f "$_DOCU_ROOT/README.md" ]] && files+=("$_DOCU_ROOT/README.md")
 	local f
@@ -65,61 +54,86 @@ on_docu_visit() {
 		return
 	fi
 
-	local -a tab_ids=()
+	# one list row per document; a title that collides after truncation falls back to the file name
+	_DOCU_FILES=("${files[@]}")
+	local -a titles=()
 	local -A seen_titles=()
-	local i tab_id title is_default base
+	local i title base
 	for i in "${!files[@]}"; do
-		tab_id="doc_tab_${i}"
 		_docu_short_title_v "${files[$i]}"
 		title="$_DOCU_T"
 		if [[ -n "${seen_titles[$title]:-}" ]]; then
-			# Two docs' headings collided after truncation (e.g. two
-			# "Developer Guide: ..." titles) - fall back to the filename
-			# to keep tabs distinguishable, since a repeated label is
-			# confusing no matter how well it clips.
 			base="${files[$i]##*/}"
 			base="${base%.md}"
 			base="${base//[_-]/ }"
-			title="${base:0:16}"
+			title="${base:0:22}"
 		fi
 		seen_titles[$title]=1
-		_DOCU_TAB_FILE[$tab_id]="${files[$i]}"
-		_DOCU_TAB_TITLE[$tab_id]="$title"
-		is_default=""
-		((i == 0)) && is_default="true"
-		tui.tabs.add "$tab_id" "$title" on_docu_tab_activate "$is_default"
-		tab_ids+=("$tab_id")
+		titles+=("$title")
 	done
-
-	# Compact: tabs_header is a thin (weight="4") strip, only 1 row tall
-	# at most terminal sizes - nowhere near the 3 rows a framed (bordered)
-	# header cell needs.
-	tui.tabs.compact "docu_tabs" true
-	tui.tabs.build "docu_tabs" "tabs_header" "content" "${tab_ids[@]}"
+	tui.list.set "lst_docs" "${titles[@]}"
+	tui.list.select "lst_docs" 0
+	tui.focus "lst_docs"
+	_docu_bind_keys
+	tui.md.on_navigate docu_navigated
+	load_document "${files[0]}"
 }
 
-on_docu_tab_activate() {
-	local tab_id="$1"
-	load_document "${_DOCU_TAB_FILE[$tab_id]}"
+# the reading keys: links, back, search, outline, fold, copy (the document pane has no focus of its own)
+_docu_bind_keys() {
+	tui.bind alt+j "tui.md.link_next content" --always --page --desc "Next link"
+	tui.bind alt+k "tui.md.link_prev content" --always --page --desc "Previous link"
+	tui.bind alt+enter "tui.md.link_open content" --always --page --desc "Follow the focused link"
+	tui.bind alt+b "tui.md.back content" --always --page --desc "Back to the previous document"
+	tui.bind alt+/ docu_search --always --page --desc "Search the document"
+	tui.bind alt+g "tui.md.search_next content" --always --page --desc "Next match"
+	tui.bind alt+h "tui.md.search_prev content" --always --page --desc "Previous match"
+	tui.bind alt+o "tui.md.outline_choose content" --always --page --desc "Heading outline"
+	tui.bind alt+z "tui.md.fold_toggle content" --always --page --desc "Fold / unfold the section at the top"
+	tui.bind alt+y "tui.md.copy content section" --always --page --desc "Copy the section at the top (source)"
+	tui.bind alt+u "tui.md.copy content doc" --always --page --desc "Copy the whole document (source)"
 }
 
+docu_search() { tui.prompt "Search this document (empty clears)" docu_search_submit --title "Search"; }
+
+docu_search_submit() { # TEXT
+	local info
+	tui.md.search "content" "$1" || tui.notify "No match for '$1'" warn 2
+	tui.md.search_info "content" info
+	[[ -n "$info" ]] && tui.notify "Match $info   alt+g next, alt+h previous" info 3
+}
+
+# docu_navigated FILE PANE - a followed link loaded another document: show it in the list and the title
+docu_navigated() {
+	local i
+	for i in "${!_DOCU_FILES[@]}"; do
+		if [[ "${_DOCU_FILES[i]}" == "$1" ]]; then
+			tui.list.select "lst_docs" "$i"
+			break
+		fi
+	done
+	tui.pane_title "content" "${1##*/}"
+}
+
+# on_docu_open ID - Enter / double-click on a document: load it now
+on_docu_open() {
+	local i
+	tui.list.selected "$1" i
+	((i >= 0)) && load_document "${_DOCU_FILES[i]}"
+}
+
+# on_docu_moved ID - the selection moved: load the document once the arrow keys pause
+on_docu_moved() { tui.after 0.15 on_docu_open docu_debounce_lst_docs; }
+
+# load_document FILE - renders the Markdown file into the content pane (re-fitted when the pane is resized)
 load_document() {
-	local doc_path="$1"
-	local raw_doc="" part formatted_doc
-
-	_docu_banner_title_v "$doc_path"
-	tui.capture part banner_string "$_DOCU_T"
-	raw_doc+="\n${part}\n\n"
-
+	local doc_path="$1" part
 	if [[ -f "$doc_path" ]]; then
-		raw_doc+="$(<"$doc_path")\n"
+		tui.md.show_file "content" "$doc_path"
 	else
+		tui.md.forget "content"
 		tui.capture part alert_string error "Document not found at: $doc_path"
-		raw_doc+="${part}\n"
+		tui.output "content" "$part"
 	fi
-
-	printf -v formatted_doc '%b' "$raw_doc"
-	formatted_doc="${formatted_doc%"${formatted_doc##*[!$'\n']}"}" # trailing newlines off, as $( ) did
-	tui.output "content" "$formatted_doc"
 	tui.pane_title "content" "${doc_path##*/}"
 }

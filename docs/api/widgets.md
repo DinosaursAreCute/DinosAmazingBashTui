@@ -111,7 +111,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`). Theme classes (all optional): `.list_sel .table_head .table_sel .progress .progress_fill .select .selection .field_label .field_label:focus`.
 
-<!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.table.align tui.table.heat tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change -->
+<!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.table.align tui.table.heat tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change tui.text.mode -->
 
 | Function | Summary |
 |---|---|
@@ -142,6 +142,7 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 | [`tui.select.pick`](widgets/tui.select.pick.md) | Chooses option `INDEX` (0-based) as if the user picked it: sets the value, redraws, then calls the `on_change` function and the action. |
 | [`tui.progress.set`](widgets/tui.progress.set.md) | Sets a progress bar to `VALUE` out of `MAX` and redraws it. |
 | [`tui.on_change`](widgets/tui.on_change.md) | Sets a function called as `FN ID` whenever the widget changes through the user. |
+| [`tui.text.mode`](widgets/tui.text.mode.md) | Styles a textarea's source as Markdown while typing (headings, emphasis, code, links, quotes, lists, fences; characters, columns, cursor and selection unchanged, only the styling differs), or back to plain. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -198,6 +199,8 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 {% include_relative widgets/tui.progress.set.md %}
 
 {% include_relative widgets/tui.on_change.md %}
+
+{% include_relative widgets/tui.text.mode.md %}
 
 </div>
 

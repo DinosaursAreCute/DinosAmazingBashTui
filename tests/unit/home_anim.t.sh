@@ -19,7 +19,7 @@ _ha_done() { eval "$_HA_REAL"; }
 _ha_plain() { sed -E $'s/\x1b\\[C/ /g; s/\x1b\\[[0-9;]*m//g' <<<"$_HA_OUT"; } # a skip cell is one blank cell to the eye
 _ha_line() { _ha_plain | sed -n "$1p"; }
 
-t_home_anim_grid_is_the_content_area_with_one_extra_cell_per_row_that_ends_the_line() {
+ti_home_anim_grid_is_the_content_area_with_one_extra_cell_per_row_that_ends_the_line() {
 	_ha_setup
 	eq "146 13 147" "$_HOME_W $_HOME_H $_HOME_STRIDE"
 	_home_paint
@@ -28,6 +28,8 @@ t_home_anim_grid_is_the_content_area_with_one_extra_cell_per_row_that_ends_the_l
 	_ha_done
 }
 
+# Stays a unit test on purpose: run after the tui.load based ti_* tests it misses the theme's class colours, although no variable,
+# function, shell option or file the harness snapshots differs. Order dependency to chase; until then it runs with the t_* group.
 t_home_anim_hero_has_the_banner_the_name_row_and_two_pills_in_the_middle_of_the_pane() {
 	_ha_setup
 	_HOME_CURSOR=0
@@ -43,7 +45,7 @@ t_home_anim_hero_has_the_banner_the_name_row_and_two_pills_in_the_middle_of_the_
 	_ha_done
 }
 
-t_home_anim_types_a_character_a_tick_quickly_with_short_stops_and_hands_over_to_the_idle_timer() {
+ti_home_anim_types_a_character_a_tick_quickly_with_short_stops_and_hands_over_to_the_idle_timer() {
 	_ha_setup
 	local i prev=0 jumps=0
 	for ((i = 0; i < 100 && _HOME_TYPED < _HOME_LEN; i++)); do
@@ -60,7 +62,7 @@ t_home_anim_types_a_character_a_tick_quickly_with_short_stops_and_hands_over_to_
 	_ha_done
 }
 
-t_home_anim_each_word_has_its_letters_colour_and_the_idle_tick_blinks_and_glints() {
+ti_home_anim_each_word_has_its_letters_colour_and_the_idle_tick_blinks_and_glints() {
 	_ha_setup
 	_HOME_TYPED=19
 	_home_text_apply
@@ -78,7 +80,7 @@ t_home_anim_each_word_has_its_letters_colour_and_the_idle_tick_blinks_and_glints
 	_ha_done
 }
 
-t_home_anim_typed_name_starts_under_the_d_and_ends_under_the_t_of_the_banner() {
+ti_home_anim_typed_name_starts_under_the_d_and_ends_under_the_t_of_the_banner() {
 	_ha_setup
 	_HOME_TYPED=19 _HOME_CURSOR=0
 	_home_text_apply
@@ -100,7 +102,7 @@ t_home_anim_rain_palette_is_four_dim_colours_of_six_steps_in_256_colour_codes() 
 	ok '[[ "${_HR_PAL[0]}" != "${_HR_PAL[6]}" && "${_HR_PAL[0]}" != "${_HR_PAL[5]}" ]]' # colours differ by column and fade along the tail
 }
 
-t_home_anim_a_new_size_rebuilds_the_grid_and_a_small_pane_is_left_alone() {
+ti_home_anim_a_new_size_rebuilds_the_grid_and_a_small_pane_is_left_alone() {
 	_ha_setup
 	_TUI_P_W[home_hero]=100
 	_home_on_resize
@@ -115,7 +117,7 @@ t_home_anim_a_new_size_rebuilds_the_grid_and_a_small_pane_is_left_alone() {
 	_ha_done
 }
 
-t_home_anim_tagline_shortens_in_a_narrow_pane_and_the_news_rotates() {
+ti_home_anim_tagline_shortens_in_a_narrow_pane_and_the_news_rotates() {
 	_ha_setup
 	local i
 	for ((i = 0; i < ${#_HOME_TIPS[@]}; i++)); do _home_tip_tick; done
@@ -132,6 +134,8 @@ t_home_anim_tagline_shortens_in_a_narrow_pane_and_the_news_rotates() {
 	_ha_done
 }
 
+# Stays a unit test on purpose: run after the tui.load based ti_* tests it misses the theme's class colours, although no variable,
+# function, shell option or file the harness snapshots differs. Order dependency to chase; until then it runs with the t_* group.
 t_home_anim_tagline_badge_and_news_take_their_colours_from_the_theme_classes() {
 	_ha_setup
 	_TUI_CLASS_FG[home_tag]="#112233" _TUI_CLASS_BG[home_tag]="#445566"
@@ -160,7 +164,7 @@ _ha_rain_setup() { # W H - a grid and an empty mask, as the painter has them aft
 	_home_rain_init
 }
 
-t_home_anim_painter_frame_is_cursor_moves_inside_the_pane_in_one_synchronised_block() {
+ti_home_anim_painter_frame_is_cursor_moves_inside_the_pane_in_one_synchronised_block() {
 	_ha_rain_setup 80 13
 	local i
 	for ((i = 0; i < 40; i++)); do
@@ -177,7 +181,7 @@ t_home_anim_painter_frame_is_cursor_moves_inside_the_pane_in_one_synchronised_bl
 	eq 0 "$bad"
 }
 
-t_home_anim_painter_frame_sends_only_changes_and_blanks_what_the_rain_left() {
+ti_home_anim_painter_frame_sends_only_changes_and_blanks_what_the_rain_left() {
 	_ha_rain_setup 80 13
 	local i first
 	for ((i = 0; i < 40; i++)); do
@@ -197,7 +201,7 @@ t_home_anim_painter_frame_sends_only_changes_and_blanks_what_the_rain_left() {
 	ok '[[ "$_HR_OUT" == *$'"'"'\e[1;6H '"'"'* ]]' # idx 5 is row 0, column 5: blanked at row 1, column 6 of the screen
 }
 
-t_home_anim_painter_never_draws_on_the_text_and_the_mask_comes_from_the_published_cells() {
+ti_home_anim_painter_never_draws_on_the_text_and_the_mask_comes_from_the_published_cells() {
 	_ha_rain_setup 80 13
 	local i k bad=0
 	for ((i = 0; i < 400 && ${#_HR_PREV[@]} == 0; i++)); do
@@ -214,7 +218,7 @@ t_home_anim_painter_never_draws_on_the_text_and_the_mask_comes_from_the_publishe
 	eq 0 "$bad"
 }
 
-t_home_anim_publish_tells_the_painter_the_rect_the_mask_and_the_style() {
+ti_home_anim_publish_tells_the_painter_the_rect_the_mask_and_the_style() {
 	_ha_setup
 	local saved_put saved_active
 	saved_put="$(declare -f tui.async.put)" saved_active="$(declare -f tui.async.active)"
@@ -230,7 +234,7 @@ t_home_anim_publish_tells_the_painter_the_rect_the_mask_and_the_style() {
 	_ha_done
 }
 
-t_home_anim_rain_repeats_exactly_every_loop_length_so_the_bake_can_replay_it() {
+ti_home_anim_rain_repeats_exactly_every_loop_length_so_the_bake_can_replay_it() {
 	_ha_rain_setup 80 13
 	local t a b bad=0
 	eq 0 $((_HR_ROWS % 6))
@@ -245,7 +249,7 @@ t_home_anim_rain_repeats_exactly_every_loop_length_so_the_bake_can_replay_it() {
 	eq 0 "$bad"
 }
 
-t_home_anim_rain_is_the_same_for_the_same_size_on_every_run_and_moves_between_ticks() {
+ti_home_anim_rain_is_the_same_for_the_same_size_on_every_run_and_moves_between_ticks() {
 	_ha_rain_setup 80 13
 	local a b
 	_home_rain_state 10
@@ -257,7 +261,7 @@ t_home_anim_rain_is_the_same_for_the_same_size_on_every_run_and_moves_between_ti
 	ok '[[ "$a" != "$(declare -p _HR_NOW)" ]]'
 }
 
-t_home_anim_rain_mask_is_fixed_rectangles_that_do_not_follow_the_text() {
+ti_home_anim_rain_mask_is_fixed_rectangles_that_do_not_follow_the_text() {
 	_ha_setup
 	local a
 	_home_mask_cells
@@ -272,7 +276,7 @@ t_home_anim_rain_mask_is_fixed_rectangles_that_do_not_follow_the_text() {
 	_ha_done
 }
 
-t_home_anim_ticks_after_the_first_frame_send_only_the_cells_that_changed_and_leave_the_same_grid() {
+ti_home_anim_ticks_after_the_first_frame_send_only_the_cells_that_changed_and_leave_the_same_grid() {
 	_ha_setup
 	local -a sizes=()
 	local i a b full
@@ -304,7 +308,7 @@ t_home_anim_ticks_after_the_first_frame_send_only_the_cells_that_changed_and_lea
 	_ha_done
 }
 
-t_home_anim_typing_ticks_patched_leave_the_same_grid_as_whole_frames() {
+ti_home_anim_typing_ticks_patched_leave_the_same_grid_as_whole_frames() {
 	_ha_setup
 	local i a b
 	tui.canvas.patch() { _TUI_RAW_GEN=$_TUI_FLUSH_GEN; }

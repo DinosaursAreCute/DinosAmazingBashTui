@@ -213,8 +213,8 @@ _tui_parse.attr_valuev() {
 	local body="$1" name="$2"
 	local -n _pav_out="$3"
 	_pav_out=""
-	if [[ "$body" =~ $name[[:space:]]*=[[:space:]]*(\"([^\"]*)\"|\'([^\']*)\') ]]; then
-		if [[ "${BASH_REMATCH[1]:0:1}" == '"' ]]; then _pav_out="${BASH_REMATCH[2]}"; else _pav_out="${BASH_REMATCH[3]}"; fi
+	if [[ "$body" =~ (^|[[:space:]])$name[[:space:]]*=[[:space:]]*(\"([^\"]*)\"|\'([^\']*)\') ]]; then
+		if [[ "${BASH_REMATCH[2]:0:1}" == '"' ]]; then _pav_out="${BASH_REMATCH[3]}"; else _pav_out="${BASH_REMATCH[4]}"; fi
 	fi
 	return 0
 }

@@ -83,6 +83,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Menu of the demo (shell): collapsible to a rail (`alt+c`), resizable (drag the edge or `alt+r`), and it keeps both across page switches and reloads.
 
 ### Changed
+- `tui.exec` runs on plain pipes when util-linux `script(1)` is missing (or `TUI_EXEC_PTY=off`): streaming, stdin and the exit status are unchanged, the child just sees no tty. `TUI_EXEC_PTY=auto|on|off`; see `docs/concepts/portability.md`.
+- `tui.exec` runs its command with the Bash that runs the app instead of `$SHELL`, so a fish or zsh login shell no longer changes what the command means.
+- Bash 5 is checked when `tui.sh` is sourced: an older shell stops with a clear message instead of a `declare` error.
+- The terminal is restored on any exit (an `EXIT` trap from `tui.init`, and `HUP`), not only on `tui.stop`, `INT` and `TERM`; the saved `stty` settings are no longer overwritten by `stty sane`.
+- The runtime and the app lifecycle no longer use `mktemp`, `tail -n +N`, `tr`, `date +%s%N`, `find -maxdepth`/`-not`, `cp -a` or `readlink -f`; temp files and folders come from `_tui_mktemp` / `_tui_mkdtemp` (`lib/tui_tmp.sh`).
+- `tui.exec` output cleaning is done in Bash (no `awk` per line) and now also drops `ESC (B`, `ESC =`, `ESC >`, `ESC 7`, `ESC 8` and the other short escapes instead of printing their last byte.
 
 * The Styles demo page is replaced by Workspace (nav entry `btn_workspace`).
 * The collapse control is a separate two-cell button on the frame corner and no longer a glyph inside the pane title; its click zone ranks above the resize divider that shares the cell.

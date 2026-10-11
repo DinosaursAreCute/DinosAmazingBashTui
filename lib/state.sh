@@ -77,6 +77,7 @@ declare -g _TUI_FOCUS_IDX=-1
 declare -g _TUI_CURSOR=0
 declare -g _TUI_RUNNING=0
 declare -g _TUI_OLD_STTY=""
+declare -g _TUI_TERM_RAW=0 # 1 between tui.init and _master_cleanup: the EXIT trap restores the terminal only then
 declare -g _TUI_ROWS=0
 declare -g _TUI_COLS=0
 declare -g _WSR=0 _WSC=0 _WSW=0 _WSW_AVAIL=0

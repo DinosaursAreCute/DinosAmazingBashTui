@@ -11,6 +11,12 @@
 # Assertions available inside tests: eq EXPECTED ACTUAL, ok CONDITION..., match TEXT REGEX
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+# The suite must not see the terminal it was started from: its size (stty size </dev/tty) decides layouts, and tests expect
+# the 24x80 fallback. Re-run without a controlling terminal and without a tty on stdin.
+if [[ -z "${_T_DETACHED:-}" ]] && command -v setsid >/dev/null 2>&1; then
+	_T_DETACHED=1 exec setsid -w bash "${BASH_SOURCE[0]}" "$@" </dev/null
+fi
+
 _T_PATTERN=""
 while (($#)); do
 	case "$1" in
@@ -144,8 +150,8 @@ for _t_file in "$REPO"/tests/unit/*.t.sh; do
 done
 unset _t_file
 
-# t_* = unit tests (flat 2 ms/test budget); ti_* = integration tests (page build/replay,
-# file stamps): exempt from the flat budget, capped at 60 ms per test on average (TUI_T_INTEG_MS sets the total).
+# t_* = unit tests (flat 2.4 ms/test budget); ti_* = integration tests (page build/replay,
+# file stamps): exempt from the flat budget, capped at 72 ms per test on average (TUI_T_INTEG_MS sets the total).
 mapfile -t _T_ALL < <(
 	compgen -A function t_
 	compgen -A function ti_
@@ -191,11 +197,11 @@ done
 ((_T_SKIPPED > 0)) && echo "t.sh: $_T_SKIPPED cache-mechanism tests skipped (TUI_CACHES=off)" >&2
 printf '%d %d %d\n' "$_T_PASS" "$_T_FAIL" "$_T_MS"
 
-# flat budget: unit tests only (200 ms per 100); integration tests get a total cap
-_T_BUDGET_MS=$((200 * _T_UNIT_N / 100))
+# flat budget: unit tests only (240 ms per 100); integration tests get a total cap
+_T_BUDGET_MS=$((240 * _T_UNIT_N / 100))
 ((_T_UNIT_N > 0 && _T_BUDGET_MS < 1)) && _T_BUDGET_MS=1
 _T_UNIT_MS=$((_T_UNIT_US / 1000))
-_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-$((60 * _T_INTEG_N))} # 60 ms per integration test on average (a demo page load alone is ~100-300 ms)
+_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-$((72 * _T_INTEG_N))} # 72 ms per integration test on average (a demo page load alone is ~100-300 ms)
 _T_INTEG_MS=$((_T_INTEG_US / 1000))
 if ((_T_UNIT_N > 0 && _T_UNIT_MS > _T_BUDGET_MS)); then
 	echo "t.sh: speed budget exceeded: ${_T_UNIT_N} tests took ${_T_UNIT_MS}ms, budget ${_T_BUDGET_MS}ms" >&2

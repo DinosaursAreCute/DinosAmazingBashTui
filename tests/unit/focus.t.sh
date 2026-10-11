@@ -310,7 +310,7 @@ t_focus_dir_computes_no_widget_position_once_the_index_is_built() {
 	eq "0 c" "$calls $_TUI_FOCUS_ID"
 }
 
-t_focus_dir_sees_a_widget_that_moved() {
+ti_focus_dir_sees_a_widget_that_moved() {
 	_foc_four
 	tui.focus a >/dev/null
 	tui.action.focus_dir down >/dev/null
@@ -386,7 +386,7 @@ t_focus_scroll_into_view_widget_in_non_scrolling_pane() {
 }
 
 # a focus move that scrolls repaints the whole pane (the scrollbar column too); one that does not scroll only touches the two widgets
-t_focus_scroll_into_view_repaints_the_pane_only_when_it_scrolled() {
+ti_focus_scroll_into_view_repaints_the_pane_only_when_it_scrolled() {
 	_foc_scroll_pane_setup v
 	tui.button a p 0 "a" ""
 	tui.button c p 15 "c" ""

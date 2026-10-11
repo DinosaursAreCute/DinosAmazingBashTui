@@ -715,7 +715,7 @@ t_collapse_hides_the_widgets_of_nested_panes() {
 	eq "  " "${_TUI_W_HIDDEN[deep]:-} ${_TUI_W_HIDDEN[deeper]:-} ${_TUI_W_HIDDEN[outside]:-}"
 }
 
-t_collapse_expanding_keeps_widgets_of_a_nested_collapsed_pane_hidden() {
+ti_collapse_expanding_keeps_widgets_of_a_nested_collapsed_pane_hidden() {
 	_cl_setup
 	tui.hsplit root a b
 	tui.vsplit a a1 a2

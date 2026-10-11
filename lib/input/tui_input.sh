@@ -1081,22 +1081,6 @@ tui.action.paste() {
     _tui._draw_widget "$_TUI_FOCUS_ID"
 }
 
-# _tui_b64 STRING -> _B64 (pure bash, byte-wise)
-_tui_b64() {
-    local LC_ALL=C s="$1" out="" i n a b c t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" v
-    n=${#s}
-    for (( i = 0; i < n; i += 3 )); do
-        printf -v a '%d' "'${s:i:1}"; (( a &= 255 ))
-        if (( i + 1 < n )); then printf -v b '%d' "'${s:i+1:1}"; (( b &= 255 )); else b=0; fi
-        if (( i + 2 < n )); then printf -v c '%d' "'${s:i+2:1}"; (( c &= 255 )); else c=0; fi
-        v=$(( (a << 16) | (b << 8) | c ))
-        out+="${t:(v >> 18) & 63:1}${t:(v >> 12) & 63:1}"
-        if (( i + 1 < n )); then out+="${t:(v >> 6) & 63:1}"; else out+="="; fi
-        if (( i + 2 < n )); then out+="${t:v & 63:1}"; else out+="="; fi
-    done
-    _B64="$out"
-}
-
 # tui.clipboard.copy TEXT - OSC 52 (kitty, foot, wezterm, alacritty, iTerm2, tmux with set-clipboard on).
 # GNOME Terminal / VTE ignores OSC 52.   tui.clipboard.paste - the text of the last bracketed paste.
 tui.clipboard.copy()  { _tui_b64 "$1"; printf '\e]52;c;%s\a' "$_B64"; }

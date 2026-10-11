@@ -70,7 +70,7 @@ tui.job.run() {
 	shift 3
 	tui.job.cancel "$id"
 	if [[ -z "$_TJ_ROOT" ]]; then
-		_TJ_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/tui_job.XXXXXX")" || return 1 # the one process this module starts for itself
+		_tui_mkdtemp _TJ_ROOT tui_job || return 1 # the one process this module starts for itself
 		tui.hook.on exit _tui_job.shutdown
 	fi
 	# files, not a directory per job: redirects create them with no process; the whole root goes at exit

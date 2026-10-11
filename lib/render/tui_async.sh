@@ -28,7 +28,7 @@ declare -g _TUI_ASYNC_DIR="" _TUI_ASYNC_PARENT=""
 # _tui_async.dir - the folder of the state files and the pipe painters wait on (made on first use, removed on exit)
 _tui_async.dir() {
 	[[ -n "$_TUI_ASYNC_DIR" && -d "$_TUI_ASYNC_DIR" ]] && return 0
-	_TUI_ASYNC_DIR="$(mktemp -d "${TMPDIR:-/tmp}/dabt_async.XXXXXX")" || return 1
+	_tui_mkdtemp _TUI_ASYNC_DIR dabt_async || return 1
 	mkfifo "$_TUI_ASYNC_DIR/pipe"
 	printf '0' >"$_TUI_ASYNC_DIR/covered"
 	_TUI_ASYNC_COVER=0

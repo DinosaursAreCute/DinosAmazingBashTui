@@ -140,6 +140,44 @@ tui.exec.cancel_pane() {
 	((_TUI_RUNNING)) && _exec_render_pane "$pane"
 }
 
+# Pseudo-terminal or pipes. A PTY needs script(1) (not POSIX; Bash and POSIX cannot allocate one), so without it the child
+# runs on plain pipes: output streams the same, but the child sees no tty - it may block-buffer, drop colors and progress
+# bars (FORCE_COLOR / CLICOLOR_FORCE and stdbuf -oL, when present, soften that). TUI_EXEC_PTY=auto|on|off overrides.
+declare -g _EXEC_PTY_KIND="" _EXEC_HAS_STDBUF=""
+
+# _exec_pty_kind : sets _EXEC_PTY_KIND (once) to gnu (util-linux script), bsd (any other script) or none
+_exec_pty_kind() {
+	[[ -n "$_EXEC_PTY_KIND" ]] && return 0
+	local v
+	if ! command -v script >/dev/null 2>&1; then
+		_EXEC_PTY_KIND=none
+	elif v="$(script --version 2>&1 </dev/null)" && [[ "$v" == *util-linux* ]]; then
+		_EXEC_PTY_KIND=gnu
+	else
+		_EXEC_PTY_KIND=bsd
+	fi
+}
+
+# _exec_use_pty : 0 when the next instance should run under script(1)
+_exec_use_pty() {
+	case "$TUI_EXEC_PTY" in
+		off) return 1 ;;
+		on)
+			_exec_pty_kind
+			[[ "$_EXEC_PTY_KIND" != none ]]
+			;;
+		*)
+			_exec_pty_kind
+			[[ "$_EXEC_PTY_KIND" == gnu ]] # BSD script is only used when asked for: that branch is untested here
+			;;
+	esac
+}
+
+_exec_has_stdbuf() {
+	[[ -z "$_EXEC_HAS_STDBUF" ]] && { command -v stdbuf >/dev/null 2>&1 && _EXEC_HAS_STDBUF=1 || _EXEC_HAS_STDBUF=0; }
+	((_EXEC_HAS_STDBUF))
+}
+
 # Launches (or, from retry, relaunches) the OS process for an already-
 # registered instance: fresh tmpdir/fifo/outfile, fresh PID. Split out of
 # tui.exec so _exec_on_retry can reuse it without re-registering the
@@ -148,7 +186,7 @@ _exec_launch_process() {
 	local iid="$1" cmd="${_EXEC_CMD[$iid]}"
 
 	local tmpdir
-	tmpdir=$(mktemp -d /tmp/tui_exec.XXXXXX)
+	_tui_mkdtemp tmpdir tui_exec || return 1
 	local outfile="${tmpdir}/out"
 	local fifo="${tmpdir}/in"
 	touch "$outfile"
@@ -157,7 +195,20 @@ _exec_launch_process() {
 	local fd
 	exec {fd}<>"$fifo"
 
-	script -q -e -c "$cmd" /dev/null <"$fifo" >>"$outfile" 2>&1 &
+	# CMD is Bash/POSIX shell text: it runs under the Bash that runs the app, never the user's login shell (fish, zsh ...).
+	# FORCE_COLOR / CLICOLOR_FORCE keep colors on when there is no tty.
+	local sh="${BASH:-/bin/sh}"
+	if _exec_use_pty; then
+		if [[ "$_EXEC_PTY_KIND" == gnu ]]; then
+			SHELL="$sh" script -q -e -c "$cmd" /dev/null <"$fifo" >>"$outfile" 2>&1 &
+		else
+			script -q /dev/null "$sh" -c "$cmd" <"$fifo" >>"$outfile" 2>&1 &
+		fi
+	elif _exec_has_stdbuf; then
+		CLICOLOR_FORCE=1 FORCE_COLOR=1 stdbuf -oL -eL "$sh" -c "$cmd" <"$fifo" >>"$outfile" 2>&1 &
+	else
+		CLICOLOR_FORCE=1 FORCE_COLOR=1 "$sh" -c "$cmd" <"$fifo" >>"$outfile" 2>&1 &
+	fi
 	local pid=$!
 
 	_EXEC_TMPDIR[$iid]="$tmpdir"
@@ -272,42 +323,33 @@ _exec_dismiss_instance() {
 	unset "_EXEC_BUF_${iid}"
 }
 
-_exec_strip_ansi() {
-	local raw="$1"
-	printf '%s' "$1" | awk '{
-    gsub(/\r/, "")
-    gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
-    gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
-    gsub(/\033[@A-Z\\\-_]/, "")
-    gsub(/\033P[^\033]*\033\\/, "")
-    printf "%s", $0
-  }'
-}
+# Escape-sequence shapes _exec_clean_line recognises right after an ESC (anchored, tried in this order).
+declare -g _EXEC_RE_OSC=$'^\\][^\a\033]*(\a|\033\\\\)'                       # OSC ... BEL | ST
+declare -g _EXEC_RE_DCS=$'^P[^\033]*\033\\\\'                                # DCS ... ST
+declare -g _EXEC_RE_ESC1=$'^[ !"#$%&\'()*+,./-]*[[:alnum:]:;<=>?@\\^_`{|}~]' # other escapes: intermediates + final (ESC c, ESC 7, ESC ( B, ESC =); not [ or ] (no ranges: they follow the locale's collation)
+declare -g _EXEC_RE_CSI=$'^\\[[[:digit:];?]*[[:alpha:]]'                     # CSI params final
+declare -g _EXEC_CLEAN="" _EXEC_CLEAN_W=0
 
+# _exec_clean_line TEXT -> _EXEC_CLEAN, _EXEC_CLEAN_W : TEXT without CR, OSC, DCS, two-byte escapes and every CSI
+# sequence except SGR (colors/styles stay). _EXEC_CLEAN_W is the visible width in characters. No fork per line.
 _exec_clean_line() {
-	printf '%s' "$1" | awk '{
-        gsub(/\r/, "")
-        gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
-        gsub(/\033P[^\033]*\033\\/, "")
-        gsub(/\033[@A-Z\\\-_]/, "")
-        out = ""
-        s = $0
-        while (s != "") {
-            p = index(s, "\033")
-            if (p == 0) { out = out s; break }
-            if (p > 1)  { out = out substr(s, 1, p - 1) }
-            s = substr(s, p)
-            if (substr(s, 2, 1) == "[") {
-                if (match(s, /^\033\[[0-9;?]*[a-zA-Z]/)) {
-                    seq = substr(s, 1, RLENGTH)
-                    fin = substr(seq, RLENGTH, 1)
-                    if (fin == "m") out = out seq
-                    s = substr(s, RLENGTH + 1)
-                } else { s = substr(s, 2) }
-            } else { s = substr(s, 2) }
-        }
-        printf "%s", out
-    }'
+	local s="${1//$'\r'/}" out="" m sgr=0
+	while [[ "$s" == *$'\033'* ]]; do
+		out+="${s%%$'\033'*}"
+		s="${s#*$'\033'}"
+		if [[ "$s" =~ $_EXEC_RE_OSC || "$s" =~ $_EXEC_RE_DCS || "$s" =~ $_EXEC_RE_ESC1 ]]; then
+			s="${s:${#BASH_REMATCH[0]}}"
+		elif [[ "$s" =~ $_EXEC_RE_CSI ]]; then
+			m="${BASH_REMATCH[0]}"
+			if [[ "${m: -1}" == m ]]; then
+				out+=$'\033'"$m"
+				((sgr += ${#m} + 1))
+			fi
+			s="${s:${#m}}"
+		fi
+	done
+	_EXEC_CLEAN="$out$s"
+	_EXEC_CLEAN_W=$((${#out} + ${#s} - sgr))
 }
 
 _exec_is_screen_clear() {
@@ -359,8 +401,8 @@ _exec_append_raw_line() {
 		return
 	fi
 
-	local clean
-	clean="$(_exec_clean_line "$raw_line")"
+	_exec_clean_line "$raw_line"
+	local clean="$_EXEC_CLEAN"
 	local prefix=""
 	((${#siblings[@]} > 1)) && prefix="[${iid}] "
 
@@ -371,8 +413,7 @@ _exec_append_raw_line() {
 	((${#pbuf[@]} > 2500)) && pbuf=("${pbuf[@]:500}")
 
 	_ps.panes.set "$pane" lines "${#pbuf[@]}"
-	local last_len
-	last_len=$(printf '%s' "${pbuf[$((${#pbuf[@]} - 1))]:-}" | awk '{gsub(/\033\[[0-9;?]*[A-Za-z]/,""); print length($0)}')
+	local last_len=$((${#prefix} + _EXEC_CLEAN_W))
 	((last_len > ${_TUI_P_MAX_W[$pane]:-0})) && _TUI_P_MAX_W[$pane]=$last_len
 }
 
@@ -388,7 +429,7 @@ _exec_tick_one() {
 
 	if [[ -s "$outfile" ]]; then
 		local -a new_lines=()
-		mapfile -t new_lines < <(tail -n +"$((${_EXEC_LAST_READ[$iid]} + 1))" "$outfile" 2>/dev/null)
+		mapfile -t -s "${_EXEC_LAST_READ[$iid]}" new_lines <"$outfile" 2>/dev/null
 		if ((${#new_lines[@]} > 0)); then
 			local raw_line
 			for raw_line in "${new_lines[@]}"; do
@@ -405,7 +446,7 @@ _exec_tick_one() {
 		_EXEC_EXIT[$iid]=$?
 
 		local -a leftover=()
-		mapfile -t leftover < <(tail -n +"$((${_EXEC_LAST_READ[$iid]} + 1))" "$outfile" 2>/dev/null)
+		mapfile -t -s "${_EXEC_LAST_READ[$iid]}" leftover <"$outfile" 2>/dev/null
 		if ((${#leftover[@]} > 0)); then
 			local raw_line
 			for raw_line in "${leftover[@]}"; do
@@ -505,7 +546,7 @@ _exec_on_save() {
 	[[ -z "$iid" ]] && return
 
 	local ts
-	ts=$(date +%Y%m%d_%H%M%S)
+	printf -v ts '%(%Y%m%d_%H%M%S)T' -1
 	local savefile="exec_output_${iid}_${ts}.log"
 	local -n ibuf="_EXEC_BUF_${iid}"
 	local pane="${_EXEC_OUT_PANE[$iid]}"
@@ -583,7 +624,8 @@ _exec_on_send() {
 		local fd="${_EXEC_FIFO_FD[$iid]}"
 		(printf "%s\n" "$text" >&"$fd" &) 2>/dev/null
 		local masked
-		masked="$(printf '%*s' "${#text}" | tr ' ' '*')"
+		printf -v masked '%*s' "${#text}" ''
+		masked="${masked// /*}"
 		pbuf+=("${prefix}▸ ${masked}")
 	else
 		pbuf+=("${prefix}(process not running - input discarded)")

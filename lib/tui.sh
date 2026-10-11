@@ -16,6 +16,11 @@
 # ║    tui.run                                                                 ║
 # ╚════════════════════════════════════════════════════════════════════════════╝
 
+if ((BASH_VERSINFO[0] < 5)); then
+	printf 'DABT needs Bash 5.0+ (you have %s). On macOS: brew install bash\n' "$BASH_VERSION" >&2
+	return 1 2>/dev/null || exit 1
+fi
+
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" # the lib/ folder, symlinks resolved
 # shellcheck source=tui_modules.sh
 source "${SCRIPT_DIR}/tui_modules.sh" # GENERATED from the "# requires:" headers by tools/gen_load_order.sh
@@ -95,6 +100,18 @@ tui.log.error() { tui.log "$1" "error"; }
 #  INIT / CLEANUP
 # ═══════════════════════════════════════════════════════════════════════
 
+# _tui._install_exit_trap : the EXIT trap that restores the terminal. A trap the host script already set is kept and runs after it.
+_tui._install_exit_trap() {
+	local tp prev=""
+	tp="$(trap -p EXIT)"
+	[[ "$tp" == *_master_cleanup* ]] && return 0
+	if [[ -n "$tp" ]]; then
+		eval "set -- ${tp#trap -- }"
+		prev="$1"
+	fi
+	trap "((_TUI_TERM_RAW)) && _master_cleanup; ${prev}" EXIT
+}
+
 tui.init() {
 	# Installed here, not in tui.run: a tiling WM can still be settling the
 	# window (or a slow cache warm-up can still be running behind the
@@ -113,6 +130,9 @@ tui.init() {
 	#   -echo -icanon  nothing is echoed to the screen, no line buffering: the shell never sees what was typed
 	# (quit is q / ctrl+q; tui.cleanup drains unread input and restores the old settings)
 	stty -echo -icanon -isig -ixon -iexten min 1 time 0 2>/dev/null
+	# Any exit (callback calling exit, fatal error, HUP) must give the terminal back; _master_cleanup clears the flag so it runs once
+	_TUI_TERM_RAW=1
+	_tui._install_exit_trap
 
 	term.alt_screen
 	cur.hide
@@ -208,6 +228,7 @@ tui.cleanup() {
 }
 
 _master_cleanup() {
+	_TUI_TERM_RAW=0
 	_tui_store.exit 2>/dev/null    # persisted page state goes to disk
 	tui.hook.fire exit 2>/dev/null # plugins give back what they changed (terminal shortcuts, files ...)
 	tui.cache.cleanup 2>/dev/null
@@ -217,8 +238,8 @@ _master_cleanup() {
 	tui.cleanup 2>/dev/null
 	# Hard reset terminal state (ANSI resets + stty cooked mode)
 	printf "\e[0m\e[?25h\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1049l\r\n"
-	stty sane 2>/dev/null
-	stty echo 2>/dev/null
+	# tui.cleanup restored the saved settings; sane is only the fallback when none were saved
+	[[ -n "$_TUI_OLD_STTY" ]] || stty sane 2>/dev/null
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1241,7 +1262,8 @@ _tui._widget_pos() {
 		_WSH=$_LY_R
 		((_WSH < 1)) && _WSH=1
 	fi
-	local _wt_measure="${_TUI_WT_MEASURE[${_TUI_W_TYPE[$1]}]-}" # contract types size themselves unless expand= / height= decided
+	local _wt_type="${_TUI_W_TYPE[$1]:-}" _wt_measure=""
+	[[ -n "$_wt_type" ]] && _wt_measure="${_TUI_WT_MEASURE[$_wt_type]-}" # contract types size themselves unless expand= / height= decided
 	if [[ -n "$_wt_measure" && -z "$expand$height_spec" ]]; then
 		"$_wt_measure" "$1" "$_WSW"
 		_WSH=$_R
@@ -1784,8 +1806,7 @@ declare -g _TUI_NOW_US=0
 
 # _tui._now_us - sets _TUI_NOW_US to the current time in integer
 # microseconds. Fork-free via bash 5's $EPOCHREALTIME (plain integer
-# arithmetic on its two halves) when available; falls back to a forking
-# `date` call on older bash. Only ever called while _TUI_PERF_TRACKING is
+# arithmetic on its two halves). Only ever called while _TUI_PERF_TRACKING is
 # on, so this cost is opt-in, never paid by a page that doesn't ask for it.
 #
 # $EPOCHREALTIME's decimal separator follows LC_NUMERIC, not always a
@@ -1795,12 +1816,8 @@ declare -g _TUI_NOW_US=0
 # "value too great for base". Splitting on the first/last NON-DIGIT
 # character instead works regardless of what that separator is.
 _tui._now_us() {
-	if [[ -n "${EPOCHREALTIME:-}" ]]; then
-		local s="${EPOCHREALTIME%%[^0-9]*}" us="${EPOCHREALTIME##*[^0-9]}"
-		_TUI_NOW_US=$((10#$s * 1000000 + 10#$us))
-	else
-		_TUI_NOW_US=$(($(date +%s%N) / 1000))
-	fi
+	local s="${EPOCHREALTIME%%[^0-9]*}" us="${EPOCHREALTIME##*[^0-9]}"
+	_TUI_NOW_US=$((10#$s * 1000000 + 10#$us))
 }
 
 # _tui._flush BUF - the one place a fully-composed frame actually reaches

@@ -222,7 +222,7 @@ _tui_apps.copy() {
 		_tui_apps.err "refusing to write to $dest"
 		return 1
 	}
-	tmp="$(mktemp -d)" || return 1
+	_tui_mkdtemp tmp dabt_app || return 1
 	if [[ -d "$dest" ]]; then
 		if [[ "$dest" == "$TUI_APPS_DIR/"* ]]; then
 			for keep in "${_TUI_APPS_KEEP[@]}"; do for f in "$dest"/$keep; do [[ -e "$f" ]] && mv "$f" "$tmp/"; done; done
@@ -243,7 +243,7 @@ _tui_apps.copy() {
 	}
 	(
 		shopt -s nullglob dotglob
-		for f in "$tmp"/*; do cp -a "$f" "$dest/"; done
+		for f in "$tmp"/*; do cp -pPR "$f" "$dest/"; done
 	)
 	rm -rf "$tmp"
 }
@@ -255,7 +255,7 @@ _tui_apps.wipe() {
 	[[ -d "$dir" ]] || return 0
 	if [[ "$dir" == "$TUI_APPS_DIR/"* ]]; then
 		local tmp
-		tmp="$(mktemp -d)" || return 1
+		_tui_mkdtemp tmp dabt_app || return 1
 		for keep in "${_TUI_APPS_KEEP[@]}"; do for f in "$dir"/$keep; do [[ -e "$f" ]] && mv "$f" "$tmp/"; done; done
 		_tui_apps.empty "$dir"
 		(
@@ -351,7 +351,7 @@ tui.apps.install() {
 		_tui_apps.err "install: give a folder or a git URL"
 		return 2
 	}
-	tmp="$(mktemp -d)" || return 1
+	_tui_mkdtemp tmp dabt_app || return 1
 	trap 'rm -rf "$tmp"' RETURN
 	_tui_apps.fetch "$src" "$tmp" || return 1
 	dir="$_APP_SRC_DIR"

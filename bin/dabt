@@ -2,7 +2,7 @@
 # dabt - the DABT command. Without arguments it shows this help.
 # Works from an installed copy (~/.local/bin/dabt is a link to it) and from a git checkout.
 SELF="${BASH_SOURCE[0]}"
-while [[ -L "$SELF" ]]; do l="$(readlink "$SELF")"; [[ "$l" == /* ]] && SELF="$l" || SELF="$(dirname "$SELF")/$l"; done
+while [[ -L "$SELF" ]]; do l="$(ls -ld -- "$SELF")"; l="${l##* -> }"; [[ "$l" == /* ]] && SELF="$l" || SELF="$(dirname "$SELF")/$l"; done
 export TUI_ROOT="$(cd -P "$(dirname "$SELF")/.." && pwd -P)"
 
 _help() {
@@ -75,7 +75,7 @@ _uninstall() {
     for l in "${bindir:+$bindir/dabt}" "$HOME/.local/bin/dabt" "$(command -v dabt 2>/dev/null)"; do
         [[ -n "$l" && -L "$l" ]] || continue
         [[ " ${targets[*]} " == *" $l "* ]] && continue
-        [[ "$(readlink -f "$l")" == "$(readlink -f "$TUI_ROOT/bin/dabt")" || "$(readlink -f "$l")" == "$(readlink -f "$prefix/bin/dabt" 2>/dev/null)" ]] && targets+=("$l")
+        [[ "$l" -ef "$TUI_ROOT/bin/dabt" || "$l" -ef "$prefix/bin/dabt" ]] && targets+=("$l")
     done
     keys_dir="$conf/keys"
     printf 'Will remove:\n'; printf '  %s\n' "${targets[@]}"
@@ -97,7 +97,7 @@ _uninstall() {
         rmdir "$TUI_APPS_OWN_ROOT" 2>/dev/null && echo "removed $TUI_APPS_OWN_ROOT"      # the shared own_dir folder, when nothing else lives there
     fi
     if [[ -n "${keys_bak:-}" ]]; then
-        mkdir -p "$keys_bak" && chmod 700 "$keys_bak" && cp -a "$keys_dir"/. "$keys_bak"/ && echo "kept signing keys in $keys_bak" || { echo "dabt: could not back up $keys_dir - leaving the config in place" >&2; exit 1; }
+        mkdir -p "$keys_bak" && chmod 700 "$keys_bak" && cp -pPR "$keys_dir"/. "$keys_bak"/ && echo "kept signing keys in $keys_bak" || { echo "dabt: could not back up $keys_dir - leaving the config in place" >&2; exit 1; }
     fi
     for l in "${targets[@]}"; do rm -rf -- "$l" && echo "removed $l"; done
     [[ -n "${DABT_HOME:-}${TUI_HOME_ENV:-}" ]] && echo "note: DABT_HOME is set in your environment - remove it from your shell profile"

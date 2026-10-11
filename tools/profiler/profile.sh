@@ -26,4 +26,14 @@ python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' || {
 }
 
 echo "Starting profiler..."
+# The machine must stay awake for the whole run (a suspend mid-run ruins every timing). Use an inhibitor when one works;
+# DABT_NO_INHIBIT=1 turns this off.
+if [[ -z "${DABT_NO_INHIBIT:-}" ]]; then
+	if command -v systemd-inhibit >/dev/null 2>&1 && systemd-inhibit --what=sleep:idle --who="DABT profiler" --why="probe" true 2>/dev/null; then
+		exec systemd-inhibit --what=sleep:idle --who="DABT profiler" --why="profiling run: timings need an awake machine" \
+			python3 "$HERE/profile.py" "$@"
+	elif command -v caffeinate >/dev/null 2>&1; then
+		exec caffeinate -i python3 "$HERE/profile.py" "$@" # macOS
+	fi
+fi
 exec python3 "$HERE/profile.py" "$@"

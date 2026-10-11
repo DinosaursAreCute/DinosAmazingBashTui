@@ -4,7 +4,7 @@
 
 **A TUI framework for bash: build terminal UIs in pure bash, no ncurses required.**
 Declarative XML pages + CSS-like themes + bash callbacks, with mouse support, live process panes and a built-in app manager (`dabt`) to install, update and security-scan apps.
-Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency ncurses alternative for shell scripts.
+Pure Bash 5 plus POSIX utilities. No Python, no Node, no ncurses. A zero-dependency ncurses alternative for shell scripts. The few exceptions are listed under [Requirements](#requirements).
 
 [![Release](https://img.shields.io/github/v/release/DinosaursAreCute/DinosAmazingBashTui?include_prereleases&style=for-the-badge&color=2ea043&label=release)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/DinosaursAreCute/DinosAmazingBashTui/build.yml?style=for-the-badge&label=build)](https://github.com/DinosaursAreCute/DinosAmazingBashTui/actions/workflows/build.yml)
@@ -31,7 +31,8 @@ Pure bash + POSIX utilities. No Python, no Node, no ncurses. A zero-dependency n
 <br/>
 <br/>
 <h2 id="news"><img src="assets/headers/news.svg" alt="news"></h2>
-- **DevEx Update 3.5: Resizable widgets because space attribution is not an objective fact. 
+
+- **DevEx Update 3.5: Resizable widgets because space attribution is not an objective fact.**
 - **DevEx Update 2: Cleaned house, now off to the next venture** (unreleased). Pages are data now: templates, loops, conditionals, components and addons in the markup, and `tui.page.refresh` rebuilds only the panes that changed, shown live in the new Compose demo page. Holding Up/Down on the nav bar costs 47 ms of work per second instead of 478 and paints 4.3 KB instead of 49.5. Page switches and start-up got 6 to 20% slower from the stage 2 pipeline; winning that back is next. [Release notes](release-notes/devex-update-2.md) · [The performance journey](docs/design/performance-journey.md)
 - **DevEx Update 1.93,75: Grinding the cleanup rubble to dust** (v0.0.22). A page switch between trivial pages is 86 ms instead of 136: the render cache now hits across pages, the page snapshot is rewritten once instead of on every replay, and the footer, the terminal-size read and the relayout only run when something changed. The profiler gained a page-switch "floor" trace. [Release notes](release-notes/devex-update-1.93,75.md) · [The performance journey](docs/design/performance-journey.md)
 - **DevEx Update 1.87,5: Clearing the rubble** (v0.0.21). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. New `tui.capture` and `tui.modal.dismiss`, a developer guide for fast apps, and a DABT-versus-Textual comparison harness. [Release notes](release-notes/devex-update-1.87,5.md) · [Designing fast apps](docs/guide/performance.md)
@@ -117,7 +118,7 @@ dabt doctor          # where everything lives, what version is installed
 |---|---|
 | **Declarative XML markup** | Panes, buttons, inputs and labels in config files, not imperative code |
 | **Multi-page navigation** | Link pages like HTML anchors with `page="other.xml"`; pages are cached for instant switching |
-| **CSS-like theming** | Reusable `.class` styles with `fg`, `bg`, `mods` and `:focus` / `:border` / `:title` pseudo-states; five built-in themes |
+| **CSS-like theming** | Reusable `.class` styles with `fg`, `bg`, `mods` and `:focus` / `:border` / `:title` pseudo-states; 13 built-in themes |
 | **Rich widgets** | label, button, checkbox, input, password, multi-line textarea, list, table, select, progress |
 | **Text editing engine** | Selection, word jumps, cut / copy / paste, undo / redo, click and drag, double / triple-click |
 | **Dialogs & toasts** | `tui.confirm`, `tui.message`, `tui.prompt`, `tui.choose`, `tui.view`, `tui.notify` with six toast positions |
@@ -334,13 +335,24 @@ tests/                                 repo only: bats tests (bats tests/)
 <br/>
 <h2 id="requirements"><img src="assets/headers/requirements.svg" alt="Requirements" height="35"></h2>
 
-- **Bash 5.0+** (associative arrays, namerefs, `EPOCHREALTIME`, fractional `read -t`)
-- A terminal emulator with mouse support (virtually all modern ones)
-- `curl` or `wget` and `tar` for `dabt update` only
-- [`bats`](https://github.com/bats-core/bats-core) to run the tests (optional)
-- [`shellcheck`](https://www.shellcheck.net) / `semgrep` for deeper `dabt scan` checks (optional, [see why](#security-scan))
+- **Bash 5.0+** (associative arrays, namerefs, `EPOCHREALTIME`, fractional `read -t`). DABT checks the version and stops with a clear message on older shells (on macOS: `brew install bash`).
+- **POSIX utilities** (`awk`, `sed`, `sort`, `mkfifo`, `stty`, `cp`, `find` ...). The runtime and the app lifecycle (`dabt app list/install/remove/run`, the installer, the default-file sync and the built-in scanner) use nothing else.
+- A terminal emulator with mouse support (virtually all modern ones).
 
-That's the whole list.
+**Where DABT steps outside Bash + POSIX** (all optional or degrading, none on the way to running an app):
+
+| Tool | Used for | Without it |
+|---|---|---|
+| `script(1)` (util-linux) | a real terminal for `tui.exec` children | children run on plain pipes: output streams the same, but programs may buffer, drop colors or progress bars. `TUI_EXEC_PTY=off` forces this. |
+| `stat` (GNU or BSD) | "did this file change" in the page cache | the page cache cannot see edited files (clear the cache or use `TUI_CACHES=off`) |
+| `base64` | the optional inline-image helpers (`img.iterm2`, `img.kitty`) | those helpers only |
+| `sha256sum`, `shasum` or `openssl` | checksums in the installer and updater (`cksum` as a last resort) | needs one of them |
+| `curl` or `wget`, `tar` | `dabt update` and URL installs | local installs work |
+| `git`, `ssh-keygen`, `gzip`, GNU `tar` | `dabt install` from a git URL; building, signing and verifying `.dapk` packages | developer and release tooling only |
+| [`shellcheck`](https://www.shellcheck.net) / `semgrep` | deeper `dabt scan` checks ([why](#security-scan)) | the built-in scanner still runs |
+| [`bats`](https://github.com/bats-core/bats-core) | the test suite | optional |
+
+Which parts are core and which are tooling is defined in [docs/concepts/portability.md](docs/concepts/portability.md).
 <br/>
 <br/>
 <h2 id="apps-built-with-dabt"><img src="assets/headers/features.svg" alt="Apps built with D.A.B.T" height="35"></h2>

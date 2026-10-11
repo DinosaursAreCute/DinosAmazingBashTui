@@ -103,6 +103,8 @@ source "${SCRIPT_DIR}/markup/tui_cache.sh"
 source "${SCRIPT_DIR}/apps/tui_sync.sh"
 # shellcheck source=widgets/tui_text.sh
 source "${SCRIPT_DIR}/widgets/tui_text.sh"
+# shellcheck source=tui_tmp.sh
+source "${SCRIPT_DIR}/tui_tmp.sh"
 # shellcheck source=apps/tui_update.sh
 source "${SCRIPT_DIR}/apps/tui_update.sh"
 # shellcheck source=markup/tui_validate.sh

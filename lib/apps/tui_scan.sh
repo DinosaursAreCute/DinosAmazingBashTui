@@ -11,6 +11,7 @@
 #   tui.scan.install TOOL [--yes]   install shellcheck|semgrep with the system package manager
 #   tui.scan.cli ARGS...         the `dabt scan` command line
 
+declare -F _tui_mkdtemp >/dev/null || source "${BASH_SOURCE[0]%/*}/../tui_tmp.sh"
 declare -g TUI_SCAN_HIGH=0 TUI_SCAN_WARN=0 TUI_SCAN_REPORT="" TUI_SCAN_NOTES=""
 declare -ga _SCAN_RULES=()
 
@@ -48,7 +49,7 @@ _scan.files() { # PATH -> script files, one per line
 		[[ -s "$f" && $(stat -c %s -- "$f" 2>/dev/null || echo 0) -lt 1048576 ]] || continue
 		IFS= read -r first <"$f" 2>/dev/null
 		[[ "$first" == '#!'*sh* ]] && printf '%s\n' "$f"
-	done < <(find "$p" -type f -not -path '*/.git/*' 2>/dev/null)
+	done < <(find "$p" -type f ! -path '*/.git/*' 2>/dev/null)
 }
 
 tui.scan.run() {
@@ -255,7 +256,7 @@ tui.scan.run_spin() {
 		tui.scan.run "$path" "$deep"
 		return
 	fi
-	tmp="$(mktemp)" || {
+	_tui_mktemp tmp dabt_scan || {
 		tui.scan.run "$path" "$deep"
 		return
 	}

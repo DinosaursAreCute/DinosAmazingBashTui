@@ -131,3 +131,12 @@ t_parse_include_src_with_either_quote_style_is_found() {
 	tui.parse.file "$_PF"
 	ok '[[ -n "${_N_BY_ID[viaq]:-}" ]]'
 }
+
+t_parse_include_src_lookup_ignores_attributes_ending_in_src() {
+	_parse_fixture inc.xml '<pane id="included"/>'
+	_parse_fixture a.xml '<tui><include fallback_src="missing.xml" src="inc.xml"/></tui>'
+	tui.parse.file "$_PF"
+	tui_node.children "$_P_ROOT"
+	tui_node.children "${_N_CHILDREN[0]}"
+	eq "included" "${_N_ID[${_N_CHILDREN[0]}]}"
+}

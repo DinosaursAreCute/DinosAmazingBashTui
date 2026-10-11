@@ -409,15 +409,37 @@ charset.box() { echo -ne "\e(0${1}\e(B"; }  # Print line-drawing then back
 #  CLIPBOARD (OSC 52)
 # ─────────────────────────────────────────────
 
+# _tui_b64 STRING -> _B64 : base64 of STRING, byte-wise, no fork (OSC 52 payloads; the framework needs no base64 binary)
+declare -g _B64=""
+_tui_b64() {
+	local LC_ALL=C s="$1" out="" i n a b c t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" v
+	n=${#s}
+	for ((i = 0; i < n; i += 3)); do
+		printf -v a '%d' "'${s:i:1}"
+		((a &= 255))
+		if ((i + 1 < n)); then
+			printf -v b '%d' "'${s:i+1:1}"
+			((b &= 255))
+		else b=0; fi
+		if ((i + 2 < n)); then
+			printf -v c '%d' "'${s:i+2:1}"
+			((c &= 255))
+		else c=0; fi
+		v=$(((a << 16) | (b << 8) | c))
+		out+="${t:(v >> 18)&63:1}${t:(v >> 12)&63:1}"
+		if ((i + 1 < n)); then out+="${t:(v >> 6)&63:1}"; else out+="="; fi
+		if ((i + 2 < n)); then out+="${t:v&63:1}"; else out+="="; fi
+	done
+	_B64="$out"
+}
+
 clip.copy() {
-	local enc
-	enc=$(echo -n "$1" | base64 -w0 2>/dev/null || echo -n "$1" | base64)
-	echo -ne "\e]52;c;${enc}\a"
+	_tui_b64 "$1"
+	printf '\e]52;c;%s\a' "$_B64"
 }
 clip.copy_primary() {
-	local enc
-	enc=$(echo -n "$1" | base64 -w0 2>/dev/null || echo -n "$1" | base64)
-	echo -ne "\e]52;p;${enc}\a"
+	_tui_b64 "$1"
+	printf '\e]52;p;%s\a' "$_B64"
 }
 clip.query() { echo -ne "\e]52;c;?\a"; }
 clip.clear() { echo -ne "\e]52;c;!\a"; }
@@ -555,7 +577,9 @@ clearrow() { echo -ne "\e[${1};1H\e[2K"; }
 fillrow() {
 	local row=$1 col=$2 char=$3 count=$4
 	echo -ne "\e[${row};${col}H"
-	printf "%${count}s" '' | tr ' ' "$char"
+	local pad
+	printf -v pad "%${count}s" ''
+	printf '%s' "${pad// /"$char"}"
 }
 
 #!/usr/bin/env bash

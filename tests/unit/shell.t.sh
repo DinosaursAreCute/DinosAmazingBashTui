@@ -154,7 +154,7 @@ t_shell_page_refresh_hands_a_shell_page_to_a_background_rebuild() {
 	local got="" saved
 	saved="$(declare -f tui.page.rebuild)"
 	tui.page.rebuild() { got="$*"; }
-	_TUI_MARKUP_FILE="/app/pa.xml" _TUI_SHELL_FILE="/app/_shell.xml" _TUI_P_RAW="raw"
+	_TUI_MARKUP_FILE="/app/pa.xml" _TUI_SHELL_FILE="/app/_shell.xml" _TUI_P_RAW=":"
 	tui.page.refresh
 	eval "$saved"
 	eq "--label Updating page... /app/pa.xml" "$got"

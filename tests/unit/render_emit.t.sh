@@ -89,7 +89,7 @@ t_write_chunks_a_small_frame_is_one_piece() {
 	eq abc "${_TW_CHUNKS[0]}"
 }
 
-t_write_chunks_cuts_only_before_a_cursor_move_and_every_piece_stands_alone() {
+ti_write_chunks_cuts_only_before_a_cursor_move_and_every_piece_stands_alone() {
 	local sty=$'\e[48;2;1;2;3m' c n=0 bad=0
 	_re_frame 120
 	_tui._write_chunks "$sty$REPLY" "$sty"
@@ -103,7 +103,7 @@ t_write_chunks_cuts_only_before_a_cursor_move_and_every_piece_stands_alone() {
 	eq 0 "$bad"
 }
 
-t_write_wraps_in_one_synchronized_update_and_loses_nothing() {
+ti_write_wraps_in_one_synchronized_update_and_loses_nothing() {
 	local out="$_T_ROOT/tw_$RANDOM" sty=$'\e[48;2;1;2;3m'
 	_re_frame 120
 	_tui.write "$sty$REPLY" "$sty" >"$out"
@@ -119,7 +119,7 @@ t_write_wraps_in_one_synchronized_update_and_loses_nothing() {
 	eq 120 "$(grep -o $'\e\\[[0-9]*;1H' "$out" | wc -l)" # every row arrived, none twice
 }
 
-t_write_chunks_a_long_row_of_single_cell_styles_is_cut_between_sequences_and_in_bytes() {
+ti_write_chunks_a_long_row_of_single_cell_styles_is_cut_between_sequences_and_in_bytes() {
 	local cell=$'\e[38;2;201;214;227;48;2;28;35;54m│\e[0m' row=$'\e[10;1H' c i n=0 bad=0
 	for ((i = 0; i < 300; i++)); do row+="$cell"; done # one row of 300 cells: ~12 KB in bytes, no second cursor move
 	_tui._write_chunks "$row" ""

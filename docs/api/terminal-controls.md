@@ -184,7 +184,7 @@ Stateless helpers that print escape sequences (`echo -ne`). They are usable on t
 | `term.icon` | $1 | Set icon name |
 | `term.tab_title` | $1 | Set tab title (some terms) |
 | `term.bell` |  | Audible bell |
-| `term.flash` |  | Visual bell (flash) |
+| `term.flash` |  |  |
 | `term.push_title` |  | Push title to stack |
 | `term.pop_title` |  | Pop title from stack |
 | `term.soft_reset` |  | Soft reset (DECSTR) |

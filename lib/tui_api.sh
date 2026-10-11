@@ -313,7 +313,7 @@ declare -g _TA_TMP="" _TA_SLEEP_FD=""
 
 _tui_api._tmp_init() {
 	[[ -n "$_TA_TMP" && -d "$_TA_TMP" ]] && return
-	_TA_TMP="$(mktemp -d "${TMPDIR:-/tmp}/tui_api.XXXXXX")"
+	_tui_mkdtemp _TA_TMP tui_api || return 1
 	mkfifo "$_TA_TMP/sleep"
 }
 

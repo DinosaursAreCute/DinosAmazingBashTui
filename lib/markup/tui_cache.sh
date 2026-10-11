@@ -746,7 +746,7 @@ tui.cache.warm_with_spinner() {
 	((${#_tcw_pages[@]} > 0)) || return 0
 
 	local _tcw_root _tcw_cache_dir _tcw_fifo
-	_tcw_root="$(mktemp -d "${TMPDIR:-/tmp}/tui_cache_warm.XXXXXX")" || return 1
+	_tui_mkdtemp _tcw_root tui_cache_warm || return 1
 	_tcw_cache_dir="$_tcw_root/cache"
 	_tcw_fifo="$_tcw_root/progress.fifo"
 	mkdir -p "$_tcw_cache_dir"
@@ -971,14 +971,15 @@ tui.start_cached() {
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$dir/themes" ]] && TUI_THEMES_DIR="$dir/themes"
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$TUI_DEFAULTS_DIR/themes" ]] && TUI_THEMES_DIR="$TUI_DEFAULTS_DIR/themes"
 	local -a pages=()
-	while IFS= read -r f; do
-		[[ "${f##*/}" == _* ]] && continue
-		pages+=("$f")
-	done < <(find "$dir" -maxdepth 1 -name '*.xml' | sort)
-	while IFS= read -r f; do
-		[[ "${f##*/}" == _* ]] && continue
-		pages+=("$f")
-	done < <(find "$TUI_DEFAULTS_DIR/pages" -maxdepth 1 -name '*.xml' 2>/dev/null | sort)
+	local f
+	if [[ -n "$dir" ]]; then
+		for f in "$dir"/*.xml; do # globs expand sorted
+			[[ -f "$f" && "${f##*/}" != _* ]] && pages+=("$f")
+		done
+	fi
+	for f in "$TUI_DEFAULTS_DIR/pages"/*.xml; do
+		[[ -f "$f" && "${f##*/}" != _* ]] && pages+=("$f")
+	done
 
 	# every page is checked up front (all of them are reachable), before the terminal is taken over
 	_tui_validate.gate "${pages[@]}" || return 1

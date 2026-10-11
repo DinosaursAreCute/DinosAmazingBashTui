@@ -26,7 +26,7 @@ tui.run() {
 		tui.hook.fire ready
 	fi
 
-	trap '_master_cleanup; exit 1' INT TERM
+	trap '_master_cleanup; exit 1' INT TERM HUP
 	# WINCH trap: installed in tui.init, not here - see its comment. A
 	# resize caught between tui.init and here must still be applied before
 	# the very first frame draws, not silently dropped by an unconditional

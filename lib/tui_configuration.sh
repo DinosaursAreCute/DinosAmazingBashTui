@@ -61,6 +61,10 @@ declare -gi TUI_JOB_FRAME_US="${TUI_JOB_FRAME_US:-80000}"
 # UI rows reserved per background job instance (status + buttons + input)
 declare -gi TUI_EXEC_CTL_ROWS_PER_INSTANCE="${TUI_EXEC_CTL_ROWS_PER_INSTANCE:-7}"
 
+# How tui.exec gets its child a terminal: auto = a PTY through script(1) when util-linux script is found, else plain pipes;
+# on = force script(1) (util-linux or BSD syntax); off = always plain pipes (pure Bash/POSIX, children may buffer or drop colors)
+declare -g TUI_EXEC_PTY="${TUI_EXEC_PTY:-auto}"
+
 # Spinner character sequence (braille progression)
 declare -ga TUI_JOB_SPINNER_GLYPHS=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
 

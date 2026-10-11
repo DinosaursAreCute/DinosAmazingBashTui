@@ -33,11 +33,10 @@
 # unchanged tree). It is coarser than per-subtree dirty tracking (any
 # mutation anywhere invalidates the whole cache) but never stale, and needs
 # no parent-pointer bookkeeping.
+# requires:
 
 declare -g _TUI_LY_GEN=0
 declare -gA _TUI_LY_KEY=() _TUI_LY_GEN_AT=()
-
-_tui.layout_bump() { : $((_TUI_LY_GEN++)); }
 
 # _tui.layout_cache_hit P - true and skips nothing itself; caller
 # (_tui._layout_r) does the skipping. Sets nothing on a miss beyond
@@ -45,7 +44,7 @@ _tui.layout_bump() { : $((_TUI_LY_GEN++)); }
 # real recompute.
 _tui.layout_cache_hit() {
 	local p="$1" key="$2"
-	if [[ "${_TUI_LY_GEN_AT[$p]:-}" == "$_TUI_LY_GEN" && "${_TUI_LY_KEY[$p]:-}" == "$key" ]]; then
+	if ((_TUI_CACHES)) && [[ "${_TUI_LY_GEN_AT[$p]:-}" == "$_TUI_LY_GEN" && "${_TUI_LY_KEY[$p]:-}" == "$key" ]]; then
 		_tui_perf.count layout_memo_hit
 		return 0
 	fi

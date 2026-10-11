@@ -15,7 +15,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 ## Widgets
 
-<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
+<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.pin tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
 
 | Function | Summary |
 |---|---|
@@ -41,6 +41,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 | [`tui.label_align`](widgets/tui.label_align.md) | Aligns an input label inside its label column. |
 | [`tui.label_width`](widgets/tui.label_width.md) | Gives an input label a fixed column width, so fields in a form line up. |
 | [`tui.expand`](widgets/tui.expand.md) | Grows a widget to fill the rest of its pane's content height, width, or both. |
+| [`tui.pin`](widgets/tui.pin.md) | Pin a widget to the top of its scrolling pane. When `VALUE` is `top`, the widget scrolls with content until it would leave the viewport top, then stays pinned on the first viewport row (sticky header). |
 | [`tui.input.retain`](widgets/tui.input.retain.md) | Sets whether an input keeps focus after Enter. |
 | [`tui.input.blur_on_submit`](widgets/tui.input.blur_on_submit.md) | Old name for `tui.input.retain ID false`. |
 | [`tui.input.sticky`](widgets/tui.input.sticky.md) | With `true` (default), clicking empty space no longer takes focus away from the input; Esc and Tab still do. |
@@ -92,6 +93,8 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 {% include_relative widgets/tui.expand.md %}
 
+{% include_relative widgets/tui.pin.md %}
+
 {% include_relative widgets/tui.input.retain.md %}
 
 {% include_relative widgets/tui.input.blur_on_submit.md %}
@@ -108,7 +111,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Markup tags: `<password> <textarea> <list> <table> <select> <progress>` (attributes in `share/tui.xsd`). Theme classes (all optional): `.list_sel .table_head .table_sel .progress .progress_fill .select .selection .field_label .field_label:focus`.
 
-<!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change -->
+<!-- api: tui.password tui.textarea tui.list tui.table tui.select tui.progress tui.list.set tui.list.add tui.list.clear tui.list.select tui.list.selected tui.list.item tui.list.count tui.table.set tui.table.add tui.table.clear tui.table.count tui.table.select tui.table.selected tui.table.row tui.table.align tui.table.heat tui.select.set tui.select.index tui.select.pick tui.progress.set tui.on_change tui.text.mode -->
 
 | Function | Summary |
 |---|---|
@@ -123,20 +126,23 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 | [`tui.list.clear`](widgets/tui.list.clear.md) | Removes all items and clears the selection. |
 | [`tui.list.select`](widgets/tui.list.select.md) | Moves the selection to `INDEX` (0-based), clamped to the list. A negative index clears it. |
 | [`tui.list.selected`](widgets/tui.list.selected.md) | Prints the selected index, or `-1` when nothing is selected. With `VAR` the index is stored in that variable instead, which costs no subshell. |
-| [`tui.list.item`](widgets/tui.list.item.md) | Prints the item at `INDEX`, default the selected one. Prints nothing for an index out of range. |
+| [`tui.list.item`](widgets/tui.list.item.md) | Prints the item at `INDEX`, default the selected one. Prints nothing for an index out of range. With `VAR` the item is stored in that variable instead (empty for an index out of range), which costs no subshell. Pass `""` as `INDEX` for the selected item. |
 | [`tui.list.count`](widgets/tui.list.count.md) | Prints the number of items. |
-| [`tui.table.set`](widgets/tui.table.set.md) | Replaces the header and all rows, and selects the first row. |
+| [`tui.table.set`](widgets/tui.table.set.md) | Replaces the header and all rows, and selects the first row. With `--keep COL` the selection stays on its row instead. |
 | [`tui.table.add`](widgets/tui.table.add.md) | Appends rows (`\|`-separated cells). Selects the first row when nothing was selected. |
 | [`tui.table.clear`](widgets/tui.table.clear.md) | Removes all rows and clears the selection. The header is kept. |
 | [`tui.table.count`](widgets/tui.table.count.md) | Prints the number of rows (the header not counted). |
 | [`tui.table.select`](widgets/tui.table.select.md) | Moves the selection to row `INDEX` (0-based), clamped. Does not call `on_change`. |
 | [`tui.table.selected`](widgets/tui.table.selected.md) | Prints the selected row index, or `-1`. |
-| [`tui.table.row`](widgets/tui.table.row.md) | Prints a row as `a\|b\|c`, default the selected one. |
+| [`tui.table.row`](widgets/tui.table.row.md) | Prints a row as `a\|b\|c`, default the selected one. With `VAR` the row is stored in that variable instead, which costs no subshell. |
+| [`tui.table.align`](widgets/tui.table.align.md) | Sets the alignment of each table column (header and cells). |
+| [`tui.table.heat`](widgets/tui.table.heat.md) | Colours the numeric cells of a column by size: the `table_warn` class from `WARN` up, `table_hot` from `HOT` up. |
 | [`tui.select.set`](widgets/tui.select.set.md) | Replaces the options. The current value stays selected when it is among the new options. |
 | [`tui.select.index`](widgets/tui.select.index.md) | Prints the index of the current value among the options, or `-1`. |
 | [`tui.select.pick`](widgets/tui.select.pick.md) | Chooses option `INDEX` (0-based) as if the user picked it: sets the value, redraws, then calls the `on_change` function and the action. |
 | [`tui.progress.set`](widgets/tui.progress.set.md) | Sets a progress bar to `VALUE` out of `MAX` and redraws it. |
 | [`tui.on_change`](widgets/tui.on_change.md) | Sets a function called as `FN ID` whenever the widget changes through the user. |
+| [`tui.text.mode`](widgets/tui.text.mode.md) | Styles a textarea's source as Markdown while typing (headings, emphasis, code, links, quotes, lists, fences; characters, columns, cursor and selection unchanged, only the styling differs), or back to plain. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -180,6 +186,10 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 
 {% include_relative widgets/tui.table.row.md %}
 
+{% include_relative widgets/tui.table.align.md %}
+
+{% include_relative widgets/tui.table.heat.md %}
+
 {% include_relative widgets/tui.select.set.md %}
 
 {% include_relative widgets/tui.select.index.md %}
@@ -189,6 +199,8 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 {% include_relative widgets/tui.progress.set.md %}
 
 {% include_relative widgets/tui.on_change.md %}
+
+{% include_relative widgets/tui.text.mode.md %}
 
 </div>
 
@@ -237,6 +249,39 @@ For input, password and textarea widgets. Offsets are 0-based character position
 {% include_relative widgets/tui.text.line_count.md %}
 
 {% include_relative widgets/tui.action.text_keys.md %}
+
+</div>
+
+<!-- /api -->
+
+## Widget types as plugins
+
+A widget type is four registered functions: `tui.register widget TYPE MEASURE DRAW HIT [KEY]`, `-` for a handler the type does not have. The handler signatures and the whole contract are described at the top of `lib/widgets/tui_widget_contract.sh`; `share/plugins/meter.plugin.sh` is a complete example that adds a `<meter>` widget without touching `lib/`.
+
+<!-- api: tui.widget.new tui.widget.get tui.widget.set tui.widget.from_node tui.widget.emit tui.widget.redraw -->
+
+| Function | Summary |
+|---|---|
+| [`tui.widget.new`](widgets/tui.widget.new.md) | Creates a widget of a type registered with `tui.register widget`. |
+| [`tui.widget.get`](widgets/tui.widget.get.md) | Reads a widget field (`label`, `value`, `action`, ...) into `$TUI_WIDGET_V`; empty when unset. |
+| [`tui.widget.set`](widgets/tui.widget.set.md) | Sets a widget field. |
+| [`tui.widget.from_node`](widgets/tui.widget.from_node.md) | Builds the widget a markup node describes, for use as a `tui.register tag` handler; leaves the id in `$TUI_WIDGET_V`. |
+| [`tui.widget.emit`](widgets/tui.widget.emit.md) | DRAW-handler helper: moves the cursor to ROW COL and appends the printf output to the frame. |
+| [`tui.widget.redraw`](widgets/tui.widget.redraw.md) | Repaints one widget now, when the app is running. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative widgets/tui.widget.new.md %}
+
+{% include_relative widgets/tui.widget.get.md %}
+
+{% include_relative widgets/tui.widget.set.md %}
+
+{% include_relative widgets/tui.widget.from_node.md %}
+
+{% include_relative widgets/tui.widget.emit.md %}
+
+{% include_relative widgets/tui.widget.redraw.md %}
 
 </div>
 

@@ -1,6 +1,6 @@
 # Core: lifecycle, layout & runtime
 
-The always-loaded core (`lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh`): starting the app, building the pane tree, tabs, runtime (factory) widgets, output, background process streaming, live updates, getters, logging and the event/result variables everything else reads. ← [API index](README.md) for the full module list and a task-oriented tour with examples.
+The always-loaded core (`lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh`, `lib/markup/tui_factory.sh`): starting the app, building the pane tree, tabs, runtime (factory) widgets, output, background process streaming, live updates, getters, logging and the event/result variables everything else reads. ← [API index](README.md) for the full module list and a task-oriented tour with examples.
 
 Each function has its own page; the summary tables link to them, and the full entries follow each table. Functions return `0` unless their entry says otherwise. Getters print to stdout, so call them in `$(...)`; the fork-free alternatives that set variables are noted on each entry.
 
@@ -53,7 +53,7 @@ Each function has its own page; the summary tables link to them, and the full en
 
 Panes form a tree rooted at `root`. Splits divide a pane among children by integer weight; leaves hold widgets or output. Pane names are used in bash variable names, so use letters, digits and `_` only.
 
-<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
+<!-- api: tui.hsplit tui.vsplit tui.grid tui.fixed tui.pane_title tui.pane_border tui.pane_pad tui.pane_gap tui.pane_fuse tui.pane_divider tui.pane_divider_class tui.pane_title_pos tui.pane_title_align tui.pane_resizable tui.pane_handle tui.resize tui.resize.reset tui.collapse tui.collapsed tui.pane_align tui.pane_valign tui.pane_minsize tui.pane_maxsize tui.pane_scroll tui.pane_scroll_into_view tui.scroll.to tui.scroll.reset tui.pane_strict_fit tui.pane_size tui.capture tui.content_area tui.pane.focus tui.relayout tui.clear_pane tui.render tui.redraw tui.frame.request -->
 
 | Function | Summary |
 |---|---|
@@ -65,11 +65,25 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 | [`tui.pane_border`](core/tui.pane_border.md) | Sets the border style of a pane. |
 | [`tui.pane_pad`](core/tui.pane_pad.md) | Sets blank columns (`HPAD`) and rows (`VPAD`) on each side inside the pane. |
 | [`tui.pane_gap`](core/tui.pane_gap.md) | Gets or sets the gap between children of a split pane. |
+| [`tui.pane_fuse`](core/tui.pane_fuse.md) | Fuses a pane with its siblings so neighbouring borders share one line. |
+| [`tui.pane_divider`](core/tui.pane_divider.md) | Sets the border style of the line a fused pane shares with its neighbour. |
+| [`tui.pane_divider_class`](core/tui.pane_divider_class.md) | Sets the theme class that colours the line a fused pane shares with its neighbour. |
+| [`tui.pane_title_pos`](core/tui.pane_title_pos.md) | Sets which border line carries a pane's title. |
+| [`tui.pane_title_align`](core/tui.pane_title_align.md) | Sets where along its border line a pane's title sits. |
+| [`tui.pane_resizable`](core/tui.pane_resizable.md) | Allows a pane to be resized on one or both axes, by mouse handle or keyboard. |
+| [`tui.pane_handle`](core/tui.pane_handle.md) | Chooses the mouse handle that resizes a resizable pane. |
+| [`tui.resize`](core/tui.resize.md) | Grows `PANE` by `DW` columns and `DH` rows (negative values shrink) with the same clamping as a drag. |
+| [`tui.resize.reset`](core/tui.resize.reset.md) | Restores the split weights recorded before the first resize, for the split holding `PANE` and every split above it. |
+| [`tui.collapse`](core/tui.collapse.md) | Collapses (`on`), expands (`off`) or toggles (default) a collapsible pane, then lays out again. |
+| [`tui.collapsed`](core/tui.collapsed.md) | Reports whether a pane is collapsed. |
 | [`tui.pane_align`](core/tui.pane_align.md) | Sets the default horizontal alignment for widgets in the pane. |
 | [`tui.pane_valign`](core/tui.pane_valign.md) | Sets the default vertical anchor for widgets in the pane. Default: `top`. |
 | [`tui.pane_minsize`](core/tui.pane_minsize.md) | Sets the smallest size at which the pane shows its content. Below it, the pane shows a `min space = WxH` notice instead. |
 | [`tui.pane_maxsize`](core/tui.pane_maxsize.md) | Caps the size a split gives the pane. |
 | [`tui.pane_scroll`](core/tui.pane_scroll.md) | Enables scrolling of the pane's output and resets its scroll position to the top left. |
+| [`tui.pane_scroll_into_view`](core/tui.pane_scroll_into_view.md) | Sets whether focus scrolls a vertically scrolling pane to reveal the focused widget. Default: `true`. |
+| [`tui.scroll.to`](core/tui.scroll.to.md) | Scrolls the pane that holds widget `TARGET` (or the pane `TARGET` itself) so the widget sits at the specified viewport position. |
+| [`tui.scroll.reset`](core/tui.scroll.reset.md) | Scrolls a scrolling pane back to its top-left corner, repainting only when it was elsewhere. |
 | [`tui.pane_strict_fit`](core/tui.pane_strict_fit.md) | Turns the automatic content-fit check of a leaf pane on (default) or off. |
 | [`tui.pane_size`](core/tui.pane_size.md) | Stores the usable content size of a pane (inside border and padding) in variables, without a subshell. |
 | [`tui.capture`](core/tui.capture.md) | Runs `CMD` and stores its standard output in `VAR`, like `VAR="$(CMD ARGS...)"` but without a subshell. |
@@ -99,6 +113,28 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 
 {% include_relative core/tui.pane_gap.md %}
 
+{% include_relative core/tui.pane_fuse.md %}
+
+{% include_relative core/tui.pane_divider.md %}
+
+{% include_relative core/tui.pane_divider_class.md %}
+
+{% include_relative core/tui.pane_title_pos.md %}
+
+{% include_relative core/tui.pane_title_align.md %}
+
+{% include_relative core/tui.pane_resizable.md %}
+
+{% include_relative core/tui.pane_handle.md %}
+
+{% include_relative core/tui.resize.md %}
+
+{% include_relative core/tui.resize.reset.md %}
+
+{% include_relative core/tui.collapse.md %}
+
+{% include_relative core/tui.collapsed.md %}
+
 {% include_relative core/tui.pane_align.md %}
 
 {% include_relative core/tui.pane_valign.md %}
@@ -108,6 +144,12 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.pane_maxsize.md %}
 
 {% include_relative core/tui.pane_scroll.md %}
+
+{% include_relative core/tui.pane_scroll_into_view.md %}
+
+{% include_relative core/tui.scroll.to.md %}
+
+{% include_relative core/tui.scroll.reset.md %}
 
 {% include_relative core/tui.pane_strict_fit.md %}
 
@@ -128,6 +170,58 @@ Panes form a tree rooted at `root`. Splits divide a pane among children by integ
 {% include_relative core/tui.redraw.md %}
 
 {% include_relative core/tui.frame.request.md %}
+
+</div>
+
+<!-- /api -->
+
+## Page state
+
+A page can keep state while the user visits other pages. In markup: `keep_value="true"` on a widget (value, cursor, scroll, selection), `keep_collapsed="true"` and `keep_size="true"` on a pane, or `keep_state="true"` on `<tui>` for every widget and pane of the page. `persist="session"` (the default) keeps it for this run; `persist="disk"` (on a widget, a pane or `<tui>`) implies the keeping and also writes the fields to `$TUI_HOME/state/store`, so they are back the next time the app starts. State is saved when the page is left and restored after it is built again, also after `tui.page.refresh` rebuilt panes. The store is `_TUI_STORE["PAGE|ID|FIELD"]`.
+
+The disk file is data only (`# dabt-state 1`, then one escaped `PAGE TAB ID TAB FIELD TAB VALUE` line per entry; fields `value cursor scroll sel collapsed size focus`). It is read with `read -r` and never sourced, so `TUI_HOME` is not a code-execution boundary; lines that do not parse are skipped. It is loaded on first use, written when a page is left or the app exits (only if something changed) and by `tui.store.flush`. `tui.page.reset`, `tui.page.reset_field` and `tui.page.reset_all` also remove the matching disk entries.
+
+Focus can be kept too. `keep_focus="true"` on a widget: when it has the focus as a page is left and the next page has a widget with the same id, focus lands on it before the first render (and a keep_focus widget is focused again when you return to its page). `<tui focus_on_enter="ID|keep|first">` sets where focus lands on entry: `first` (the default), `keep` (the id focused when the page was last left, kept in the store as field `focus`) or the id of a widget; an id that does not exist falls back to `first`.
+
+<!-- api: tui.store.set tui.store.get tui.store.unset tui.store.has tui.store.register_type tui.page.reset tui.page.reset_field tui.page.reset_all tui.page.resettable tui.store.flush tui.store.file -->
+
+| Function | Summary |
+|---|---|
+| [`tui.store.set`](core/tui.store.set.md) | Stores one field of a widget or pane in the page-state store. |
+| [`tui.store.get`](core/tui.store.get.md) | Reads one stored field into `REPLY`. |
+| [`tui.store.unset`](core/tui.store.unset.md) | Drops stored state: one field, every field of one id, or a whole page. |
+| [`tui.store.has`](core/tui.store.has.md) | Reports whether anything is stored for a page, or for one id. |
+| [`tui.store.register_type`](core/tui.store.register_type.md) | Sets which fields a widget type keeps. |
+| [`tui.page.reset`](core/tui.page.reset.md) | Forgets the stored state of a page and puts the current page back to its first-build state. |
+| [`tui.page.reset_field`](core/tui.page.reset_field.md) | Puts one kept widget or pane back to its first-build state. |
+| [`tui.page.reset_all`](core/tui.page.reset_all.md) | Empties the whole store (every page) and resets the current page. |
+| [`tui.page.resettable`](core/tui.page.resettable.md) | Reports whether a reset would change anything on the current page. |
+| [`tui.store.flush`](core/tui.store.flush.md) | Writes the disk image of the page-state store to `tui.store.file` now. |
+| [`tui.store.file`](core/tui.store.file.md) | Prints the path of the file that holds the `persist="disk"` page state: `$TUI_HOME/state/store`. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.store.set.md %}
+
+{% include_relative core/tui.store.get.md %}
+
+{% include_relative core/tui.store.unset.md %}
+
+{% include_relative core/tui.store.has.md %}
+
+{% include_relative core/tui.store.register_type.md %}
+
+{% include_relative core/tui.page.reset.md %}
+
+{% include_relative core/tui.page.reset_field.md %}
+
+{% include_relative core/tui.page.reset_all.md %}
+
+{% include_relative core/tui.page.resettable.md %}
+
+{% include_relative core/tui.store.flush.md %}
+
+{% include_relative core/tui.store.file.md %}
 
 </div>
 
@@ -197,7 +291,7 @@ Constructors for layouts whose shape is only known at runtime. Ids are generated
 
 Text content of leaf panes. Repaints are queued and coalesced, so several updates in one callback cost one frame.
 
-<!-- api: tui.output tui.output_append tui.output_clear tui.set_text -->
+<!-- api: tui.output tui.output_append tui.output_clear tui.set_text tui.set_canvas tui.canvas.source tui.canvas.fresh tui.canvas.patch -->
 
 | Function | Summary |
 |---|---|
@@ -205,6 +299,10 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 | [`tui.output_append`](core/tui.output_append.md) | Appends lines to the pane's content, from arguments or stdin. |
 | [`tui.output_clear`](core/tui.output_clear.md) | Empties the pane's content and repaints the pane immediately. |
 | [`tui.set_text`](core/tui.set_text.md) | Replaces the pane's content like [`tui.output`](/api/core/tui.output.html), but skips the work when `TEXT` equals what it set last time. |
+| [`tui.set_canvas`](core/tui.set_canvas.md) | Sets the pane's content to a ready-made frame: one line per row, each already as wide as the pane's content area. The pane draws the lines as they are, in its own style. |
+| [`tui.canvas.source`](core/tui.canvas.source.md) | Names the function that keeps the frame of a canvas pane, for an animation that draws changes with [`tui.canvas.patch`](/api/core/tui.canvas.patch.html) instead of sending the whole frame. |
+| [`tui.canvas.fresh`](core/tui.canvas.fresh.md) | Returns `0` while the last canvas frame (or patch) is still what the screen shows, because nothing else has painted since. Returns `1` otherwise. |
+| [`tui.canvas.patch`](core/tui.canvas.patch.md) | Draws `BYTES` over the canvas at once, in one flush: absolute cursor moves and cells, for example only the cells an animation changed. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -215,6 +313,56 @@ Text content of leaf panes. Repaints are queued and coalesced, so several update
 {% include_relative core/tui.output_clear.md %}
 
 {% include_relative core/tui.set_text.md %}
+
+{% include_relative core/tui.set_canvas.md %}
+
+{% include_relative core/tui.canvas.source.md %}
+
+{% include_relative core/tui.canvas.fresh.md %}
+
+{% include_relative core/tui.canvas.patch.md %}
+
+</div>
+
+<!-- /api -->
+
+## Background painters
+
+Painters run in background processes and draw directly to the terminal with absolute cursor moves, so their frames cost the main loop nothing and a hover or focus highlight is never queued behind them. A painter receives updates from the main loop through small state files and sleeps without forking.
+
+<!-- api: tui.async.start tui.async.stop tui.async.stop_all tui.async.active tui.async.put tui.async.get tui.async.wait tui.async.emit tui.async.covered -->
+
+| Function | Summary |
+|---|---|
+| [`tui.async.start`](core/tui.async.start.md) | Forks FN with ARG... into the background as a painter: a function running in its own process that paints directly to the terminal with absolute cursor moves, so its frames cost the main loop nothing. |
+| [`tui.async.stop`](core/tui.async.stop.md) | Ends the painter named NAME, if it exists. |
+| [`tui.async.stop_all`](core/tui.async.stop_all.md) | Ends every painter and removes the state directory. |
+| [`tui.async.active`](core/tui.async.active.md) | Returns 0 while a painter is running; 1 when none are running, or when NAME is given and that painter is not running. |
+| [`tui.async.put`](core/tui.async.put.md) | The main loop's way to send a small value to a painter: writes VALUE to a temporary file that the painter can read with [`tui.async.get`](/api/core/tui.async.get.html). |
+| [`tui.async.get`](core/tui.async.get.md) | Inside a painter: reads a value sent by the main loop via [`tui.async.put`](/api/core/tui.async.put.html) into VAR. |
+| [`tui.async.wait`](core/tui.async.wait.md) | Inside a painter: sleeps without forking, by waiting on a pipe that is held open and never written. Returns immediately after the timeout, or when the main process exits. |
+| [`tui.async.emit`](core/tui.async.emit.md) | Inside a painter: sends FRAME to the terminal. A painter's stdout is closed, so this is the only way it draws. |
+| [`tui.async.covered`](core/tui.async.covered.md) | Inside a painter: returns 0 while something is open over the page (a modal, the command palette, a dialog, or a layer); 1 when the page is fully visible. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.async.start.md %}
+
+{% include_relative core/tui.async.stop.md %}
+
+{% include_relative core/tui.async.stop_all.md %}
+
+{% include_relative core/tui.async.active.md %}
+
+{% include_relative core/tui.async.put.md %}
+
+{% include_relative core/tui.async.get.md %}
+
+{% include_relative core/tui.async.wait.md %}
+
+{% include_relative core/tui.async.emit.md %}
+
+{% include_relative core/tui.async.covered.md %}
 
 </div>
 
@@ -264,7 +412,7 @@ Timers, clocks, watches and the system samplers share one tick listener, cost no
 | [`tui.sys.load`](core/tui.sys.load.md) | Reads the load averages from `/proc/loadavg`. |
 | [`tui.sys.uptime`](core/tui.sys.uptime.md) | Reads the system uptime from `/proc/uptime`. |
 | [`tui.hist.push`](core/tui.hist.push.md) | Appends a value to a named rolling series, dropping the oldest beyond `MAX`. |
-| [`tui.hist.get`](core/tui.hist.get.md) | Prints a series, oldest first. |
+| [`tui.hist.get`](core/tui.hist.get.md) | Prints a series, oldest first. With `VAR` the series is stored in that variable instead, which costs no subshell. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 

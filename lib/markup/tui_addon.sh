@@ -24,6 +24,7 @@
 # A ref that matches nothing is reported in _P_ERRORS. Everything is node ops (lib/markup/tui_ops.sh).
 #
 # Runtime tui.addon.load/unload (rebuilding only the affected subtree) is not here: it needs an incremental build.
+# requires:
 
 declare -ga _TUI_ADDON_DIRS=()
 declare -ga _TA_DIRS=() # _tui_addon.dirs result

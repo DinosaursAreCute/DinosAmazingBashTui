@@ -14,6 +14,7 @@
 # Usage:
 #   printf '%s%s%s\n' "$(tui.ansi mypane title)" "hi" "$(style.reset)"
 #   tui.paint mypane "hi" title
+# requires:
 
 # _tui_api._build FG BG MODS - emits ANSI prefix for resolved values.
 _tui_api._build() {
@@ -102,7 +103,7 @@ _tui_api._ms() {
 	f="${f}000"
 	f="${f:0:3}"
 	_TA_MS=$((10#${i:-0} * 1000 + 10#$f))
-	((_TA_MS < 50)) && _TA_MS=50
+	((_TA_MS < 20)) && _TA_MS=20 # the floor of an interval: the loop cannot tick faster, and does so only while a job asks for it (see _tui_api._fast_update)
 }
 
 tui.set_text() {
@@ -119,6 +120,49 @@ tui.set_text() {
 	return 0
 }
 
+# tui.set_canvas PANE TEXT - the pane's content as a ready-made frame: one line per row, each already as wide as the pane's
+# content area (ANSI colours allowed), lines past the area are dropped. Nothing is measured or cut, so it costs a fraction of
+# tui.set_text with colours, and it is drawn at once (no debounce): it is for animation. Skipped when TEXT is what it set
+# last time, and only the rows that differ from the last frame go out while nothing else has painted since (a blinking cursor is
+# one row, not the whole canvas). Any width the pane remembers from earlier text is dropped, so a canvas pane never reports itself too small.
+tui.set_canvas() {
+	local pane="$1" text="$2" buf saved
+	[[ "${_TUI_PANE_RAW[$pane]-}" == "$text" && -n "${_TUI_PANE_CONTENT[$pane]:-}" ]] && return 0
+	_TUI_PANE_RAW[$pane]="$text"
+	if ((${_TUI_P_H[$pane]:-0} > 0 && ${_TUI_P_W[$pane]:-0} > 0)); then
+		_tui._content_rect "$pane"
+		_TUI_PANE_RAW_SIZE[$pane]="$_CR_W $_CR_H"
+	fi
+	_TUI_PANE_CONTENT[$pane]=1
+	unset '_TUI_P_MAX_W[$pane]' '_TUI_P_LINES[$pane]' '_TUI_P_EFFECTIVE_MINW[$pane]' '_TUI_P_EFFECTIVE_MINH[$pane]'
+	if ((_TUI_RUNNING && ${_TUI_P_H[$pane]:-0} > 0 && ${_TUI_P_W[$pane]:-0} > 0)); then
+		saved="$_TUI_FRAME"
+		_TUI_FRAME=""
+		_tui._render_raw_buf "$pane" diff
+		buf="$_TUI_FRAME"
+		_TUI_FRAME="$saved"
+		[[ -n "$buf" ]] && _tui._flush "$buf"
+		_TUI_RAW_GEN=$_TUI_FLUSH_GEN
+	fi
+	return 0
+}
+
+# tui.canvas.source PANE FN - the frame of a canvas pane is kept by the caller (an animation that draws changes with
+# tui.canvas.patch): FN PANE sets _TUI_PANE_RAW[PANE] to the whole frame, and runs before every full paint of the pane
+tui.canvas.source() { _TUI_PANE_RAW_FN[$1]="$2"; }
+
+# tui.canvas.fresh - rc 0 while the last canvas frame (or patch) is still what the screen shows: nothing else has painted since
+tui.canvas.fresh() { ((_TUI_RAW_GEN == _TUI_FLUSH_GEN)); }
+
+# tui.canvas.patch PANE BYTES - draws BYTES (absolute cursor moves and cells) over the canvas now, one flush. Only for a canvas
+# that is fresh (tui.canvas.fresh): the caller keeps its frame in step (tui.canvas.source) and sends the cells that changed
+tui.canvas.patch() {
+	[[ -n "$2" ]] || return 0
+	_tui._flush "$2"
+	_TUI_RAW_ROWS=() # the rows sent by tui.set_canvas are not what the screen shows any more
+	_TUI_RAW_GEN=$_TUI_FLUSH_GEN
+}
+
 # ── scheduler ────────────────────────────────────────────────────────────
 
 _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
@@ -132,11 +176,39 @@ _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
 	_TA_NEXT[$id]=0
 	unset '_TA_PAUSED[$id]'
 	_tui_plugin.own every "$id"
+	_tui_api._fast_update
 	if [[ -n "$4" ]]; then
 		_tui_api._now
 		_TA_NEXT[$id]=$((_TA_NOW + _TA_MS))
 	fi # tui.after: first run is SEC from now, not on the next tick
 	tui.tick.add "_tui_api._tick"
+}
+
+# _tui_api._fast_update - _TA_FAST_MS: the shortest interval among the jobs when it is below the loop's usual poll (50 ms), else 0.
+# While it is set tui.run polls for no longer than the next job is due and ticks at that rate (see _tui_api.poll_wait): an
+# animation can reach 20+ frames a second, and every other page keeps its slow, idle-friendly poll.
+declare -gi _TA_FAST_MS=0
+declare -g _TA_POLL="0.050"
+_tui_api._fast_update() {
+	local id m=0
+	for id in "${_TA_IDS[@]}"; do
+		[[ -n "${_TA_FN[$id]:-}" ]] || continue
+		((_TA_INT[$id] < 50 && (m == 0 || _TA_INT[$id] < m))) && m=${_TA_INT[$id]}
+	done
+	_TA_FAST_MS=$m
+}
+
+# _tui_api.poll_wait - _TA_POLL: the seconds tui.run may wait for input: until the next job is due, at most 50 ms, at least 1 ms
+_tui_api.poll_wait() {
+	local id d due=50
+	_tui_api._now
+	for id in "${_TA_IDS[@]}"; do
+		[[ -n "${_TA_PAUSED[$id]:-}" ]] && continue
+		d=$((${_TA_NEXT[$id]:-0} - _TA_NOW))
+		((d < due)) && due=$d
+	done
+	((due < 1)) && due=1
+	printf -v _TA_POLL '0.%03d' "$due"
 }
 
 _tui_api._job_del() {
@@ -145,6 +217,7 @@ _tui_api._job_del() {
 	for x in "${_TA_IDS[@]}"; do [[ "$x" == "$id" ]] || keep+=("$x"); done
 	_TA_IDS=("${keep[@]}")
 	unset '_TA_FN[$id]' '_TA_INT[$id]' '_TA_NEXT[$id]' '_TA_ONCE[$id]' '_TA_ALIGN[$id]' '_TA_PAUSED[$id]' '_TA_ARGS[$id]'
+	_tui_api._fast_update
 	_tui_api._maybe_idle
 }
 
@@ -240,7 +313,7 @@ declare -g _TA_TMP="" _TA_SLEEP_FD=""
 
 _tui_api._tmp_init() {
 	[[ -n "$_TA_TMP" && -d "$_TA_TMP" ]] && return
-	_TA_TMP="$(mktemp -d "${TMPDIR:-/tmp}/tui_api.XXXXXX")"
+	_tui_mkdtemp _TA_TMP tui_api || return 1
 	mkfifo "$_TA_TMP/sleep"
 }
 
@@ -386,7 +459,13 @@ tui.hist.push() {
 	((${#a[@]} > max)) && a=("${a[@]: -max}")
 	_TA_HIST[$name]="${a[*]}"
 }
-tui.hist.get() { printf '%s' "${_TA_HIST[$1]:-}"; }
+# tui.hist.get KEY [VAR] - the history: printed, or stored in VAR without a subshell
+tui.hist.get() {
+	if [[ -n "${2:-}" ]]; then
+		local -n _hg_out="$2"
+		_hg_out="${_TA_HIST[$1]:-}"
+	else printf '%s' "${_TA_HIST[$1]:-}"; fi
+}
 
 # ── ready-made monitor ───────────────────────────────────────────────────
 
@@ -485,8 +564,10 @@ tui.get.dimensions() {
 			r=$_CR_H
 			c=$_CR_W
 		else
-			r=${_TUI_P_H[$pane]}
-			c=${_TUI_P_W[$pane]}
+			_ps.panes.get "$pane" h
+			r=$_V
+			_ps.panes.get "$pane" w
+			c=$_V
 		fi
 	fi
 	case "$mode" in r) printf '%s\n' "$r" ;; c) printf '%s\n' "$c" ;; *) printf '%s %s\n' "$r" "$c" ;; esac
@@ -666,6 +747,7 @@ tui.theme.clear() {
 }
 tui.theme.current() { printf '%s\n' "${_TUI_THEME_OVERLAY:-}"; }
 tui.theme.reload() {
+	_tui.theme_reset # drop the previous theme's classes: a class the new theme does not define must not keep its colours
 	tui.log.debug "tui.theme.reload: goto ${_TUI_MARKUP_FILE:-<none>} (via tui.load_cached - may replay from cache)"
 	[[ -n "${_TUI_MARKUP_FILE:-}" ]] && tui.goto "$_TUI_MARKUP_FILE"
 }
@@ -674,8 +756,19 @@ tui.theme.reload() {
 # TUI_THEMES_DIR (tui.start sets it to <app dir>/themes when that exists); an app theme with the same
 # name wins. The Settings page and the command palette both list exactly this.
 tui.theme.list() {
-	local dir f name
+	local line
+	_tui_api.theme_list
+	for line in "${_TA_THEMES[@]}"; do printf '%s\n' "$line"; done
+}
+
+# _tui_api.theme_list -> _TA_THEMES: "NAME<TAB>FILE" per selectable overlay, sorted by name. Built here, not in a
+# $( ) | sort: the command palette lists themes on every open.
+declare -ga _TA_THEMES=()
+_tui_api.theme_list() {
+	local dir f name i j
 	local -A files=()
+	local -a names=()
+	_TA_THEMES=()
 	for dir in "${TUI_DEFAULTS_DIR:-}/themes" "${TUI_THEMES_DIR:-}"; do
 		[[ -n "$dir" && -d "$dir" ]] || continue
 		for f in "$dir"/*.css; do
@@ -684,25 +777,35 @@ tui.theme.list() {
 			files[${name%.css}]="$f"
 		done
 	done
-	((${#files[@]})) || return 0
-	for name in "${!files[@]}"; do printf '%s\t%s\n' "$name" "${files[$name]}"; done | sort
+	names=("${!files[@]}")
+	for ((i = 1; i < ${#names[@]}; i++)); do # insertion sort: a handful of names
+		name="${names[i]}"
+		for ((j = i - 1; j >= 0; j--)); do
+			[[ "${names[j]}" > "$name" ]] || break
+			names[j + 1]="${names[j]}"
+		done
+		names[j + 1]="$name"
+	done
+	for name in "${names[@]}"; do _TA_THEMES+=("$name"$'\t'"${files[$name]}"); done
 }
 
 tui.theme.pick() {
-	local want="${1:-}" name f
+	local want="${1:-}" name f line
 	tui.log.debug "tui.theme.pick: name=${want:-<default>}"
 	if [[ -z "$want" ]]; then
 		tui.config.unset theme
 		tui.theme.clear
 		return 0
 	fi
-	while IFS=$'\t' read -r name f; do
+	_tui_api.theme_list
+	for line in "${_TA_THEMES[@]}"; do
+		name="${line%%$'\t'*}" f="${line#*$'\t'}"
 		[[ "$name" == "$want" ]] || continue
 		tui.log.debug "tui.theme.pick: resolved $want -> $f, persisting to config"
 		tui.config.set theme "$f"
 		tui.theme.set "$f"
 		return 0
-	done < <(tui.theme.list)
+	done
 	tui.log.warn "tui.theme.pick: no theme named '$want'"
 	return 1
 }
@@ -712,6 +815,7 @@ tui.theme.pick() {
 #   nothing else flickers. No PANE (or a parent): recompute geometry and redraw
 #   everything. Either way it is one synchronized-output frame (mode.sync_*), so
 #   the terminal never shows the intermediate blank screen.
+# state:direct
 tui.relayout() {
 	local pane="${1:-}"
 	((_TUI_RUNNING)) || {
@@ -725,11 +829,13 @@ tui.relayout() {
 		_tui._layout root
 		erase.all
 		tui.render
+		tui.hook.fire layout
 	fi
 	mode.sync_end
 	return 0
 }
 
+# state:direct
 _tui_api._repaint_pane() {
 	local id="$1" row blank
 	((${_TUI_P_H[$1]:-0} < 1 || ${_TUI_P_W[$1]:-0} < 1)) && return
@@ -753,7 +859,7 @@ _tui_api._repaint_pane() {
 # changes a widget's value, which buttons don't display) and redraw it.
 tui.set_label() {
 	[[ -n "${_TUI_W_TYPE[$1]:-}" ]] || return 1
-	_TUI_W_LABEL[$1]="$2"
+	_ps.widgets.set "$1" label "$2"
 	[[ "${_TUI_W_TYPE[$1]}" == label ]] && _TUI_W_VALUE[$1]="$2"
 	((_TUI_RUNNING)) && _tui._draw_widget "$1"
 	return 0

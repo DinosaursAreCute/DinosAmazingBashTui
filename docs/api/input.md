@@ -134,7 +134,7 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 
 Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` or `tui.cmd.add`. All are bound by default and rebindable. More actions live with their modules: [`tui.action.text_keys`](widgets/tui.action.text_keys.md), [`tui.action.update`](apps/tui.action.update.md), [`tui.palette.open`](chrome/tui.palette.open.md).
 
-<!-- api: tui.action.quit tui.action.quit_now tui.action.focus_next tui.action.focus_prev tui.action.focus_dir tui.action.unfocus tui.action.activate tui.action.click tui.action.scroll tui.action.page tui.action.scroll_top tui.action.scroll_bottom tui.action.pane_next tui.action.pane_prev tui.action.pane_dir tui.action.focus_pane tui.action.scroll_or_pane tui.action.paste tui.action.goto tui.action.goto_default tui.action.back tui.action.reload_page tui.action.redraw -->
+<!-- api: tui.action.quit tui.action.quit_now tui.action.focus_next tui.action.focus_prev tui.action.focus_dir tui.action.unfocus tui.action.activate tui.action.click tui.action.scroll tui.action.page tui.action.scroll_top tui.action.scroll_bottom tui.action.pane_next tui.action.pane_prev tui.action.pane_dir tui.action.focus_pane tui.action.resize_mode tui.action.collapse_toggle tui.action.page_reset tui.action.page_reset_field tui.action.page_reset_all tui.action.scroll_or_pane tui.action.paste tui.action.goto tui.action.goto_default tui.action.back tui.action.reload_page tui.action.redraw -->
 
 | Function | Summary |
 |---|---|
@@ -154,6 +154,11 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 | [`tui.action.pane_prev`](input/tui.action.pane_prev.md) | Moves keyboard focus to the previous such pane. |
 | [`tui.action.pane_dir`](input/tui.action.pane_dir.md) | Moves keyboard focus to the nearest such pane in that direction. |
 | [`tui.action.focus_pane`](input/tui.action.focus_pane.md) | Moves keyboard focus into `PANE`: to the widget that last had focus there, else its first widget, else the pane itself becomes the scroll target. |
+| [`tui.action.resize_mode`](input/tui.action.resize_mode.md) | Toggles keyboard resize mode (default key `alt+r`) on the focused pane's nearest resizable ancestor; when there is none (focus in a pane without a resizable ancestor, nothing focused) it takes the first resizable pane of the page in layout order. |
+| [`tui.action.collapse_toggle`](input/tui.action.collapse_toggle.md) | Collapses or expands the nearest collapsible pane around the focus (default key `alt+c`). |
+| [`tui.action.page_reset`](input/tui.action.page_reset.md) | Resets the current page to its first-build state (default key `alt+shift+r`). |
+| [`tui.action.page_reset_field`](input/tui.action.page_reset_field.md) | Resets the focused widget, else the nearest pane around the focus that keeps state. |
+| [`tui.action.page_reset_all`](input/tui.action.page_reset_all.md) | Forgets the kept state of every page and resets the current one. |
 | [`tui.action.scroll_or_pane`](input/tui.action.scroll_or_pane.md) | Scrolls the target pane when it can scroll that way, else moves to the neighbouring pane (`alt+arrows`). |
 | [`tui.action.paste`](input/tui.action.paste.md) | Inserts the pasted text (`TUI_EVENT_PASTE`) into the focused text widget, replacing the selection. |
 | [`tui.action.goto`](input/tui.action.goto.md) | Opens a page, like [`tui.goto`](/api/markup/tui.goto.html). Does nothing without an argument. |
@@ -195,6 +200,16 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 {% include_relative input/tui.action.pane_dir.md %}
 
 {% include_relative input/tui.action.focus_pane.md %}
+
+{% include_relative input/tui.action.resize_mode.md %}
+
+{% include_relative input/tui.action.collapse_toggle.md %}
+
+{% include_relative input/tui.action.page_reset.md %}
+
+{% include_relative input/tui.action.page_reset_field.md %}
+
+{% include_relative input/tui.action.page_reset_all.md %}
 
 {% include_relative input/tui.action.scroll_or_pane.md %}
 

@@ -4,9 +4,10 @@ The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic
 
 | Module | Covers | Mirrors |
 |---|---|---|
-| **[Core](core.md)** | Lifecycle, layout (panes), tabs, factory widgets, content/output, `tui.exec`, live updates, getters, logging/perf, event & result variables | `lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh` |
+| **[Core](core.md)** | Lifecycle, layout (panes), tabs, factory widgets, content/output, `tui.exec`, live updates, getters, logging/perf, event & result variables | `lib/tui.sh`, `lib/tui_api.sh`, `lib/state.sh`, `lib/markup/tui_factory.sh` |
 | **[Style](style.md)** | Themes | `lib/style/` |
 | **[Input](input.md)** | Key/mouse bindings, built-in actions | `lib/input/` |
+| **[Markdown](markdown.md)** | Markdown rendering, styling and source-line mapping | `lib/markdown/` |
 | **[Widgets](widgets.md)** | Widget constructors, richer widgets & text editing | `lib/widgets/` |
 | **[Chrome](chrome.md)** | Command palette, modal/overlay, dialogs & toasts, footer | `lib/chrome/` |
 | **[Markup](markup.md)** | Pages, cache & validation | `lib/markup/` |

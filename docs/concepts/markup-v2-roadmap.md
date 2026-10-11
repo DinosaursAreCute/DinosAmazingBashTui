@@ -90,7 +90,7 @@ Grouped by primitive. Items marked ⊂ are sugar for the primitive in their sect
 
 ### I. Page state (one store: `page|id|field`)
 - `keep_focus="true"`: the same id on the next page keeps focus. `<tui focus_on_enter="id|keep|first">` sets the page default.
-- `keep_value="true"` and `<tui keep_state="true">` save value, cursor, scroll, selection and collapsed state.
+- `keep_value="true"` and `<tui keep_state="true">` save value, cursor, scroll, selection and collapsed state.  `persist="disk"` also writes them to `$TUI_HOME/state/store`; `keep_focus` and `<tui focus_on_enter>` keep the focus.
 - `persist="session|disk"`: disk storage is a `declare -p` dump under `TUI_HOME`.
 - Reset: `tui.page.reset [PAGE]`, `tui.page.reset_field ID` and `tui.page.reset_all`. Each is also an action and a palette command.
 - ⊂ Shells: `<tui shell="shell.xml">` + `<outlet/>`. The shell nodes are never torn down, so they keep focus and state for free.

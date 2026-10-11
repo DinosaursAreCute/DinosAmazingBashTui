@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# chrome_modal.t.sh - lib/chrome/tui_modal.sh buffer-mode overlay draw path (stage 0.3).
+# chrome_modal.t.sh - lib/chrome/tui_modal.sh buffer-mode layer draw path (stage 0.3).
 
 t_overlay_box_appends_to_frame() {
 	_TUI_FRAME="prefix:"
@@ -8,15 +8,16 @@ t_overlay_box_appends_to_frame() {
 	ok '[[ "$_TUI_FRAME" == *$'"'"'\e[0m\e8'"'"' ]]'
 }
 
-t_overlay_draw_all_builds_one_frame_and_flushes_it_through_flush() {
+t_layer_draw_all_builds_one_frame_and_flushes_it_through_flush() {
 	local _real_flush _flushed_with=""
 	_real_flush="$(declare -f _tui._flush)"
 	_tui._flush() { _flushed_with="$1"; }
 	_t_ovl_fn() { _tui.emit "OVL"; }
 
-	local -a _TUI_OVERLAY_FNS=(_t_ovl_fn)
+	local -a _TUI_FL_ORDER=(_t_ovl_fn)
+	local -i _TUI_FL_TOP=1
 	_TUI_FRAME="untouched"
-	_tui_overlay.draw_all
+	_tui_layer.draw_all
 	eq "OVL" "$_flushed_with"
 	eq "untouched" "$_TUI_FRAME" # restored after the standalone build/flush
 

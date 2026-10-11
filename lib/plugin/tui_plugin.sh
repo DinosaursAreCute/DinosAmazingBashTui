@@ -40,21 +40,22 @@
 #   key NAME (before bindings - FN returns 0 to CONSUME the key)  quit (tui.stop)  exit (terminal being restored -
 #   give shortcuts/files back here)  plugin_enabled NAME  plugin_disabled NAME
 # Plugins are trusted code: they run in the app's shell with its permissions.
+# requires: tui_cmd tui_own
 
-declare -gA _TPL_KIND=() _TPL_FILE=() _TPL_TITLE=() _TPL_VER=() _TPL_DESC=() _TPL_AUTHOR=() _TPL_REQ=() _TPL_DEF=() _TPL_SRC=() _TPL_STATE=() _TPL_ERR=() _TPL_OWN=()
+declare -gA _TPL_KIND=() _TPL_FILE=() _TPL_TITLE=() _TPL_VER=() _TPL_DESC=() _TPL_AUTHOR=() _TPL_REQ=() _TPL_DEF=() _TPL_SRC=() _TPL_STATE=() _TPL_ERR=()
 declare -ga _TPL_ORDER=() _TPL_DIRS=()
 declare -gA _TPL_HOOK=()
-declare -g  _TPL_CUR="" _TPL_READY=0 _TPL_SCANNED=0
+declare -g  _TPL_READY=0 _TPL_SCANNED=0
 declare -g  TUI_PLUGIN_NAME="" TUI_PLUGIN_ERROR="" TUI_PLUGIN_DIRS="${TUI_PLUGIN_DIRS:-}"
 
 _tui_plugin.id() { _PID="${1,,}"; _PID="${_PID//[^a-z0-9_]/_}"; }
 
-# ── ownership: what a plugin registered, so disabling can undo it ────────
-_tui_plugin.own() { [[ -n "${_TPL_CUR:-}" ]] && _TPL_OWN[$_TPL_CUR]+="$1"$'\t'"$2"$'\n'; return 0; }
+# ── ownership is tracked by tui_own.sh; release undoes it ────────────────
 tui.plugin.own()  { _tui_plugin.own "$@"; }
 
 _tui_plugin.release() {   # NAME: undo, newest first
     local name="$1" line t v i
+    _tui_registry.unregister_plugin "$name"
     local -a lines=()
     while IFS= read -r line; do [[ -n "$line" ]] && lines+=("$line"); done <<< "${_TPL_OWN[$name]:-}"
     for (( i = ${#lines[@]} - 1; i >= 0; i-- )); do
@@ -109,6 +110,21 @@ _tui_plugin.parse() {   # FILE -> _PL_NAME _PL_TITLE _PL_VER _PL_DESC _PL_AUTHOR
             description) _PL_DESC="$v" ;; author) _PL_AUTHOR="$v" ;; requires) _PL_REQ="$v" ;; default) _PL_DEF="${v,,}" ;;
         esac
     done < "$1"
+}
+
+# tui_plugin.deps ARRAYNAME - appends the files of every enabled plugin (a directory plugin: all its .sh files), so a cached page
+# is rebuilt when a plugin it ran with changes
+tui_plugin.deps() {
+    local -n _pd_deps="$1"
+    local _pd_name _pd_file
+    for _pd_name in "${_TPL_ORDER[@]}"; do
+        [[ "${_TPL_STATE[$_pd_name]:-}" == enabled ]] || continue
+        _pd_deps+=("${_TPL_FILE[$_pd_name]}")
+        [[ "${_TPL_KIND[$_pd_name]:-}" == dir ]] || continue
+        for _pd_file in "${_TPL_FILE[$_pd_name]%/*}"/*.sh; do
+            [[ "$_pd_file" == "${_TPL_FILE[$_pd_name]}" ]] || _pd_deps+=("$_pd_file")
+        done
+    done
 }
 
 tui.plugin.dir_add() { local d; for d in "${_TPL_DIRS[@]}"; do [[ "$d" == "$1" ]] && return 0; done; _TPL_DIRS+=("$1"); }
@@ -178,15 +194,15 @@ tui.plugin.enable() {
     for r in ${_TPL_REQ[$name]}; do
         tui.plugin.enable "$r" "${2:-}" || { TUI_PLUGIN_ERROR="$name needs $r: $TUI_PLUGIN_ERROR"; _TPL_STATE[$name]=error; _TPL_ERR[$name]="$TUI_PLUGIN_ERROR"; return 1; }
     done
-    prev="$_TPL_CUR"; _TPL_CUR="$name"
+    prev="$_TPL_CUR"; _TPL_CUR="$name"; _TUI_REGISTRY_CURRENT_PLUGIN="$name"   # tui.register calls in the plugin are attributed to it
     # shellcheck disable=SC1090 # an arbitrary installed plugin's own file, no fixed path to point at
     if ! source "${_TPL_FILE[$name]}" || { declare -F "plugin.$name.on_enable" >/dev/null && ! "plugin.$name.on_enable"; }; then
-        _TPL_CUR="$prev"
+        _TPL_CUR="$prev"; _TUI_REGISTRY_CURRENT_PLUGIN="$prev"
         TUI_PLUGIN_ERROR="$name failed to start"
         _tui_plugin.release "$name"; _TPL_STATE[$name]=error; _TPL_ERR[$name]="$TUI_PLUGIN_ERROR"
         return 1
     fi
-    _TPL_CUR="$prev"
+    _TPL_CUR="$prev"; _TUI_REGISTRY_CURRENT_PLUGIN="$prev"
     _TPL_STATE[$name]=enabled; _TPL_ERR[$name]=""
     (( save )) && _tui_plugin.persist "$name" 1
     tui.hook.fire plugin_enabled "$name"

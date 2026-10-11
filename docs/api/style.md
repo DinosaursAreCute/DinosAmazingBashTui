@@ -58,7 +58,19 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 
 <!-- /api -->
 
-## App-wide theme overlay
+## Border styles
+
+<!-- api: tui.border.register -->
+
+| Function | Summary |
+|---|---|
+| [`tui.border.register`](style/tui.border.register.md) | Adds a border style, usable as `border="NAME"` (and `divider="NAME"`) in markup. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative style/tui.border.register.md %}
+
+</div>
 
 <!-- api: tui.theme.set tui.theme.clear tui.theme.current tui.theme.reload tui.theme.list tui.theme.pick -->
 

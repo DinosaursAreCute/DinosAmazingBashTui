@@ -1,0 +1,892 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>DABT markupPhase3 Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single reading column (~68ch) with wide "exhibit" blocks (tables, diagrams, charts) that break out to 1080px.
+   Section headings are drawn like DABT pane titles: ┌─ Title ─ … */
+:root{
+  --bg:#f2f4f0;          /* fossil-paper, faint green bias */
+  --panel:#ffffff;
+  --ink:#18221f;
+  --muted:#56635e;
+  --line:#c9d1cb;
+  --amber:#b4531a;       /* amber: the accent */
+  --teal:#1d6b66;        /* teal: secondary / DABT series */
+  --code-bg:#e7ece7;
+  --good:#2f7a3f; --warn:#a36a00; --bad:#b0303a;
+  --chip-h:#f6d9d6; --chip-m:#f7e8c7; --chip-l:#dceadf;
+  --font-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:36px; --s7:56px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111716; --panel:#18201f; --ink:#e3e9e5; --muted:#9aa8a2; --line:#2e3a37;
+    --amber:#f09a55; --teal:#5fc0b5; --code-bg:#1e2826;
+    --good:#6cc27c; --warn:#e2b04a; --bad:#ef7a82;
+    --chip-h:#4a2226; --chip-m:#45391c; --chip-l:#1f3a29;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111716; --panel:#18201f; --ink:#e3e9e5; --muted:#9aa8a2; --line:#2e3a37;
+  --amber:#f09a55; --teal:#5fc0b5; --code-bg:#1e2826;
+  --good:#6cc27c; --warn:#e2b04a; --bad:#ef7a82;
+  --chip-h:#4a2226; --chip-m:#45391c; --chip-l:#1f3a29;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:var(--s6) var(--s7)}
+.col{max-width:70ch}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(2rem,5vw,3.1rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.55rem;font-weight:700}
+h3{font-size:1.1rem;font-weight:700;margin-top:var(--s5)}
+p{margin:0}
+.stack{display:flex;flex-direction:column;gap:var(--s4)}
+a{color:var(--teal);text-underline-offset:2px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+code,kbd,.mono{font-family:var(--font-mono);font-size:.88em}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+.eyebrow{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:1.15rem;color:var(--ink);max-width:62ch}
+.muted{color:var(--muted)}
+section{margin-top:var(--s7)}
+/* pane-title headings */
+.pane-h{display:flex;align-items:baseline;gap:10px;font-family:var(--font-mono);color:var(--muted);margin-bottom:var(--s4)}
+.pane-h .glyph{font-size:1.4rem;line-height:1;color:var(--line);flex:0 0 auto}
+.pane-h h2{color:var(--ink)}
+.pane-h .rule{flex:1;border-top:1px solid var(--line);transform:translateY(-6px);min-width:20px}
+.pane-h .n{font-size:.8rem;flex:0 0 auto}
+/* header */
+header .meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:var(--s4)}
+header .meta span{font-family:var(--font-mono);font-size:.82rem;color:var(--muted)}
+header .meta b{color:var(--ink);font-weight:500}
+/* verdict card: the one boxed hero */
+.verdict{margin-top:var(--s6);background:var(--panel);border:1.5px solid var(--ink);border-radius:2px;position:relative}
+.verdict::before{content:"┌─ verdict ─";position:absolute;top:-.8em;left:14px;background:var(--bg);padding:0 6px;font-family:var(--font-mono);font-size:.82rem;color:var(--muted)}
+.v-top{display:grid;grid-template-columns:auto auto 1fr;gap:var(--s5);padding:var(--s5);border-bottom:1px solid var(--line);align-items:center}
+.score{display:flex;flex-direction:column;gap:2px;min-width:0}
+.score .big{font-family:var(--font-display);font-weight:800;font-size:3.4rem;line-height:1;font-variant-numeric:tabular-nums}
+.score .big small{font-size:1.1rem;color:var(--muted);font-weight:500}
+.score.now .big{color:var(--amber)}
+.score.pot .big{color:var(--teal)}
+.oneliner{font-size:1.08rem;min-width:0}
+.oneliner .super{display:block;margin-top:var(--s2);font-size:.95rem;color:var(--muted)}
+.oneliner .super b{color:var(--ink)}
+.v-cols{display:grid;grid-template-columns:1fr 1fr}
+.v-cols > div{padding:var(--s5);min-width:0}
+.v-cols > div + div{border-left:1px solid var(--line)}
+.v-cols h3{margin:0 0 var(--s3);font-size:.95rem;font-family:var(--font-mono);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.v-cols ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:var(--s3)}
+.v-cols li{padding-left:4px}
+@media (max-width:760px){
+  .v-top{grid-template-columns:1fr 1fr}
+  .oneliner{grid-column:1 / -1}
+  .v-cols{grid-template-columns:1fr}
+  .v-cols > div + div{border-left:0;border-top:1px solid var(--line)}
+}
+/* impact chips */
+.chip{display:inline-block;font-family:var(--font-mono);font-size:.7rem;font-weight:600;letter-spacing:.06em;padding:1px 6px;border-radius:3px;vertical-align:1px;white-space:nowrap}
+.chip.h{background:var(--chip-h);color:var(--bad)}
+.chip.m{background:var(--chip-m);color:var(--warn)}
+.chip.l{background:var(--chip-l);color:var(--good)}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:.7rem;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.v{border-color:var(--teal);color:var(--teal)}
+.tag.i{border-color:var(--amber);color:var(--amber)}
+/* notes */
+.note{border-left:3px solid var(--amber);padding:var(--s3) var(--s4);background:var(--panel)}
+.note.teal{border-left-color:var(--teal)}
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--line);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+td .mono{white-space:nowrap}
+.dabt-col{background:color-mix(in srgb,var(--teal) 9%,transparent)}
+/* grids */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:var(--s4)}
+.card{background:var(--panel);border:1px solid var(--line);padding:var(--s4);min-width:0;display:flex;flex-direction:column;gap:var(--s2)}
+.card h3{margin:0;font-size:1.02rem}
+.card .kicker{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+/* code excerpts */
+.ex{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0;border:1px solid var(--line);background:var(--panel)}
+.ex + .ex{margin-top:var(--s4)}
+.ex pre{margin:0;padding:var(--s4);background:var(--code-bg);overflow-x:auto;font-family:var(--font-mono);font-size:.8rem;line-height:1.55}
+.ex .why{padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.ex .why .src{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);word-break:break-all}
+.ex .verdict-mark{font-family:var(--font-mono);font-size:.78rem;font-weight:600}
+.ex.good .verdict-mark{color:var(--good)}
+.ex.bad .verdict-mark{color:var(--bad)}
+@media (max-width:760px){.ex{grid-template-columns:1fr}}
+.c{color:var(--muted)}
+/* diagrams */
+.diagram{background:var(--panel);border:1px solid var(--line);padding:var(--s4);overflow-x:auto}
+.diagram pre.mermaid{margin:0;background:transparent;display:flex;justify-content:center}
+.caption{font-size:.9rem;color:var(--muted);margin-top:var(--s2);max-width:75ch}
+/* scores */
+.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:var(--s4)}
+.dim{background:var(--panel);border:1px solid var(--line);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.dim header{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3)}
+.dim h3{margin:0;font-size:1rem}
+.dim .val{font-family:var(--font-display);font-weight:800;font-size:1.6rem;font-variant-numeric:tabular-nums;color:var(--amber)}
+.dim .val small{font-size:.8rem;color:var(--muted);font-weight:500}
+.bar{height:6px;background:var(--line);position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--amber)}
+.bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--teal)}
+.dim p{font-size:.92rem}
+/* chart */
+.chartbox{background:var(--panel);border:1px solid var(--line);padding:var(--s4);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:var(--s5);align-items:start}
+@media (max-width:820px){.chartbox{grid-template-columns:1fr}}
+.toggles{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--s3)}
+.toggles button{font-family:var(--font-mono);font-size:.78rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:4px 9px;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.toggles button[aria-pressed="true"]{border-color:var(--ink)}
+.toggles button .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.toggles button[aria-pressed="false"] .sw{opacity:.25}
+svg text{font-family:var(--font-mono)}
+.legend-note{font-size:.85rem;color:var(--muted)}
+/* roadmap */
+.road-group h3{margin:var(--s5) 0 var(--s3);font-family:var(--font-mono);font-size:.85rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+ol.road{list-style:none;margin:0;padding:0;counter-reset:r var(--start,0);display:flex;flex-direction:column;gap:0;border:1px solid var(--line);background:var(--panel)}
+ol.road li{counter-increment:r;display:grid;grid-template-columns:2.4rem minmax(0,1fr) auto;gap:var(--s3);padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);align-items:start}
+ol.road li:last-child{border-bottom:0}
+ol.road li::before{content:counter(r);font-family:var(--font-display);font-weight:800;font-size:1.3rem;color:var(--amber);line-height:1.2}
+ol.road .ie{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:620px){ol.road li{grid-template-columns:2rem minmax(0,1fr)} ol.road .ie{grid-column:2;justify-content:flex-start}}
+ul.plain{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px}
+footer{margin-top:var(--s7);padding-top:var(--s4);border-top:1px solid var(--line);font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+.sources{columns:2 320px;column-gap:var(--s6);font-size:.9rem}
+.sources li{break-inside:avoid;margin-bottom:6px}
+@media (prefers-reduced-motion:no-preference){.verdict{animation:rise .5s ease-out both}@keyframes rise{from{transform:translateY(6px)}to{transform:none}}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Framework review · early alpha · 10 October 2026</p>
+  <h1>DABT on <span style="color:var(--amber)">devex/markupPhase3</span></h1>
+  <p class="lede" style="margin-top:var(--s4)">Dino's Amazing Bash TUI, read from the branch itself this time: cloned, checked out, test suites run, and its companion extension and three example apps inspected. It is a surprisingly large animal for a five-week-old egg.</p>
+  <div class="meta">
+    <span>branch <b>devex/markupPhase3</b> @ <b>9f774bd</b> (8 Oct)</span>
+    <span>forks from <b>main v0.0.23</b>, +13 commits, 0 behind</span>
+    <span>VERSION <b>0.0.24-preRelease</b></span>
+    <span>lib/ <b>29,465</b> lines of Bash</span>
+  </div>
+</header>
+
+<div class="verdict" role="region" aria-label="Verdict">
+  <div class="v-top">
+    <div class="score now"><span class="eyebrow">Today</span><span class="big">6.2<small>/10</small></span></div>
+    <div class="score pot"><span class="eyebrow">Potential</span><span class="big">7.5<small>/10</small></span></div>
+    <p class="oneliner"><b>The most capable shell-native TUI framework I could find, built with real engineering discipline, but its "pure Bash + POSIX" tagline really means "Bash 5 on a Linux box", and one person carries all of it.</b>
+      <span class="super"><b>Superpower:</b> a whole windowed, multi-page app (floating windows, modals, persistent shells, resizable panes) declared in XML and styled with CSS, sourced into a Bash script with nothing to compile or install.</span></p>
+  </div>
+  <div class="v-cols">
+    <div>
+      <h3 style="color:var(--good)">Biggest strengths</h3>
+      <ol>
+        <li><span class="chip h">HIGH</span> A declarative markup system with templates, components, loops, conditionals, addons, and now shells, layers and pane resize/collapse. No other shell tool has a component model.</li>
+        <li><span class="chip h">HIGH</span> Engineering discipline unusual for an alpha: 925 unit tests plus golden frames, an XSD kept in step by a test, a validator, a <code>TUI_CACHES=off</code> parity mode for cache bugs.</li>
+        <li><span class="chip m">MED</span> Measurement-driven performance work with published plans, fork budgets and before/after numbers.</li>
+      </ol>
+    </div>
+    <div>
+      <h3 style="color:var(--bad)">Biggest weaknesses</h3>
+      <ol>
+        <li><span class="chip h">HIGH</span> The portability claim. Bash 5 is woven through the core with no version guard, <code>tui.exec</code> depends on util-linux <code>script -c</code>, and display width ignores wide characters and non-UTF-8 locales.</li>
+        <li><span class="chip h">HIGH</span> Bus factor of one, and contributions are closed.</li>
+        <li><span class="chip m">MED</span> Safety nets with holes: no EXIT trap (an <code>exit</code> leaves the terminal raw), CI never runs the 925 unit tests or touches this branch, and the editor extension's markup completion breaks on this branch's schema.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>How this review was done</h2><span class="rule"></span></div>
+  <div class="stack col">
+    <p>The earlier version of this review could not reach the branch and was built from <code>main</code> and release notes. That is now superseded. <code>git ls-remote</code> lists three heads (<code>main</code>, <code>dev</code>, <code>devex/markupPhase3</code>), and everything below about the framework was read from <code>9f774bd</code>.</p>
+    <div class="grid2">
+      <div class="card"><span class="kicker">Verified <span class="tag v">V</span></span>
+        <ul class="plain">
+          <li>Read the source, docs, changelog, CI workflow and 13 branch commits.</li>
+          <li>Ran the unit runner (<code>tools/t.sh</code>) and the bats suite.</li>
+          <li>Inventoried external commands and Bash-version features in <code>lib/</code>.</li>
+          <li>Ran small probes: the width function on CJK and emoji, terminal state after an <code>exit</code>, the include-attribute lookup.</li>
+          <li>Ran the extension's own XSD/API parsers against <code>main</code> and the branch.</li>
+        </ul></div>
+      <div class="card"><span class="kicker">Taken on trust or inferred <span class="tag i">I</span></span>
+        <ul class="plain">
+          <li>All performance figures are the author's own profiler and bench results, as you asked. I did not profile.</li>
+          <li>ShellCheck is excluded, as you asked: this codebase's cross-module structure makes it noisy.</li>
+          <li>macOS and BSD behaviour is inferred from the code. I could not run Bash 3.2 or a BSD userland.</li>
+        </ul></div>
+    </div>
+    <p class="muted" style="font-size:.92rem">Labels used throughout: <span class="tag v">V</span> verified on the branch, <span class="tag i">I</span> inferred. Impact tags rate how much a finding changes what a developer can build or would choose.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>What's actually on the branch</h2><span class="rule"></span><span class="n">13 commits · 3–8 Oct</span></div>
+  <div class="stack">
+    <p class="col">The branch is a big one: 327 files changed, about 40,100 lines added. Strip out a committed 17,853-line copy of the GNU Bash manual and it is still roughly 22,000 lines of new framework, tests, demos and docs. It is the "DevEx 2.x/3.5" line of work in the README news.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Date</th><th>Commit</th><th>What landed</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">8 Oct</td><td class="mono">9f774bd · 12dd31e</td><td>Fixes to the Home page and a sync push.</td></tr>
+        <tr><td class="mono">5 Oct</td><td class="mono">69b9d52</td><td>"Finishing up g3" and performance fixes: layers, async painters, faster ticks.</td></tr>
+        <tr><td class="mono">4 Oct</td><td class="mono">b60d69a</td><td>DevEx 2.9: page shells and the state store; validation still outstanding.</td></tr>
+        <tr><td class="mono">4 Oct</td><td class="mono">3a52923</td><td>Page shells: chrome that stays while pages change.</td></tr>
+        <tr><td class="mono">4 Oct</td><td class="mono">25849b7</td><td>A single cache-invalidation path.</td></tr>
+        <tr><td class="mono">4 Oct</td><td class="mono">d450180</td><td><code>tools/gen_load_order.sh</code>: module load order derived from <code># requires:</code> headers.</td></tr>
+        <tr><td class="mono">4 Oct</td><td class="mono">338f3e2 · 97d3bb0</td><td><code>tui.sh</code> split into single-responsibility modules (3,541 → 2,517 lines).</td></tr>
+        <tr><td class="mono">4 Oct</td><td class="mono">20158a1</td><td>DevEx 2.5: resizable, fusable and collapsible panes.</td></tr>
+        <tr><td class="mono">3 Oct</td><td class="mono">23edb3c · e2bcf13</td><td>Markup V2-3C: widgets nested in panes with inferred rows; scrollable widget panes.</td></tr>
+      </tbody></table></div>
+    <p class="col"><b>Trajectory <span class="tag v">V</span></b> The project's first commit was 6 September. Since then it has gone from imperative widgets (early September), to an app manager and plugins (v0.0.7), to a validator and docs (v0.0.17), to a fork-hunting performance campaign (v0.0.20–22), to "pages are data" (v0.0.23), and now to a window system. The work is coherent and each step is measured. The risk is that the scope keeps widening (an app manager, a package signer, a profiler, a windowing system) faster than the base is hardened for portability.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>What makes it special</h2><span class="rule"></span><span class="n">the spotlight</span></div>
+  <div class="stack">
+    <h3 style="margin-top:0">Genuinely novel</h3>
+    <div class="grid2">
+      <div class="card"><span class="kicker">Markup <span class="chip h">HIGH</span></span><h3>A component model in Bash</h3>
+        <p><code>&lt;template&gt;</code>, <code>&lt;use&gt;</code>, <code>&lt;slot&gt;</code>/<code>&lt;fill&gt;</code>, <code>&lt;component&gt;</code>, <code>&lt;for&gt;</code>, <code>&lt;if&gt;</code>, parameterised includes, and <code>tui.page.refresh</code> rebuilding only changed panes. dialog, gum and bash-tui-toolkit are one-widget-per-call tools. Nothing in the shell world composes like this.</p></div>
+      <div class="card"><span class="kicker">New on branch <span class="chip h">HIGH</span></span><h3>A window system in XML</h3>
+        <p><code>&lt;window&gt;</code>, <code>&lt;modal&gt;</code>, <code>&lt;popup&gt;</code>, <code>&lt;tooltip&gt;</code>, <code>&lt;contextmenu&gt;</code> and <code>&lt;toast&gt;</code> layers that drag, resize, snap to edges, hold focus as modal scopes, and detach or dock panes. Few TUI libraries in any language offer draggable windows as a built-in, declarative tag. Here it is one.</p></div>
+      <div class="card"><span class="kicker">New on branch <span class="chip m">MED</span></span><h3>Shells: an app layout that persists</h3>
+        <p><code>&lt;tui shell="_shell.xml"&gt;</code> with an <code>&lt;outlet/&gt;</code> is the web's layout-route idea. Navigating keeps the menu's focus, typed values, timers and scroll, and the page is cached as a delta over the shell. The author's bench puts two in-shell switches at 23.5 ms against 29.2 ms.</p></div>
+      <div class="card"><span class="kicker">Markup <span class="chip m">MED</span></span><h3>Addons that patch pages</h3>
+        <p>Addon files <code>append</code>, <code>replace</code>, <code>wrap</code> or <code>set</code> nodes in another page by selector and priority. DabTop uses addons plus <code>&lt;if&gt;</code> to toggle its boxes at runtime, which shows the idea working outside the demo.</p></div>
+    </div>
+    <h3>Uncommon, but not unique</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Trait</th><th>Reality check</th><th>Impact</th></tr></thead>
+      <tbody>
+        <tr><td>Zero packages to install</td><td>True on a typical Linux distro. bash-tui-toolkit and bashsimplecurses share this, and bash-tui-toolkit also runs on Bash 3.</td><td><span class="chip m">MED</span></td></tr>
+        <tr><td>Sourceable into existing scripts</td><td>Yes: <code>source lib/tui.sh; tui.start page.xml</code>. It brings about 29,000 lines and many globals, so "drop into any script" is heavier than with a prompt library.</td><td><span class="chip m">MED</span></td></tr>
+        <tr><td>Page state that survives navigation</td><td><code>keep_value</code>, <code>keep_size</code>, <code>persist="disk"</code>. The store file is plain data and is never sourced, which is the right call security-wise.</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td>Built-in app manager and signed packages</td><td>Unusual for a TUI library. It is more distribution platform than framework, and it widens what one maintainer has to keep secure.</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td>Minimal or embedded systems</td><td><b>Not a DABT strength.</b> BusyBox/ash and dash are out, and Ratatui reports running on ESP32, STM32H7 and UEFI.</td><td><span class="chip m">MED</span></td></tr>
+      </tbody></table></div>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Testing the headline claim</h2><span class="rule"></span><span class="n">"pure Bash + POSIX utilities"</span></div>
+  <div class="stack">
+    <p class="col"><b>Verdict: false as written, fair in spirit on Linux, and better engineered than the tagline suggests.</b> The author added GNU/BSD fallbacks in several places, which is more care than most Bash projects take. But the hard floor is Bash 5, and a few calls have no fallback.</p>
+    <h3 style="margin-top:0">External commands the runtime uses <span class="tag v">V</span></h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Call</th><th>Where</th><th>In POSIX?</th><th>Fallback</th><th>Impact</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">script -q -e -c "$cmd"</td><td><code>exec/tui_exec.sh:160</code>, the PTY pane</td><td>No. <code>script</code> isn't in POSIX, and <code>-c</code> is util-linux syntax.</td><td>None. BSD/macOS <code>script</code> takes the command as trailing arguments, so <code>tui.exec</code> fails there <span class="tag i">I</span></td><td><span class="chip m">MED</span></td></tr>
+        <tr><td class="mono">stat -c '%Y'</td><td><code>markup/tui_cache.sh:272, 294</code></td><td>No <code>stat</code> utility in POSIX</td><td><b>Yes:</b> falls back to BSD <code>stat -f '%m'</code></td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">stty size</td><td><code>layout/tui_resize.sh:560</code>, <code>terminal_controls.sh:570</code></td><td>No. POSIX stty has no <code>size</code> operand.</td><td>Retries, then keeps the last size. GNU and BSD both support it.</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">stty -g, -echo -icanon -isig -ixon -iexten min 1 time 0</td><td><code>tui.sh:109–115</code></td><td><b>Yes</b>, every flag</td><td>n/a</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">/proc/PID/stat, task/children</td><td><code>tui.sh:144–160</code>, process-tree cleanup</td><td>Linux only</td><td><b>Yes:</b> <code>kill -0</code> and <code>pgrep -P</code></td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">/proc/stat, meminfo, loadavg</td><td><code>tui.sys.*</code> helpers, Monitor and Workspace demos</td><td>Linux only</td><td>None; the demo pages just show no data</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">base64 -w0</td><td><code>terminal_controls.sh</code> clipboard helpers</td><td>No</td><td><b>Yes:</b> plain <code>base64</code>. <code>tui.clipboard.copy</code> uses a pure-Bash encoder.</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">awk, sed, sort, find, mkfifo, mktemp, date</td><td>renderers, cache warm-up, jobs</td><td>Mostly yes; <code>find -maxdepth</code> and <code>mktemp</code> are common extensions</td><td>n/a</td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td class="mono">ssh-keygen, GNU tar, curl/wget</td><td><code>dapk</code> signing and packaging, <code>dabt update</code></td><td>No</td><td>Tooling only; never on the TUI's runtime path</td><td><span class="chip l">LOW</span></td></tr>
+      </tbody></table></div>
+    <div class="grid2">
+      <div class="card"><span class="kicker">Bash version <span class="chip h">HIGH</span> <span class="tag v">V</span></span><h3>Bash 5.0 is a hard floor</h3>
+        <p><code>lib/</code> has 211 <code>declare -A</code>/<code>-gA</code>, 51 namerefs, 25 uses of <code>EPOCHREALTIME</code> (5.0), 146 <code>printf -v</code>, fractional <code>read -t</code>, <code>{fd}&gt;</code> redirections and <code>${x^^}</code>. The README's "Bash 5.0+" is accurate. There is <b>no</b> <code>BASH_VERSINFO</code> check anywhere, so macOS's stock Bash 3.2 dies on the first <code>declare -gA</code> with a cryptic "invalid option" <span class="tag i">I</span>.</p></div>
+      <div class="card"><span class="kicker">macOS with Homebrew Bash <span class="chip m">MED</span> <span class="tag i">I</span></span><h3>Mostly plausible, one hole</h3>
+        <p>The <code>stat</code> shim, the <code>/proc</code> fallbacks, <code>stty size</code> and fractional <code>sleep</code> all work on macOS. <code>tui.exec</code> is the one feature I expect to break, because of <code>script -c</code>. That makes "Linux first, macOS with Homebrew Bash 5 except the terminal pane" a fair description.</p></div>
+    </div>
+    <h3>Terminal handling</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Concern</th><th>What the branch does</th><th>Grade</th></tr></thead>
+      <tbody>
+        <tr><td>Raw input</td><td>Saves with <code>stty -g</code>, sets POSIX flags, polls with fractional <code>read -t</code>, decodes SGR mouse (1006) and bracketed paste (2004). <span class="tag v">V</span></td><td><span class="chip l">GOOD</span></td></tr>
+        <tr><td>Escape output</td><td>One write per loop pass wrapped in synchronized-output markers (<code>ESC[?2026h</code>…<code>l</code>), chunked writes, overlays carried in the same write so dragging doesn't flicker. <span class="tag v">V</span></td><td><span class="chip l">GOOD</span></td></tr>
+        <tr><td>Resize</td><td><code>WINCH</code> trap installed in <code>tui.init</code> only sets a flag; the loop applies it, holds async painters, and re-reads the size with retries. Panes that get too small show "min space = WxH" instead of garbage. <span class="tag v">V</span></td><td><span class="chip l">GOOD</span></td></tr>
+        <tr><td>Clipboard</td><td>OSC 52 with a pure-Bash base64 encoder. <span class="tag v">V</span></td><td><span class="chip l">GOOD</span></td></tr>
+        <tr><td>Cleanup on exit</td><td><code>tui.stop</code> and <code>INT</code>/<code>TERM</code> run <code>_master_cleanup</code>. There is no <code>EXIT</code> or <code>HUP</code> trap. I ran <code>source lib/tui.sh; tui.init; exit 0</code> in a pty and the terminal was left with <code>-isig -icanon -echo</code>. A callback that calls <code>exit</code>, or a fatal error, leaves the user typing blind on the alternate screen. <span class="tag v">V</span></td><td><span class="chip m">FIX</span></td></tr>
+        <tr><td>Unicode width</td><td><code>_tui._vwidth_v</code> strips escapes and returns <code>${#s}</code>, so it counts characters, not columns. See the probe below. <span class="tag v">V</span></td><td><span class="chip h">GAP</span></td></tr>
+      </tbody></table></div>
+    <div class="tbl"><table>
+      <thead><tr><th>String</th><th class="num">Real columns</th><th class="num">DABT width, UTF-8 locale</th><th class="num">DABT width, C locale</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">hello</td><td class="num">5</td><td class="num">5</td><td class="num">5</td></tr>
+        <tr><td class="mono">│box│</td><td class="num">5</td><td class="num">5</td><td class="num" style="color:var(--bad)">9</td></tr>
+        <tr><td class="mono">é</td><td class="num">1</td><td class="num">1</td><td class="num" style="color:var(--bad)">2</td></tr>
+        <tr><td class="mono">🦖dino</td><td class="num">6</td><td class="num" style="color:var(--bad)">5</td><td class="num" style="color:var(--bad)">8</td></tr>
+        <tr><td class="mono">日本語</td><td class="num">6</td><td class="num" style="color:var(--bad)">3</td><td class="num" style="color:var(--bad)">9</td></tr>
+      </tbody></table></div>
+    <p class="caption">Probe of <code>_tui._vwidth_v</code> on the branch <span class="tag v">V</span>. In a UTF-8 locale, CJK and emoji are undercounted, so rows overflow their panes. In a C/POSIX locale, Bash counts bytes, so every box-drawing border is mismeasured. DABT never checks the locale. The dino emoji is, fittingly, one column short of respect. The good news: width is computed in one memoised function, so the fix has a single home, though call sites that use <code>${#…}</code> directly would need an audit.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Architecture</h2><span class="rule"></span><span class="n">from the module layout</span></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  subgraph M["Markup pipeline · lib/markup"]
+    direction LR
+    X["page.xml + _shell.xml<br/>includes, themes, scripts"] --> P["tui_parse<br/>regex tag scanner"]
+    P --> E["expand<br/>template · use · slot · component<br/>for · if · include params"]
+    AD["addons/*.xml<br/>tui_addon"] --> E
+    E --> V["tui_validate + rules<br/>file:line:col"]
+    V --> N["tui_node tree"]
+    N --> B["tui_build + tui_factory<br/>panes · widgets · layers"]
+    B --> C[("page cache<br/>sig = files + addons + plugins + style epoch<br/>shell pages stored as a delta")]
+  end
+  subgraph S["State"]
+    ST["tui_store<br/>page|id|field · session / disk"]
+  end
+  subgraph R["Layout and render"]
+    direction LR
+    L["tui_layout<br/>split · grid · tabs · weights"] --> RZ["resize · collapse<br/>fuse · scroll"]
+    RZ --> F["paint + row-fragment cache"]
+    F --> D["diff vs last frame"]
+    D --> O["tui_emit: one write per pass<br/>ESC[?2026h … l"]
+    AS["tui_async painters<br/>own process, own fd"] --> TTY
+    O --> TTY(["terminal"])
+  end
+  subgraph I["Input"]
+    direction LR
+    K["read -t poll<br/>raw tty"] --> DEC["decoder<br/>keys · SGR mouse · paste"]
+    DEC --> HIT["hit index · focus order<br/>binds · palette"]
+    HIT --> CB["bash callbacks<br/>fn ID VALUE"]
+  end
+  subgraph T["Terminal state"]
+    direction LR
+    INIT["tui.init<br/>stty -g · alt screen · mouse"] --> WIN["WINCH trap sets a flag"]
+    WIN --> CLN["_master_cleanup<br/>on tui.stop, INT, TERM<br/>(not EXIT or HUP)"]
+  end
+  C --> L
+  CB -->|"tui.update · tui.page.refresh"| E
+  CB --> ST
+  ST --> B
+  WIN -.-> L
+  TTY --> K
+</pre>
+  </div>
+  <p class="caption">Parse, expand, validate, build, cache, then lay out, paint, diff and flush once. The costly Bash work (forks, parsing) is pushed to load time and memoised against keys that include every input, and the <code>TUI_CACHES=off</code> switch exists to prove both paths draw the same thing. That is the best structural decision in the project <span class="chip h">HIGH</span>. The weak spot is the edge between async painters and the main loop: both write to the terminal, and the author's own notes say an interleaved write "is not ruled out" <span class="chip l">LOW</span>.</p>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Performance, by the author's numbers</h2><span class="rule"></span><span class="n">not re-measured</span></div>
+  <div class="stack">
+    <p class="col"><b>Users will notice the first launch after an edit, and little else.</b> Interactions land in the 30–50 ms range, page switches sit around 100–150 ms, and a cold start after cache invalidation costs about 3.4 seconds.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Measure (author, 150×45)</th><th class="num">Value</th><th>Source</th><th>Would a user notice?</th></tr></thead>
+      <tbody>
+        <tr><td>Cold start, empty page cache</td><td class="num">3.38 s</td><td>v0.0.23 deep run</td><td><span class="chip m">MED</span> Yes, once after each edit or update</td></tr>
+        <tr><td>Warm start</td><td class="num">347 ms</td><td>v0.0.23</td><td><span class="chip l">LOW</span> Barely</td></tr>
+        <tr><td>Page switch, first visit / revisit / by key</td><td class="num">151 / 141 / 108 ms</td><td>v0.0.23</td><td><span class="chip l">LOW</span> Perceptible, not annoying</td></tr>
+        <tr><td>Two page switches inside a shell vs plain (load only)</td><td class="num">23.5 vs 29.2 ms</td><td>branch bench</td><td><span class="chip l">LOW</span> A win; excludes rendering</td></tr>
+        <tr><td>Window drag, per step (full repaint)</td><td class="num">38 ms</td><td>branch bench</td><td><span class="chip l">LOW</span> About 26 updates a second; smooth enough</td></tr>
+        <tr><td>Hover between two zones · collapse toggle</td><td class="num">38 · 45 ms</td><td>branch notes</td><td><span class="chip l">LOW</span> No</td></tr>
+        <tr><td>Resize step (with full frame)</td><td class="num">32 (52) ms</td><td>branch notes</td><td><span class="chip l">LOW</span> No</td></tr>
+        <tr><td>Save and restore 30 inputs</td><td class="num">95 ms</td><td>branch notes</td><td><span class="chip l">LOW</span> Hidden in a page switch</td></tr>
+        <tr><td>Holding Up/Down on the nav</td><td class="num">47 ms work/s</td><td>v0.0.23</td><td><span class="chip l">LOW</span> No; was 478</td></tr>
+      </tbody></table></div>
+    <div class="note"><b>Where the methodology looks thin.</b> I took these numbers as given and did not validate them, but a reader should know their limits.
+      <ul class="plain" style="margin-top:var(--s2)">
+        <li>No full profiler run is published for this branch. Its figures are micro-benches, and <code>goto_pair_*</code> is "load only, no render", so it understates what a user sees.</li>
+        <li>The author notes the latest v0.0.23 page-switch run was taken while editing on the same machine, so it is an upper bound with noise.</li>
+        <li><code>tools/bench/baseline.txt</code> was not regenerated after the layer work, so bench comparisons on this branch are against a stale baseline.</li>
+        <li>The committed reports stop at 30 September, so the 1–2 October runs quoted in the changelog can't be reproduced from the repo.</li>
+        <li>Cold start warms pages in parallel, capped at <code>nproc</code> <span class="tag i">I</span>. 3.38 s is one machine's number; a 2–4 core laptop will likely be slower.</li>
+      </ul></div>
+    <p class="col">The trajectory is the encouraging part. The branch's own plan lists 15 items with expected and real gains. Three have landed (the refresh cache job went from 422 to 211 ms of CPU; 6 and 3 forks were removed from clicks and palette opens). The author's diagnosis that sub-100 ms switches need persistent shells rather than more tuning is honest, and it marks a structural ceiling <span class="chip m">MED</span>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Code excerpts, the good and the gnarly</h2><span class="rule"></span><span class="n">verbatim from the branch</span></div>
+
+  <div class="ex good"><pre><span class="c"># lib/tui.sh:107–115 (comments trimmed)</span>
+trap 'tui.on_resize' WINCH
+tui.config.apply
+_TUI_OLD_STTY=$(stty -g 2&gt;/dev/null)
+<span class="c">#   -isig  ctrl+c / ctrl+z arrive as keys</span>
+<span class="c">#   -ixon  ctrl+s / ctrl+q are not flow control</span>
+stty -echo -icanon -isig -ixon -iexten min 1 time 0 2&gt;/dev/null
+term.alt_screen
+cur.hide</pre>
+  <div class="why"><span class="verdict-mark">✔ GOOD · terminal setup</span><span class="src">lib/tui.sh</span><p>Every <code>stty</code> flag here is POSIX, the old state is saved with <code>-g</code> and restored in <code>tui.cleanup</code>, and the comment explains why each flag is there. The WINCH handler only sets a flag. This is the most portable part of the codebase.</p></div></div>
+
+  <div class="ex good"><pre><span class="c"># lib/core/tui_loop.sh:13–19</span>
+_tui._secs_to_us() {
+	local s="$1" whole frac
+	whole="${s%%.*}"
+	frac="${s#"$whole"}"
+	frac="${frac#.}000000"
+	printf -v "$2" '%d' \
+	  "$((10#${whole:-0} * 1000000 + 10#${frac:0:6}))"
+}</pre>
+  <div class="why"><span class="verdict-mark">✔ GOOD · fork-free arithmetic</span><span class="src">lib/core/tui_loop.sh</span><p>Bash has no floats, and the lazy fix is <code>$(awk …)</code>, which forks on every tick. This converts "0.05" seconds to microseconds with parameter expansion, forces base 10 so "08" isn't read as octal, and writes into a named variable. Small, correct, and typical of the fork discipline across the code.</p></div></div>
+
+  <div class="ex good"><pre><span class="c"># lib/tui.sh:153–166</span>
+_tui_proc_tree() {
+	local child kids=""
+	if [[ -r "/proc/$1/task/$1/children" ]]; then
+		read -r kids &lt;"/proc/$1/task/$1/children" 2&gt;/dev/null
+	else
+		kids="$(pgrep -P "$1" 2&gt;/dev/null)"
+	fi
+	for child in $kids; do
+		_tui_proc_tree "$child"
+	done
+	_TUI_PTREE+=("$1")
+}</pre>
+  <div class="why"><span class="verdict-mark">✔ GOOD · fast path with a fallback</span><span class="src">lib/tui.sh</span><p>Uses the Linux kernel file when it exists (no fork) and falls back to <code>pgrep</code> elsewhere. Children come before parents, so the tree can be killed bottom-up. This is the right shape for every Linux-only shortcut in the project.</p></div></div>
+
+  <div class="ex good"><pre><span class="c"># tools/gen_load_order.sh (header)</span>
+<span class="c"># A module is a lib/*.sh or lib/*/*.sh file with a</span>
+<span class="c"># "# requires:" line ... the modules whose functions</span>
+<span class="c"># or variables it uses WHILE IT IS SOURCED.</span>
+<span class="c">#   --check         exit 1 when tui_modules.sh is stale</span>
+<span class="c">#   --order [SEED]  SEED shuffles the tie-break, which</span>
+<span class="c">#                   finds modules that depend on another</span>
+<span class="c">#                   without saying so</span></pre>
+  <div class="why"><span class="verdict-mark">✔ GOOD · dependency hygiene</span><span class="src">tools/gen_load_order.sh, tests/load_order.bats</span><p>Bash has no module system, so source order is an invisible contract. Declaring dependencies in headers, generating the order, and shuffling ties with a seed to flush out undeclared ones is a clever answer I have not seen in another shell project.</p></div></div>
+
+  <div class="ex bad"><pre><span class="c"># lib/tui.sh:897–898</span>
+tui.set() { _TUI_W_VALUE[$1]="$2"; }
+tui.update() {
+	...   <span class="c"># stores AND redraws</span></pre>
+  <div class="why"><span class="verdict-mark">✘ QUESTIONABLE · the obvious name is the wrong one</span><span class="src">lib/tui.sh</span><p>Still on the branch: <code>tui.set</code> stores a value without redrawing, so the screen goes stale. The author's own demo hit this in v0.0.23 (checkboxes that "checked themselves on hover"). When the natural verb silently does less, the API teaches the bug. <span class="chip m">MED</span></p></div></div>
+
+  <div class="ex bad"><pre><span class="c"># lib/core/tui_loop.sh:29</span>
+trap '_master_cleanup; exit 1' INT TERM
+<span class="c"># no EXIT or HUP trap anywhere in lib/</span>
+
+<span class="c"># probe: source lib/tui.sh; tui.init; exit 0</span>
+<span class="c"># then, in the same pty:</span>
+$ stty -a | grep -o ...
+-isig -icanon -echo</pre>
+  <div class="why"><span class="verdict-mark">✘ QUESTIONABLE · the terminal stays raw</span><span class="src">lib/core/tui_loop.sh + probe</span><p>Because <code>-isig</code> turns Ctrl+C into a key, the INT trap rarely fires. Any <code>exit</code> in a callback, or a fatal error, skips cleanup and leaves no echo, no line editing and the alternate screen. The user has to type <code>reset</code> blind. One extra trap fixes it. <span class="chip m">MED</span></p></div></div>
+
+  <div class="ex bad"><pre><span class="c"># lib/exec/tui_exec.sh:151–160</span>
+tmpdir=$(mktemp -d /tmp/tui_exec.XXXXXX)
+local outfile="${tmpdir}/out"
+local fifo="${tmpdir}/in"
+touch "$outfile"
+mkfifo "$fifo"
+local fd
+exec {fd}&lt;&gt;"$fifo"
+script -q -e -c "$cmd" /dev/null &lt;"$fifo" &gt;&gt;"$outfile" 2&gt;&amp;1 &amp;</pre>
+  <div class="why"><span class="verdict-mark">✘ QUESTIONABLE · the PTY trick is Linux-shaped</span><span class="src">lib/exec/tui_exec.sh</span><p>Using <code>script</code> to get a real PTY from Bash is clever, and the mechanism the old review couldn't see is now clear. But <code>-c</code> is util-linux syntax with no BSD branch, and this path hardcodes <code>/tmp</code> where the rest of the code honours <code>$TMPDIR</code>. <span class="chip m">MED</span></p></div></div>
+
+  <div class="ex bad"><pre><span class="c"># lib/markup/tui_parse.sh:211–219 (shortened)</span>
+_tui_parse.attr_valuev() {
+	local body="$1" name="$2"
+	...
+	if [[ "$body" =~ $name[[:space:]]*=... ]]; then
+
+<span class="c"># probe:</span>
+attr_valuev 'fallback_src="old.xml" src="new.xml"' src OUT
+<span class="c"># → old.xml</span></pre>
+  <div class="why"><span class="verdict-mark">✘ QUESTIONABLE · an unanchored regex</span><span class="src">lib/markup/tui_parse.sh</span><p>The lookup for <code>&lt;include src=…&gt;</code> doesn't anchor the attribute name, so any earlier attribute ending in <code>src</code> wins. It only bites on includes with an odd extra attribute, which is why it is low impact, but it is a one-line fix: require whitespace or the tag start before the name. <span class="chip l">LOW</span></p></div></div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Tests, CI and repo hygiene</h2><span class="rule"></span></div>
+  <div class="stack">
+    <div class="tbl"><table>
+      <thead><tr><th>Check</th><th>Result on the branch</th><th>Impact</th></tr></thead>
+      <tbody>
+        <tr><td>Unit suite, <code>tools/t.sh</code> (925 tests)</td><td>908 pass in a full run. All 17 failures come from one order-dependent leak: after <code>ti_job_spinner_is_gone_before_the_done_function_runs</code> the test <code>$HOME</code> no longer exists, and later validator and resize tests can't write fixtures. Recreating <code>$HOME</code> before each test gives <b>925 / 925</b>. Seen on a 2-core VM, where it may be timing-dependent. <span class="tag v">V</span></td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td>bats suite (171 tests)</td><td>Every framework and TUI test passes. 74 packaging tests failed only because <code>ssh-keygen</code> wasn't installed in my sandbox, and 1 because I ran as root. <span class="tag v">V</span></td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td>CI coverage</td><td>The workflow runs on pushes to <code>main</code> and on tags only, and only runs bats. The 925 unit tests and golden frames never run in CI, and <code>devex/*</code> branches are never built. <span class="tag v">V</span></td><td><span class="chip m">MED</span></td></tr>
+        <tr><td>Schema drift guard</td><td>A unit test checks every registered tag and attribute is in <code>tui.xsd</code> and that all demo pages validate with <code>xmllint</code>. It caught a real typo (<code>collapsable</code>). <span class="tag v">V</span></td><td><span class="chip h">HIGH</span> (positive)</td></tr>
+        <tr><td>Docs volume</td><td>497 Markdown files, including 453 per-function API pages, tutorials, design notes and a performance journey. <span class="tag v">V</span></td><td><span class="chip h">HIGH</span> (positive)</td></tr>
+        <tr><td>README drift</td><td>Still says "five built-in themes" (13 ship, plus the default). The news section mixes released and unreleased updates. <span class="tag v">V</span></td><td><span class="chip l">LOW</span></td></tr>
+        <tr><td>Committed GNU manual</td><td><code>Bash Reference Manual.html</code> (1 MB, GFDL-licensed) sits at the repo root even though <code>.gitignore</code> lists it. It is a licence-hygiene wrinkle in an MIT repo. <span class="tag v">V</span></td><td><span class="chip l">LOW</span></td></tr>
+      </tbody></table></div>
+    <p class="col"><b>Open known issues the author lists</b> (alpha-normal): <kbd>alt+n</kbd> pane switching fails in control panes, the Terminal page's input field doesn't reach the process, grid focus order follows markup rather than screen order, a text input swallows <kbd>alt+c</kbd>, resizing can land one cell off, and page reset defaults are captured on the first visit.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>The companion extension: DABT Tools</h2><span class="rule"></span></div>
+  <div class="stack">
+    <p class="col">It is a VS Code extension written in TypeScript, despite the "Plugin" repo name, and not a DABT runtime plugin. It has 2,892 lines of source, 4 commits (22–23 September) and installs from a <code>.vsix</code>. It provides 7 lint rules (private <code>_tui.*</code> calls, <code>_TUI_TICK_FN</code> clobbering, the <code>| while read</code> subshell trap), completion and hover for every <code>tui.*</code> function, inlay hints for positional arguments, XML completion from <code>tui.xsd</code>, theme-aware colour swatches on <code>class=</code>, go-to-definition from <code>action=</code>, a page scaffolder, CLI commands and a subshell/fork counter. <b>For Bash, which gives no signature feedback at all, this is a large DX gain</b> <span class="chip h">HIGH</span>.</p>
+    <div class="note"><b>Compatibility with this branch: partly broken.</b> <span class="tag v">V</span> I ran the extension's own parsers (the ones it uses for live scanning) against both checkouts. The API side copes: it scans <code>lib/</code> recursively and finds 941 public functions on the branch. The XSD side does not: the branch moved pane attributes into a shared <code>&lt;xs:attributeGroup&gt;</code>, and the parser only reads inline <code>&lt;xs:attribute&gt;</code> tags.</div>
+    <div class="tbl"><table>
+      <thead><tr><th>Parsed by the extension</th><th class="num">main v0.0.23</th><th class="num">devex/markupPhase3</th></tr></thead>
+      <tbody>
+        <tr><td>Elements found</td><td class="num">39</td><td class="num">54</td></tr>
+        <tr><td>Attributes on <code>&lt;pane&gt;</code></td><td class="num">30</td><td class="num" style="color:var(--bad)">1</td></tr>
+        <tr><td>Attributes on <code>&lt;window&gt;</code> / <code>&lt;modal&gt;</code></td><td class="num">—</td><td class="num" style="color:var(--bad)">0 / 0</td></tr>
+        <tr><td>Public API functions</td><td class="num">870</td><td class="num">941</td></tr>
+      </tbody></table></div>
+    <p class="caption">So on this branch, <code>&lt;pane&gt;</code> loses completion for <code>split</code>, <code>weight</code>, <code>border</code> and the new resize/collapse attributes, and the new layer tags get none. Resolving <code>attributeGroup ref=</code> in <code>parseDabtXsd.ts</code> fixes it, which is an hour's work <span class="chip h">HIGH</span> for DX.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Example apps showcase</h2><span class="rule"></span></div>
+  <div class="stack">
+    <div class="grid2">
+      <div class="card"><span class="kicker">DabTop · 1 commit · 8 Oct · targets this branch</span><h3>A btop-style system monitor</h3>
+        <p>CPU, memory, network, disk and process boxes, toggled at runtime with <code>&lt;if&gt;</code> plus addons and <code>tui.page.refresh</code>. It ships plugin widgets (<code>graph</code>, <code>meters</code>, <code>cpubox</code>, <code>mirror</code>) and an options menu in a <code>&lt;modal&gt;</code>.</p>
+        <p><b>What it shows:</b> the framework can carry a real, dense, live dashboard. Its <code>FRAMEWORK_NOTES.md</code> logs 16 gaps found while building it. Six are marked solved and one partly solved, and those fixes are on this branch (<code>tui.table.set --keep</code>, <code>tui.border.register</code>, <code>^</code> title accents, plugin files in the cache signature, a job-ID collision). That dogfooding loop is the project's best habit.</p>
+        <p class="muted" style="font-size:.88rem"><b>Version:</b> exits with "this DABT is too old" unless <code>tui.border.register</code> exists, an API added on this branch. <span class="tag v">V</span></p></div>
+      <div class="card"><span class="kicker">DabtFileExplorer · 7 commits · 21 Sep</span><h3>A two-pane file browser</h3>
+        <p>Path input, a files table and a preview pane, with key binds for parent, hidden files, home and reload, plus a footer bar.</p>
+        <p><b>What it shows:</b> the distribution story works end to end. It has <code>.dabt.metadata</code>, a <code>dabt.pkg</code>, a public signing key and a release workflow, and installs with <code>dabt app install &lt;url&gt;</code>.</p>
+        <p class="muted" style="font-size:.88rem"><b>Version:</b> <code>min_dabt = 0.0.6</code>, <code>requires_dabt &gt;= 0.0.7</code>. Uses the v1 style of top-level widgets with <code>pane=</code> and <code>row=</code>. That still works, but the branch docs note it ties the pane to full rebuilds. <span class="tag v">V</span></p></div>
+      <div class="card"><span class="kicker">DABT_AnotherTaskApp · 3 commits · 27 Sep</span><h3>A small task manager</h3>
+        <p>A task list, a details form and a table view, with a header banner, grid-placed buttons, rebindable command keys in the footer (<code>@cmd_save</code>) and a theme-overlay folder.</p>
+        <p><b>What it shows:</b> the author learning the framework from the outside, by design ("see what problems I run into with my own documentation"). Empty panes are filled from <code>on_visit</code> in code rather than declared.</p>
+        <p class="muted" style="font-size:.88rem"><b>Version:</b> late-September API, around v0.0.17–0.0.20 <span class="tag i">I</span>. No templates or nested widgets.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Ecosystem</h2><span class="rule"></span></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  MAIN["main · v0.0.23<br/>2 Oct"] --> BR["devex/markupPhase3<br/>9f774bd · 0.0.24-preRelease"]
+  DEV["dev<br/>docs-site work, stale since 21 Sep"]
+  BR --> CLI["dabt CLI<br/>install · update · scan · build · app"]
+  EXT["DABT Tools for VS Code<br/>reads lib/**/*.sh + tui.xsd"] -->|"API: works · XSD: attr groups missed"| BR
+  TOP["DabTop<br/>targets this branch"] --> BR
+  TOP -. "FRAMEWORK_NOTES: 16 gaps, 7 addressed" .-> BR
+  FE["DabtFileExplorer<br/>v0.0.6–0.0.7 API · signed .dapk"] --> MAIN
+  CLI -->|"dabt app install"| FE
+  TASK["DABT_AnotherTaskApp<br/>late-Sept API"] --> MAIN
+</pre>
+  </div>
+  <p class="caption">The ecosystem is one author's repos. The interesting edge is the dotted one: DabTop's notes feed fixes back into the framework.</p>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Wins and losses against the peers</h2><span class="rule"></span></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Peer</th><th>DABT wins</th><th>DABT loses</th><th>Impact</th></tr></thead>
+    <tbody>
+      <tr><td><b>dialog / whiptail</b></td><td>Multi-page apps, persistent state, mouse hover, theming, live panes, floating windows. dialog shows one modal box per call.</td><td>Ubiquity (often preinstalled), decades of hardening, works on serial consoles and old terminals, runs anywhere ncurses/newt does.</td><td><span class="chip h">HIGH</span></td></tr>
+      <tr><td><b>gum</b> (v2, Charm)</td><td>Full-screen layouts, focus across many widgets, no Go binary to ship.</td><td>One static binary that works on Linux and macOS alike, now on the Bubble Tea v2 renderer, with Charm's ecosystem behind it. A gum script runs on a stock Mac; a DABT app does not.</td><td><span class="chip h">HIGH</span></td></tr>
+      <tr><td><b>bash-tui-toolkit</b></td><td>Vastly more capable: layout, pages, focus, mouse, markup, windows.</td><td>Runs on Bash 3+, zero dependencies, a small drop-in bundle with a compatibility table. Different scope: prompts, not apps.</td><td><span class="chip m">MED</span></td></tr>
+      <tr><td><b>bashsimplecurses</b></td><td>Interactivity; it is a presentation library.</td><td>Simplicity for a quick dashboard.</td><td><span class="chip l">LOW</span></td></tr>
+      <tr><td><b>ncurses / notcurses</b> (C)</td><td>No compiler, edit and rerun, declarative markup.</td><td>Speed, terminfo correctness, wide-character width, portability.</td><td><span class="chip h">HIGH</span></td></tr>
+      <tr><td><b>Bubble Tea v2</b> (Go)</td><td>No build step; markup, addons and windows in one tag; lives where your shell scripts already live.</td><td>Performance, testability, keyboard enhancements, colour downsampling, cross-platform binaries, a large ecosystem.</td><td><span class="chip h">HIGH</span></td></tr>
+      <tr><td><b>tview</b> (Go)</td><td>Declarative pages and themes without writing Go; draggable floating windows built in.</td><td>Mature widget set, stability, performance.</td><td><span class="chip m">MED</span></td></tr>
+      <tr><td><b>Ratatui 0.30</b> (Rust)</td><td>Iteration speed, zero toolchain.</td><td>Performance, correctness, and reach: it reports running on ESP32, STM32H7, PSP and UEFI, which beats any "minimal systems" story DABT could tell.</td><td><span class="chip h">HIGH</span></td></tr>
+      <tr><td><b>Textual</b> (Python)</td><td>No Python runtime; a similar CSS mental model in plain Bash.</td><td>Its CSS engine, devtools, web serving and community. The repo carries a DABT-vs-Textual harness, which says who the aspiration is.</td><td><span class="chip h">HIGH</span></td></tr>
+      <tr><td><b>Ink</b> (JS) / <b>FTXUI</b> (C++)</td><td>No Node or C++ toolchain.</td><td>Component maturity, flexbox layout, Unicode handling, ecosystem.</td><td><span class="chip m">MED</span></td></tr>
+    </tbody></table></div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Scores against the field</h2><span class="rule"></span></div>
+  <div class="stack">
+    <p class="col">Peers are scored on their own maturity, so this compares what a developer gets today, not alpha against alpha. Overall scores use the same weights as DABT's (below).</p>
+    <div class="tbl"><table id="cmpTable">
+      <thead><tr><th>Dimension</th><th class="num">weight</th><th class="num dabt-col">DABT</th><th class="num">dialog</th><th class="num">gum</th><th class="num">bash-tui-toolkit</th><th class="num">Bubble Tea</th><th class="num">Textual</th><th class="num">Ratatui</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="chartbox">
+      <div>
+        <div class="toggles" id="toggles" role="group" aria-label="Series shown on the radar"></div>
+        <svg id="radar" viewBox="0 0 520 470" width="100%" role="img" aria-label="Radar chart of scores by dimension"></svg>
+      </div>
+      <div>
+        <p class="eyebrow" style="margin-bottom:var(--s2)">Overall, weighted, out of 10</p>
+        <svg id="bars" viewBox="0 0 420 330" width="100%" role="img" aria-label="Bar chart of overall scores"></svg>
+        <p class="legend-note">DABT's weakest spokes are portability and community, which are the two that decide whether anyone else can adopt it. Its functionality spoke is already in the company of the compiled frameworks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Dimension scores</h2><span class="rule"></span><span class="n">bar = today · tick = potential</span></div>
+  <div class="dims" id="dims"></div>
+  <div class="note teal" style="margin-top:var(--s4)">
+    <p><b>How the overall is weighted.</b> Functionality 20%, portability 15%, code quality 15%, performance 10%, documentation 10%, DX 10%, community 10%, ecosystem 5%, fit 5%. Portability and maturity are weighted heavily because they decide whether anyone can adopt it. Performance gets 10% because users would feel little of it. The sum is <b>6.2</b>.</p>
+    <p style="margin-top:var(--s2)"><b>Potential 7.5</b> assumes the current direction pays off: an honest claim with a version guard, wide-character width, an EXIT trap and CI on branches, the extension fixed, persistent shell workers, and contributors let in. It stays below the compiled peers because Bash's process model caps performance and portability will always end at Bash 5.</p>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Alpha growing pains or structural risk?</h2><span class="rule"></span></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Weakness</th><th>Kind</th><th>Impact</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>"POSIX only" overclaim, no version guard</td><td>Fixable wording</td><td><span class="chip h">HIGH</span></td><td>It costs credibility the moment a macOS user tries it. A README line and a five-line guard fix it.</td></tr>
+      <tr><td>Bash 5 dependency</td><td><b>Structural</b></td><td><span class="chip h">HIGH</span></td><td>Woven through 29,000 lines. Acceptable if stated plainly; a 3.2 port would be a rewrite.</td></tr>
+      <tr><td>Bus factor 1, contributions closed</td><td><b>Structural</b> (social)</td><td><span class="chip h">HIGH</span></td><td>The longer the codebase grows alone, the harder it is to open up.</td></tr>
+      <tr><td>Wide-character and locale width</td><td>Contained structural</td><td><span class="chip h">HIGH</span></td><td>Width lives in one memoised function, so the core fix is local. Call sites that use <code>${#…}</code> directly need an audit, and that gets costlier every week.</td></tr>
+      <tr><td>Process-per-operation ceiling</td><td><b>Structural</b></td><td><span class="chip m">MED</span></td><td>The author's own diagnosis: sub-100 ms switches need persistent shells.</td></tr>
+      <tr><td>No EXIT trap; CI skips unit tests</td><td>Alpha-normal</td><td><span class="chip m">MED</span></td><td>Each is under an hour to fix.</td></tr>
+      <tr><td>Extension XSD regression</td><td>Alpha-normal</td><td><span class="chip m">MED</span></td><td>Breaks completion on this branch only.</td></tr>
+      <tr><td>Frequent breaking API changes</td><td>Alpha-normal</td><td><span class="chip m">MED</span></td><td>Expected now; fatal later without a deprecation policy.</td></tr>
+      <tr><td>Scope creep (packager, signer, profiler, windowing)</td><td>Strategic</td><td><span class="chip m">MED</span></td><td>Every subsystem is another thing one person must keep correct and secure.</td></tr>
+      <tr><td>Test isolation leak, README drift, unanchored regex</td><td>Alpha-normal</td><td><span class="chip l">LOW</span></td><td>Housekeeping.</td></tr>
+    </tbody></table></div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Should you use it?</h2><span class="rule"></span></div>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  A{"Is the tool shell-centric?<br/>Bash scripts already do the work"} -->|No| Z1["Bubble Tea, Ratatui or Textual"]
+  A -->|Yes| B{"Must it run on stock macOS Bash 3.2,<br/>BusyBox or dash?"}
+  B -->|Yes| Z2["gum, dialog / whiptail<br/>or bash-tui-toolkit"]
+  B -->|No| C{"Only prompts or a one-off menu?"}
+  C -->|Yes| Z3["gum or bash-tui-toolkit"]
+  C -->|No| D{"Do users need CJK, emoji<br/>or non-UTF-8 locales?"}
+  D -->|Yes| Z4["Not yet: widths will misalign"]
+  D -->|No| E{"Need API stability or outside support<br/>in the next 6 months?"}
+  E -->|Yes| Z5["Not yet: revisit at a frozen 0.1"]
+  E -->|No| Y["Use DABT: Linux, Bash 5, a modern terminal.<br/>Pin a commit, install DABT Tools,<br/>add your own EXIT trap"]
+</pre>
+  </div>
+  <p class="caption">The sweet spot is internal Linux tools, homelab dashboards, ops consoles next to existing Bash scripts, and teaching. The clear no-go zones are anything shipped to Mac users, embedded targets, and long-lived products that need a stable API.</p>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Roadmap for the author</h2><span class="rule"></span><span class="n">impact ÷ effort, quick wins first</span></div>
+  <div class="road-group">
+    <h3 style="margin-top:0">Quick wins: minutes to an hour</h3>
+    <ol class="road" style="--start:0">
+      <li><div><b>Trap EXIT and HUP.</b> <code>trap '_master_cleanup' EXIT HUP</code> next to the INT/TERM trap, guarded so cleanup runs once. Then drop the trailing <code>stty sane</code>, which overwrites the user's own settings you just restored.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">minutes</span></div></li>
+      <li><div><b>Add a Bash version guard</b> at the top of <code>lib/tui.sh</code>: if <code>BASH_VERSINFO[0] &lt; 5</code>, print "DABT needs Bash 5+ (you have …); on macOS: brew install bash" and stop.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">minutes</span></div></li>
+      <li><div><b>Restate the claim.</b> "Pure Bash 5 plus standard Unix tools. Linux first; macOS with Homebrew Bash, except the terminal pane." Fix the "five themes" line while there.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">minutes</span></div></li>
+      <li><div><b>Resolve <code>xs:attributeGroup</code> refs in the extension's XSD parser</b> so panes and layers get completion on this branch.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">an hour</span></div></li>
+      <li><div><b>Run <code>tools/t.sh</code> and the golden tests in CI, on <code>devex/*</code> branches too.</b> The best test suite in the project currently guards nothing automatically.</div><div class="ie"><span class="chip m">MED</span><span class="tag">an hour</span></div></li>
+      <li><div><b>Warn on a non-UTF-8 locale</b> at startup, or fall back to ASCII borders. It turns a broken layout into a clear message.</div><div class="ie"><span class="chip m">MED</span><span class="tag">an hour</span></div></li>
+      <li><div><b>Fix the <code>$HOME</code> leak in the job tests</b> and give the runner a guard that recreates or asserts the sandbox between tests.</div><div class="ie"><span class="chip l">LOW</span><span class="tag">an hour</span></div></li>
+      <li><div><b>Anchor the attribute regex</b> in <code>_tui_parse.attr_valuev</code>, and delete the committed GNU manual.</div><div class="ie"><span class="chip l">LOW</span><span class="tag">minutes</span></div></li>
+    </ol>
+    <h3>Short projects: a day or a few</h3>
+    <ol class="road" style="--start:8">
+      <li><div><b>Make <code>tui.set</code> redraw, or rename the silent variant</b> (<code>tui.set_silent</code>), with a one-release deprecation shim.</div><div class="ie"><span class="chip m">MED</span><span class="tag">a day</span></div></li>
+      <li><div><b>Publish a deep profiler run per branch and regenerate the bench baseline.</b> Include the core count, since cold start scales with <code>nproc</code>.</div><div class="ie"><span class="chip m">MED</span><span class="tag">a day</span></div></li>
+      <li><div><b>Give <code>tui.exec</code> a BSD path</b> (<code>script -q /dev/null sh -c "$cmd"</code>) and honour <code>$TMPDIR</code>; add a macOS runner with Homebrew Bash to CI.</div><div class="ie"><span class="chip m">MED</span><span class="tag">a day</span></div></li>
+      <li><div><b>Add a <code>wcwidth</code> table to <code>_tui._vwidth_v</code></b> (East Asian Wide, emoji, zero-width and combining marks), audit direct <code>${#…}</code> width uses, and add golden frames with CJK text.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">days</span></div></li>
+    </ol>
+    <h3>Strategic: weeks</h3>
+    <ol class="road" style="--start:12">
+      <li><div><b>Freeze an API at 0.1 with a deprecation policy.</b> Keep shims for one minor version and log a warning when they are used.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">process</span></div></li>
+      <li><div><b>Open contributions narrowly:</b> themes, docs, example apps. The validator, XSD test and docs <code>--check</code> already make outside PRs safe to review.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">social</span></div></li>
+      <li><div><b>Prototype persistent shell workers</b> behind a flag, your own route to sub-100 ms page switches.</div><div class="ie"><span class="chip h">HIGH</span><span class="tag">weeks</span></div></li>
+      <li><div><b>Publish the extension to Open VSX or the Marketplace.</b></div><div class="ie"><span class="chip m">MED</span><span class="tag">a day</span></div></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="pane-h"><span class="glyph">┌─</span><h2>Sources</h2><span class="rule"></span></div>
+  <ul class="sources">
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/tree/devex/markupPhase3" target="_blank" rel="noopener">DinosAmazingBashTui, branch devex/markupPhase3</a> (cloned at 9f774bd)</li>
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/devex/markupPhase3/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG.md on the branch</a> (Unreleased section, v0.0.23 performance notes)</li>
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/devex/markupPhase3/docs/concepts/performance-journey.md" target="_blank" rel="noopener">docs/concepts/performance-journey.md</a></li>
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/devex/markupPhase3/docs/guide/markup.md" target="_blank" rel="noopener">docs/guide/markup.md</a> (layers, shells)</li>
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/devex/markupPhase3/.github/workflows/build.yml" target="_blank" rel="noopener">.github/workflows/build.yml</a></li>
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases/tag/v0.0.23" target="_blank" rel="noopener">DABT v0.0.23 release</a></li>
+    <li><a href="https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin" target="_blank" rel="noopener">DABT Tools (VS Code extension)</a></li>
+    <li><a href="https://github.com/DinosaursAreCute/DabTop" target="_blank" rel="noopener">DabTop</a> and its FRAMEWORK_NOTES.md</li>
+    <li><a href="https://github.com/DinosaursAreCute/DabtFileExplorer" target="_blank" rel="noopener">DabtFileExplorer</a></li>
+    <li><a href="https://github.com/DinosaursAreCute/DABT_AnotherTaskApp" target="_blank" rel="noopener">DABT_AnotherTaskApp</a></li>
+    <li><a href="https://pubs.opengroup.org/onlinepubs/9699919799/utilities/stty.html" target="_blank" rel="noopener">POSIX stty specification</a> (no <code>size</code> operand)</li>
+    <li><a href="https://github.com/charmbracelet/bubbletea/releases" target="_blank" rel="noopener">Bubble Tea releases</a> (v2 features)</li>
+    <li><a href="https://newreleases.io/project/github/charmbracelet/gum/release/v2.0.0" target="_blank" rel="noopener">gum v2.0.0 release notes</a></li>
+    <li><a href="https://github.com/timo-reymann/bash-tui-toolkit" target="_blank" rel="noopener">bash-tui-toolkit</a> (Bash 3+, zero dependencies)</li>
+    <li><a href="https://ratatui.rs/highlights/v030/" target="_blank" rel="noopener">Ratatui v0.30 highlights</a> (no_std, embedded targets)</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Reviewed 10 Oct 2026 against devex/markupPhase3 @ 9f774bd. Performance figures are the author's; ShellCheck excluded by request. No escape sequences were harmed, though one is left open out of respect for tradition: <span style="color:var(--amber)">ESC[?2026h</span></p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  const dims=["Functionality","Portability","Performance","Code quality","Docs","DX","Ecosystem","Community","Fit"];
+  const W=[.20,.15,.10,.15,.10,.10,.05,.10,.05];
+  const S=[
+    {k:"DABT",v:[8,4,6,7,8,7,5,3,6],c:"var(--amber)",on:true},
+    {k:"DABT potential",v:[9,5,7,8,9,9,6,6,7],c:"var(--teal)",on:true,dash:true},
+    {k:"dialog",v:[6,9,9,9,7,5,8,7,8],c:"#8a7fb8",on:false},
+    {k:"gum",v:[5,9,8,8,8,9,8,9,8],c:"#c4609a",on:false},
+    {k:"bash-tui-toolkit",v:[3,8,8,7,6,7,4,5,7],c:"#7a8f3a",on:true},
+    {k:"Bubble Tea",v:[9,9,9,9,9,8,10,10,9],c:"#d08a2e",on:false},
+    {k:"Textual",v:[9,8,7,9,9,9,9,9,9],c:"#4f86c6",on:true},
+    {k:"Ratatui",v:[9,9,10,9,8,7,9,10,9],c:"#a35b4a",on:false}
+  ];
+  const overall=v=>Math.round(v.reduce((a,x,i)=>a+x*W[i],0)*10+1e-9)/10;
+  const NS="http://www.w3.org/2000/svg";
+  const el=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e;};
+
+  // justification text per dimension
+  const why=[
+    "Panes, grids, tabs, ten widget types, dialogs, palette, rebindable keys, mouse, and now layers, shells, resize, collapse and a state store. No core capability is missing. Docked for the known issues and wide-character width.",
+    "Bash 5 floor with no guard; tui.exec tied to util-linux script; width wrong for CJK, emoji and C locales. Credit for the stat, /proc, pgrep and base64 fallbacks.",
+    "Author's numbers: interactions 30–50 ms, switches 100–150 ms, a 3.4 s cold start after edits. Users feel the cold start and little else.",
+    "Modular split with a generated load order, 925 unit tests, golden frames, cache-parity mode, schema test. Docked for no EXIT trap, a test leak and CI that skips the unit suite.",
+    "497 Markdown files, a page per public function, tutorials, design notes, a performance journey. Docked for README drift.",
+    "Hello world is a dozen lines of XML; the validator reports file:line:col. The extension is a real gain, but its markup completion breaks on this branch, and tui.set is a foot-gun.",
+    "Three small first-party apps. DabTop is genuinely impressive and drives fixes; nothing from outside the author yet.",
+    "MIT and remarkably active, but one person, contributions closed, and almost no external users.",
+    "Right for Linux internal tools, homelab dashboards, ops consoles next to Bash scripts. Wrong for Mac users, embedded targets, or anything needing API stability."
+  ];
+  const dimsEl=document.getElementById("dims");
+  dims.forEach((d,i)=>{
+    const now=S[0].v[i],pot=S[1].v[i];
+    const box=document.createElement("article");box.className="dim";
+    box.innerHTML=`<header><h3>${d}</h3><span class="val">${now}<small>/10 · weight ${Math.round(W[i]*100)}%</small></span></header>
+      <div class="bar" aria-label="${d}: ${now} today, ${pot} potential"><i style="width:${now*10}%"></i><b style="left:calc(${pot*10}% - 1px)"></b></div>
+      <p>${why[i]}</p>`;
+    dimsEl.appendChild(box);
+  });
+
+  // comparison table
+  const order=[0,2,3,4,5,6,7];
+  const tb=document.querySelector("#cmpTable tbody");
+  dims.forEach((d,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${d}</td><td class="num">${Math.round(W[i]*100)}%</td>`+order.map(j=>`<td class="num${j===0?' dabt-col':''}">${S[j].v[i]}</td>`).join("");
+    tb.appendChild(tr);
+  });
+  const trO=document.createElement("tr");
+  trO.innerHTML=`<td><b>Overall</b></td><td class="num">100%</td>`+order.map(j=>`<td class="num${j===0?' dabt-col':''}"><b>${overall(S[j].v).toFixed(1)}</b></td>`).join("");
+  tb.appendChild(trO);
+
+  // radar
+  const svg=document.getElementById("radar");
+  const cx=260,cy=235,R=170,n=dims.length;
+  const pt=(i,val)=>{const a=-Math.PI/2+i*2*Math.PI/n;return [cx+Math.cos(a)*R*val/10, cy+Math.sin(a)*R*val/10];};
+  function drawRadar(){
+    svg.innerHTML="";
+    [2,4,6,8,10].forEach(r=>{
+      const pts=dims.map((_,i)=>pt(i,r).join(",")).join(" ");
+      svg.appendChild(el("polygon",{points:pts,fill:"none",stroke:"var(--line)","stroke-width":r===10?1.2:.8}));
+    });
+    dims.forEach((d,i)=>{
+      const [x,y]=pt(i,10);svg.appendChild(el("line",{x1:cx,y1:cy,x2:x,y2:y,stroke:"var(--line)","stroke-width":.8}));
+      const [lx,ly]=pt(i,11.6);
+      const anchor=Math.abs(lx-cx)<8?"middle":(lx>cx?"start":"end");
+      svg.appendChild(el("text",{x:lx,y:ly+4,"text-anchor":anchor,"font-size":"12",fill:"var(--muted)"},d));
+    });
+    [5,10].forEach(r=>{const [x,y]=pt(0,r);svg.appendChild(el("text",{x:x+5,y:y+12,"font-size":"10",fill:"var(--muted)"},String(r)));});
+    S.slice().reverse().forEach(s=>{
+      if(!s.on)return;
+      const pts=s.v.map((v,i)=>pt(i,v).join(",")).join(" ");
+      const isD=s.k==="DABT";
+      svg.appendChild(el("polygon",{points:pts,fill:s.c,"fill-opacity":isD?.18:.04,stroke:s.c,"stroke-width":isD?2.6:1.6,"stroke-dasharray":s.dash?"5 4":"none"}));
+      if(isD) s.v.forEach((v,i)=>{const [x,y]=pt(i,v);svg.appendChild(el("circle",{cx:x,cy:y,r:3.2,fill:s.c}));});
+    });
+  }
+  const tg=document.getElementById("toggles");
+  S.forEach(s=>{
+    const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",String(s.on));
+    b.innerHTML=`<span class="sw" style="background:${s.c}"></span>${s.k}`;
+    b.addEventListener("click",()=>{s.on=!s.on;b.setAttribute("aria-pressed",String(s.on));drawRadar();});
+    tg.appendChild(b);
+  });
+  drawRadar();
+
+  // bars (sorted)
+  const bs=document.getElementById("bars");
+  const rows=S.map(s=>({k:s.k,o:overall(s.v),c:s.c})).sort((a,b)=>b.o-a.o);
+  const x0=128,xw=250,rh=36,y0=18;
+  [0,5,10].forEach(t=>{const x=x0+xw*t/10;bs.appendChild(el("line",{x1:x,y1:8,x2:x,y2:y0+rows.length*rh,stroke:"var(--line)","stroke-width":.8}));bs.appendChild(el("text",{x:x,y:y0+rows.length*rh+16,"text-anchor":"middle","font-size":"10",fill:"var(--muted)"},String(t)));});
+  rows.forEach((r,i)=>{
+    const y=y0+i*rh;const isD=r.k.startsWith("DABT");
+    bs.appendChild(el("text",{x:x0-8,y:y+16,"text-anchor":"end","font-size":"12",fill:isD?"var(--ink)":"var(--muted)","font-weight":isD?"600":"400"},r.k));
+    bs.appendChild(el("rect",{x:x0,y:y+4,width:xw*r.o/10,height:18,fill:r.c,"fill-opacity":isD?1:.55,rx:2}));
+    bs.appendChild(el("text",{x:x0+xw*r.o/10+6,y:y+17,"font-size":"12",fill:"var(--ink)","font-weight":isD?"600":"400"},r.o.toFixed(1)));
+  });
+})();
+</script>
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+
+</body></html>

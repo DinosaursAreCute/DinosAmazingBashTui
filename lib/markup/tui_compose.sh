@@ -17,6 +17,7 @@
 #
 # Templates may use other templates. A template that reaches itself is reported in _P_ERRORS and the use is dropped.
 # Each copied node remembers the templates it came from in its __via attribute; that is the recursion check.
+# requires:
 
 declare -gA _TC_TPL=() # template/component name -> its node (detached from the tree, children are the body)
 

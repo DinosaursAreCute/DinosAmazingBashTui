@@ -16,8 +16,8 @@ _TG_CHECK=0
 # Pages that cannot give a stable frame headlessly: on_visit starts background work (tui.exec, ticks) that never
 # returns without a real event loop (components_live), or the page shows live or environment data - system
 # statistics (monitor), a block-font clock (settings), the list of files under docs/ (docu), the addon files the
-# user applied (compose), the templates file (no page of its own: _templates).
-_TG_SKIP=(components_live monitor settings docu compose _templates)
+# user applied (compose), host uptime and load (workspace), the templates file (no page of its own: _templates).
+_TG_SKIP=(components_live monitor settings docu compose workspace _templates)
 _tg_is_skipped() {
 	local name="$1" s
 	for s in "${_TG_SKIP[@]}"; do [[ "$name" == "$s" ]] && return 0; done

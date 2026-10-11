@@ -169,10 +169,10 @@ _cp_commit() {
 }
 
 # _cp_sync : texts of the widgets the current view owns (they are not part of the markup)
-_cp_sync() {
+_cp_sync() { # the refresh of a shell page rebuilds in the background: a widget not built yet is synced by the visit that follows
 	case "$_CP_VIEW" in
-		board) tui.update lbl_status "$_CP_OPEN open · $_CP_DONE done" ;;
-		addons) _cp_addons_status ;;
+		board) [[ -n "${_TUI_W_TYPE[lbl_status]:-}" ]] && tui.update lbl_status "$_CP_OPEN open · $_CP_DONE done" ;;
+		addons) [[ -n "${_TUI_W_TYPE[lbl_state]:-}" ]] && _cp_addons_status ;;
 	esac
 }
 

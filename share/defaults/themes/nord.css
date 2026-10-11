@@ -50,6 +50,30 @@
 .nav_link { fg: #d8dee9; bg: #3b4252; }
 .nav_link:hover { fg: #d8dee9; bg: #535969; }
 .nav_link:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+
+.home_tag {
+  fg: #4c566a;
+  bg: #2e3440;
+}
+
+.home_badge {
+  fg: #2e3440;
+  bg: #ebcb8b;
+  mods: bold;
+}
+
+.home_new {
+  fg: #2e3440;
+  bg: #81a1c1;
+  mods: bold;
+}
+
+.home_news {
+  fg: #88c0d0;
+  bg: #2e3440;
+  mods: bold;
+}
+
 .nav_divider { fg: #4c566a; bg: #3b4252; mods: bold; }
 .brand { fg: #88c0d0; mods: bold; }
 .clock { fg: #88c0d0; bg: #3b4252; mods: bold; }
@@ -59,10 +83,12 @@
 /* <tabs> headers */
 .tab_header { fg: #d8dee9; bg: #3c424e; }
 .tab_header:hover { fg: #d8dee9; bg: #4d535e; }
-.tab_header:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.tab_header:focus { fg: #d8dee9; bg: #4d535e; }
+.tab_header:selected { fg: #2e3440; bg: #88c0d0; mods: bold; }
 .tab_header_compact { fg: #4c566a; bg: #3b4252; }
 .tab_header_compact:hover { fg: #d8dee9; bg: #535969; }
-.tab_header_compact:focus { fg: #2e3440; bg: #88c0d0; mods: bold; }
+.tab_header_compact:focus { fg: #d8dee9; bg: #535969; }
+.tab_header_compact:selected { fg: #2e3440; bg: #88c0d0; mods: bold; }
 
 /* checkboxes, progress bars */
 .check { fg: #4c566a; }
@@ -133,3 +159,41 @@
 .toast_success { fg: #2e3440; bg: #a3be8c; }
 .toast_warn { fg: #2e3440; bg: #ebcb8b; }
 .toast_error { fg: #eceff4; bg: #bf616a; mods: bold; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #88c0d0;
+}
+.resize_handle:hover {
+  fg: #d8dee9;
+  mods: bold;
+}
+.collapse_button {
+  fg: #88c0d0;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #2e3440;
+  bg: #88c0d0;
+  mods: bold;
+}
+
+.layer_button {
+  fg: #88c0d0;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #2e3440;
+  bg: #88c0d0;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #4c566a;
+}
+
+.collapse_button:collapsed {
+  fg: #2e3440;
+  bg: #4c566a;
+  mods: bold;
+}

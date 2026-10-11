@@ -5,10 +5,17 @@
 # File: $TUI_APP_CONF/dabt.conf = ~/.config/DABT/apps/<app>/dabt.conf  (key=value lines; see tui_home.sh). tui.init applies:
 #   theme=/path/to/overlay.css      defaults.off="scroll quit"      input.retain=1|0      input.coalesce=1|0
 # Apps can keep their own keys here too - anything is stored; only those four mean something to the framework.
+# requires: tui_configuration tui_home
 declare -gA _TUI_CFG=()
 declare -g  TUI_CONFIG_FILE="${TUI_CONFIG_FILE:-$TUI_APP_CONF/dabt.conf}"
 
-tui.config.get()   { printf '%s' "${_TUI_CFG[$1]-${2:-}}"; }
+# tui.config.get KEY [DEFAULT [VAR]] - the value: printed, or stored in VAR without a subshell
+tui.config.get() {
+	if [[ -n "${3:-}" ]]; then
+		local -n _cg_out="$3"
+		_cg_out="${_TUI_CFG[$1]-${2:-}}"
+	else printf '%s' "${_TUI_CFG[$1]-${2:-}}"; fi
+}
 tui.config.set()   { _TUI_CFG[$1]="$2"; tui.config.save; }
 tui.config.keys()  { printf '%s\n' "${!_TUI_CFG[@]}" | sort; }
 tui.config.unset() { unset '_TUI_CFG[$1]'; tui.config.save; }
@@ -44,6 +51,9 @@ tui.config.apply() {
     for g in ${_TUI_CFG[defaults.off]:-}; do _TUI_DEF_OFF[$g]=1; done
     [[ -n "${_TUI_CFG[notify.position]:-}" ]] && tui.notify.position "${_TUI_CFG[notify.position]}" 2>/dev/null
     [[ -n "${_TUI_CFG[notify.seconds]:-}" ]]  && tui.notify.seconds "${_TUI_CFG[notify.seconds]}"
+    declare -F tui.md.config_apply >/dev/null && tui.md.config_apply
+    # DABT draws # and ## headings in block letters unless the user turned that off (Settings > Markdown)
+    [[ -z "${_TUI_CFG[md.fonts]:-}" ]] && TUI_MD_FONTS=1
     [[ -n "${_TUI_CFG[input.retain]:-}" ]]   && TUI_INPUT_RETAIN_ON_SUBMIT="${_TUI_CFG[input.retain]}"
     [[ -n "${_TUI_CFG[input.coalesce]:-}" ]] && TUI_INPUT_COALESCE="${_TUI_CFG[input.coalesce]}"
     return 0

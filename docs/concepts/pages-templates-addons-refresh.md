@@ -72,7 +72,7 @@ All of these live in variables named `_TUI_P_...`, so the page snapshot carries 
 - the target or its old or new subtree contains a tag outside the plain set (`<tabs>`, ...);
 - a widget written outside all panes names the target pane, or one below it, with `pane="..."`: tearing the pane down would remove widgets that the target's own nodes do not recreate.
 
-**The cache.** After a refresh the cached copy of the page is stale. It is dropped at once (a visit before the next step rebuilds it) and refreshed by a *quiet* background job (`tui.page.rebuild --quiet`: no spinner, nothing drawn). The user never waits for that.
+**The cache.** After a refresh the cached copy of the page is stale. It is dropped at once (a visit before the next step rebuilds it) and refreshed by a *quiet* background job (`tui.page.rebuild --quiet --expanded`: no spinner, nothing drawn). The job starts from the expanded tree the refresh just made (the forked shell inherits it), so it does not parse the page, read the addon files or expand templates a second time: it only builds, snapshots and hands the entry back (about 210 ms for Compose, 420 ms when it started from the files). The user never waits for that.
 
 **Cost.** The floor, with nothing changed, is about 27 ms: load the tree (3), apply addons (6), compose (17, mostly the shared header and menu templates), sign (7). Above it a rebuild costs 1.5 to 3 ms per widget created. One addon: about 45 ms. Five at once: 70 to 105 ms. A generated page of 3 x 2: 59 ms, 8 x 6: 209 ms, 20 x 9: 556 ms. Plus the redraw, about 15 ms at 150 x 45. See [Designing Fast Apps, section 12](../guide/performance.md#12-what-an-addon-or-a-refresh-costs).
 

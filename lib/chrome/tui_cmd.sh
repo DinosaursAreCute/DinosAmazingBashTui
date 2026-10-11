@@ -18,6 +18,7 @@
 #
 # Keys inside: type to filter (fuzzy, every word must match) | up/down or ctrl+p/ctrl+n | pgup/pgdn | Enter run
 # | Esc close | ctrl+u clear | backspace. Mouse: click a row to run it, wheel to move, click outside to close.
+# requires: tui_configuration tui_home tui_input tui_own
 
 declare -ga _TUI_CMD_IDS=()
 declare -gA _TUI_CMD_TITLE=() _TUI_CMD_ACTION=() _TUI_CMD_GROUP=() _TUI_CMD_DESC=() _TUI_CMD_WHEN=() _TUI_CMD_DYN=()
@@ -257,7 +258,7 @@ _tui_cmd.pad() {
     _PADS="$s$sp"
 }
 
-# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_overlay.draw_all's build/flush cycle.
+# DRAWFN (tui.modal.open): appends to _TUI_FRAME, always called from _tui_layer.draw_all's build/flush cycle.
 _tui_cmd.palette_draw() {
     tui.modal.active palette || return 0
     local w=72 h n=${#_PAL_IDS[@]} r i idx id line hint title room desc foot bar hz
@@ -327,15 +328,17 @@ _tui_cmd.provide_pages() {
 # selectable theme overlays: exactly what tui.theme.list prints (every *.css in DABT's installed themes
 # directory plus the app's TUI_THEMES_DIR). Picking one also remembers it, like the Settings page does.
 _tui_cmd.provide_themes() {
-    local name f cur mark title n=0
+    local name f cur mark title line n=0
     cur="${_TUI_THEME_OVERLAY:-}"
-    while IFS=$'\t' read -r name f; do
+    _tui_api.theme_list
+    for line in "${_TA_THEMES[@]}"; do
+        name="${line%%$'\t'*}" f="${line#*$'\t'}"
         [[ -n "$name" && "$name" != *' '* ]] || continue          # a command can't pass an argument with spaces
         mark=""; [[ "$cur" == "$f" ]] && mark="  (active)"
         title="${name//_/ }"
         tui.cmd.add "theme:$name" "Theme: ${title^}$mark" "tui.theme.pick $name" --group Themes --desc "Apply $name to every page"
         ((n++))
-    done < <(tui.theme.list)
+    done
     (( n )) || return 0
     mark=""; [[ -z "$cur" ]] && mark="  (active)"
     tui.cmd.add theme:default "Theme: page default$mark" "tui.theme.pick" --group Themes --desc "Remove the theme overlay"

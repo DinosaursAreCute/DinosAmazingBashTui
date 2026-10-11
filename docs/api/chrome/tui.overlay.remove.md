@@ -4,7 +4,7 @@
 tui.overlay.remove DRAWFN
 ```
 
-Unregisters an overlay.
+Removes a function layer (an alias of [`tui.layer.fn_remove`](/api/chrome/tui.layer.fn_remove.html)).
 
 **Notes**
 

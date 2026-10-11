@@ -6,7 +6,7 @@ Functions return `0` unless their entry says otherwise.
 
 ## Pages
 
-<!-- api: tui.load tui.parse.file tui.goto tui.reset_ui tui.load_cached -->
+<!-- api: tui.load tui.parse.file tui.goto tui.reset_ui tui.load_cached tui.shell.file -->
 
 | Function | Summary |
 |---|---|
@@ -15,6 +15,7 @@ Functions return `0` unless their entry says otherwise.
 | [`tui.goto`](markup/tui.goto.md) | Switches to another page: clears the current UI, loads `FILE` (from the page cache when valid) and repaints in one frame. |
 | [`tui.reset_ui`](markup/tui.reset_ui.md) | Clears the whole UI and leaves an empty full-screen `root` pane. [`tui.goto`](/api/markup/tui.goto.html) calls it. |
 | [`tui.load_cached`](markup/tui.load_cached.md) | Like [`tui.load`](/api/markup/tui.load.html), but replays the page from its recorded call log when it is cached and unchanged, and records it otherwise. |
+| [`tui.shell.file`](markup/tui.shell.file.md) | Gives the canonical path of the shell the current page is built on: stored in `VAR` (no subshell), or printed when `VAR` is omitted. Nothing is printed for a page without a shell. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -27,6 +28,8 @@ Functions return `0` unless their entry says otherwise.
 {% include_relative markup/tui.reset_ui.md %}
 
 {% include_relative markup/tui.load_cached.md %}
+
+{% include_relative markup/tui.shell.file.md %}
 
 </div>
 

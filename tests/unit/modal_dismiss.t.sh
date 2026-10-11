@@ -1,7 +1,8 @@
 # modal_dismiss.t.sh - tui.modal.dismiss replays the saved base frame only while it still matches the screen.
 
+_md_draw() { :; }
 _md_open_valid() {
-	_TUI_MODAL=m _TUI_MODAL_DRAWFN=_md_draw _TUI_OVERLAY_FNS=(_md_draw)
+	_TUI_MODAL=m _TUI_MODAL_DRAWFN=_md_draw _TUI_FL_ORDER=(_md_draw) _TUI_FL_TOP=1
 	_TUI_BASE_FRAME="BASEFRAME"
 	_TUI_DISMISS_REPLAY=1
 	_TUI_BASE_GEN=$_TUI_FLUSH_GEN _TUI_OVL_FLUSHES=0
@@ -9,6 +10,7 @@ _md_open_valid() {
 }
 
 t_dismiss_replays_base_frame_when_valid() {
+	_t_needs_caches || return 0
 	_md_open_valid
 	local out
 	tui.modal.dismiss >"$_T_ROOT/md.out"
@@ -23,6 +25,7 @@ t_dismiss_clears_the_modal() {
 }
 
 t_dismiss_overlay_flushes_do_not_invalidate() {
+	_t_needs_caches || return 0
 	_md_open_valid
 	_TUI_FLUSH_GEN+=2 _TUI_OVL_FLUSHES=2
 	local out
@@ -41,6 +44,7 @@ t_dismiss_unknown_painter_invalidates() {
 }
 
 t_dismiss_tick_repaint_is_folded_into_the_base() {
+	_t_needs_caches || return 0
 	_md_open_valid
 	_tui._flush "TICKBYTES" >/dev/null # a clock tick under the overlay
 	tui.modal.dismiss >"$_T_ROOT/md.out"
@@ -50,6 +54,7 @@ t_dismiss_tick_repaint_is_folded_into_the_base() {
 }
 
 t_dismiss_overlay_draw_is_not_folded_into_the_base() {
+	_t_needs_caches || return 0
 	_md_open_valid
 	_TUI_OVL_FLUSHING=1
 	_tui._flush "OVERLAYBYTES" >/dev/null

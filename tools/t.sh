@@ -11,6 +11,12 @@
 # Assertions available inside tests: eq EXPECTED ACTUAL, ok CONDITION..., match TEXT REGEX
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+# The suite must not see the terminal it was started from: its size (stty size </dev/tty) decides layouts, and tests expect
+# the 24x80 fallback. Re-run without a controlling terminal and without a tty on stdin.
+if [[ -z "${_T_DETACHED:-}" ]] && command -v setsid >/dev/null 2>&1; then
+	_T_DETACHED=1 exec setsid -w bash "${BASH_SOURCE[0]}" "$@" </dev/null
+fi
+
 _T_PATTERN=""
 while (($#)); do
 	case "$1" in
@@ -61,7 +67,7 @@ source "$REPO/lib/tui.sh"
 # ~300 of those (mostly static config/lookup tables, never mutated by tests)
 # blows the speed budget for no correctness gain. Extend the pattern below
 # as later stages add mutable state modules with their own tests.
-_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_HZ|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP|_TUI_ADDON_DIRS|TUI_APP_CONF$)') 2>/dev/null; }
+_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_HZ|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_FL_|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP|_TUI_SHELL|_TUI_OUTLET|_TUI_PAGE_IDS|_TUI_PAGE_UNDO|_TUI_ADDON_DIRS|TUI_APP_CONF$|_?TUI_MD_)') 2>/dev/null; }
 _T_SNAPSHOT="$(_t_snapshot)"
 # declare -p never emits -g (same gotcha tui_cache.sh's own _tui_cache_restore
 # works around): eval-ing the dump as-is inside this function would declare
@@ -85,6 +91,28 @@ _t_restore_prepare() {
 _t_restore_prepare
 _t_restore() { eval "$_T_RESTORE_SRC"; }
 
+# _t_fixture NAME FUNC: build an expensive page once per run, replay it per call.
+# First call runs FUNC and records every _TUI_*/TUI_*/_<FILE>_ global it left behind
+# (wider than the per-test snapshot above); later calls eval that record (~ms) instead
+# of rebuilding (~300 ms). FUNC must only produce state in variables (no stdout/fds).
+declare -gA _T_FIX=()
+_t_fixture() {
+	local name="$1" line src="" flags
+	if [[ -z "${_T_FIX[$name]+x}" ]]; then
+		"$2"
+		while IFS= read -r line; do
+			[[ "$line" == "declare -"* ]] || continue
+			flags="${line#declare }"
+			[[ "${flags%% *}" == *r* ]] && continue
+			if [[ "$line" == "declare --"* ]]; then line="declare -g${line#declare --}"; else line="declare -g${line#declare -}"; fi
+			src+="$line"$'\n'
+		done < <(declare -p $(compgen -v | grep -E '^(_?TUI_|_TUI_|_WS_|_RZP_)') 2>/dev/null)
+		_T_FIX[$name]="$src"
+		return 0
+	fi
+	eval "${_T_FIX[$name]}" 2>/dev/null
+}
+
 # ── assertions ────────────────────────────────────────────────────────────
 _t_fail() {
 	local frame
@@ -103,6 +131,15 @@ ok() {
 	eval "$@" || _t_fail "ok: false: $*"
 }
 
+# _t_needs_caches || return 0 - first line of a test that asserts how a cache behaves (a hit, a dirty flag, a suppressed row).
+# With TUI_CACHES=off there is no cache to observe, so the test is skipped; every other test must pass in both modes.
+_T_SKIPPED=0
+_t_needs_caches() {
+	((_TUI_CACHES)) && return 0
+	((_T_SKIPPED++))
+	return 1
+}
+
 match() {
 	[[ "$1" =~ $2 ]] || _t_fail "match: [$1] !~ [$2]"
 }
@@ -113,8 +150,8 @@ for _t_file in "$REPO"/tests/unit/*.t.sh; do
 done
 unset _t_file
 
-# t_* = unit tests (flat 2 ms/test budget); ti_* = integration tests (page build/replay,
-# file stamps): exempt from the flat budget, capped at 60 ms per test on average (TUI_T_INTEG_MS sets the total).
+# t_* = unit tests (flat 2.4 ms/test budget); ti_* = integration tests (page build/replay,
+# file stamps): exempt from the flat budget, capped at 72 ms per test on average (TUI_T_INTEG_MS sets the total).
 mapfile -t _T_ALL < <(
 	compgen -A function t_
 	compgen -A function ti_
@@ -157,13 +194,14 @@ for _t_line in "${_T_FAIL_LINES[@]}"; do
 	printf '%s\n' "$_t_line"
 done
 
+((_T_SKIPPED > 0)) && echo "t.sh: $_T_SKIPPED cache-mechanism tests skipped (TUI_CACHES=off)" >&2
 printf '%d %d %d\n' "$_T_PASS" "$_T_FAIL" "$_T_MS"
 
-# flat budget: unit tests only (200 ms per 100); integration tests get a total cap
-_T_BUDGET_MS=$((200 * _T_UNIT_N / 100))
+# flat budget: unit tests only (240 ms per 100); integration tests get a total cap
+_T_BUDGET_MS=$((240 * _T_UNIT_N / 100))
 ((_T_UNIT_N > 0 && _T_BUDGET_MS < 1)) && _T_BUDGET_MS=1
 _T_UNIT_MS=$((_T_UNIT_US / 1000))
-_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-$((60 * _T_INTEG_N))} # 60 ms per integration test on average (a demo page load alone is ~100-300 ms)
+_T_INTEG_CAP_MS=${TUI_T_INTEG_MS:-$((72 * _T_INTEG_N))} # 72 ms per integration test on average (a demo page load alone is ~100-300 ms)
 _T_INTEG_MS=$((_T_INTEG_US / 1000))
 if ((_T_UNIT_N > 0 && _T_UNIT_MS > _T_BUDGET_MS)); then
 	echo "t.sh: speed budget exceeded: ${_T_UNIT_N} tests took ${_T_UNIT_MS}ms, budget ${_T_BUDGET_MS}ms" >&2

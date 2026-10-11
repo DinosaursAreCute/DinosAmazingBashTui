@@ -4,7 +4,7 @@
 tui.modal.open NAME KEYFN DRAWFN [MOUSEFN]
 ```
 
-Opens a modal: an overlay that receives all input until it is closed.
+Opens a modal: a function layer that receives all input until it is closed.
 
 **Parameters**
 

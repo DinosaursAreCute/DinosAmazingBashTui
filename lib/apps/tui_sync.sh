@@ -24,6 +24,7 @@
 #   tui.sync.valid_source SRC           rc 0 when SRC looks like a DABT release (VERSION, lib/tui.sh, share/defaults)
 #   tui.sync.report                     text listing the last plan(s) for humans
 # STAMP is a timestamp; set TUI_SYNC_STAMP to fix it (tests).
+# requires:
 
 declare -ga TUI_SYNC_ADD=() TUI_SYNC_UPDATE=() TUI_SYNC_SAME=() TUI_SYNC_KEEP=() TUI_SYNC_CONFLICT=() TUI_SYNC_REMOVE=() TUI_SYNC_ORPHAN=()
 declare -ga TUI_SYNC_P_ADD=() TUI_SYNC_P_UPDATE=() TUI_SYNC_P_SAME=() TUI_SYNC_P_REMOVE=()
@@ -55,7 +56,7 @@ tui.sync.valid_source() { [[ -r "$1/VERSION" && -f "$1/lib/tui.sh" && -d "$1/sha
 # every regular file below DIR, as paths relative to DIR, sorted, one per line
 _tui_sync.files() {
 	[[ -d "$1" ]] || return 0
-	(cd "$1" && find . -type f -not -path '*/.git/*' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort)
+	(cd "$1" && find . -type f ! -path '*/.git/*' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort)
 }
 
 # the config namespace of a release: "defaults/..." from share/defaults, "plugins/..." from share/plugins

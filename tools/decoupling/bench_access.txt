@@ -1,0 +1,8 @@
+read  direct          	1836
+read  hoisted -n      	1784
+read  case getter     	5877
+read  nameref getter  	9892
+write direct          	946
+write hoisted -n      	983
+write case setter     	5652
+write nameref setter  	9260

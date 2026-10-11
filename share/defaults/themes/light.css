@@ -159,6 +159,28 @@
   mods: bold;
 }
 
+.home_tag {
+  fg: #777777;
+}
+
+.home_badge {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+
+.home_new {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+
+.home_news {
+  fg: #be185d;
+  mods: bold;
+}
+
+
 /* <tabs> header buttons - see docs/guide/markup.md. .tab_header is the
  * default framed style (each header a bordered pane.hover shows an
  * about-to-click state). .tab_header_compact is for <tabs style="compact">
@@ -175,6 +197,10 @@
 }
 .tab_header:focus {
   fg: #111111;
+  bg: #c4bda9;
+}
+.tab_header:selected {
+  fg: #111111;
   bg: #93c5fd;
   mods: bold;
 }
@@ -188,6 +214,10 @@
   bg: #c4bda9;
 }
 .tab_header_compact:focus {
+  fg: #111111;
+  bg: #c4bda9;
+}
+.tab_header_compact:selected {
   fg: #111111;
   bg: #93c5fd;
   mods: bold;
@@ -239,3 +269,41 @@
 /* labels in front of inputs, selects and progress bars (.field_label:focus while the widget has focus); no bg: the label uses its pane's */
 .field_label       { fg: #1d4ed8; mods: bold; }
 .field_label:focus { fg: #1d4ed8; mods: bold underline; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #1d4ed8;
+}
+.resize_handle:hover {
+  fg: #2b2b3a;
+  mods: bold;
+}
+.collapse_button {
+  fg: #1d4ed8;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #fbf9f4;
+  bg: #1d4ed8;
+  mods: bold;
+}
+
+.layer_button {
+  fg: #1d4ed8;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #fbf9f4;
+  bg: #1d4ed8;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #777777;
+}
+
+.collapse_button:collapsed {
+  fg: #fbf9f4;
+  bg: #8b5cf6;
+  mods: bold;
+}

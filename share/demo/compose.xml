@@ -1,9 +1,5 @@
-<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="compose_visit">
-  <include src="_templates.xml"/>
-  <script src="demo_callbacks.sh"/>
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="compose_visit">
   <script src="compose_callbacks.sh"/>
-  <theme src="theme.css"/>
-
   <!-- A project board in one page. The three tabs swap whole views, and the swap is the page itself: the nested <if>
        around the views is flipped by an addon (compose_state.xml in the app's config folder) and tui.page.refresh
        rebuilds only the panes that changed. The board's cards, the Workspace panel and the view tests below are all
@@ -37,7 +33,6 @@
       </if>
     </pane>
   </template>
-
   <template name="acct" env="dev" role="guest" beta="false">
     <if test="{{@env}}==prod">
       <label id="env_prod" text=" PRODUCTION " class="swatch_red"/>
@@ -72,84 +67,78 @@
     </if>
   </template>
 
-  <pane id="root" split="v" title="Dinos Amazing Bash TUI" border="single" class="sidebar">
-    <use template="dabt_header"/>
-    <pane id="root1" weight="90" split="h">
-      <pane id="nav" weight="18" title="Menu" border="single" class="sidebar"/>
-      <pane id="main" split="v" weight="82" border="none">
-        <pane id="tabs_header" weight="6" border="none"/>
-        <pane id="content" weight="94" border="none">
-          <if id="view_board" test="board==board">
-            <pane id="board" split="h" border="none">
-              <pane id="ctl_task" weight="36" title="New task" class="panel" hpad="1">
-                <input id="inp_title" label="Title:" label_width="7" placeholder="what needs doing"/>
-                <input id="inp_owner" label="Owner:" label_width="7" placeholder="optional"/>
-                <select id="sel_prio" pane="ctl_task" label="Prio:" items="low|normal|high" value="normal"/>
-                <checkbox id="chk_blocked" label="blocked"/>
-                <button id="btn_add" text="[ Add task ]" action="on_cp_add" class="success_button" align="fill"/>
-                <button id="btn_complete" text="[ Complete next ]" action="on_cp_complete" class="info_button" align="fill"/>
-                <button id="btn_block" text="[ Block/unblock next ]" action="on_cp_block" class="warning_button" align="fill"/>
-                <button id="btn_remove" text="[ Remove last ]" action="on_cp_remove" align="fill"/>
-                <button id="btn_reset" text="[ Reset board ]" action="on_cp_reset" class="danger_button" align="fill"/>
-                <label id="lbl_status" text="" class="brand"/>
+  <pane id="main" split="v" border="none">
+    <pane id="tabs_header" weight="6" border="none"/>
+    <pane id="content" weight="94" border="none">
+      <if id="view_board" test="board==board">
+        <pane id="board" split="h" border="none">
+          <pane id="ctl_task" weight="36" title="New task" class="panel" hpad="1">
+            <input id="inp_title" label="Title:" label_width="7" placeholder="what needs doing"/>
+            <input id="inp_owner" label="Owner:" label_width="7" placeholder="optional"/>
+            <select id="sel_prio" pane="ctl_task" label="Prio:" items="low|normal|high" value="normal"/>
+            <checkbox id="chk_blocked" label="blocked"/>
+            <button id="btn_add" text="[ Add task ]" action="on_cp_add" class="success_button" align="fill"/>
+            <button id="btn_complete" text="[ Complete next ]" action="on_cp_complete" class="info_button" align="fill"/>
+            <button id="btn_block" text="[ Block/unblock next ]" action="on_cp_block" class="warning_button" align="fill"/>
+            <button id="btn_remove" text="[ Remove last ]" action="on_cp_remove" align="fill"/>
+            <button id="btn_reset" text="[ Reset board ]" action="on_cp_reset" class="danger_button" align="fill"/>
+            <label id="lbl_status" text="" class="brand"/>
+          </pane>
+          <pane id="lanes" split="h" weight="64" border="none">
+            <pane id="lane_todo" split="v" title="To do" border="single" class="panel" scroll="v">
+              <label id="lane_todo_empty" text="Nothing to do." class="muted_label"/>
+            </pane>
+            <pane id="lane_done" split="v" title="Done" border="single" class="panel" scroll="v">
+              <label id="lane_done_empty" text="Nothing done yet." class="muted_label"/>
+            </pane>
+          </pane>
+        </pane>
+        <else>
+          <if id="view_cond" test="board==cond">
+            <pane id="cond" split="h" border="none">
+              <pane id="ws" weight="50" title="Workspace" class="panel" hpad="1" vpad="1">
+                <use template="acct" id="acct" env="dev" role="guest" beta="false"/>
+                <button id="btn_env" text="[ Cycle environment ]" action="on_cp_env" class="info_button" align="fill"/>
+                <button id="btn_role" text="[ Cycle role ]" action="on_cp_role" class="info_button" align="fill"/>
+                <button id="btn_beta" text="[ Toggle beta ]" action="on_cp_beta" class="info_button" align="fill"/>
               </pane>
-              <pane id="lanes" split="h" weight="64" border="none">
-                <pane id="lane_todo" split="v" title="To do" border="single" class="panel" scroll="v">
-                  <label id="lane_todo_empty" text="Nothing to do." class="muted_label"/>
-                </pane>
-                <pane id="lane_done" split="v" title="Done" border="single" class="panel" scroll="v">
-                  <label id="lane_done_empty" text="Nothing done yet." class="muted_label"/>
-                </pane>
+              <pane id="markup" weight="50" title="The markup" class="panel" hpad="1" vpad="1" scroll="v">
+                <label id="mk_1" text="&lt;if test=&quot;env==prod&quot;&gt;  equal"/>
+                <label id="mk_2" text="&lt;if test=&quot;role!=guest&quot;&gt;  different"/>
+                <label id="mk_3" text="&lt;if test=&quot;beta&quot;&gt;  truthy, not empty/false/0"/>
+                <label id="mk_4" text="&lt;if test=&quot;role==admin&quot;&gt;  nested: an &lt;if&gt; inside"/>
+                <label id="mk_5" text="&lt;else&gt;  the other branch; an &lt;if&gt; in an"/>
+                <label id="mk_6" text="  &lt;else&gt; makes a chain. The buttons set the use's" class="muted_label"/>
+                <label id="mk_7" text="  attributes from an addon, then refresh." class="muted_label"/>
               </pane>
             </pane>
             <else>
-              <if id="view_cond" test="board==cond">
-                <pane id="cond" split="h" border="none">
-                  <pane id="ws" weight="50" title="Workspace" class="panel" hpad="1" vpad="1">
-                    <use template="acct" id="acct" env="dev" role="guest" beta="false"/>
-                    <button id="btn_env" text="[ Cycle environment ]" action="on_cp_env" class="info_button" align="fill"/>
-                    <button id="btn_role" text="[ Cycle role ]" action="on_cp_role" class="info_button" align="fill"/>
-                    <button id="btn_beta" text="[ Toggle beta ]" action="on_cp_beta" class="info_button" align="fill"/>
+              <pane id="view_addons" split="h" border="none">
+                <pane id="stage" split="v" weight="55" border="none">
+                  <pane id="note" weight="1" title="Notice" class="panel" hpad="1">
+                    <label id="lbl_legacy" text="Deprecated: this notice is old." class="muted_label"/>
                   </pane>
-                  <pane id="markup" weight="50" title="The markup" class="panel" hpad="1" vpad="1" scroll="v">
-                    <label id="mk_1" text="&lt;if test=&quot;env==prod&quot;&gt;  equal"/>
-                    <label id="mk_2" text="&lt;if test=&quot;role!=guest&quot;&gt;  different"/>
-                    <label id="mk_3" text="&lt;if test=&quot;beta&quot;&gt;  truthy, not empty/false/0"/>
-                    <label id="mk_4" text="&lt;if test=&quot;role==admin&quot;&gt;  nested: an &lt;if&gt; inside"/>
-                    <label id="mk_5" text="&lt;else&gt;  the other branch; an &lt;if&gt; in an"/>
-                    <label id="mk_6" text="  &lt;else&gt; makes a chain. The buttons set the use's" class="muted_label"/>
-                    <label id="mk_7" text="  attributes from an addon, then refresh." class="muted_label"/>
+                  <pane id="body" weight="3" title="The page as written" class="panel" hpad="1" vpad="1">
+                    <label id="lbl_hello" text="Hello from the page."/>
+                    <button id="btn_page" text="[ A button the page owns ]" action="on_addon_click"/>
                   </pane>
                 </pane>
-                <else>
-                  <pane id="view_addons" split="h" border="none">
-                    <pane id="stage" split="v" weight="55" border="none">
-                      <pane id="note" weight="1" title="Notice" class="panel" hpad="1">
-                        <label id="lbl_legacy" text="Deprecated: this notice is old." class="muted_label"/>
-                      </pane>
-                      <pane id="body" weight="3" title="The page as written" class="panel" hpad="1" vpad="1">
-                        <label id="lbl_hello" text="Hello from the page."/>
-                        <button id="btn_page" text="[ A button the page owns ]" action="on_addon_click"/>
-                      </pane>
-                    </pane>
-                    <pane id="ctl_addons" weight="45" title="Addons (examples)" class="panel" hpad="1" vpad="1">
-                      <checkbox id="chk_banner"  label="banner  - prepend a label"/>
-                      <checkbox id="chk_toolbar" label="toolbar - append two buttons"/>
-                      <checkbox id="chk_retitle" label="retitle - set title and text (prio 10)"/>
-                      <checkbox id="chk_shout"   label="shout   - set the title too (prio 20)"/>
-                      <checkbox id="chk_tidy"    label="tidy    - remove, replace, wrap"/>
-                      <label id="lbl_sp" text=""/>
-                      <button id="btn_apply" text="[ Apply and rebuild the page ]" action="on_addon_apply" class="success_button" align="fill"/>
-                      <label id="lbl_state" text="" class="muted_label"/>
-                      <label id="lbl_hint" text="Files are copied to your app's addons folder." class="muted_label"/>
-                    </pane>
-                  </pane>
-                </else>
-              </if>
+                <pane id="ctl_addons" weight="45" title="Addons (examples)" class="panel" hpad="1" vpad="1">
+                  <checkbox id="chk_banner"  label="banner  - prepend a label"/>
+                  <checkbox id="chk_toolbar" label="toolbar - append two buttons"/>
+                  <checkbox id="chk_retitle" label="retitle - set title and text (prio 10)"/>
+                  <checkbox id="chk_shout"   label="shout   - set the title too (prio 20)"/>
+                  <checkbox id="chk_tidy"    label="tidy    - remove, replace, wrap"/>
+                  <label id="lbl_sp" text=""/>
+                  <button id="btn_apply" text="[ Apply and rebuild the page ]" action="on_addon_apply" class="success_button" align="fill"/>
+                  <label id="lbl_state" text="" class="muted_label"/>
+                  <label id="lbl_hint" text="Files are copied to your app's addons folder." class="muted_label"/>
+                </pane>
+              </pane>
             </else>
           </if>
-        </pane>
-      </pane>
+        </else>
+      </if>
     </pane>
   </pane>
 
@@ -158,6 +147,4 @@
     <tab id="tab_cond" text="Conditionals" action="on_compose_tab"/>
     <tab id="tab_addons" text="Addons" action="on_compose_tab"/>
   </tabs>
-
-  <use template="dabt_nav"/>
 </tui>

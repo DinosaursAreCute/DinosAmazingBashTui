@@ -13,6 +13,7 @@
 #   tui.install.run SRC PREFIX CONFIG [--policy override|skip|new] [--bindir DIR | --no-link] [--dry-run] [--resolver FN]
 #                                      -> TUI_INSTALL_LOG (lines), plan arrays from tui_sync.sh; rc 0 ok, 1 failed, 2 nothing valid
 # The release SRC is whatever folder holds VERSION, lib/, share/ (a git checkout works too).
+# requires:
 
 declare -g TUI_INSTALL_PREFIX="" TUI_INSTALL_CONFIG="" TUI_INSTALL_BINDIR="" TUI_INSTALL_ERROR=""
 declare -ga TUI_INSTALL_LOG=()

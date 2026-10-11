@@ -63,11 +63,12 @@ if _g_wanted G4; then
 	done < <(tools/t_golden.sh --check)
 fi
 
-# G5: docs stay in sync with the API (tool already exists)
+# G5: generated files stay in sync with their sources: the API docs and the module load order (tools already exist)
 if _g_wanted G5; then
 	_g_docs_out="$(tools/gen_api_docs.sh --check 2>&1)"
 	_g_docs_rc=$?
 	((_g_docs_rc != 0)) && _g_report G5 "tools/gen_api_docs.sh:0" "$(head -1 <<<"$_g_docs_out")"
+	_g_load_out="$(tools/gen_load_order.sh --check 2>&1)" || _g_report G5 "tools/gen_load_order.sh:0" "$(head -1 <<<"$_g_load_out")"
 fi
 
 exit "$_G_FAIL"

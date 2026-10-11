@@ -44,6 +44,12 @@ t_parse_decodes_xml_entities_in_attribute_values() {
 	eq 'a <b> & c' "$_N_ATTR_V"
 }
 
+t_parse_decodes_entities_into_a_variable_in_the_calling_shell() {
+	_ENT=""
+	_tui_parse.decode_entities "a &lt;b&gt; &amp;amp; &quot;q&quot; &apos;r&apos;"
+	eq "a <b> &amp; \"q\" 'r'" "$_ENT" # no $( ) around the call: a fork per attribute value that holds an ampersand
+}
+
 t_parse_handles_multi_line_tag() {
 	_parse_fixture a.xml $'<pane id="p1"\n      title="Multi"\n      border="single"/>'
 	tui.parse.file "$_PF"
@@ -124,4 +130,13 @@ t_parse_include_src_with_either_quote_style_is_found() {
 	_parse_fixture host_q.xml "<tui><include src='inc_q.xml'/><include src=\"inc_q.xml\"/></tui>"
 	tui.parse.file "$_PF"
 	ok '[[ -n "${_N_BY_ID[viaq]:-}" ]]'
+}
+
+t_parse_include_src_lookup_ignores_attributes_ending_in_src() {
+	_parse_fixture inc.xml '<pane id="included"/>'
+	_parse_fixture a.xml '<tui><include fallback_src="missing.xml" src="inc.xml"/></tui>'
+	tui.parse.file "$_PF"
+	tui_node.children "$_P_ROOT"
+	tui_node.children "${_N_CHILDREN[0]}"
+	eq "included" "${_N_ID[${_N_CHILDREN[0]}]}"
 }

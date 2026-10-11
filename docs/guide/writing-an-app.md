@@ -172,7 +172,7 @@ on_add() {
 | once, later | `tui.after SEC FN [ID]` |
 | a clock in a pane | `tui.clock PANE [FMT] [FONT]` |
 | a shell command's output in a pane, refreshed | `tui.watch PANE CMD [SEC]` (runs off-thread) |
-| a long-running/streaming process | `tui.exec` (PTY-backed, multi-instance, capped ring buffer) |
+| a long-running/streaming process | `tui.exec` (PTY-backed with util-linux `script(1)`, plain pipes otherwise; multi-instance, capped ring buffer) |
 | CPU/mem/disk gauges | `tui.monitor` |
 | work that takes longer than a blink | `tui.job.run ID WORKFN DONEFN`: runs off the main loop, a spinner after 100 ms, the result shown in one go ([Slow work](callbacks-and-viewports.md#4-slow-work-keep-the-interface-running)) |
 | the page on screen has to change (addon switched, generated content) | `tui.page.refresh`: rebuilds only the panes that changed, within the budget of a page switch |

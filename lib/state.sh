@@ -9,9 +9,10 @@
 # Everything here is still private engine state (leading underscore =
 # internal, plain TUI_* = public but engine-owned) - callbacks should go
 # through tui_api.sh, not touch these directly. State declared right next
-# to its one function (e.g. _TUI_FACTORY_LAST_ID, _TUI_SGR_NAMED, _HIT_PANE)
-# stays local to that function in tui.sh - only the two big up-front
-# registries below moved.
+# to its one function (e.g. _TUI_SGR_NAMED, _HIT_PANE) stays local to that
+# function in tui.sh - only the three big up-front registries below moved
+# (UI & LAYOUT, BACKGROUND EXECUTION, and FACTORY).
+# requires:
 
 # ═══════════════════════════════════════════════════════════════════════
 #  UI & LAYOUT
@@ -36,6 +37,9 @@ declare -gA _TUI_P_CONTENT=()
 declare -gA _TUI_P_SCROLL=()
 declare -gA _TUI_P_SOFF_V=()
 declare -gA _TUI_P_SOFF_H=()
+declare -gA _TUI_P_CONTENT_H=() # per pane: total height in rows of widgets in the pane
+declare -gA _TUI_P_STUCK=()     # per pane: id of the pinned widget currently stuck at the top, absent if none
+declare -gA _TUI_P_NOREVEAL=()  # per pane: 1 if scroll_into_view is disabled (don't auto-reveal on focus)
 declare -gA _TUI_P_HPAD=() _TUI_P_VPAD=() _TUI_P_BORDER_EXPL=()
 declare -gA _TUI_W_HPAD=() _TUI_W_VPAD=()
 declare -g _TUI_DRAG_PANE=""
@@ -48,6 +52,7 @@ declare -gA _TUI_W_PANE=()
 declare -gA _TUI_W_ROW=()
 declare -gA _TUI_W_LABEL=()
 declare -gA _TUI_W_VALUE=()
+declare -gA _TUI_W_SELECTED=() # widget id -> 1 while tui.select marked it selected
 declare -gA _TUI_W_ACTION=()
 declare -gA _TUI_W_SUBMIT=()
 declare -gA _TUI_W_PH=()
@@ -58,20 +63,22 @@ declare -gA _TUI_W_EXPAND=()                 # id -> "x"/"y"/"both": which dims 
 declare -gA _TUI_W_WIDTH=() _TUI_W_HEIGHT=() # id -> 2A unit-token size spec (cells, %, fr, auto, fill, clamp(...))
 declare -gA _TUI_W_LABEL_ALIGN=()
 declare -gA _TUI_W_RETAIN=() _TUI_W_STICKY=() # input focus policy: explicit retain (1/0) and sticky (see tui.input.retain / .sticky)
-declare -g TUI_INPUT_RETAIN_ON_SUBMIT=1       # default when an input has no retain_input_on_submit of its own
+declare -gA _TUI_W_PIN=()                     # per widget: pin directive (only "top" accepted); pinned widgets stick at pane viewport top when scrolled past
+# TUI_INPUT_RETAIN_ON_SUBMIT default is set in tui_configuration.sh (sourced before this)
 declare -gA _TUI_W_LABEL_WIDTH=()
 declare -ga _TUI_W_ORDER=()
 declare -ga _TUI_FOCUSABLE=()
 
 # _tui_w.changed - the widget list or a widget's type changed: the focus order (tui_focus.sh) and the hit index
 # (tui_hit.sh) are derived from it and rebuild on next use. Every writer of _TUI_W_ORDER/_TUI_W_TYPE calls this.
-_tui_w.changed() { _TUI_FOCUS_DIRTY=1 _TUI_HZ_DIRTY=1; }
+_tui_w.changed() { _tui.epoch_bump widgets; }
 
 declare -g _TUI_FOCUS_ID=""
 declare -g _TUI_FOCUS_IDX=-1
 declare -g _TUI_CURSOR=0
 declare -g _TUI_RUNNING=0
 declare -g _TUI_OLD_STTY=""
+declare -g _TUI_TERM_RAW=0 # 1 between tui.init and _master_cleanup: the EXIT trap restores the terminal only then
 declare -g _TUI_ROWS=0
 declare -g _TUI_COLS=0
 declare -g _WSR=0 _WSC=0 _WSW=0 _WSW_AVAIL=0
@@ -99,6 +106,9 @@ declare -g _TUI_HOVERED_WIDGET=""
 # single cheap widget or border redraw and is drawn immediately instead
 # (see _tui._draw_widgets_now) - debouncing it added latency without a
 # throughput problem to justify it.
+declare -gA _TUI_PANE_RAW_SIZE=()  # pane id -> "W H" of the content area the frame in _TUI_PANE_RAW was made for
+declare -gA _TUI_PANE_RAW=()       # pane id -> a ready-made frame set with tui.set_canvas (rows already as wide as the pane)
+declare -gA _TUI_PANE_RAW_FN=()    # pane id -> the function that brings _TUI_PANE_RAW up to date before a full paint (tui.canvas.source)
 declare -gA _TUI_PANE_CONTENT=()   # pane id -> 1 when it holds tui.output content (MUST be associative: pane ids are names)
 declare -gA _TUI_PENDING_OUTPUT=() # pane id -> content awaiting re-render
 declare -g _TUI_RENDER_TIMEOUT=-1
@@ -126,3 +136,19 @@ declare -g _TUI_EXEC_LAST_ID="" # set (not printed) by tui.exec, same convention
 declare -gA _EXEC_WIDGET_TO_IID=()  # control/input widget id -> owning iid
 declare -gA _EXEC_PANE_INSTANCES=() # out_pane -> "iid1 iid2 ..." (oldest→newest, finished ones stay until dismissed)
 declare -gA _EXEC_PANE_CTL_ROW=()   # ctl_pane -> next free row block for a new instance's controls
+
+# ═══════════════════════════════════════════════════════════════════════
+#  FACTORY (tui.factory.* constructors and grid tracking)
+# ═══════════════════════════════════════════════════════════════════════
+
+declare -gA _TUI_FACTORY_IDS=()          # namespace -> "id1 id2 ..." (widgets + panes)
+declare -gA _TUI_FACTORY_GRID_PARENTS=() # namespace -> "parent1 ..." (split state to reset, not remove)
+declare -gA _TUI_FACTORY_COUNTER=()      # namespace -> next auto-id suffix
+declare -ga _TUI_FACTORY_GRID_CELLS=()   # last tui.factory.grid call's cell ids, in order
+
+# Sets _TUI_FACTORY_LAST_ID rather than printing its result: this
+# increments _TUI_FACTORY_COUNTER as a side effect, and a command
+# substitution (id="$(...)") runs in a subshell, which would silently
+# discard that increment - every id in a loop would come back identical.
+# Same fork-free convention as _HIT/_HIT_PANE elsewhere in this file.
+declare -g _TUI_FACTORY_LAST_ID=""

@@ -8,12 +8,14 @@
 # Public: tui.perf.report, tui.perf.reset, tui.perf.mean_render_ms (tui.sh).
 # Private: _tui_perf.begin/end/count wrap the phases that matter (parse,
 # build, layout, render, flush, dispatch) in the current code.
+# requires: tui_configuration
 
 declare -g _TUI_PERF_TRACKING="${_TUI_PERF_TRACKING:-0}"
 declare -gA _TUI_PERF_T0=()       # span name -> start time (us), set by begin
 declare -gA _TUI_PERF_LOG=()      # span name -> space-joined ring of durations (us)
 declare -gA _TUI_PERF_COUNTERS=() # counter name -> integer total
-declare -gi _TUI_PERF_RING_MAX=500
+# Ring buffer size configured in tui_configuration.sh
+_TUI_PERF_RING_MAX="$TUI_PERF_RING_MAX"
 
 # $EPOCHREALTIME has a comma decimal under some locales (e.g. de_DE);
 # stripping everything but digits keeps this fork-free and locale-proof,

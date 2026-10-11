@@ -4,25 +4,16 @@
 tui.require terminal_renderer
 
 on_tab_doc() {
-	local doc_path="$TUI_ROOT/docs/design/viewport-scrolling.md"
-	local raw_doc="" part formatted_doc
-
-	# Prepend a generated banner
-	tui.capture part banner_string "Bending The World To Your Will"
-	raw_doc+="\n${part}\n\n"
-
-	# Dynamically substitute the file content
+	local doc_path="$TUI_ROOT/docs/design/viewport-scrolling.md" part text
 	if [[ -f "$doc_path" ]]; then
-		raw_doc+="$(<"$doc_path")\n"
+		# a Markdown title in front, then the document itself, rendered by the Markdown renderer
+		text="# Bending The World To Your Will"$'\n\n'"$(<"$doc_path")"
+		tui.md.show "content" "$text"
 	else
+		tui.md.forget "content"
 		tui.capture part alert_string error "Document not found at: $doc_path"
-		raw_doc+="${part}\n"
+		tui.output "content" "$part"
 	fi
-
-	# Evaluate \n escape sequences and push to the scrollable pane
-	printf -v formatted_doc '%b' "$raw_doc"
-	formatted_doc="${formatted_doc%"${formatted_doc##*[!$'\n']}"}" # trailing newlines off, as $( ) did
-	tui.output "content" "$formatted_doc"
 	tui.pane_title "content" "Technical Document"
 }
 
@@ -31,6 +22,7 @@ declare -gA _CS_TBL_MEMO # no "=()": the script is re-sourced on every visit and
 
 on_tab_tbl() {
 	local key="${TR_WIDTH:--}"
+	tui.md.forget "content" # the pane shows renderer output now, not Markdown
 	if [[ -z "${_CS_TBL_MEMO[$key]+x}" ]]; then
 		_cs_build_tbl
 		_CS_TBL_MEMO[$key]="$_CS_TBL"

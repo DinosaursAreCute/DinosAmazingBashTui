@@ -43,8 +43,10 @@ This page is the map: how the framework is put together, and where to look for w
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
 | Make pages and callbacks fast: budgets, fork-free callbacks, memoising, what the caches do | [guide/performance.md](guide/performance.md) |
+| Animate: timers, `tui.set_canvas`, background painters, why overlays do not flicker | [guide/animation.md](guide/animation.md) |
 | Bind keys and mouse, use the command bar, footer, default pages | [guide/input-bindings.md](guide/input-bindings.md) |
 | Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
+| Show Markdown: the renderer, Settings > Markdown, themes, links, search, images | [guide/markdown.md](guide/markdown.md) |
 | Write, install and manage plugins; where DABT keeps its files | [guide/plugins.md](guide/plugins.md) |
 | Install DABT, update it from GitHub, resolve conflicts | [guide/install-and-update.md](guide/install-and-update.md) |
 | Look up **any function and its parameters** | [api/](api/) - one page per module, plus search (press `/`) |

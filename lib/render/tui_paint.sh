@@ -22,6 +22,7 @@
 #
 # Fork-free: everything here is bash builtins/parameter expansion, no
 # command substitution, matching every other hot-render-path helper.
+# requires:
 
 declare -gA _TUI_PAINT_PREV=() # row number -> bytes physically flushed for that row last time
 declare -gA _TP_ROW=()         # scratch (this call only): row number (see _TP_PRE_ROW) -> concatenated bytes
@@ -79,6 +80,10 @@ _tui_paint.split_rows() {
 # for next time.
 _tui_paint.diff() {
 	_TP_OUT=""
+	((_TUI_CACHES)) || {
+		_TP_OUT="$1"
+		return
+	}                                              # caches off: every row is sent
 	[[ -n "$1" && "$1" == "$_TP_LAST" ]] && return # every row of it is already PREV
 	_tui_paint.split_rows "$1"
 	_TP_LAST=""

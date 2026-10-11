@@ -28,10 +28,12 @@
 
 .tab_header          { fg: #d8dee9; bg: #262b36; }
 .tab_header:hover    { fg: #ffffff; bg: #313846; }
-.tab_header:focus    { fg: #1e222a; bg: #88c0d0; mods: bold; }
+.tab_header:focus    { fg: #ffffff; bg: #313846; }
+.tab_header:selected    { fg: #1e222a; bg: #88c0d0; mods: bold; }
 .tab_header_compact         { fg: #6b7688; bg: #1e222a; }
 .tab_header_compact:hover   { fg: #d8dee9; bg: #313846; }
-.tab_header_compact:focus   { fg: #1e222a; bg: #88c0d0; mods: bold; }
+.tab_header_compact:focus   { fg: #d8dee9; bg: #313846; }
+.tab_header_compact:selected   { fg: #1e222a; bg: #88c0d0; mods: bold; }
 
 .field_label        { fg: #6b7688; }
 .field_label:focus  { fg: #88c0d0; }

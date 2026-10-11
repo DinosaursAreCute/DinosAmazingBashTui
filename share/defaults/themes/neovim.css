@@ -50,6 +50,30 @@
 .nav_link { fg: #e0e2ea; bg: #2c2e33; }
 .nav_link:hover { fg: #e0e2ea; bg: #47494e; }
 .nav_link:focus { fg: #14161b; bg: #a6dbff; mods: bold; }
+
+.home_tag {
+  fg: #9b9ea4;
+  bg: #14161b;
+}
+
+.home_badge {
+  fg: #14161b;
+  bg: #fce094;
+  mods: bold;
+}
+
+.home_new {
+  fg: #14161b;
+  bg: #8cf8f7;
+  mods: bold;
+}
+
+.home_news {
+  fg: #a6dbff;
+  bg: #14161b;
+  mods: bold;
+}
+
 .nav_divider { fg: #9b9ea4; bg: #2c2e33; mods: bold; }
 .brand { fg: #a6dbff; mods: bold; }
 .clock { fg: #a6dbff; bg: #2c2e33; mods: bold; }
@@ -59,10 +83,12 @@
 /* <tabs> headers */
 .tab_header { fg: #e0e2ea; bg: #24262c; }
 .tab_header:hover { fg: #e0e2ea; bg: #393b40; }
-.tab_header:focus { fg: #14161b; bg: #a6dbff; mods: bold; }
+.tab_header:focus { fg: #e0e2ea; bg: #393b40; }
+.tab_header:selected { fg: #14161b; bg: #a6dbff; mods: bold; }
 .tab_header_compact { fg: #9b9ea4; bg: #2c2e33; }
 .tab_header_compact:hover { fg: #e0e2ea; bg: #47494e; }
-.tab_header_compact:focus { fg: #14161b; bg: #a6dbff; mods: bold; }
+.tab_header_compact:focus { fg: #e0e2ea; bg: #47494e; }
+.tab_header_compact:selected { fg: #14161b; bg: #a6dbff; mods: bold; }
 
 /* checkboxes, progress bars */
 .check { fg: #9b9ea4; }
@@ -133,3 +159,41 @@
 .toast_success { fg: #14161b; bg: #b3f6c0; }
 .toast_warn { fg: #14161b; bg: #fce094; }
 .toast_error { fg: #14161b; bg: #ffc0b9; mods: bold; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #a6dbff;
+}
+.resize_handle:hover {
+  fg: #e0e2ea;
+  mods: bold;
+}
+.collapse_button {
+  fg: #a6dbff;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #14161b;
+  bg: #a6dbff;
+  mods: bold;
+}
+
+.layer_button {
+  fg: #a6dbff;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #14161b;
+  bg: #a6dbff;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #9b9ea4;
+}
+
+.collapse_button:collapsed {
+  fg: #14161b;
+  bg: #4f5258;
+  mods: bold;
+}

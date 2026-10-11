@@ -22,6 +22,7 @@
 #
 # This module only builds the tree. Nothing here calls a single tui.* API -
 # that dispatch is lib/markup/tui_build.sh's job (stage 1.2).
+# requires:
 
 declare -g _P_ROOT=""
 # a whole tag: <name, then any run of non-quote non-> characters and quoted strings, then >
@@ -197,7 +198,10 @@ _tui_parse.attrs() {
 		else
 			val="${BASH_REMATCH[4]}"
 		fi
-		[[ "$val" == *"&"* ]] && val="$(_tui_parse.decode_entities "$val")"
+		if [[ "$val" == *"&"* ]]; then
+			_tui_parse.decode_entities "$val"
+			val="$_ENT"
+		fi
 		tui_node.attr_set "$node" "$name" "$val"
 		body="${body:${#BASH_REMATCH[0]}}"
 	done
@@ -209,18 +213,19 @@ _tui_parse.attr_valuev() {
 	local body="$1" name="$2"
 	local -n _pav_out="$3"
 	_pav_out=""
-	if [[ "$body" =~ $name[[:space:]]*=[[:space:]]*(\"([^\"]*)\"|\'([^\']*)\') ]]; then
-		if [[ "${BASH_REMATCH[1]:0:1}" == '"' ]]; then _pav_out="${BASH_REMATCH[2]}"; else _pav_out="${BASH_REMATCH[3]}"; fi
+	if [[ "$body" =~ (^|[[:space:]])$name[[:space:]]*=[[:space:]]*(\"([^\"]*)\"|\'([^\']*)\') ]]; then
+		if [[ "${BASH_REMATCH[2]:0:1}" == '"' ]]; then _pav_out="${BASH_REMATCH[3]}"; else _pav_out="${BASH_REMATCH[4]}"; fi
 	fi
 	return 0
 }
 
+# _tui_parse.decode_entities TEXT -> _ENT (a variable, not stdout: a $( ) per value would fork)
+declare -g _ENT=""
 _tui_parse.decode_entities() {
 	local v="$1"
 	v="${v//&lt;/<}"
 	v="${v//&gt;/>}"
 	v="${v//&quot;/\"}"
 	v="${v//&apos;/\'}"
-	v="${v//&amp;/\&}" # unescaped & in a replacement is a bash no-op, not a literal ampersand
-	printf '%s' "$v"
+	_ENT="${v//&amp;/\&}" # unescaped & in a replacement is a bash no-op, not a literal ampersand
 }

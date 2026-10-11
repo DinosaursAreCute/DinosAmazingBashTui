@@ -26,7 +26,7 @@ may use Python; the DABT runtime stays pure bash.
    the app runs (nothing large is written to disk). Wall time between trace lines is split into in-shell work,
    external programs, process creation and waiting. In-shell time is rescaled per scenario so that it matches
    the untraced busy time; programs and forks are real time and stay as measured.
-   `--scenario floor` replays warm switches between the three lightest pages (home, layout, case study; one priming lap, ten
+   `--scenario floor` replays warm switches between the three lightest pages (layout, case study, debug; one priming lap, ten
    measured laps) so the trace shows what a page switch costs when no page code runs. For `tui.goto`, `tui.cache.replay`,
    `tui.render` and their neighbours (`FOCUS_ROOTS` in `dprof/scenarios.py`) the report lists, per switch and unpruned, the callee
    the time went into, the functions that ran the commands and the hottest source lines below them: the "Page-switch floor"
@@ -38,6 +38,21 @@ may use Python; the DABT runtime stays pure bash.
 
 Output: `reports/<timestamp>/{report.json,report.html,report.txt}`, `reports/latest` links the newest run
 (`reports/` is git-ignored).
+
+## Units, machine and resources
+
+Every run builds one **warmed template** first (a cold start fills the cache, a second start proves it is warm; both are measured as `startup.cold` / `startup.warm`). Each **unit** (`UNIT_GROUPS` in `dprof/scenarios.py`: nav, floor, input, scroll, one per held key, palette, theme, compose, workspace, state, scrollform, resize, idle, shutdown) then runs on its own: a private copy of the template HOME, a fresh app that lands on the default page, `setup` steps (navigate to the page, put it in its start state; timed and shown in the report's *Setup* panel, but never counted in a measured group), then the measured steps. Units share nothing, so what one does to the app (a dialog left open, a setting changed) cannot reach another, and they can run side by side: `--jobs N`. Parallel runs compete for the CPU, so the report says so and the timings are only comparable with runs made with the same `--jobs`. The traced pass always runs one unit at a time.
+
+The report names the machine, specs only: CPU model, threads and cores, max MHz and governor, RAM, distro, kernel, virtual or bare metal, filesystem of the temp dir, bash and Python versions, plus a short id (a hash of those specs) to tell two machines apart. No host name, user name, path or address is read. While the run goes, a sampler reads `/proc` every 250 ms; per unit the report shows wall time, app CPU and memory, machine CPU, CPU used by **other work** (a finding when it is 0.5 core or more on a single-job run: the timings are inflated), mean frequency and peak memory use. Linux only; elsewhere those fields are empty.
+
+## Explorer
+
+`tools/profiler/explorer/index.html` is an offline explorer for every run in `reports/`: open the file, nothing to install or serve. `profile.py` refreshes its data after each run (`explore.py` writes `reports/index.js` and a `report.js` beside each `report.json`, only for new or changed runs); `tools/profiler/explorer.sh` does the same on demand and opens the page. If the data files are missing, the page asks for the reports folder (or dropped `report.json` files) and reads them directly.
+
+* **Overview** (first page): the progression of every group of every scenario on one log-scale chart (as multiples of budget, % of the first run, or absolute ms), filterable by machine, mode and window, with a legend to hide or isolate groups and one tile per group: latest value, change against the previous and first run, and a sparkline. Groups that no longer exist are left out unless asked for.
+* **Runs:** all runs in one sortable, filterable table (machine, branch, mode, scenario); open one, or tick several to compare.
+* **One run:** summary and scorecard, latency with every statistic, samples, per-step timelines, frame sources, panes and spans; startup phases; setup; machine and resources; functions, layers, call edges, layer flow, hot lines, processes; zoomable flame graph; calibration; findings; the raw JSON as a tree.
+* **Compare (2 or more runs):** latency, startup phases, functions, layers, setup and resources side by side with the change against the first run, distributions per group, and a context table that marks what differs between runs (including the machine).
 
 ## Scenario for the Compose page
 
@@ -54,6 +69,35 @@ Output: `reports/<timestamp>/{report.json,report.html,report.txt}`, `reports/lat
 After the screen is updated, a quiet background job brings the cached copy of the page up to date; the scenario waits a second for it (a `setup` step) so it does not land in the next measurement. The board and every addon are put back as found. The probes also wrap `tui.page.refresh`, `tui.job.run`, `_tui_job.finish` and `_tui_job.spinner_draw`.
 
 The steps type into the *Title:* input and click buttons and tabs by their on-screen text, so they depend on the labels in `share/demo/compose.xml`. If a label changes, change the needles at the top of the scenario steps (`ADD_TASK`, `REMOVE_TASK`, `CYCLE_ENV`, `ADDON_BOXES`, `APPLY` in `dprof/scenarios.py`). `tests/unit/profiler_scenarios.t.sh` checks that every group has a title, a budget and steps.
+
+## Scenario for the Home page
+
+`--scenario home` (part of `full`) profiles the animated Home page (`share/demo/home.xml`, `home_callbacks.sh`). Groups: `home.open` (click Home in the nav to the hero built, budget 150 ms), `home.render` (kind `idle`, 3 s with the animation running), `home.hover` (pointer onto a tour button and back over the hero, 30 ms) and `home.click` (click a tour button, page switch away from Home, 100 ms; alt+1 returns as setup).
+
+Needles start with `~`: the rain writes about 100 KB a second and pushes the page's text out of the output tail the profiler reads, so a `remember` step stores the positions once and the later steps use them.
+
+`home.render` reports what the animation costs: main-loop frames and busy time, every byte the terminal received (the rain painter writes around the main loop's frames), and CPU and memory of the whole process tree, since the rain runs in a child process the usual per-step CPU figure would miss. The report shows them as the *HOME ANIMATION* tile. Needles are the tour button texts (`HOME_BUTTONS`, `HOME_CLICK` in `dprof/scenarios.py`); if `home.xml` changes them, edit those.
+
+## Scenarios for the v2 pages
+
+`--scenario workspace`, `--scenario state` and `--scenario scrollform` (all part of `full`, about 15 s each) profile the v2 behaviour. Each is a unit of its own (see `UNIT_GROUPS`). Steps that need a spot on screen use the `pointer` step kind (`session.py`): one mouse event (`_pointer` in `scenarios.py`: move, press, drag, release, wheel) placed relative to the on-screen text of a pane title, so the coordinates follow the terminal size and the divider the pointer drags.
+
+| group | what it tells you |
+|---|---|
+| `workspace.open` | first visit of the Workspace page (fused log panes, dividers, collapsible Services pane) |
+| `workspace.hover_handle` | the pointer moves onto and off a divider: the hover repaint of two border segments (30 ms) |
+| `workspace.drag` | every step of a drag: press, 12 moves, release, for the logs/events divider (vertical) and the services/logs divider (horizontal); the median is one pointer step |
+| `workspace.resize_key` | `alt+r`, five arrow presses, `shift+right`, Enter |
+| `workspace.collapse_click` | click the collapse button (the `◀` on the Services border) and the expand button (`▶`) |
+| `workspace.collapse_key` | `alt+c` twice (collapse, expand) |
+| `workspace.tick` | 3 s idle while the log streams: the cost of the page's `tui.every` refreshes (kind idle, not rated) |
+| `state.plain_goto`, `state.save_restore` | the same round trip, once between two pages that keep nothing (Monitor, Components) and once away from and back to Widgets with `keep_value` on its *User:* input (`share/demo/widgets.xml`); the difference is the cost of the page-state store. The restore step expects the typed value back on screen |
+| `state.reset` | `alt+shift+r` on the Workspace page after a keyboard resize and a collapse |
+| `scrollform.tab` | Tab through every field of the form on the Scrolling page (`scroll_into_view`) |
+| `scrollform.wheel`, `scrollform.pgdn` | wheel over a widget of the form, Page Down |
+| `scrollform.click` | click fields after the form has scrolled |
+
+The steps find panes by title (`Events`, `Logs`), the collapse button by its glyph and fields by their label; if the demo changes them, edit the needles above `_workspace_steps` in `dprof/scenarios.py`. A step whose needle is not on screen is reported as failed and its group is not a measurement. The `micro-benches` for the same code (`resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`) are in `tools/bench/run.sh`.
 
 ## Held keys
 

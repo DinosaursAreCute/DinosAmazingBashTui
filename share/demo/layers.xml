@@ -1,0 +1,49 @@
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd">
+  <script src="layers_callbacks.sh"/>
+
+  <pane id="main" split="v">
+    <pane id="ly_bar" weight="22" title="Layers" border="single" class="panel" hpad="1">
+      <button id="btn_ly_window" text="Window" action="on_ly_window" class="info_button"/>
+      <button id="btn_ly_modal" text="Modal" action="on_ly_modal" class="info_button"/>
+      <button id="btn_ly_popup" text="Popup" action="on_ly_popup" class="info_button"/>
+      <button id="btn_ly_toast" text="Toast" action="on_ly_toast" class="info_button"/>
+      <button id="btn_ly_reset" text="Reset window" action="on_ly_reset" class="danger_button"/>
+      <label id="ly_status" text="Drag the Metrics window by its header; click the ⇱ on a log to float it." class="muted_label"/>
+    </pane>
+    <pane id="ly_logs" split="h" weight="78" border="none">
+      <pane id="log_a" title="Log A" border="single" class="panel" hpad="1" detachable="true" persist="layout" on_detach="on_ly_detached" on_dock="on_ly_docked">
+        <label id="la_1" text="12:00:01 api-gateway  200 GET /health"/>
+        <label id="la_2" text="12:00:02 auth-service token refreshed"/>
+        <label id="la_3" text="12:00:04 orders-svc   queue depth 3"/>
+      </pane>
+      <pane id="log_b" title="Log B" border="single" class="panel" hpad="1" detachable="true" leave="placeholder" persist="layout" on_detach="on_ly_detached" on_dock="on_ly_docked">
+        <label id="lb_1" text="12:00:03 billing-queue retrying (2/5)"/>
+        <label id="lb_2" text="12:00:05 notifier      slow, 840 ms"/>
+        <label id="lb_3" text="12:00:06 cache-redis   hit rate 94 %"/>
+      </pane>
+    </pane>
+  </pane>
+
+  <window id="win_metrics" title="Metrics" anchor="screen" x="48" y="4" width="34" height="9" float="true" closable="true" minimizable="true" fullscreen="true" persist="layout" class="panel" hpad="1">
+    <label id="m_cpu" text="cpu   #####.....  48 %"/>
+    <label id="m_mem" text="mem   #######...  71 %"/>
+    <label id="m_io" text="io    #.........   9 %"/>
+    <button id="m_close" text="Close" action="on_ly_window" class="info_button"/>
+  </window>
+
+  <modal id="dlg_confirm" title="Confirm" x="center" y="center" width="40" height="7" open="false" class="panel" hpad="2" vpad="1">
+    <label id="dlg_text" text="Restart every service?  Tab stays in this box."/>
+    <button id="dlg_ok" text="Restart" action="on_ly_confirm" class="danger_button"/>
+    <button id="dlg_no" text="Cancel" action="on_ly_cancel" class="info_button"/>
+  </modal>
+
+  <popup id="pop_menu" anchor="#btn_ly_popup" x="0" y="below" width="22" height="5" open="false" class="panel">
+    <button id="pop_a" text="First action" action="on_ly_pick" class="nav_link" align="fill"/>
+    <button id="pop_b" text="Second action" action="on_ly_pick" class="nav_link" align="fill"/>
+    <button id="pop_c" text="Third action" action="on_ly_pick" class="nav_link" align="fill"/>
+  </popup>
+
+  <toast id="toast_saved" anchor="screen" x="right" y="bottom" width="26" height="3" timeout="3" open="false" class="panel">
+    <label id="toast_text" text="  ✔ Done"/>
+  </toast>
+</tui>

@@ -27,5 +27,9 @@
   <cmd id="keys.discard"  title="Keybinds: discard unsaved changes" action="tui.bind.discard" group="Keybinds" when="tui.bind.dirty" desc="Reload your keybinds from the saved file"/>
   <cmd id="keys.suspend"  title="Keybinds: turn all keyboard bindings off" action="tui.keys.suspend on" group="Keybinds" desc="Kill-switch: only the chord to turn them back on works"/>
 
+  <cmd id="page.reset"       title="Reset page"       action="tui.action.page_reset"       group="Page" when="tui.page.resettable" desc="Put the kept state of this page (values, selections, collapsed panes, sizes) back to its defaults"/>
+  <cmd id="page.reset_field" title="Reset field"      action="tui.action.page_reset_field" group="Page" desc="Put the focused widget or pane back to its default"/>
+  <cmd id="page.reset_all"   title="Reset all pages"  action="tui.action.page_reset_all"   group="Page" desc="Forget the kept state of every page and reset this one"/>
+
   <cmd id="term.mode"     title="Terminal mode: hand mouse and keyboard to the terminal" action="tui.passthrough on" group="Terminal" desc="Freeze the UI so the terminal can select and copy; the chord returns"/>
 </cmds>

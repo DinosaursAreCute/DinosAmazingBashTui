@@ -17,7 +17,9 @@
 #   version   https://raw.githubusercontent.com/REPO/BRANCH/VERSION      (override: TUI_UPDATE_VERSION_URL)
 #   archive   https://github.com/REPO/archive/refs/heads/BRANCH.tar.gz    (override: TUI_UPDATE_ARCHIVE_URL)
 # Needs curl or wget, and tar. Files are only written after you confirm; the old ones are kept in $TUI_HOME/backups/.
+# requires: tui_sync
 
+declare -F _tui_mkdtemp >/dev/null || source "${BASH_SOURCE[0]%/*}/../tui_tmp.sh"
 declare -g TUI_UPDATE_REPO="${TUI_UPDATE_REPO:-DinosaursAreCute/DinosAmazingBashTui}" TUI_UPDATE_BRANCH="${TUI_UPDATE_BRANCH:-main}"
 declare -g TUI_UPDATE_LATEST="" TUI_UPDATE_ERROR="" TUI_UPDATE_GIT=0 TUI_UPDATE_TIMEOUT="${TUI_UPDATE_TIMEOUT:-15}"
 declare -ga TUI_UPDATE_RESULT=()
@@ -57,7 +59,7 @@ _tui_update.news_since_file() {
 	# shellcheck source=../dapk/version.sh
 	declare -F dapk.version.cmp >/dev/null || source "${BASH_SOURCE[0]%/*}/../dapk/version.sh"
 	local tsv
-	tsv="$(mktemp)" || return 1
+	_tui_mktemp tsv dabt_news || return 1
 	dapk.changelog.news "$file" "$TUI_UPDATE_LATEST" >"$tsv"
 	dapk.news.load "$tsv"
 	rm -f "$tsv"
@@ -70,7 +72,7 @@ _tui_update.news_since_file() {
 # fetches the release's CHANGELOG.md and prints News bullets newer than SINCE ; silent (not an error) when there is none
 _tui_update.news_since() {
 	local since="$1" tmp
-	tmp="$(mktemp)" || return 1
+	_tui_mktemp tmp dabt_changelog || return 1
 	_tui_update.fetch "$(_tui_update.changelog_url)" "$tmp" || {
 		rm -f "$tmp"
 		return 1
@@ -113,7 +115,7 @@ tui.update.check() {
 	local tmp v
 	TUI_UPDATE_LATEST=""
 	TUI_UPDATE_ERROR=""
-	tmp="$(mktemp)" || {
+	_tui_mktemp tmp dabt_check || {
 		TUI_UPDATE_ERROR="cannot create a temporary file"
 		return 2
 	}
@@ -363,7 +365,7 @@ tui.update.cli() {
 		_tui_update.cli_help
 		return 0
 	}; done
-	exec 3<"${TUI_UPDATE_TTY:-/dev/tty}" 2>/dev/null || exec 3</dev/null
+	{ exec 3<"${TUI_UPDATE_TTY:-/dev/tty}"; } 2>/dev/null || exec 3</dev/null
 	while (($#)); do
 		case "$1" in
 			--check) check=1 ;; --path)
@@ -382,7 +384,7 @@ tui.update.cli() {
 		esac
 		shift
 	done
-	tmp="$(mktemp -d)" || return 1
+	_tui_mkdtemp tmp dabt_update || return 1
 	trap '[[ -n "$TUI_UPDATE_LOCAL_WORK" ]] && rm -rf "$TUI_UPDATE_LOCAL_WORK"; rm -rf "$tmp"' RETURN
 	if [[ -n "$path" ]]; then
 		printf 'DABT %s installed. Using local %s: %s\n' "$TUI_VERSION" "$([[ -d "$path" ]] && echo folder || echo file)" "$path"
@@ -546,7 +548,7 @@ tui.action.update_check() {
 tui.action.update() {
 	tui.notify "Downloading ..." info 3
 	_tui_update.cleanup
-	_TUI_UPDATE_TMP="$(mktemp -d)"
+	_tui_mkdtemp _TUI_UPDATE_TMP dabt_update
 	if ! tui.update.download "$_TUI_UPDATE_TMP"; then
 		tui.notify "Update failed: $TUI_UPDATE_ERROR" error 8
 		_tui_update.cleanup

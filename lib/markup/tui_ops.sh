@@ -19,6 +19,7 @@
 # (tui_compose.sh) and addons (tui_addon.sh) are built from these. Selectors
 # are #id, .class, tag (combinable: tag#id.a.b), space = descendant, `>` = child.
 # Everything is fork-free; results come back in globals (_N, _OP_NODES).
+# requires:
 
 declare -gA _OP_PARAMS=() # name -> value for tui_ops.subst
 declare -ga _OP_NODES=()  # tui_ops.select result

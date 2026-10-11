@@ -14,9 +14,13 @@
 #                                layout do it; _TUI_HZ_DIRTY marks it stale)
 #   _tui_hit.extra_add KIND ID ARG ROW COL H W   register a divider/handle/chevron/title zone (kept across rebuilds)
 #   tui.hit.set ID hit_pad|hitbox VALUE          per-widget hit area
+#   _tui_hit.hover               after _tui_hit.at: tracks the hovered resize handle / divider / collapse button zone in
+#                                _TUI_HZ_HOVER ("PANE|ARG", kept while a resize drag runs) and repaints just that segment
+#   _tui_hit.overlay [PANE]      appends the collapse button(s) and the hovered segment; runs after _tui_frame.junctions
 #
 # Scrollbars: the bar is drawn 1 cell wide, its zone is 3 columns wide (the bar +-1, clamped to the pane); the
 # horizontal bar's zone is 3 rows high. The vertical zone wins the shared corner.
+# requires:
 
 declare -gA _TUI_W_HITPAD=() _TUI_W_HITBOX=() # id -> "N" or "V H" cells; id -> "dy dx h w" relative to the widget origin
 declare -ga _TUI_HZ_C0=() _TUI_HZ_C1=()
@@ -26,6 +30,7 @@ declare -ga _TUI_HZ_EXTRA=() # registered extra zones, _TUI_HZ_EXTRA_FIELDS fiel
 declare -gi _TUI_HZ_EXTRA_FIELDS=7
 declare -g _TUI_HZ_N=0 _TUI_HZ_DIRTY=1
 declare -gA _TUI_HZ_WR=() _TUI_HZ_WC=() _TUI_HZ_WW=() # widget id -> unclipped row / col / width (read by tui.action.focus_dir); labels without a hit area are absent
+declare -g _TUI_HZ_HOVER=""                           # "PANE|ARG" of the hovered rz-* / cv-* zone, "" when none
 declare -g _HIT="" _HIT_KIND="" _HIT_ID="" _HIT_ARG="" _HIT_PANE=""
 declare -g _HR=0 _HC=0 _HH=0 _HW=0 # _tui_hit.clip result
 
@@ -52,12 +57,14 @@ _tui_hit.extra_add() {
 	_TUI_HZ_DIRTY=1
 }
 
+# _tui_hit.extra_clear - clears the registered extra zones (divider, handle, chevron, title).
 _tui_hit.extra_clear() {
 	_TUI_HZ_EXTRA=()
 	_TUI_HZ_DIRTY=1
 }
 
 # _tui_hit.clip ROW COL H W PANE - intersect a rect with PANE's rect -> _HR _HC _HH _HW (_HH/_HW 0 if disjoint)
+# state:direct
 _tui_hit.clip() {
 	local r0=$1 c0=$2 r1=$(($1 + $3)) c1=$(($2 + $4)) pane=$5
 	local pr=${_TUI_P_ROW[$pane]} pc=${_TUI_P_COL[$pane]}
@@ -71,7 +78,38 @@ _tui_hit.clip() {
 	return 0
 }
 
-# the bar is drawn 1 cell wide; its zone is 3 wide (3 high for the horizontal bar), clamped to the pane
+# _tui_hit.clip_content ROW COL H W PANE - for scrolling panes, clip to content rect
+# (inside border/padding), not the outer rect. For non-scrolling panes, same as clip.
+# state:direct
+_tui_hit.clip_content() {
+	local pane=$5
+	local scroll="${_TUI_P_SCROLL[$pane]:-none}"
+	# Only use content clipping for scrolling panes; others use regular clip
+	if [[ "$scroll" != "v" && "$scroll" != "both" ]]; then
+		_tui_hit.clip "$@"
+		return
+	fi
+
+	local r0=$1 c0=$2 r1=$(($1 + $3)) c1=$(($2 + $4))
+	# Get pane's content rect (inside border/padding)
+	_tui._inset "$pane"
+	local pr=$((${_TUI_P_ROW[$pane]} + _IV))
+	local pc=$((${_TUI_P_COL[$pane]} + _IH))
+	local r1_max=$((pr + ${_TUI_P_H[$pane]} - 2 * _IV))
+	local c1_max=$((pc + ${_TUI_P_W[$pane]} - 2 * _IH))
+
+	((r0 < pr)) && r0=$pr
+	((c0 < pc)) && c0=$pc
+	((r1 > r1_max)) && r1=$r1_max
+	((c1 > c1_max)) && c1=$c1_max
+	_HR=$r0 _HC=$c0 _HH=$((r1 - r0)) _HW=$((c1 - c0))
+	((_HH < 0)) && _HH=0
+	((_HW < 0)) && _HW=0
+	return 0
+}
+
+# _tui_hit.zones_scrollbars - registers scrollbar zones for every scrollable leaf pane.
+# state:direct
 _tui_hit.zones_scrollbars() {
 	local p mode pr pc ph pw
 	for p in "${_TUI_P_ALL[@]}"; do
@@ -85,7 +123,8 @@ _tui_hit.zones_scrollbars() {
 	done
 }
 
-# a pane title sits on the top border row after the corner and one rule cell (mirrors _tui._draw_pane_buf)
+# _tui_hit.zones_titles - registers title text zones for panes with titles.
+# state:direct
 _tui_hit.zones_titles() {
 	local p title max_t
 	for p in "${_TUI_P_ALL[@]}"; do
@@ -100,14 +139,20 @@ _tui_hit.zones_titles() {
 	done
 }
 
+# _tui_hit.zones_extras [cv] - registers extra zones (divider/handle/chevron/title); cv=collapse buttons only.
 _tui_hit.zones_extras() {
-	local i n=$_TUI_HZ_EXTRA_FIELDS
+	local i n=$_TUI_HZ_EXTRA_FIELDS want=0 is
+	[[ "${1:-}" == cv ]] && want=1
 	for ((i = 0; i < ${#_TUI_HZ_EXTRA[@]}; i += n)); do
+		is=0
+		[[ "${_TUI_HZ_EXTRA[i + 2]}" == cv-* ]] && is=1
+		((is == want)) || continue
 		_tui_hit.add "${_TUI_HZ_EXTRA[@]:i:n}"
 	done
 }
 
-# a widget's exact rect, then (ranked below every exact rect) its padded hit area
+# _tui_hit.zones_widgets - registers widget zones (exact rect, then padded hit areas).
+# state:direct
 _tui_hit.zones_widgets() {
 	local id p hp hb vp hw dy dx hh reuse=$_TUI_WP_REUSE
 	local -a pads=()
@@ -115,11 +160,12 @@ _tui_hit.zones_widgets() {
 	for id in "${_TUI_W_ORDER[@]}"; do
 		p="${_TUI_W_PANE[$id]:-}"
 		[[ -n "$p" ]] && ((${_TUI_P_H[$p]:-0} > 0)) || continue
+		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue # in a collapsed pane
 		hp="${_TUI_W_HITPAD[$id]:-}" hb="${_TUI_W_HITBOX[$id]:-}"
 		[[ "${_TUI_W_TYPE[$id]}" == label && -z "$hp" && -z "$hb" ]] && continue
 		_tui._widget_pos "$id"
 		_TUI_HZ_WR[$id]=$_WSR _TUI_HZ_WC[$id]=$_WSC _TUI_HZ_WW[$id]=$_WSW
-		_tui_hit.clip "$_WSR" "$_WSC" "$_WSH" "$_WSW" "$p"
+		_tui_hit.clip_content "$_WSR" "$_WSC" "$_WSH" "$_WSW" "$p"
 		_tui_hit.add widget "$id" "" "$_HR" "$_HC" "$_HH" "$_HW"
 		if [[ -n "$hb" ]]; then
 			read -r dy dx hh hw <<<"$hb"
@@ -137,7 +183,8 @@ _tui_hit.zones_widgets() {
 	done
 }
 
-# the fallback: every leaf pane's whole rect
+# _tui_hit.zones_panes - registers fallback pane zones (whole rect of every leaf pane).
+# state:direct
 _tui_hit.zones_panes() {
 	local p
 	for p in "${_TUI_P_ALL[@]}"; do
@@ -145,17 +192,21 @@ _tui_hit.zones_panes() {
 	done
 }
 
-# rebuild the whole index from the current layout; zones are added in rank order (earlier = wins)
+# _tui_hit.rebuild - rebuilds the whole hit index from the current layout (zones added in priority order).
 _tui_hit.rebuild() {
 	_tui_perf.begin hit_index
 	_TUI_HZ_ROW=() _TUI_HZ_C0=() _TUI_HZ_C1=() _TUI_HZ_KIND=() _TUI_HZ_ID=() _TUI_HZ_ARG=()
-	_TUI_HZ_N=0 _TUI_HZ_DIRTY=0
+	_TUI_HZ_N=0 _TUI_HZ_DIRTY=$((1 - _TUI_CACHES)) # caches off: never trusted, rebuilt on every lookup
 	_TUI_HZ_WR=() _TUI_HZ_WC=() _TUI_HZ_WW=()
 	_tui_hit.zones_scrollbars
+	_tui_collapse.zones      # chevron zones (registered into the extras)
+	_tui_hit.zones_extras cv # the button's second cell sits on the border's divider zone and must win it
+	_tui_resize.zones        # handle / divider zones follow the layout
+	_tui_hit.zones_extras    # before the titles
 	_tui_hit.zones_titles
-	_tui_hit.zones_extras
 	_tui_hit.zones_widgets
 	_tui_hit.zones_panes
+	((_TUI_L_N || ${#_TUI_P_DETACHABLE[@]})) && _tui_layer.zones # a layer's zones outrank the page's (tui_layer.sh)
 	_tui_perf.end hit_index
 }
 
@@ -179,17 +230,21 @@ _tui_hit.at() {
 }
 
 # _tui_hit.scrollbar_jump PANE v|h COL ROW - scroll PANE so the pointer's position on the bar becomes the offset
+# state:direct
 _tui_hit.scrollbar_jump() {
-	local p="$1"
+	local p="$1" total
+	_SC_OLD=${_TUI_P_SOFF_V[$p]:-0}
 	if [[ "$2" == v ]]; then
-		_TUI_P_SOFF_V[$p]=$((($4 - _TUI_P_ROW[$p]) * ${_TUI_P_LINES[$p]:-1} / _TUI_P_H[$p]))
+		if _tui_scroll.is_output "$p"; then total=${_TUI_P_LINES[$p]:-1}; else total=${_TUI_P_CONTENT_H[$p]:-1}; fi # tui.output lines, or the widgets' rows
+		_ps.panes.set "$p" soff_v "$((($4 - _TUI_P_ROW[$p]) * total / _TUI_P_H[$p]))"
 	else
-		_TUI_P_SOFF_H[$p]=$((($3 - _TUI_P_COL[$p]) * ${_TUI_P_MAX_W[$p]:-1} / _TUI_P_W[$p]))
+		_ps.panes.set "$p" soff_h "$((($3 - _TUI_P_COL[$p]) * ${_TUI_P_MAX_W[$p]:-1} / _TUI_P_W[$p]))"
 	fi
-	_tui._queue_render "$p"
+	_tui_scroll.apply "$p"
 }
 
 # tui.hit.set ID hit_pad|hitbox VALUE - widen the area that counts as a hit on widget ID
+# state:direct
 tui.hit.set() {
 	case "$2" in
 		hit_pad) _TUI_W_HITPAD[$1]="$3" ;;
@@ -200,4 +255,65 @@ tui.hit.set() {
 			;;
 	esac
 	_TUI_HZ_DIRTY=1
+}
+
+# ── zone hover ────────────────────────────────────────────────────────────
+
+# _tui_hit.class_sgr CLASS HOVER PANE [COLLAPSED] -> _SGR: the look of theme class CLASS (COLLAPSED=1: its :collapsed rule, HOVER=1: its
+# :hover rule, each over the base class, field by field), the background falling back to PANE's. rc 1 when the theme defines neither.
+_tui_hit.class_sgr() {
+	local k="$1" fg bg mo
+	fg="${_TUI_CLASS_FG[$k]:-}" bg="${_TUI_CLASS_BG[$k]:-}" mo="${_TUI_CLASS_MOD[$k]:-}"
+	if ((${4:-0})); then # :collapsed over the base, :hover over both
+		fg="${_TUI_CLASS_FG[${k}_collapsed]:-$fg}" bg="${_TUI_CLASS_BG[${k}_collapsed]:-$bg}" mo="${_TUI_CLASS_MOD[${k}_collapsed]:-$mo}"
+	fi
+	if (($2)); then
+		fg="${_TUI_CLASS_FG[${k}_hover]:-$fg}" bg="${_TUI_CLASS_BG[${k}_hover]:-$bg}" mo="${_TUI_CLASS_MOD[${k}_hover]:-$mo}"
+	fi
+	[[ -n "$fg$bg$mo" ]] || return 1
+	_tui._sgr_from "$fg" "${bg:-${_TUI_STYLE_BG[${3}_normal]:-}}" "$mo"
+}
+
+# _tui_hit.key_buf KEY - appends the repaint of zone KEY ("PANE|ARG") in its current (hovered or not) look
+_tui_hit.key_buf() {
+	case "${1#*|}" in
+		cv-*) _tui_collapse.button_buf "${1%%|*}" ;;
+		rz-*) _tui_resize.seg_buf "${1%%|*}" "${1#*|}" ;;
+	esac
+}
+
+# _tui_hit.hover - the hovered zone follows the pointer; while a resize drag runs it stays the dragged border. A change
+# repaints only the two segments (the old one at rest, the new one hovered), through one flush.
+_tui_hit.hover() {
+	local new=""
+	if [[ "$_HIT_ARG" == @(rz-*|cv-*) ]]; then
+		new="$_HIT_ID|$_HIT_ARG"
+	elif [[ -n "$_TUI_RZ_ID" ]]; then new="$_TUI_RZ_ID|$_TUI_RZ_ARG"; fi
+	[[ "$new" == "$_TUI_HZ_HOVER" ]] && return 0
+	local old="$_TUI_HZ_HOVER" saved="$_TUI_FRAME"
+	_TUI_HZ_HOVER="$new"
+	((_TUI_RUNNING)) || return 0
+	_TUI_FRAME=""
+	((_TUI_HZ_DIRTY)) && _tui_hit.rebuild
+	[[ -n "$old" ]] && _tui_hit.key_buf "$old"
+	_tui_frame.junctions # a fused border's shared cells are the frame's to draw: back to their own look
+	[[ -n "$new" ]] && _tui_hit.key_buf "$new"
+	local buf="$_TUI_FRAME"
+	_TUI_FRAME="$saved"
+	[[ -n "$buf" ]] && _tui_paint.flush "$buf"
+	return 0
+}
+
+# _tui_hit.overlay [PANE] - appends what is drawn over the frame: the collapse button of PANE (of every pane without
+# one) and the hovered segment. A no-op on a page with neither.
+# state:direct
+_tui_hit.overlay() {
+	local p
+	if ((${#_TUI_P_COLLAPSIBLE[@]})); then
+		if [[ -n "${1:-}" ]]; then
+			[[ -n "${_TUI_P_COLLAPSIBLE[$1]:-}" ]] && _tui_collapse.button_buf "$1"
+		else for p in "${_TUI_P_ALL[@]}"; do [[ -n "${_TUI_P_COLLAPSIBLE[$p]:-}" ]] && _tui_collapse.button_buf "$p"; done; fi
+	fi
+	[[ -n "$_TUI_HZ_HOVER" ]] && _tui_hit.key_buf "$_TUI_HZ_HOVER"
+	return 0
 }

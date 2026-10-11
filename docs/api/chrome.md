@@ -43,24 +43,30 @@ The command bar (default `ctrl+p` or `:`) lists registered commands and runs one
 
 <!-- /api -->
 
-## Modal and overlay
+## Modal and function layers
 
-An overlay is a draw function called after every repaint, so it stays on top. A modal is an overlay that also captures all input.
+A function layer is a draw function in the layer stack (`lib/chrome/tui_layer.sh`): it is appended to every repaint of the page, so it stays on top. A modal is a function layer that also captures all input.
 
-<!-- api: tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.close tui.modal.dismiss tui.modal.active tui.modal.redraw -->
+<!-- api: tui.layer.fn_add tui.layer.fn_remove tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.close tui.modal.dismiss tui.modal.active tui.modal.redraw -->
 
 | Function | Summary |
 |---|---|
-| [`tui.overlay.add`](chrome/tui.overlay.add.md) | Registers a function that draws on top of the panes after every repaint. |
-| [`tui.overlay.remove`](chrome/tui.overlay.remove.md) | Unregisters an overlay. |
+| [`tui.layer.fn_add`](chrome/tui.layer.fn_add.md) | Adds a function layer to the layer stack: a layer drawn by a function instead of a pane tree. |
+| [`tui.layer.fn_remove`](chrome/tui.layer.fn_remove.md) | Removes a function layer. |
+| [`tui.overlay.add`](chrome/tui.overlay.add.md) | Adds a function layer that draws on top of the panes after every repaint (an alias of [`tui.layer.fn_add`](/api/chrome/tui.layer.fn_add.html) that a plugin owns). |
+| [`tui.overlay.remove`](chrome/tui.overlay.remove.md) | Removes a function layer (an alias of [`tui.layer.fn_remove`](/api/chrome/tui.layer.fn_remove.html)). |
 | [`tui.overlay.box`](chrome/tui.overlay.box.md) | Draws a framed box at an absolute position. Meant for overlay and modal draw functions. |
-| [`tui.modal.open`](chrome/tui.modal.open.md) | Opens a modal: an overlay that receives all input until it is closed. |
+| [`tui.modal.open`](chrome/tui.modal.open.md) | Opens a modal: a function layer that receives all input until it is closed. |
 | [`tui.modal.close`](chrome/tui.modal.close.md) | Closes the open modal and repaints the screen under it. |
 | [`tui.modal.dismiss`](chrome/tui.modal.dismiss.md) | Closes the open modal without running anything, replaying the saved page frame when it still matches the screen. |
 | [`tui.modal.active`](chrome/tui.modal.active.md) | Returns `0` while a modal is open (or, with `NAME`, while that modal is open). |
-| [`tui.modal.redraw`](chrome/tui.modal.redraw.md) | Redraws all overlays now. Call it after changing the state a modal draws. |
+| [`tui.modal.redraw`](chrome/tui.modal.redraw.md) | Redraws the layer stack now. Call it after changing the state a modal draws. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative chrome/tui.layer.fn_add.md %}
+
+{% include_relative chrome/tui.layer.fn_remove.md %}
 
 {% include_relative chrome/tui.overlay.add.md %}
 
@@ -155,6 +161,63 @@ Common flags: `--title T`, `--width N`, `--ok LABEL`, `--yes LABEL`, `--no LABEL
 {% include_relative chrome/tui.footer.add.md %}
 
 {% include_relative chrome/tui.footer.hide.md %}
+
+</div>
+
+<!-- /api -->
+
+## Layers
+
+Layers are panes that float above the page as overlays. They have independent rectangles and can be shown, hidden, moved, resized, zoomed, and minimized. A modal layer captures all input (focus scope, Tab, clicks and keys) until it closes. Layers are created from markup tags `<window>`, `<modal>`, `<dialog>`, `<popup>`, `<tooltip>`, `<contextmenu>`, `<toast>`, with attributes `x y width height anchor=screen|parent|#id float shadow closable fullscreen minimizable modal open timeout persist=layout`. Panes can be detached from splits and floated as layers (`detachable dock_group leave on_detach on_dock persist=layout`).
+
+<!-- api: tui.layer.show tui.layer.hide tui.layer.close tui.layer.toggle tui.layer.raise tui.layer.move tui.layer.size tui.layer.reset tui.layer.zoom tui.layer.minimize tui.layer.active tui.layer.top tui.layer.detach tui.layer.dock -->
+
+| Function | Summary |
+|---|---|
+| [`tui.layer.show`](chrome/tui.layer.show.md) | Shows a hidden layer on top, restoring it to visibility. A modal layer takes the focus scope and remembers the focused widget; a layer with a timeout attribute hides itself after the specified seconds. |
+| [`tui.layer.hide`](chrome/tui.layer.hide.md) | Hides a visible layer, removing it from display. A modal layer gives the focus back to the widget that had focus before the layer opened. |
+| [`tui.layer.close`](chrome/tui.layer.close.md) | Alias for [`tui.layer.hide`](tui.layer.hide.md). Hides a visible layer. |
+| [`tui.layer.toggle`](chrome/tui.layer.toggle.md) | Shows a hidden layer or hides a visible layer. |
+| [`tui.layer.raise`](chrome/tui.layer.raise.md) | Makes a layer the topmost visible layer and repaints the screen. A click inside a layer or focus moving into it raises it automatically. |
+| [`tui.layer.move`](chrome/tui.layer.move.md) | Moves the layer's top-left corner to the specified position on the screen (1-based cells), clamped to keep the layer inside the screen. After moving, the layer stays where it was put; the layout does not re-place it on the next repaint. |
+| [`tui.layer.size`](chrome/tui.layer.size.md) | Sets the layer's size in cells. The minimum is 3 rows by 8 columns; the maximum is the screen size. The position is adjusted if needed to keep the layer inside the screen. |
+| [`tui.layer.reset`](chrome/tui.layer.reset.md) | Resets the layer to the position and size specified in the markup. Clears any manual moves, resizes, zoom state, and minimize state. |
+| [`tui.layer.zoom`](chrome/tui.layer.zoom.md) | Toggles the layer between its normal size and filling the entire screen. |
+| [`tui.layer.minimize`](chrome/tui.layer.minimize.md) | Toggles the layer between its normal display and a collapsed one-row title bar. |
+| [`tui.layer.active`](chrome/tui.layer.active.md) | Returns `0` while any layer is shown, or while a specific layer is shown. |
+| [`tui.layer.top`](chrome/tui.layer.top.md) | Gets the id of the topmost visible layer. The result is printed or stored in a variable; returns `1` when no layer is visible. |
+| [`tui.layer.detach`](chrome/tui.layer.detach.md) | Detaches a pane from its horizontal or vertical split, converting it into a floating layer that appears as a window on top of the page. The siblings of the detached pane take the freed space. Runs the `on_detach` callback if defined. |
+| [`tui.layer.dock`](chrome/tui.layer.dock.md) | Docks a floating pane back into its original split, restoring it to its previous position and size spec. If `PANE` is given, docks the pane as the last child of that split pane instead. Runs the `on_dock` callback if defined. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative chrome/tui.layer.show.md %}
+
+{% include_relative chrome/tui.layer.hide.md %}
+
+{% include_relative chrome/tui.layer.close.md %}
+
+{% include_relative chrome/tui.layer.toggle.md %}
+
+{% include_relative chrome/tui.layer.raise.md %}
+
+{% include_relative chrome/tui.layer.move.md %}
+
+{% include_relative chrome/tui.layer.size.md %}
+
+{% include_relative chrome/tui.layer.reset.md %}
+
+{% include_relative chrome/tui.layer.zoom.md %}
+
+{% include_relative chrome/tui.layer.minimize.md %}
+
+{% include_relative chrome/tui.layer.active.md %}
+
+{% include_relative chrome/tui.layer.top.md %}
+
+{% include_relative chrome/tui.layer.detach.md %}
+
+{% include_relative chrome/tui.layer.dock.md %}
 
 </div>
 

@@ -45,11 +45,6 @@
   mods: bold;
 }
 
-.muted_label {
-  fg: #888888;
-}
-
-
 .panel {
   fg: #c9d6e3;
   bg: #1c2336;
@@ -65,6 +60,11 @@
 .panel:focus {
   fg: #ffffff;
   bg: #2c3e50;
+}
+
+.muted_label {
+  fg: #c9d6e3;
+  bg: #1f233a;
 }
 
 .sidebar {
@@ -85,10 +85,12 @@
 }
 
 .hdr {
-  fg: #dbe4ff;
-  bg: #3c3e49;
+  fg: #ff5bef;
+  bg: #1a1c2c;
 }
-
+.hdr:border{
+  fg: #ff5bef;
+}
 .hdr_title {
   fg: #ff5bef;
   bg: #1a1c2c;
@@ -166,6 +168,28 @@
   mods: bold;
 }
 
+.home_tag {
+  fg: #c9d6e3;
+  bg: #1f233a;
+}
+
+.home_badge {
+  fg: black;
+  bg: #d69e2e;
+  mods: bold;
+}
+
+.home_new {
+  fg: white;
+  bg: #2b6cb0;
+  mods: bold;
+}
+
+.home_news {
+  fg: #ed61c8;
+  mods: bold;
+}
+
 /* <tabs> header buttons - see docs/guide/markup.md. .tab_header is the
  * default framed style (each header a bordered pane.hover shows an
  * about-to-click state). .tab_header_compact is for <tabs style="compact">
@@ -182,6 +206,10 @@
 }
 .tab_header:focus {
   fg: #ffffff;
+  bg: #2f3557;
+}
+.tab_header:selected {
+  fg: #ffffff;
   bg: #4c6ef5;
   mods: bold;
 }
@@ -195,6 +223,10 @@
   bg: #2f3557;
 }
 .tab_header_compact:focus {
+  fg: #ffffff;
+  bg: #2f3557;
+}
+.tab_header_compact:selected {
   fg: #ffffff;
   bg: #4c6ef5;
   mods: bold;
@@ -296,3 +328,41 @@
 .table_head    { fg: #9fb0c9; mods: bold underline; }
 .progress      { fg: #4a5068; }
 .progress_fill { fg: #33cc66; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #61afef;
+}
+.resize_handle:hover {
+  fg: #c9d6e3;
+  mods: bold;
+}
+.collapse_button {
+  fg: #61afef;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #1c2336;
+  bg: #61afef;
+  mods: bold;
+}
+
+.layer_button {
+  fg: #61afef;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #1c2336;
+  bg: #61afef;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #c9d6e3;
+}
+
+.collapse_button:collapsed {
+  fg: #1c2336;
+  bg: #de61ef;
+  mods: bold;
+}

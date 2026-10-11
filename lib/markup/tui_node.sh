@@ -16,6 +16,7 @@
 # is a new, independent tree the future tokenizer/builder (1.1/1.2) will
 # populate - the engine keeps its own _TUI_P_*/_TUI_W_* arrays untouched for
 # now, so this module has no effect until something starts calling it.
+# requires:
 
 declare -gi _N_NEXT=0    # next node number to hand out
 declare -ga _N_TYPE=()   # node -> type ("pane", "label", "button", ...)

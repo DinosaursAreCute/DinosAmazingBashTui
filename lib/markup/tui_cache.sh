@@ -29,14 +29,17 @@
 # bottom of the callback file, not inside on_visit. Skipping that on a
 # cache hit silently drops it. Re-declaring already-identical functions is
 # cheap; only the markup parse+build is what's actually worth caching.
+# requires: tui_style
 
-declare -gA _TUI_CACHE_PAGE=()     # resolved page path -> declare -p snapshot of its built engine state
-declare -gA _TUI_CACHE_SIG=()      # resolved page path -> "dep=mtime dep=mtime ..." signature
-declare -gA _TUI_CACHE_SCRIPTS=()  # resolved page path -> space-joined <script src> paths, re-sourced on every replay
-declare -gA _TUI_CACHE_ON_VISIT=() # resolved page path -> on_visit function name, rerun on every replay
-declare -gA _TUI_CACHE_GOTOS=()    # resolved page path -> newline-joined "_tui_cache_define_goto ..." calls
-declare -gA _TUI_CACHE_THEME=()    # resolved page path -> its <theme src> file, reloaded on every replay
-declare -gA _TUI_CACHE_CLASSES=()  # resolved page path -> newline-joined "id\tclass" pairs, re-applied on every replay
+declare -gA _TUI_CACHE_PAGE=()                           # resolved page path -> declare -p snapshot of its built engine state
+declare -gA _TUI_CACHE_SIG=()                            # resolved page path -> "dep=mtime dep=mtime ..." signature
+declare -gA _TUI_CACHE_SCRIPTS=()                        # resolved page path -> space-joined <script src> paths, re-sourced on every replay
+declare -gA _TUI_CACHE_ON_VISIT=()                       # resolved page path -> on_visit function name, rerun on every replay
+declare -gA _TUI_CACHE_GOTOS=()                          # resolved page path -> newline-joined "_tui_cache_define_goto ..." calls
+declare -gA _TUI_CACHE_THEME=()                          # resolved page path -> its <theme src> file, reloaded on every replay
+declare -gA _TUI_CACHE_CLASSES=()                        # resolved page path -> newline-joined "id\tclass" pairs, re-applied on every replay
+declare -gA _TUI_CACHE_SHELL=()                          # resolved page path -> canonical path of its shell ("" for a page without one; unset = not recorded)
+declare -gA _TUI_CACHE_PAGEUNDO=() _TUI_CACHE_PAGEGEO=() # shell page: scalar-restoring script / outlet "row col h w"; its _TUI_CACHE_PAGE is a delta over the shell
 # Theme overlay the page's baked _TUI_STYLE_* were built under. The _TUI_STYLE_ prefix puts it in the page
 # snapshot (see _TUI_CACHE_STATE_REGEX), so a replay reads back the record-time value: equal to the current
 # overlay means the restored styles are already current and the per-widget tui.class re-bake can be skipped.
@@ -57,7 +60,7 @@ declare -ga _TUI_CACHE_REC_CLASSES=()
 # match (compgen, fork-free... `<()` itself forks once per record, same as
 # every other one-shot build-time cost this stage already pays) so a new
 # widget's own `_TUI_W_*`/`_WX*`/`_TX*` array is covered automatically.
-declare -g _TUI_CACHE_STATE_REGEX='^(_TUI_P_|_TUI_W_|_TUI_PANE_CONTENT$|_TUI_PANE_FOCUS$|_TUI_PANE_LAST_WIDGET$|_TUI_FACTORY_|_TUI_TABS_|_TUI_TAB_|_TUI_FOCUSABLE$|_TUI_FOCUS_ID$|_TUI_FOCUS_IDX$|_TUI_CURSOR$|_TUI_HOVERED_|_TUI_PENDING_OUTPUT$|_TUI_RENDER_TIMEOUT$|_TUI_TICK_FN$|_TUI_ON_RESIZE_FN$|_TUI_ON_INPUT_EVENT$|_TUI_ON_KEY_EVENT$|_TUI_STYLE_|_TUI_FOOTER_|_WX|_TX)'
+declare -g _TUI_CACHE_STATE_REGEX='^(_TUI_P_|_TUI_W_|_TUI_PANE_CONTENT$|_TUI_PANE_FOCUS$|_TUI_PANE_LAST_WIDGET$|_TUI_FACTORY_|_TUI_TABS_|_TUI_TAB_|_TUI_FOCUSABLE$|_TUI_FOCUS_ID$|_TUI_FOCUS_IDX$|_TUI_CURSOR$|_TUI_HOVERED_|_TUI_PENDING_OUTPUT$|_TUI_RENDER_TIMEOUT$|_TUI_TICK_FN$|_TUI_ON_RESIZE_FN$|_TUI_ON_INPUT_EVENT$|_TUI_ON_KEY_EVENT$|_TUI_STYLE_|_TUI_FOOTER_|_TUI_SHELL_|_TUI_OUTLET|_TUI_L_|_WX|_TX)'
 
 # _tui_cache_snapshot -> stdout : a `declare -p` dump of every currently
 # live variable tui.reset_ui/_tui_wx.reset would clear - the built page's
@@ -142,7 +145,7 @@ _tui_cache_theme_stamp() { # FILE -> sets _TS to a fresh stamp path (creates the
 
 _tui.theme_load_file() {
 	local file="$1" cls fg bg mods out=""
-	if [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || [[ ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; }; then
+	if ((_TUI_CACHES)) && [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || [[ ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; }; then
 		tui.log.debug "_tui.theme_load_file: memo HIT for $file, re-applying from memory"
 		# fd 7, not stdin: tui.load_theme runs mid-build (from a <theme> tag
 		# handler); keep fd 0 free for the tty the same way tui.cache.replay's
@@ -225,6 +228,25 @@ _tui_cache_class() {
 	local id="$1" cls="$2"
 	[[ -n "$cls" ]] && _TUI_CACHE_REC_CLASSES+=("$id"$'\t'"$cls")
 	tui.class "$id" "$cls"
+}
+
+# _tui_cache_select_active_tabs FILE - after a restore, flags exactly each tabs group's active tab as selected.
+# A snapshot recorded before tui.select existed (or under the bug that left sibling flags set) cannot be trusted
+# for the flags, but always carries _TUI_TABS_ACTIVE.
+_tui_cache_select_active_tabs() {
+	local file="$1" tab_id group_id selected=""
+	tui.log.debug "tui.cache.replay: '$file': ${#_TUI_TAB_GROUP[@]} tab(s) in ${#_TUI_TABS_ACTIVE[@]} group(s), rebuilding selected flags"
+	for tab_id in "${!_TUI_TAB_GROUP[@]}"; do unset '_TUI_W_SELECTED[$tab_id]'; done
+	for group_id in "${!_TUI_TABS_ACTIVE[@]}"; do
+		tab_id="${_TUI_TABS_ACTIVE[$group_id]}"
+		if [[ -z "${_TUI_TAB_GROUP[$tab_id]:-}" ]]; then
+			tui.log.warn "tui.cache.replay: '$file': group '$group_id' names active tab '$tab_id', which is in no group; not selected"
+			continue
+		fi
+		_TUI_W_SELECTED[$tab_id]=1
+		selected+=" $tab_id"
+	done
+	tui.log.debug "tui.cache.replay: '$file': selected tabs:${selected:- <none>}"
 }
 
 # Runs a page's on_visit, if it has one - the function body itself runs
@@ -364,15 +386,37 @@ tui.cache.deps_of() {
 # hit, see tui.cache.replay), plus a signature covering FILE and every
 # <include> it pulled in.
 tui.cache.record() {
-	local file="$1" _rec_join
+	local file="$1" _rec_join _rec_shell=""
 	tui.log.debug "tui.cache.record: building $file fresh (cache miss)"
+	_tui_shell.scan "$file" 1
+	_rec_shell="$_SH_OF"
+	if [[ -n "$_rec_shell" ]]; then # a page of a shell: the shell is live first, the page is recorded as a delta over it
+		_tui_shell.ensure "$_rec_shell" 1 || return 1
+		_tui_shell.leave_page # what an earlier page left in the outlet
+		_tui_shell.base_capture
+		_SHL_RECORD=1
+	fi
 	_TUI_CACHE_REC_SCRIPTS=()
 	_TUI_CACHE_REC_GOTOS=()
 	_TUI_CACHE_REC_THEME=""
 	_TUI_CACHE_REC_CLASSES=()
-	tui.load "$file" || return 1 # a worker (1.4) checks this: no snapshot, page falls back to an uncached load
+	tui.load "$file" || {
+		_SHL_RECORD=0
+		return 1 # a worker (1.4) checks this: no snapshot, page falls back to an uncached load
+	}
+	_SHL_RECORD=0
 	_TUI_STYLE_SIG="${_TUI_THEME_OVERLAY:-}"
-	_TUI_CACHE_PAGE["$file"]="$(_tui_cache_snapshot)"
+	_TUI_CACHE_SHELL["$file"]="$_rec_shell"
+	if [[ -n "$_rec_shell" ]]; then # _SH_APPLY / _SH_UNDO: the delta tui.load took before on_visit
+		printf -v _rec_join '_TUI_STYLE_SIG=%q\n' "$_TUI_STYLE_SIG"
+		_TUI_CACHE_PAGE["$file"]="${_SH_APPLY}${_rec_join}"
+		_TUI_CACHE_PAGEUNDO["$file"]="$_SH_UNDO"
+		_tui_shell.geometry
+		_TUI_CACHE_PAGEGEO["$file"]="$_SH_GEO"
+		_tui_shell.drop_base
+	else
+		_TUI_CACHE_PAGE["$file"]="$(_tui_cache_snapshot)"
+	fi
 	_TUI_CACHE_SCRIPTS["$file"]="${_TUI_CACHE_REC_SCRIPTS[*]}"
 	_TUI_CACHE_ON_VISIT["$file"]="${_TUI_BUILD_ON_VISIT:-}"
 	printf -v _rec_join '%s\n' "${_TUI_CACHE_REC_GOTOS[@]}"
@@ -387,6 +431,11 @@ tui.cache.record() {
 	local -a deps=()
 	tui.cache.deps_of "$file" deps
 	tui_addon.deps deps
+	tui_plugin.deps deps
+	if [[ -n "$_rec_shell" ]]; then # changing the shell invalidates every page that uses it
+		tui.cache.deps_of "$_rec_shell" deps
+		tui_addon.deps deps
+	fi
 	_TUI_CACHE_SIG["$file"]="$(tui.cache.signature "${deps[@]}")"
 }
 
@@ -395,7 +444,7 @@ tui.cache.record() {
 tui.cache.forget() {
 	unset '_TUI_CACHE_PAGE[$1]' '_TUI_CACHE_SIG[$1]' '_TUI_CACHE_SCRIPTS[$1]' \
 		'_TUI_CACHE_ON_VISIT[$1]' '_TUI_CACHE_GOTOS[$1]' '_TUI_CACHE_THEME[$1]' \
-		'_TUI_CACHE_CLASSES[$1]'
+		'_TUI_CACHE_CLASSES[$1]' '_TUI_CACHE_SHELL[$1]' '_TUI_CACHE_PAGEUNDO[$1]' '_TUI_CACHE_PAGEGEO[$1]'
 }
 
 # 1 once tui.start_cached has validated and warmed every page: source files are then assumed not to change while the
@@ -410,6 +459,7 @@ declare -gi TUI_CACHE_TRUST="${TUI_CACHE_TRUST:-1}"
 # then, i.e. neither the page nor anything it includes has changed since.
 # Once the cache is trusted (_TUI_CACHE_TRUSTED) a recorded page is simply valid: no stat.
 tui.cache.valid() {
+	((_TUI_CACHES)) || return 1
 	local file="$1"
 	local sig="${_TUI_CACHE_SIG[$file]:-}"
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" && -n "$sig" ]] || return 1
@@ -446,14 +496,27 @@ tui.cache.valid() {
 # every pane/widget array, then scripts, nav buttons and on_visit rerun
 # fresh (see tui.cache.record's doc comment for why those three stay live).
 tui.cache.replay() {
-	local file="$1" rec
+	local file="$1" rec shell="${_TUI_CACHE_SHELL[$1]:-}"
 	[[ -n "${_TUI_CACHE_PAGE[$file]:-}" ]] || return 1
 	tui.log.debug "tui.cache.replay: replaying $file from snapshot (cache hit)"
+	if [[ -n "$shell" ]]; then
+		_tui_shell.ensure "$shell" 1 || return 1
+		_tui_shell.leave_page
+	fi
 	_TUI_STYLE_SIG="?" # a snapshot recorded before the signature existed leaves it at "?": never equal, so it re-bakes
 	_TUI_SNAP_SIZE=""  # a snapshot from an earlier version does not set it
-	_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
-	_TUI_RC_EPOCH+=1 # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
-	_tui.layout_bump # the layout memo belongs to the previous page (see _tui_cache_relayout)
+	_TUI_W_SELECTED=() # likewise lacks the array: must not keep the previous page's selected tabs
+	if [[ -n "$shell" ]]; then
+		_tui_shell.apply "$file"
+	else
+		_tui_cache_restore "${_TUI_CACHE_PAGE[$file]}"
+		# a fresh build reaches on_visit with no focus and no hover (tui.goto and the app put them back afterwards); the
+		# snapshot carries the recording's, so an on_visit that reads the focus would see a different page
+		_TUI_FOCUS_ID="" _TUI_FOCUS_IDX=-1 _TUI_CURSOR=0 _TUI_PANE_FOCUS="" _TUI_HOVERED_PANE="" _TUI_HOVERED_WIDGET=""
+	fi
+	_tui_cache_select_active_tabs "$file"
+	_tui.epoch_bump style  # the restore replaced the style tables; the epoch is not in the snapshot (it only ever grows)
+	_tui.epoch_bump layout # the layout memo belongs to the previous page (see _tui_cache_relayout)
 	local _ly_gen=$_TUI_LY_GEN
 	# Re-applies the page's <theme> plus whatever app-wide overlay is
 	# currently set (tui.load_theme itself layers _TUI_THEME_OVERLAY on top,
@@ -478,16 +541,25 @@ tui.cache.replay() {
 		local _rc_id _rc_cls
 		# fd 6, not stdin: kept free for the tty on the same principle as this
 		# file's other stdin-bound while-read loops (fd 7/8/9 above).
+		# two passes: clear every recorded id first (an id may carry several classes that merge), then bake
+		while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
+			[[ -z "$_rc_id" ]] && continue
+			_tui.style_clear "$_rc_id"
+		done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
 		while IFS=$'\t' read -r -u 6 _rc_id _rc_cls; do
 			[[ -z "$_rc_id" ]] && continue
 			tui.class "$_rc_id" "$_rc_cls"
 		done 6<<<"${_TUI_CACHE_CLASSES[$file]:-}"
 	fi
-	# _TUI_OVERLAY_FNS (lib/chrome/tui_modal.sh) isn't page state, so it isn't in the
+	# _TUI_FL_ORDER (lib/chrome/tui_layer.sh) isn't page state, so it isn't in the
 	# snapshot: tui.reset_ui's _tui_footer.reset always removes _tui_footer.draw from it,
 	# and restoring _TUI_FOOTER_ON=1 alone wouldn't re-add it without this.
-	((_TUI_FOOTER_ON)) && tui.overlay.add _tui_footer.draw
-	local s
+	[[ -z "$shell" ]] && ((_TUI_FOOTER_ON)) && tui.layer.fn_add _tui_footer.draw ambient
+	# a recorded script's exec controls came back with the snapshot, but the instance they belonged to is gone: the re-sourced script starts a new one
+	local s ns live=" ${_EXEC_NS[*]} "
+	for ns in "${!_TUI_FACTORY_IDS[@]}"; do
+		[[ "$ns" == exec_* && "$live" != *" $ns "* ]] && tui.factory.clear "$ns"
+	done
 	for s in ${_TUI_CACHE_SCRIPTS[$file]:-}; do _tui_cache_source "$s"; done
 	# the goto/on_visit calls come in on fd 9, not stdin: they must see the terminal on stdin - with them on
 	# stdin, `stty size` failed and a tui.goto from on_visit laid out at 80x24
@@ -498,12 +570,22 @@ tui.cache.replay() {
 	# The restored geometry was laid out at the size the page was recorded at. When the terminal and the footer still
 	# match and nothing the scripts did changed a layout input (every layout setter bumps _TUI_LY_GEN), it is already
 	# right: no relayout (the memo was invalidated above, so a later layout still recomputes everything).
-	if [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON" ]] && ((_TUI_LY_GEN == _ly_gen)); then
+	if [[ -n "$shell" ]]; then # the page's panes were laid out in the outlet's rectangle of the recording
+		_tui_shell.geometry
+		if [[ "$_SH_GEO" == "${_TUI_CACHE_PAGEGEO[$file]:-}" ]] && ((_TUI_LY_GEN == _ly_gen)); then
+			_tui_perf.count relayout_skipped
+		else
+			_tui.epoch_bump layout
+			_tui._layout "$_TUI_OUTLET"
+		fi
+		((_TUI_L_N)) && _tui_layer.layout # the recorded rectangles of the layers belong to the recording's screen
+	elif [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON" ]] && ((_TUI_LY_GEN == _ly_gen)); then
 		_tui_perf.count relayout_skipped
 	else
 		_tui_cache_relayout
 	fi
 	_tui_cache_run_on_visit "${_TUI_CACHE_ON_VISIT[$file]:-}"
+	[[ -n "$shell" ]] && _tui_shell.sync_page_ids # on_visit may have added widgets
 	return 0
 }
 
@@ -557,6 +639,9 @@ tui.cache.dump_dir() {
 		printf '%s' "${_TUI_CACHE_GOTOS[$key]:-}" >"$dir/${fname}.gotos"
 		printf '%s' "${_TUI_CACHE_THEME[$key]:-}" >"$dir/${fname}.theme"
 		printf '%s' "${_TUI_CACHE_CLASSES[$key]:-}" >"$dir/${fname}.classes"
+		printf '%s' "${_TUI_CACHE_SHELL[$key]:-}" >"$dir/${fname}.shell"
+		printf '%s' "${_TUI_CACHE_PAGEUNDO[$key]:-}" >"$dir/${fname}.pageundo"
+		printf '%s' "${_TUI_CACHE_PAGEGEO[$key]:-}" >"$dir/${fname}.pagegeo"
 	done
 }
 
@@ -587,6 +672,12 @@ tui.cache.load_dir() {
 		_TUI_CACHE_THEME["$key"]="$_SLURP"
 		_tui_cache_slurp "${f%.key}.classes"
 		_TUI_CACHE_CLASSES["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.shell"
+		_TUI_CACHE_SHELL["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.pageundo"
+		_TUI_CACHE_PAGEUNDO["$key"]="$_SLURP"
+		_tui_cache_slurp "${f%.key}.pagegeo"
+		_TUI_CACHE_PAGEGEO["$key"]="$_SLURP"
 		keys+=("$key")
 	done
 	((${#keys[@]})) || return 0
@@ -625,14 +716,17 @@ tui.cache.fname() { printf '%s' "${1//\//_}"; }
 # tui.cache.dump_dir's five, for stage 1.4's per-page worker pool.
 tui.cache.encode() {
 	local file="$1" sep=$'\x1e'
-	printf '%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+	printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
 		"${_TUI_CACHE_SIG[$file]:-}" "$sep" \
 		"${_TUI_CACHE_PAGE[$file]:-}" "$sep" \
 		"${_TUI_CACHE_SCRIPTS[$file]:-}" "$sep" \
 		"${_TUI_CACHE_ON_VISIT[$file]:-}" "$sep" \
 		"${_TUI_CACHE_GOTOS[$file]:-}" "$sep" \
 		"${_TUI_CACHE_THEME[$file]:-}" "$sep" \
-		"${_TUI_CACHE_CLASSES[$file]:-}"
+		"${_TUI_CACHE_CLASSES[$file]:-}" "$sep" \
+		"${_TUI_CACHE_SHELL[$file]:-}" "$sep" \
+		"${_TUI_CACHE_PAGEGEO[$file]:-}" "$sep" \
+		"${_TUI_CACHE_PAGEUNDO[$file]:-}"
 }
 
 # tui.cache.decode FILE BLOB - installs BLOB (from tui.cache.encode) as
@@ -651,6 +745,9 @@ tui.cache.decode() {
 	_TUI_CACHE_GOTOS[$file]="${parts[4]:-}"
 	_TUI_CACHE_THEME[$file]="${parts[5]:-}"
 	_TUI_CACHE_CLASSES[$file]="${parts[6]:-}"
+	_TUI_CACHE_SHELL[$file]="${parts[7]:-}"
+	_TUI_CACHE_PAGEGEO[$file]="${parts[8]:-}"
+	_TUI_CACHE_PAGEUNDO[$file]="${parts[9]:-}"
 }
 
 _tui_cache_now_us() { printf '%s' "${EPOCHREALTIME//[^0-9]/}"; }
@@ -670,7 +767,7 @@ tui.cache.warm_with_spinner() {
 	((${#_tcw_pages[@]} > 0)) || return 0
 
 	local _tcw_root _tcw_cache_dir _tcw_fifo
-	_tcw_root="$(mktemp -d "${TMPDIR:-/tmp}/tui_cache_warm.XXXXXX")" || return 1
+	_tui_mkdtemp _tcw_root tui_cache_warm || return 1
 	_tcw_cache_dir="$_tcw_root/cache"
 	_tcw_fifo="$_tcw_root/progress.fifo"
 	mkdir -p "$_tcw_cache_dir"
@@ -689,6 +786,9 @@ tui.cache.warm_with_spinner() {
 		if [[ "$_tcw_dp" == */* ]]; then _tcw_dtheme="${_tcw_dp%/*}/theme.css"; else _tcw_dtheme="./theme.css"; fi
 		[[ -r "$_tcw_dtheme" ]] && tui.load_theme "$_tcw_dtheme" >/dev/null 2>&1
 	done
+
+	# shells first: built once here, replayed by every worker (a splash-less moment of one shell build per app shell)
+	_tui_shell.warm "${_tcw_pages[@]}"
 
 	# One background subshell per stale page (a worker has no side effects
 	# outside its own snapshot file - build is headless and sources no
@@ -712,6 +812,9 @@ tui.cache.warm_with_spinner() {
 		exec </dev/null
 		exec 6>"$_tcw_fifo"
 		exec 1>/dev/null 2>"$_tcw_root/worker.$BASHPID.stderr.log"
+		# a worker that dies without reporting (an error aborting the build) would leave the parent waiting forever
+		trap 'tui.log.error "cache worker $BASHPID: died while recording $_tcw_page without reporting, reporting FAILED"; printf "FAILED %s\n" "$_tcw_page" >&6' EXIT
+		tui.log.debug "cache worker $BASHPID: recording $_tcw_page"
 		tui.init
 		tui.reset_ui
 		if tui.cache.record "$_tcw_page"; then
@@ -720,10 +823,13 @@ tui.cache.warm_with_spinner() {
 			_tcw_tmp="$_tcw_cache_dir/${_tcw_fn}.snap.tmp.$BASHPID"
 			tui.cache.encode "$_tcw_page" >"$_tcw_tmp"
 			mv -f "$_tcw_tmp" "$_tcw_cache_dir/${_tcw_fn}.snap"
+			tui.log.debug "cache worker $BASHPID: $_tcw_page recorded, snapshot at $_tcw_cache_dir/${_tcw_fn}.snap"
 			printf 'DONE %s\n' "$_tcw_page" >&6
 		else
+			tui.log.warn "cache worker $BASHPID: tui.cache.record failed for $_tcw_page"
 			printf 'FAILED %s\n' "$_tcw_page" >&6
 		fi
+		trap - EXIT
 		exec 6>&-
 		_master_cleanup 2>/dev/null
 	}
@@ -892,14 +998,15 @@ tui.start_cached() {
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$dir/themes" ]] && TUI_THEMES_DIR="$dir/themes"
 	[[ -z "${TUI_THEMES_DIR:-}" && -d "$TUI_DEFAULTS_DIR/themes" ]] && TUI_THEMES_DIR="$TUI_DEFAULTS_DIR/themes"
 	local -a pages=()
-	while IFS= read -r f; do
-		[[ "${f##*/}" == _* ]] && continue
-		pages+=("$f")
-	done < <(find "$dir" -maxdepth 1 -name '*.xml' | sort)
-	while IFS= read -r f; do
-		[[ "${f##*/}" == _* ]] && continue
-		pages+=("$f")
-	done < <(find "$TUI_DEFAULTS_DIR/pages" -maxdepth 1 -name '*.xml' 2>/dev/null | sort)
+	local f
+	if [[ -n "$dir" ]]; then
+		for f in "$dir"/*.xml; do # globs expand sorted
+			[[ -f "$f" && "${f##*/}" != _* ]] && pages+=("$f")
+		done
+	fi
+	for f in "$TUI_DEFAULTS_DIR/pages"/*.xml; do
+		[[ -f "$f" && "${f##*/}" != _* ]] && pages+=("$f")
+	done
 
 	# every page is checked up front (all of them are reachable), before the terminal is taken over
 	_tui_validate.gate "${pages[@]}" || return 1
@@ -930,6 +1037,8 @@ tui.start_cached() {
 		_master_cleanup
 		return 1
 	fi
+	_tui_store.restore_page
+	_tui_store.enter_focus
 	_tui_validate.notify
 	tui.run
 }

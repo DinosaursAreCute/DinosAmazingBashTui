@@ -21,7 +21,7 @@ _TUI_P_COL[root]=1
 _TUI_P_H[root]=$ROWS
 _TUI_P_W[root]=$COLS
 mkdir -p "$out"
-tui.load "$pdir/home.xml" >/dev/null 2>&1
+tui.load "$pdir/components.xml" >/dev/null 2>&1
 _TUI_RUNNING=1
 _TUI_ROWS=$ROWS
 _TUI_COLS=$COLS

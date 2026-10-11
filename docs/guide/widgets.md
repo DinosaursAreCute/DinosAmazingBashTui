@@ -42,6 +42,7 @@ Notes:
 - Shift+click is reserved by most terminals for their own selection, so select with drag or `shift`+keys.
 - Pasting into a single-line widget turns newlines into spaces; a textarea keeps them.
 - Long lines scroll sideways (no soft wrap yet, see the roadmap). The textarea shows a scroll indicator in its last column.
+- `<textarea mode="markdown">` styles the source as Markdown while you type (headings, emphasis, code, links, quotes, lists, fences). Only the styling changes; text, columns, cursor and selection behave as usual. `mode="plain"` (the default) turns it off, and `tui.text.mode ID markdown|plain` does the same from code.
 - Bindings you make with `tui.bind` win over the editor except on the keys the editor consumes; use `--always` to take a key from it.
 
 Programmatic access: `tui.text.selection ID`, `tui.text.select ID START END`, `tui.text.select_all ID`, `tui.text.cursor ID` (`ROW COL`, 1-based), `tui.text.set_cursor ID OFFSET`, `tui.text.insert ID TEXT`, `tui.text.delete_selection ID`, `tui.text.undo|redo ID`, `tui.text.line_count ID`, and `tui.on_change ID FN` (runs after every edit).
@@ -60,13 +61,13 @@ One row: `Label  [ value ▾ ]`. Enter, space, Down or a click opens a picker (a
 
 ## Theming
 
-`.selection` (selected text), `.list_sel`, `.table_sel`, `.table_head`, `.progress`, `.progress_fill`, `.field_label` (the label in front of an input, password, select or progress bar; `.field_label:focus` while that widget has focus; it sets the text colour and mods, the background comes from the pane unless the class sets one - without the class the label uses the pane's colours in bold), plus the usual `class=` / `:focus` / `:hover` on the widget itself. All have built-in fallbacks.
+`.selection` (selected text), `.list_sel`, `.table_sel`, `.table_head`, `.table_warn` and `.table_hot` (cells coloured by `tui.table.heat`), `.progress`, `.progress_fill`, `.field_label` (the label in front of an input, password, select or progress bar; `.field_label:focus` while that widget has focus; it sets the text colour and mods, the background comes from the pane unless the class sets one - without the class the label uses the pane's colours in bold), plus the usual `class=` / `:focus` / `:hover` on the widget itself. All have built-in fallbacks.
 
 ## Roadmap
 
 Planned, not built:
 
-- **Markdown.** A `mode="markdown"` on `<textarea>`: syntax highlighting while you type plus an optional live preview, and a read-only `<markdown>` widget that renders a document (the Docs page currently shows raw markdown). The editor is already shaped for it: every visible line is painted through one function (`_tui_text.paint`) that takes a slice of text, a selection range and a cursor column, so a per-widget highlighter (`tui.text.highlighter ID FN`, where `FN LINE` returns `START LEN STYLE` spans) plugs in without touching cursor, selection or undo. The preview would reuse the terminal renderers (`banner` for headings, `list`, `quote`, `box` for code blocks, `table`).
+- **Markdown preview.** A live preview beside a textarea. Highlighting while typing (`mode="markdown"`) and the read-only document view (`<markdown pane="ID" src="FILE"/>`) are built; the preview of the text being edited is not. It would reuse the same renderer as the document view.
 - **Soft wrap** and line numbers for the textarea.
 - **Find / replace** (`ctrl+f`) as a small overlay on the modal layer.
 - **Tab / indent** handling and multi-line indent for code-like text.

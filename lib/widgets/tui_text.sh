@@ -22,16 +22,17 @@
 #   tui.text.insert ID TEXT          replace the selection / insert at the cursor  tui.text.delete_selection ID
 #   tui.text.undo ID | tui.text.redo ID     tui.text.line_count ID
 #   tui.on_change ID FN              FN ID runs after every edit
+#   tui.text.mode ID markdown|plain  <textarea mode="markdown">: the source is styled as Markdown while you type (lib/markdown);
+#                                    characters, columns, cursor and selection are unchanged, only the SGR differs
 #
-# EXTENSION POINT (planned): syntax-aware editing, e.g. Markdown. The draw path paints a visible line at a time
-# through _tui_text.paint (a window of text plus a selection range and a cursor column); a per-widget highlighter
-# (tui.text.highlighter ID FN, FN LINE -> a list of "START LEN STYLE" spans) would slot in there without touching the
-# editor state, and a `mode="markdown"` on <textarea> could switch it on together with a preview (see
-# docs/guide/widgets.md, "Roadmap"). Nothing in the engine assumes plain text beyond that one function.
+# The draw path paints a visible line at a time. With mode markdown the line is styled by tui.md.style_lines (memoized per
+# line, code-fence state from the lines above) and cut to the visible columns by _tui_text.paint_md.
+# requires:
 
 declare -gA _TXC=() _TXA=() _TXS=() _TXT=() _TXW=() _TXH=()       # cursor, anchor(-1), hscroll, top row, wanted column, rows shown
 declare -gA _TXUV=() _TXUC=() _TXUN=() _TXRV=() _TXRC=() _TXRN=() _TXLK=() _TXLP=()   # undo / redo
 declare -gA _TUI_W_CHANGE=() _TUI_W_MASK=() _TXF=()               # _TXF: 1 = keep the cursor in view on the next draw (0 after a wheel scroll)
+declare -gA _TXMD=()                                              # id -> 1: the textarea styles its source as Markdown
 declare -g  TUI_CLIPBOARD=""
 declare -g  _TX_CLICK_T=0 _TX_CLICK_ID="" _TX_CLICK_POS=-1 _TX_CLICK_N=0 _TX_DRAG=""
 
@@ -158,7 +159,7 @@ _tui_text.changed() {
 _tui_text.replace() {
     local id="$1" a="$2" b="$3" t="$4" kind="${5:-edit}" v="${_TUI_W_VALUE[$1]}"
     _tui_text.undo_push "$id" "$kind"
-    _TUI_W_VALUE[$id]="${v:0:a}${t}${v:b}"
+    _ps.widgets.set "$id" value "${v:0:a}${t}${v:b}"
     _TXC[$id]=$(( a + ${#t} )); _TXA[$id]=-1; _TXW[$id]=-1
     _TXLP[$id]=${_TXC[$id]}
     _tui_text.changed "$id"
@@ -196,6 +197,7 @@ tui.text.cursor()     { _tui_text.rc "$1" "${_TXC[$1]:-0}"; printf '%s %s\n' $((
 tui.text.line_count() { _tui_text.line_count "$1"; printf '%s\n' "$_LC"; }
 tui.on_change()       { _TUI_W_CHANGE[$1]="$2"; }
 
+# state:direct
 _tui_text.redraw() { _TXF[$1]=1; [[ -n "${_TUI_W_PANE[$1]:-}" ]] && (( _TUI_RUNNING )) && _tui._draw_widget "$1"; return 0; }
 
 # clipboard: internal + terminal (OSC 52)
@@ -467,7 +469,45 @@ _tui_text.paint_v() {
 }
 _tui_text.paint() { _tui_text.paint_v "$@"; _tui.emit "$_PV"; }
 
+# _tui_text.paint_md ROW LEFT FW SELA SELB CURCOL BASE_SGR -> _PV : one Markdown-styled line, cut to the visible columns,
+# with the selection / cursor cell drawn plain over it. The widget style is restored after every reset in the row.
+_tui_text.paint_md() {
+	local row=$1 left=$2 fw=$3 a=$4 b=$5 cur=$6 base=$7 act="" w head tail mid cell plain
+	local reset=$'\e[0m'
+	_tui_md.slice "$row" "$left" "$fw"
+	w=$_SL
+	if (( a >= 0 && b > a )); then
+		_tui_text.sel_style
+		_tui_md.cut "$w" "$a"; head=$_CH tail=$_CT
+		_tui_md.track "$head"
+		_tui_md.cut "$tail" $(( b - a )); mid=$_CH tail=$_CT
+		_tui_md.track "$mid"
+		tui.md.strip "$mid" plain
+		w="${head}${reset}${_TX_SGR_SEL}${plain}${reset}${act}${tail}"
+	elif (( cur >= 0 && cur < fw )); then
+		_tui_md.cut "$w" "$cur"; head=$_CH tail=$_CT
+		_tui_md.track "$head"
+		_tui_md.cut "$tail" 1; cell=$_CH tail=$_CT
+		_tui_md.track "$cell"
+		tui.md.strip "$cell" plain
+		w="${head}${reset}"$'\e[7m'"${plain}"$'\e[27m'"${act}${tail}"
+	fi
+	_PV=${w//"$reset"/"$reset$base"}
+}
+
+# tui.text.mode ID markdown|plain - styles a textarea's source as Markdown, or back to plain (rc 1 for other widgets).
+tui.text.mode() {
+	[[ "${_TUI_W_TYPE[$1]:-}" == textarea ]] || return 1
+	case "$2" in
+		markdown) _TXMD[$1]=1 ;;
+		plain | "") unset '_TXMD[$1]' ;;
+		*) return 1 ;;
+	esac
+	_tui_text.redraw "$1"
+}
+
 # single-line input / password
+# state:direct
 _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
     local id="$1" sr="$2" sc="$3" sw="$4" focused="$5" style_key="$6" pane_key="$7"
     local prefix="${_TUI_W_LABEL[$id]:-}" value="${_TUI_W_VALUE[$id]}" placeholder="${_TUI_W_PH[$id]:-}" plen=0 fw
@@ -511,6 +551,7 @@ _tui_text.draw_line() {   # ID SR SC SW FOCUSED STYLE_KEY PANE_KEY
 }
 
 # multi-line textarea: fills its rows, scrolls, highlights the selection, shows the cursor
+# state:direct
 _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
     local id="$1" sr="$2" sc="$3" sw="$4" sh="$5" focused="$6" style_key="$7" pane_key="$8"
     local fw=$sw i
@@ -540,7 +581,14 @@ _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
 
     _tui.emit_style "$style_key" "$pane_key"
     _tui._style_v "$style_key" "$pane_key"; local base="$_SGR"
-    local sa=-1 sb=-1 hasel=0
+    local sa=-1 sb=-1 hasel=0 md=${_TXMD[$id]:-0}
+    local -a MDR=()
+    if (( md )); then
+        local fence
+        tui.md.fence_before "$v" "$top" fence
+        tui.md.style_lines "$fence" "${VL[@]}"
+        MDR=("${TUI_MD_ROWS[@]}")
+    fi
     _tui_text.sel "$id" && { hasel=1; sa=$_SA; sb=$_SB; }
     local placeholder="${_TUI_W_PH[$id]:-}"
     for (( i = 0; i < sh; i++ )); do
@@ -555,7 +603,11 @@ _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
             fi
             (( focused && ! hasel && top + i == crow )) && cc=$(( ccol - left ))
             (( focused )) || { a=-1; cc=-1; }
-            _tui_text.paint "${t:left:fw}" "$a" "$b" "$cc" "$fw" "$base"
+            if (( md )); then
+                _tui_text.paint_md "${MDR[i]}" "$left" "$fw" "$a" "$b" "$cc" "$base"; _tui.emit "$_PV"
+            else
+                _tui_text.paint "${t:left:fw}" "$a" "$b" "$cc" "$fw" "$base"
+            fi
         elif (( i == 0 && ${#v} == 0 && ! focused )) && [[ -n "$placeholder" ]]; then
             _tui.emit_sgr 2; _tui_text.padc "$placeholder" "$fw"; _tui.emit "$_PADC"; _tui.emit_reset; _tui.emit_style "$style_key" "$pane_key"
         else

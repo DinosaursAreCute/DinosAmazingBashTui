@@ -3,7 +3,7 @@ import textwrap
 
 from . import term
 from .term import c, pad, vlen, bar, spark, fmt_ms, fmt_bytes, fmt_num, panel, LAYER_COLOR, RATING_COLOR
-from .analyze import LAYERS, LAYER_ORDER, layer_of
+from .analyze import LAYERS, LAYER_ORDER, layer_of, NOISY_CORES
 from .insights import short_path
 
 SHORT = {"input": "Input", "loop": "Loop", "focus": "Focus", "scroll": "Scroll", "markup": "Markup", "cache": "Cache",
@@ -87,6 +87,10 @@ def verdict(rep, W):
                        min(1.0, f / 20), w))
     else:
         t.append(None)
+    home = lat.get("home.render", {}).get("idle")
+    if home:
+        t.append(_tile("HOME ANIMATION", f"{home['cpu_pct']:.0f}% cpu", f"{home['bytes_per_s'] / 1024:.0f} KB/s · {home['rss_mb']:.0f} MB · {home['procs']} procs",
+                       "green" if home["cpu_pct"] < 50 else "yellow" if home["cpu_pct"] < 100 else "red", min(1.0, home["cpu_pct"] / 100), w))
     t = [x for x in t if x]
     rows = max(len(x) for x in t) if t else 0
     return [(" " * gap).join(pad(x[i], w) for x in t) for i in range(rows)]
@@ -259,6 +263,57 @@ def call_graph(rep, W, n=14):
         lb = layer_of(e["to"], rep["attr"]["files"].get(e["to"], ""))
         lines.append(f"{pad(c(e['from'], LAYER_COLOR.get(la, 'text')), 34)}{c('▶', 'faint')} {pad(c(e['to'], LAYER_COLOR.get(lb, 'text')), 34)}"
                      f"{pad(c(fmt_ms(e['ms']), 'white'), 9, 'r')}")
+    return lines
+
+
+def machine_block(rep, W):
+    """Specs of the machine (no names) and how loaded it was while each unit ran."""
+    m = rep.get("machine")
+    if not m:
+        return []
+    cpu = f"{m['cpu_model'] or 'unknown CPU'} · {m['logical_cpus']} threads" + (f" / {m['physical_cores']} cores" if m.get("physical_cores") else "")
+    if m.get("cpu_max_mhz"):
+        cpu += f" · up to {m['cpu_max_mhz']} MHz"
+    lines = [c(f"machine {m['id']}", "dim") + "  " + c(cpu, "white"),
+             c("  " + " · ".join(str(x) for x in (f"{m['ram_gb']} GB RAM" if m.get("ram_gb") else None, m.get("distro"), f"kernel {m['kernel']}",
+                                               m.get("virtualization"), f"governor {m['cpu_governor']}" if m.get("cpu_governor") else None,
+                                               f"tmp on {m['tmp_fs']}" if m.get("tmp_fs") else None, f"bash {m['bash']}" if m.get("bash") else None,
+                                               f"python {m['python']}") if x), "dim")]
+    res = rep.get("resources") or []
+    if res:
+        lines.append("")
+        lines.append(pad(c("unit", "dim"), 16) + pad(c("wall", "dim"), 8, "r") + pad(c("app cpu", "dim"), 9, "r") + pad(c("app rss", "dim"), 9, "r")
+                     + pad(c("machine cpu", "dim"), 13, "r") + pad(c("other", "dim"), 11, "r") + pad(c("MHz", "dim"), 8, "r") + pad(c("mem max", "dim"), 10, "r"))
+        for u in res:
+            oc = u.get("other_cores")
+            col = "red" if oc is not None and u.get("jobs", 1) == 1 and oc >= 0.5 else "text"
+            f = lambda k, fmt: fmt % u[k] if u.get(k) is not None else "–"
+            lines.append(pad(c(u["unit"], "white"), 16) + pad(c(f("wall_s", "%.1f s"), "text"), 8, "r")
+                         + pad(c(f"{u['app_cores'] * 100:.0f}%" if u.get("app_cores") is not None else "–", "text"), 9, "r")
+                         + pad(c(f("app_rss_mb_max", "%.0f MB"), "text"), 9, "r")
+                         + pad(c(f("sys_cpu_pct_mean", "%.0f%%"), "text"), 13, "r")
+                         + pad(c(f"{oc:.1f} core" if oc is not None else "–", col), 11, "r")
+                         + pad(c(f("freq_mhz_mean", "%.0f"), "text"), 8, "r") + pad(c(f("mem_used_mb_max", "%.0f MB"), "text"), 10, "r"))
+        if res[0].get("jobs", 1) > 1:
+            lines.append(c(f"  {res[0]['jobs']} units ran side by side: the machine columns include the other units.", "yellow"))
+    return lines
+
+
+def setup_block(rep, W):
+    """What it costs to reach each unit's start state. Not part of any measured group above."""
+    rows = rep.get("setup") or []
+    if not rows:
+        return []
+    lines = [c("getting from the default page to where each test begins (profiled, but not counted in the results above)", "dim"),
+             pad(c("unit", "dim"), 16) + pad(c("steps", "dim"), 7, "r") + pad(c("start app", "dim"), 11, "r") + pad(c("total", "dim"), 10, "r") + "  " + c("slowest step", "dim")]
+    for u in rows:
+        st = [x for x in u["steps"][1:] if x["ms"] is not None]
+        slow = max(st, key=lambda x: x["ms"]) if st else None
+        lines.append(pad(c(u["unit"], "white"), 16) + pad(c(str(len(u["steps"]) - 1), "text"), 7, "r")
+                     + pad(c(fmt_ms(u["start_ms"]) if u.get("start_ms") is not None else "–", "text"), 11, "r")
+                     + pad(c(fmt_ms(u["total_ms"]), "white"), 10, "r") + "  "
+                     + (c(f"{slow['detail']} {fmt_ms(slow['ms'])}", "dim") if slow else "")
+                     + (c(f"  {u['failed']} step(s) failed", "red") if u.get("failed") else ""))
     return lines
 
 
@@ -481,6 +536,9 @@ def compare_block(rep, W):
     if not cmp_ or not cmp_["rows"]:
         return []
     lines = [c(f"against {cmp_.get('commit') or 'previous run'} ({cmp_.get('when') or ''})", "dim")]
+    for which, n in (("this run", cmp_.get("new_noise")), ("the earlier run", cmp_.get("old_noise"))):
+        if n is not None and n >= NOISY_CORES:
+            lines.append(c(f"  {which} ran while ~{n:.1f} cores were busy with other work: its timings are inflated, so the changes below may be noise", "yellow"))
     for r in cmp_["rows"]:
         d = r["delta_pct"]
         big = abs(r["new"] - r["old"]) >= 2.0          # sub-2 ms moves are jitter, not change
@@ -504,6 +562,14 @@ def render(rep, W=None, deep=True):
     out += panel("HOW WORK FLOWS", flows(rep, W - 4), W, "blue")
     out.append("")
     out += panel("FINDINGS", findings(rep, W - 4), W, "orange", f"{len(rep['insights'])} total")
+    mb = machine_block(rep, W - 4)
+    if mb:
+        out.append("")
+        out += panel("MACHINE & RESOURCES", mb, W, "dim", "specs only, no host or user names")
+    sb = setup_block(rep, W - 4)
+    if sb:
+        out.append("")
+        out += panel("SETUP", sb, W, "dim", "getting to the start state")
     cb = compare_block(rep, W - 4)
     if cb:
         out.append("")

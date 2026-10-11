@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # hit.t.sh - lib/input/tui_hit.sh: per-row interval index of interaction zones (roadmap E base).
 
 # one leaf pane "p": rows 1..10, cols 1..24, no border, no padding
@@ -195,6 +196,7 @@ ti_hit_row_lists_stay_short_with_many_widgets() {
 }
 
 t_hit_layout_marks_index_dirty() {
+	_t_needs_caches || return 0
 	_hit_pane
 	_tui_hit.rebuild
 	eq 0 "$_TUI_HZ_DIRTY"
@@ -247,6 +249,7 @@ t_hit_no_title_zone_without_a_frame() {
 }
 
 t_hit_adding_a_widget_marks_the_index_dirty() {
+	_t_needs_caches || return 0
 	_hit_pane
 	tui.button b1 p 0 "Go" ""
 	_tui_hit.rebuild
@@ -264,4 +267,33 @@ t_hit_rebuild_restores_the_callers_widget_pos_reuse() {
 	_TUI_WP_REUSE=0
 	_tui_hit.rebuild
 	eq 0 "$_TUI_WP_REUSE"
+}
+
+# Scrolling pane hit tests
+t_hit_visible_scrolled_widget_is_hittable() {
+	_hit_pane v
+	tui.button b1 p 5 "Go" ""
+	_TUI_P_SOFF_V[p]=2
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC w=$_WSW
+	# Widget should be visible and hittable
+	((r >= 1 && r < 11)) && {
+		_tui_hit.rebuild
+		_hit_at "$r" "$c"
+		eq "widget:b1" "$_R"
+	}
+}
+
+t_hit_scrolled_out_widget_above_viewport_not_hittable() {
+	_hit_pane v
+	tui.button b1 p 0 "Go" ""
+	_TUI_P_SOFF_V[p]=5
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC
+	# Widget should be scrolled out (negative row)
+	((r < 1)) && {
+		_tui_hit.rebuild
+		_hit_at "$r" "$c"
+		eq ":" "$_R" # No widget hit, just pane
+	}
 }

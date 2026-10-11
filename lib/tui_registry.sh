@@ -25,6 +25,7 @@
 # registry's KIND/NAME/FN triples. Wiring an actual plugin's on_disable to
 # also call _tui_registry.unregister_plugin is for whichever stage next
 # touches tui_plugin.sh.
+# requires:
 
 declare -gA _TUI_REGISTRY=()        # "KIND:NAME" -> space-joined FN list, registration order
 declare -gA _TUI_REGISTRY_OWNER=()  # "KIND:NAME:FN" -> owning plugin name
@@ -37,10 +38,13 @@ tui.register() {
 	local kind="$1" name="$2"
 	shift 2
 	local key="$kind:$name" fn
+	[[ "$kind" == widget ]] && _tui_widget.bind "$name" "$@"
 	for fn in "$@"; do
+		[[ "$fn" == - ]] && continue
 		_TUI_REGISTRY[$key]="${_TUI_REGISTRY[$key]:+${_TUI_REGISTRY[$key]} }$fn"
 		[[ -n "$_TUI_REGISTRY_CURRENT_PLUGIN" ]] && _tui_registry.own "$_TUI_REGISTRY_CURRENT_PLUGIN" "$kind" "$name" "$fn"
 	done
+	return 0
 }
 
 # tui.registered KIND NAME -> $_TUI_REGISTERED - the space-joined handler
@@ -79,6 +83,7 @@ _tui_registry.unregister_plugin() {
 			rest="${rest:+$rest }$f"
 		done
 		_TUI_REGISTRY[$key]="$rest"
+		[[ "$kind" == widget ]] && _tui_widget.unbind_missing "$name"
 		unset '_TUI_REGISTRY_OWNER[$okey]'
 	done
 	unset '_TUI_PLUGIN_OWNS[$plugin]'
@@ -96,7 +101,7 @@ tui.register.style_contract() {
 }
 
 # ── style contracts for every existing widget type and chrome element ─────
-tui.register.style_contract button "focusable:yes" "states:hover focus active disabled"
+tui.register.style_contract button "focusable:yes" "states:hover focus selected active disabled"
 tui.register.style_contract label "states:"
 tui.register.style_contract checkbox "focusable:yes" "states:checked unchecked focus hover"
 tui.register.style_contract input "focusable:yes" "states:focus hover"
@@ -105,6 +110,8 @@ tui.register.style_contract textarea "focusable:yes" "states:focus hover"
 tui.register.style_contract select "focusable:yes" "states:focus hover"
 tui.register.style_contract progress "states:" "classes:.progress .progress_fill"
 tui.register.style_contract list "focusable:yes" "states:focus hover" "classes:.list_sel"
-tui.register.style_contract table "focusable:yes" "states:focus hover" "classes:.table_head .table_sel"
+tui.register.style_contract table "focusable:yes" "states:focus hover" "classes:.table_head .table_sel .table_warn .table_hot"
 tui.register.style_contract tabs "states:" "classes:.tab_header .tab_header_compact"
 tui.register.style_contract pane "states:border title focus"
+tui.register.style_contract resize_handle "states:hover"
+tui.register.style_contract collapse_button "states:hover collapsed"

@@ -121,6 +121,7 @@ Attributes every widget has:
 | `<bind key="ctrl+e" action="fn" desc="Export"/>` | a key for this page |
 | `<footer items="@tui.action.quit"/>` | the key hints in the bottom row |
 | `<theme src="theme.css"/>` | the stylesheet |
+| `<markdown pane="ID" src="FILE"/>` | renders `FILE` (Markdown, relative to the page) into the scrolling pane `ID`, and again when the pane's width changes |
 
 ## Reusing markup
 
@@ -296,7 +297,22 @@ Every redraw starts a process for it, so it suits static text like a divider. Fo
 
 ## Scrolling
 
-`scroll="v"`, `"h"` or `"both"` on a pane makes it a scrolling viewport. Such a pane must be a leaf (no child panes, no widgets); fill it with `tui.output PANE TEXT` or `tui.output_append`. Wheel, drag on the scrollbar (the bar is drawn one cell wide, and reacts three cells wide) and the page keys scroll it. Details: [Callbacks and viewports](callbacks-and-viewports.md#3-building-scrolling-viewports).
+`scroll="v"`, `"h"` or `"both"` on a pane makes it a scrolling viewport. Such a pane must be a leaf (no child panes); fill it with `tui.output PANE TEXT` or `tui.output_append`, or with widgets (see [Scrolling widgets](#scrolling-widgets)). Wheel, drag on the scrollbar (the bar is drawn one cell wide, and reacts three cells wide) and the page keys scroll it. Details: [Callbacks and viewports](callbacks-and-viewports.md#3-building-scrolling-viewports).
+
+## Scrolling widgets
+
+A pane with `scroll="v"`, `"h"` or `"both"` can also hold widgets. The content height comes from the arranged widgets; scroll follows the mouse wheel and the page keys, and Tab moves it along with the focus. The innermost widget under the pointer gets the scroll event first. When Tab focuses a widget, it is scrolled into view automatically (unless `scroll_into_view="false"` on the pane). Mark a row with `pin="top"` to keep it stuck to the first viewport row (a pinned header):
+
+```xml
+<pane id="form" weight="85" border="single" scroll="v" hpad="1">
+  <label id="hdr" pin="top" text="Account details" class="brand"/>
+  <input id="inp_email"    label="Email:"        label_width="15" submit="on_save"/>
+  <input id="inp_phone"    label="Phone:"        label_width="15" submit="on_save"/>
+  <checkbox id="chk_news" label="Newsletter"    checked="true" action="on_toggle"/>
+</pane>
+```
+
+Scroll programmatically with `tui.scroll.to TARGET [top|center|bottom]` where `TARGET` is a widget or pane id (it scrolls the nearest ancestor pane that can scroll to show the target).
 
 ## Content fit
 
@@ -305,6 +321,72 @@ Besides explicit `min_width`/`min_height`, a pane's content is checked on every 
 ## Several pages
 
 Each file is a page with its own `<tui>`. `<button page="other.xml"/>` or `tui.goto other.xml` switches to it; the UI is reset, the page loaded (from the cache when possible) and drawn in one frame. Focus stays on the same widget id when a page is reloaded. `tui.action.back` returns to the previous page.
+
+## Layers: windows, modals, popups and toasts
+
+A layer is a pane that floats above the page instead of taking a share of a split. It has a rectangle of its own, holds widgets and panes like any pane, and is drawn after the page, so it covers what is under it and lets it come back when it closes.
+
+```xml
+<window id="win_metrics" title="Metrics" x="48" y="4" width="34" height="9"
+        float="true" closable="true" minimizable="true" fullscreen="true" persist="layout">
+  <label id="m_cpu" text="cpu   #####.....  48 %"/>
+</window>
+<modal id="dlg" title="Confirm" x="center" y="center" width="40" height="7" open="false">
+  <button id="dlg_ok" text="Restart" action="on_confirm"/>
+</modal>
+<popup id="pop" anchor="#btn_menu" x="0" y="below" width="22" height="5" open="false"> ... </popup>
+<toast id="saved" x="right" y="bottom" width="26" height="3" timeout="3" open="false"> ... </toast>
+```
+
+| Tag | Starts with | Typical use |
+|---|---|---|
+| `<window>` | `float`, `shadow`, `closable` | a tool window the user can move and resize |
+| `<modal>`, `<dialog>` | `modal`, `shadow`, `closable` | a question that must be answered first |
+| `<popup>` | `shadow`, closes on an outside press or Esc | a menu under a button |
+| `<contextmenu>` | like `<popup>` | a menu at the pointer |
+| `<tooltip>` | never takes the pointer or the focus | a hint |
+| `<toast>` | `shadow`, hides itself after `timeout` seconds | a short notice |
+
+- **Placement.** `x` and `y` are offsets from the anchor's top-left corner, in cells. `anchor` is `screen` (default), `parent` (the pane the tag sits in) or `#id` (a pane or widget). `x` also takes `center` and `right`, `y` takes `center`, `bottom`, `below` and `above` (relative to the anchor). `width` and `height` are cells, `N%` of the screen or `fill`. The rectangle is always clamped to the screen.
+- **Floating windows** have a header: the pane's title on the left, two-cell buttons on the right: `↺` puts the window back where the markup placed it, `⛶` fills the screen (`fullscreen="true"`), `–` shrinks it to its title bar (`minimizable="true"`), `✕` closes it (`closable="true"`). Drag the header to move it (it snaps to a screen edge within two cells) and the bottom-right corner to resize it. A click inside a window, or focus moving into it, raises it above the others.
+- **Modal layers** keep Tab inside them; a press outside is swallowed, and when the layer closes the focus returns to the widget that had it. Global key bindings still work. Esc closes a closable layer.
+- **Showing and hiding** from code: `tui.layer.show`, `hide`, `toggle`, `raise`, `move`, `size`, `reset`, `zoom`, `minimize`. `open="false"` starts a layer hidden.
+- **`persist="layout"`** keeps a window's position, size and visibility (or whether a detachable pane floats) when the user leaves the page and comes back.
+- **Detach and dock.** A pane with `detachable="true"` gets a `⇱` button on its top border: a click floats it as a window and its siblings take the space (`leave="placeholder"` keeps an empty pane there instead). The window's `⇲` button (or `tui.layer.dock`) puts it back at its old place and size. `on_detach` and `on_dock` name callbacks (`FN PANE`). The pane keeps its ids and its widgets throughout.
+- **On a shell page** the layers of a page leave with it, and the layers of the shell stay.
+- A layer id is a pane id: it must not repeat another pane's. Layers are not part of a split, so they have no `weight`.
+
+## Shells
+
+A shell is the chrome that stays while the user moves between pages: a header, a nav, a footer. It is a markup file with exactly one `<outlet/>`, the pane the page content goes into:
+
+```xml
+<!-- _shell.xml -->
+<tui>
+  <pane id="root" split="v">
+    <pane id="nav" border="single" weight="1">
+      <button id="go_a" text="A" page="a.xml"/>
+      <button id="go_b" text="B" page="b.xml"/>
+    </pane>
+    <outlet id="body" weight="5"/>
+  </pane>
+</tui>
+
+<!-- a.xml -->
+<tui shell="_shell.xml">
+  <pane id="a_main" border="single"> ... </pane>
+</tui>
+```
+
+The page's top-level panes are built inside the outlet (`id` defaults to `outlet`; `split`, `weight`, `border` and `class` work as on a pane). `shell` is resolved against the page's folder.
+
+- **`tui.goto` between pages of one shell** keeps every shell pane and widget: focus on a shell widget, typed values, scroll positions, timers, watches and binds the shell started. Only what the previous page built is removed. A page's `<script>`, `<theme>`, `<bind>` and `<footer>` belong to the page and go with it.
+- **A page of another shell, or one without a shell,** is a full `tui.goto`: the UI is reset and built from scratch.
+- **Tab order** follows document order of shell and page together: the page's widgets sit where the outlet stands.
+- **Ids** are shared between shell and page; the validator reports a page id that repeats a shell id, the outlet's included. Give the outlet a name pages will not pick (`page_outlet`, not `main`).
+- **`tui.page.refresh`** works on a page of a shell like on any page.
+- **Cache.** A page of a shell is cached as the difference it makes on top of the shell, so replaying it never touches shell state. Switching inside a shell is faster than a full `tui.goto`: `tools/bench/run.sh` compares `goto_pair_shell` with `goto_pair_plain`.
+- A shell cannot name another shell, and a page that names a shell cannot contain an `<outlet/>`. `tui.shell.file` tells a callback which shell is live.
 
 ## Tools
 

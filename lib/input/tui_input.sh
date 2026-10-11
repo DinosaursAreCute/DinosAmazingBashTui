@@ -38,6 +38,7 @@
 #   tui.action.quit  focus_next  focus_prev  activate  unfocus  click
 #   tui.action.scroll up|down|left|right [N]   tui.action.page up|down
 #   tui.action.scroll_top  tui.action.scroll_bottom
+# requires: tui_configuration tui_home
 
 declare -gA _TUI_BIND=()          # "scope|key" -> command        (user; scope = "" or "pane:ID")
 declare -gA _TUI_BIND_DEF=()      # key -> command                (built-in defaults)
@@ -280,15 +281,19 @@ tui.bind.reset() {
     _TUI_BIND=(); _TUI_BIND_PASS=(); _TUI_BIND_ALWAYS=(); _TUI_BIND_PAGE=(); _TUI_BIND_DESC=()
 }
 
-# Called by tui.reset_ui: drops bindings made with --page (markup <bind>).
+# _tui_input.clear_page [KEEP] - drops the bindings made with --page (markup <bind>); KEEP names an assoc whose keys survive (a shell's own binds).
+# Called by tui.reset_ui.
 _tui_input.clear_page() {
     (( _TUI_BIND_GEN++ ))
     local id
+    local -n _cp_keep="${1:-_TUI_NO_KEEP}"
     for id in "${!_TUI_BIND_PAGE[@]}"; do
+        [[ -n "${_cp_keep[$id]:-}" ]] && continue
         unset '_TUI_BIND[$id]' '_TUI_BIND_PASS[$id]' '_TUI_BIND_ALWAYS[$id]' '_TUI_BIND_PAGE[$id]' '_TUI_BIND_DESC[$id]'
     done
     _TUI_DEF_OFF_PAGE=()          # page-scoped default-group switches end with the page
 }
+declare -gA _TUI_NO_KEEP=()
 
 # tui.bind.list - "SCOPE<TAB>KEY<TAB>COMMAND<TAB>NOTE": your binds, then code binds, then defaults.
 # _tui_input.bind_rows builds them into _BL (fork-free); tui.bind.list prints, tui.bind.table formats.
@@ -418,6 +423,7 @@ _tui_input.key_event() {
     # Terminal-control mode: only the chord is heard; everything else is swallowed.
     if [[ "$name" == "$_TUI_PT_NAME" ]]; then tui.passthrough toggle; return 0; fi
     (( _TUI_PASSTHROUGH )) && return 0
+    [[ "$name" == esc ]] && (( _TUI_L_N )) && _tui_layer.dismiss_key && return 0   # Esc closes the topmost closable layer (tui_layer.sh)
     TUI_EVENT_TYPE=key; TUI_EVENT_BUTTON=""
     TUI_EVENT_WIDGET="$_TUI_FOCUS_ID"
     TUI_EVENT_PANE=""
@@ -431,6 +437,7 @@ _tui_input.key_event() {
     if [[ "$name" == "$_TUI_SUSPEND_NAME" ]]; then tui.keys.suspend toggle; return 0; fi
     # An open modal (command palette, dialogs) owns the keyboard: bindings, focus and scrolling are suspended.
     if [[ -n "$_TUI_MODAL" ]]; then "$_TUI_MODAL_KEYFN" "$name"; return 0; fi
+    [[ -n "$_TUI_RESIZE_PANE" ]] && _tui_resize.key "$name" "$TUI_EVENT_COUNT" && return 0                # keyboard resize mode (tui_resize.sh)
     [[ -n "${_TPL_HOOK[key]:-}" ]] && tui.hook.fire key "$name" && return 0          # a plugin consumed the key
     if (( _TUI_KEYS_SUSPENDED )); then
         # Every binding, user and default, is off. A focused text input still
@@ -468,6 +475,10 @@ _tui_input.mouse_event() {
     [[ -z "$name" ]] && return 1
     # A modal owns the pointer too: its handler gets the event, everything else is ignored.
     if [[ -n "$_TUI_MODAL" ]]; then [[ -n "$_TUI_MODAL_MOUSEFN" ]] && "$_TUI_MODAL_MOUSEFN" "$name" "$3" "$4"; return 0; fi
+    [[ "$name" == mouse:left ]] && ((_TUI_L_N)) && _tui_layer.outside && return 0      # a press outside the modal / popup layer (tui_layer.sh)
+    [[ "$_HIT_KIND" == layer || -n "$_TUI_L_DRAG" ]] && _tui_layer.mouse "$name" "$3" "$4" && return 0       # layer header, buttons, corner (tui_layer.sh)
+    [[ "$_HIT_ARG" == cv-* ]] && _tui_collapse.mouse "$name" && return 0                                  # chevron zones (tui_collapse.sh)
+    [[ "$_HIT_ARG" == rz-* || -n "$_TUI_RZ_ID" ]] && _tui_resize.mouse "$name" "$3" "$4" && return 0   # pane resize handles (tui_resize.sh)
     _tui_input.dispatch "$name"
 }
 
@@ -561,16 +572,26 @@ tui.action.scroll_or_pane() {
 }
 
 tui.action.scroll() {
-    _tui_wx.wheel "$1" "${2:-}" && return 0            # wheel over a textarea / list / table scrolls that widget
+    # For mouse wheel on widgets, try widget scroll first
+    if [[ "$TUI_EVENT_TYPE" == mouse ]]; then
+        if _tui_wx.wheel "$1" "${2:-}"; then
+            return 0
+        fi
+    fi
+
     _tui_input.scroll_target || return 0
     local p="$_ST" n="${2:-}" c=${TUI_EVENT_COUNT:-1}   # c > 1 when repeats were merged
+
+    # Save old offset before mutation
+    _SC_OLD="${_TUI_P_SOFF_V[$p]:-0}"
+
     case "$1" in
         up)    (( _TUI_P_SOFF_V[$p] -= ${n:-3} * c )) ;;
         down)  (( _TUI_P_SOFF_V[$p] += ${n:-3} * c )) ;;
         left)  (( _TUI_P_SOFF_H[$p] -= ${n:-5} * c )) ;;
         right) (( _TUI_P_SOFF_H[$p] += ${n:-5} * c )) ;;
     esac
-    _tui._queue_render "$p"
+    _tui_scroll.apply "$p"
 }
 
 # tui.action.page up|down - one viewport at a time
@@ -579,12 +600,27 @@ tui.action.page() {
     local p="$_ST" step=$(( ${_TUI_P_H[$_ST]} - 3 ))
     (( step < 1 )) && step=1
     (( step *= ${TUI_EVENT_COUNT:-1} ))
+
+    # Save old offset before mutation
+    _SC_OLD="${_TUI_P_SOFF_V[$p]:-0}"
+
     case "$1" in up) (( _TUI_P_SOFF_V[$p] -= step )) ;; down) (( _TUI_P_SOFF_V[$p] += step )) ;; esac
-    _tui._queue_render "$p"
+    _tui_scroll.apply "$p"
 }
 
-tui.action.scroll_top()    { _tui_input.scroll_target || return 0; _TUI_P_SOFF_V[$_ST]=0; _TUI_P_SOFF_H[$_ST]=0; _tui._queue_render "$_ST"; }
-tui.action.scroll_bottom() { _tui_input.scroll_target || return 0; _TUI_P_SOFF_V[$_ST]=999999; _tui._queue_render "$_ST"; }
+tui.action.scroll_top() {
+    _tui_input.scroll_target || return 0
+    _SC_OLD="${_TUI_P_SOFF_V[$_ST]:-0}"
+    _ps.panes.set "$_ST" soff_v 0; _ps.panes.set "$_ST" soff_h 0
+    _tui_scroll.apply "$_ST"
+}
+
+tui.action.scroll_bottom() {
+    _tui_input.scroll_target || return 0
+    _SC_OLD="${_TUI_P_SOFF_V[$_ST]:-0}"
+    _ps.panes.set "$_ST" soff_v 999999
+    _tui_scroll.apply "$_ST"
+}
 
 # Left press/drag: scrollbar jump, else activate the widget under the pointer,
 # else drop focus.
@@ -618,6 +654,12 @@ tui.action.click() {
                 tui.focus "$wid"
                 _tui._widget_pos "$wid"
                 _tui_wx.mouse "$wid" "$mx" "$my" press ;;
+            *)  # contract type: focus it when it takes keys, then its HIT handler
+                if [[ -n "${_TUI_WT_HIT[$wtype]-}" ]]; then
+                    [[ -n "${_TUI_WT_KEY[$wtype]-}" ]] && tui.focus "$wid"
+                    _tui._widget_pos "$wid"
+                    _tui_wx.mouse "$wid" "$mx" "$my" press
+                fi ;;
         esac
     else
         # clicking a scrollable pane makes it the keyboard pane too
@@ -810,7 +852,8 @@ _tui_input.coalesce_key() {     # CHAR SEQ
     [[ -n "$_TUI_PENDING_INPUT" ]] && return 0
     [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]:-}" == input ]] && return 0
     if [[ -n "$1" ]]; then _tui_input.name_char "$1"; else _tui_input.name_seq "$2"; fi
-    _tui_input.coalescible "$_KEY" || return 0
+    # resize mode: a held arrow is one batch (_tui_resize.key takes the count), not one frame per repeat
+    [[ -n "$_TUI_RESIZE_PANE" && -z "$_TUI_MODAL" && "$_KEY" == @(|shift+)@(left|right|up|down) ]] || _tui_input.coalescible "$_KEY" || return 0
     if [[ -n "$1" ]]; then _tui_input.coalesce key "$1"; else _tui_input.coalesce key "$2"; fi
 }
 
@@ -1036,22 +1079,6 @@ tui.action.paste() {
     [[ -n "$_TUI_FOCUS_ID" ]] && _tui_text.is_text "$_TUI_FOCUS_ID" || return 0
     tui.text.insert "$_TUI_FOCUS_ID" "$TUI_EVENT_PASTE" paste
     _tui._draw_widget "$_TUI_FOCUS_ID"
-}
-
-# _tui_b64 STRING -> _B64 (pure bash, byte-wise)
-_tui_b64() {
-    local LC_ALL=C s="$1" out="" i n a b c t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" v
-    n=${#s}
-    for (( i = 0; i < n; i += 3 )); do
-        printf -v a '%d' "'${s:i:1}"; (( a &= 255 ))
-        if (( i + 1 < n )); then printf -v b '%d' "'${s:i+1:1}"; (( b &= 255 )); else b=0; fi
-        if (( i + 2 < n )); then printf -v c '%d' "'${s:i+2:1}"; (( c &= 255 )); else c=0; fi
-        v=$(( (a << 16) | (b << 8) | c ))
-        out+="${t:(v >> 18) & 63:1}${t:(v >> 12) & 63:1}"
-        if (( i + 1 < n )); then out+="${t:(v >> 6) & 63:1}"; else out+="="; fi
-        if (( i + 2 < n )); then out+="${t:v & 63:1}"; else out+="="; fi
-    done
-    _B64="$out"
 }
 
 # tui.clipboard.copy TEXT - OSC 52 (kitty, foot, wezterm, alacritty, iTerm2, tmux with set-clipboard on).

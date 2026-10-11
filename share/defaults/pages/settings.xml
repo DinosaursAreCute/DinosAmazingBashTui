@@ -1,47 +1,52 @@
-<!-- DABT default Settings page (ships with the framework; palette: "DABT: Settings"). Everything applies live and
-     is saved through tui.config (see lib/config/tui_config.sh). An app can replace it: re-register the command id
-     dabt.settings to point at its own page. -->
+<!-- DABT default Settings page (ships with the framework; palette: "DABT: Settings"). A sidebar of categories (collapses to a
+     rail like the demo's menu), a search that filters every setting while you type, the settings of the chosen category and a
+     details pane. Everything applies live and is saved through tui.config (see lib/config/tui_config.sh). An app can replace
+     it: re-register the command id dabt.settings to point at its own page. -->
 <tui on_visit="dset_visit">
   <script src="settings_callbacks.sh"/>
   <theme src="../theme.css"/>
-  <footer items="@tui.action.reload"/>
+  <footer items="@tui.action.back"/>
 
-  <pane id="root" split="v" border="none">
-    <pane id="tabs_header" weight="5" border="none"/>
-    <pane id="head" weight="10" title="DABT Settings" border="single" class="panel" hpad="1"/>
-    <pane id="body" split="h" weight="70" border="none">
-      <pane id="col_theme" weight="34" title="Theme" border="single" class="panel" hpad="1"/>
-      <pane id="col_keys"  weight="33" title="Default keybind groups" border="single" class="panel" hpad="1"/>
-      <pane id="col_input" weight="33" title="Input" border="single" class="panel" hpad="1"/>
+  <pane id="root" split="h" border="none">
+    <pane id="side" weight="20" title="Settings" border="single" class="sidebar" collapsible="true" collapse_to="rail" default="expanded" resizable="x" handle="edge" keep_collapsed="true" keep_size="true"/>
+    <pane id="main" split="v" weight="80" border="none">
+      <pane id="search" weight="14" title="Search all settings   / focuses" border="single" class="panel" hpad="1">
+        <input id="inp_search" placeholder="type to filter while you type" on_change="dset_search" submit="dset_search_enter"/>
+      </pane>
+      <pane id="body" split="h" weight="86" border="none">
+        <pane id="items" weight="54" title="Appearance" border="single" class="panel">
+          <list id="lst_items" rows="0" action="dset_activate" on_change="dset_moved"/>
+        </pane>
+        <pane id="desc" weight="46" title="Details" border="single" class="panel" hpad="1" scroll="v" resizable="x" handle="divider"/>
+      </pane>
     </pane>
-    <pane id="foot" weight="15" border="none" class="panel"/>
   </pane>
 
-  <!-- the two tabs are separate pages (Settings / Plugins), like the demo's tabs -->
-  <tabs id="dset_tabs" header_pane="tabs_header" content_pane="body" style="compact">
-    <tab id="tab_settings" text="Settings" action="dset_tab_here" default="true"/>
-    <tab id="tab_plugins"  text="Plugins"  action="dset_goto_plugins"/>
-  </tabs>
+  <button id="cat_appearance"    pane="side" row="0" text="  Appearance"    action="dset_cat" class="nav_link" align="left" collapsed_text="AP"/>
+  <button id="cat_input"         pane="side" row="1" text="  Input"         action="dset_cat" class="nav_link" align="left" collapsed_text="IN"/>
+  <button id="cat_keybinds"      pane="side" row="2" text="  Keybinds"      action="dset_cat" class="nav_link" align="left" collapsed_text="KE"/>
+  <button id="cat_notifications" pane="side" row="3" text="  Notifications" action="dset_cat" class="nav_link" align="left" collapsed_text="NO"/>
+  <button id="cat_markdown"      pane="side" row="4" text="  Markdown"      action="dset_cat" class="nav_link" align="left" collapsed_text="MD"/>
+  <button id="cat_plugins"       pane="side" row="5" text="  Plugins"       action="dset_cat" class="nav_link" align="left" collapsed_text="PL"/>
+  <button id="btn_back"          pane="side" row="7" text="  Back"          action="tui.action.back" class="info_button" align="left" collapsed_text="BA"/>
 
-  <label id="lbl_h1" pane="head" row="0" text="Changes apply immediately and are saved. Keys and pages come from share/defaults/." class="muted_label"/>
-  <label id="lbl_h2" pane="head" row="1" text="" class="brand"/>
-
-  <label id="lbl_t_hd" pane="col_theme" row="0" text="Pick an overlay - it restyles every page:" class="muted_label"/>
-  <label id="lbl_k_hd" pane="col_keys"  row="0" text="Ticked = built-in keys of the group on:" class="muted_label"/>
-
-  <checkbox id="chk_retain"   pane="col_input" row="0" label="Keep focus in an input after Enter" checked="true" action="dset_retain" class="check"/>
-  <checkbox id="chk_coalesce" pane="col_input" row="1" label="Merge fast repeated scroll events"   checked="true" action="dset_coalesce" class="check"/>
-  <checkbox id="chk_confirmq" pane="col_input" row="2" label="Ask before quitting"               checked="false" action="dset_confirm_quit" class="check"/>
-  <checkbox id="chk_tsfree"   pane="col_input" row="3" label="Free terminal shortcuts while DABT runs" checked="false" action="dset_ts_auto" class="check"/>
-  <label    id="lbl_n_hd"     pane="col_input" row="4" text="Notifications (toasts):" class="brand"/>
-  <button   id="btn_npos"     pane="col_input" row="5" text="[ Position: bottom-right ]" action="dset_notify_pos" class="info_button"    align="fill"/>
-  <button   id="btn_nsec"     pane="col_input" row="6" text="[ Stay for: 5 s ]"         action="dset_notify_sec" class="success_button" align="fill"/>
-  <label    id="lbl_c_hd"     pane="col_input" row="8" text="Chords:" class="brand"/>
-  <label    id="lbl_c1"       pane="col_input" row="9" text=""/>
-  <label    id="lbl_c2"       pane="col_input" row="10" text=""/>
-  <label    id="lbl_c3"       pane="col_input" row="11" text=""/>
-  <label    id="lbl_c4"       pane="col_input" row="12" text=""/>
-
-  <button id="btn_back"  pane="foot" row="0" text="[ Back ]"               action="tui.action.back"    class="info_button"    align="fill"/>
-  <button id="btn_kb"    pane="foot" row="1" text="[ Keybinds ... ]"       action="dset_goto_keybinds" class="success_button" align="fill"/>
+  <!-- the per-element Markdown style: a color list, a hex field and the text attributes; every change applies at once -->
+  <modal id="dlg_md_style" title="Customize style" split="h" x="center" y="center" width="60" height="17" open="false" class="panel" hpad="1" vpad="1">
+    <pane id="ms_left" weight="50" border="none">
+      <label id="ms_elem_lbl" text="" class="brand"/>
+      <list  id="ms_colors" row="1" rows="8" items="default|black|red|green|yellow|blue|magenta|cyan|white|gray|bright_red|bright_green|bright_yellow|bright_blue|bright_magenta|bright_cyan|bright_white" on_change="dset_ms_color" action="dset_ms_color"/>
+      <input id="ms_hex" row="10" label="Hex:" label_width="5" placeholder="#rrggbb" submit="dset_ms_hex"/>
+    </pane>
+    <pane id="ms_right" weight="50" border="none">
+      <checkbox id="ms_bold"      label="Bold"      checked="false" action="dset_ms_mod" class="check"/>
+      <checkbox id="ms_dim"       label="Dim"       checked="false" action="dset_ms_mod" class="check"/>
+      <checkbox id="ms_italic"    label="Italic"    checked="false" action="dset_ms_mod" class="check"/>
+      <checkbox id="ms_underline" label="Underline" checked="false" action="dset_ms_mod" class="check"/>
+      <checkbox id="ms_reverse"   label="Reverse"   checked="false" action="dset_ms_mod" class="check"/>
+      <checkbox id="ms_strike"    label="Strike"    checked="false" action="dset_ms_mod" class="check"/>
+      <checkbox id="ms_bgmode" row="6" label="Edit the background" checked="false" action="dset_ms_target" class="check"/>
+      <button id="ms_reset" row="8" text="[ Reset element ]" action="dset_ms_reset" class="danger_button" align="fill"/>
+      <button id="ms_close" row="9" text="[ Close ]" action="dset_ms_close" class="info_button" align="fill"/>
+    </pane>
+  </modal>
 </tui>

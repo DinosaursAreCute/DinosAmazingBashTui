@@ -20,6 +20,7 @@
 # When the change cannot be applied this way - something outside the panes changed, a pane without an id would have to
 # be rebuilt, the root pane itself changed, or the changed part holds tabs or another tag the incremental build does not
 # handle - the page is rebuilt in the background instead (tui.page.rebuild, with a spinner).
+# requires:
 
 declare -g _TUI_P_RAW=""                                             # tui_node.dump of the parsed page, before addons and templates
 declare -gA _TUI_P_SIG_OWN=() _TUI_P_SIG_FULL=() _TUI_P_SIG_PLAIN=() # pane key -> signature / 1 when only plain tags below
@@ -31,8 +32,31 @@ declare -ga _RF_TOPKEYS=() _RF_TARGETS=()
 declare -g _RF_S="" _RF_TOP="" _RF_BAD=0
 declare -gi _RF_ANON=0
 
+# 0 skips the background job that brings the cached page up to date after a refresh (the page then rebuilds from its
+# files on the next visit): for measuring the refresh without it
+declare -gi TUI_REFRESH_CACHE_JOB="${TUI_REFRESH_CACHE_JOB:-1}"
+
 # tags the incremental build knows how to rebuild (panes are handled by their own rule)
 _RF_PLAIN_TAGS=" label button input checkbox password textarea list table select progress text "
+
+# the tags plugins registered (widgets such as <graph>): the build dispatches them like the plain tags above, so they do not stop
+# a change from being applied pane by pane
+declare -g _RF_PLUGIN_TAGS=" "
+
+# _tui_refresh.plugin_tags - _RF_PLUGIN_TAGS from the registry's record of what each plugin owns ("KIND:NAME:FN ...")
+_tui_refresh.plugin_tags() {
+	local owned entry kind name
+	_RF_PLUGIN_TAGS=" "
+	for owned in "${_TUI_PLUGIN_OWNS[@]}"; do
+		for entry in $owned; do
+			IFS=: read -r kind name _ <<<"$entry"
+			[[ "$kind" == tag ]] && _RF_PLUGIN_TAGS+="$name "
+		done
+	done
+}
+
+# _tui_refresh.is_plain_tag TAG - rc 0 for a tag the incremental build handles
+_tui_refresh.is_plain_tag() { [[ "$_RF_PLAIN_TAGS" == *" $1 "* || "$_RF_PLUGIN_TAGS" == *" $1 "* ]]; }
 
 _tui_refresh.reset() {
 	_TUI_P_RAW=""
@@ -41,7 +65,7 @@ _tui_refresh.reset() {
 }
 
 _tui_refresh.is_pane() {
-	case "$1" in pane | row | col | spacer | divider | group) return 0 ;; esac
+	case "$1" in pane | row | col | spacer | divider | group | details | accordion) return 0 ;; esac
 	return 1
 }
 
@@ -52,7 +76,7 @@ _tui_refresh.is_pane() {
 _tui_refresh.node_sig() {
 	local n="$1" a k
 	_RF_S+="<${_N_TYPE[$n]}"
-	[[ "$_RF_PLAIN_TAGS" == *" ${_N_TYPE[$n]} "* ]] || _RF_BAD=1
+	_tui_refresh.is_plain_tag "${_N_TYPE[$n]}" || _RF_BAD=1
 	for a in ${_N_ANAMES[$n]:-}; do
 		[[ "$a" == __* ]] && continue
 		_RF_S+=$'\x1f'"$a=${_N_ATTR["$n.$a"]}"
@@ -133,6 +157,7 @@ _tui_refresh.sign_top() {
 _tui_refresh.sign_tree() {
 	_RF_OWN=() _RF_FULL=() _RF_PLAIN=() _RF_NODE=() _RF_KIDS=() _RF_FLAT=()
 	_RF_TOPKEYS=() _RF_TOP="" _RF_ANON=0 _RF_BAD=0
+	_tui_refresh.plugin_tags
 	_tui_refresh.sign_top "$_P_ROOT"
 }
 
@@ -141,9 +166,9 @@ _tui_refresh.adopt() {
 	local k
 	_TUI_P_SIG_OWN=() _TUI_P_SIG_FULL=() _TUI_P_SIG_PLAIN=()
 	for k in "${!_RF_OWN[@]}"; do
-		_TUI_P_SIG_OWN[$k]="${_RF_OWN[$k]}"
-		_TUI_P_SIG_FULL[$k]="${_RF_FULL[$k]}"
-		_TUI_P_SIG_PLAIN[$k]="${_RF_PLAIN[$k]}"
+		_ps.panes.set "$k" sig_own "${_RF_OWN[$k]}"
+		_ps.panes.set "$k" sig_full "${_RF_FULL[$k]}"
+		_ps.panes.set "$k" sig_plain "${_RF_PLAIN[$k]}"
 	done
 	_TUI_P_SIG_TOP="$_RF_TOP"
 }
@@ -204,11 +229,11 @@ _tui_engine.collect_panes() {
 _tui_engine.forget_widget() {
 	local id="$1"
 	unset '_TUI_W_TYPE[$id]' '_TUI_W_PANE[$id]' '_TUI_W_ROW[$id]' '_TUI_W_LABEL[$id]' \
-		'_TUI_W_VALUE[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
+		'_TUI_W_VALUE[$id]' '_TUI_W_SELECTED[$id]' '_TUI_W_ACTION[$id]' '_TUI_W_SUBMIT[$id]' '_TUI_W_PH[$id]' \
 		'_TUI_W_ALIGN[$id]' '_TUI_W_VALIGN[$id]' '_TUI_W_MINW[$id]' '_TUI_W_MAXW[$id]' \
 		'_TUI_W_MINH[$id]' '_TUI_W_MAXH[$id]' '_TUI_W_EXPAND[$id]' \
 		'_TUI_W_WIDTH[$id]' '_TUI_W_HEIGHT[$id]' \
-		'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]' \
+		'_TUI_W_LABEL_ALIGN[$id]' '_TUI_W_LABEL_WIDTH[$id]' '_TUI_W_RETAIN[$id]' '_TUI_W_STICKY[$id]' '_TUI_W_PIN[$id]' '_TUI_W_HPAD[$id]' '_TUI_W_VPAD[$id]' \
 		'_TUI_W_FOCUSABLE[$id]' '_TUI_W_TABBABLE[$id]' '_TUI_W_TABORDER[$id]' '_TUI_W_FGROUP[$id]' '_TUI_W_FNAV[$id]' '_TUI_W_FWRAP[$id]' \
 		'_TUI_W_FNEXT[$id]' '_TUI_W_FPREV[$id]' '_TUI_W_AUTOFOCUS[$id]' '_TUI_W_HITPAD[$id]' '_TUI_W_HITBOX[$id]'
 	_tui_wx.forget "$id"
@@ -221,8 +246,13 @@ _tui_engine.forget_pane() {
 		'_TUI_P_DIR[$id]' '_TUI_P_CHILDREN[$id]' '_TUI_P_WEIGHTS[$id]' '_TUI_P_CELLW[$id]' '_TUI_P_CELLH[$id]' '_TUI_P_SPAN[$id]' '_TUI_P_NEWLINE[$id]' \
 		'_TUI_P_TITLE[$id]' '_TUI_P_BORDER[$id]' '_TUI_P_ALIGN[$id]' '_TUI_P_VALIGN[$id]' \
 		'_TUI_P_MINW[$id]' '_TUI_P_MINH[$id]' '_TUI_P_MAXW[$id]' '_TUI_P_MAXH[$id]' \
-		'_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]' \
-		'_TUI_P_GAP[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]'
+		'_TUI_P_SCROLL[$id]' '_TUI_P_SOFF_V[$id]' '_TUI_P_SOFF_H[$id]' '_TUI_P_STUCK[$id]' '_TUI_P_HPAD[$id]' '_TUI_P_VPAD[$id]' '_TUI_P_BORDER_EXPL[$id]' '_TUI_P_NOREVEAL[$id]' \
+		'_TUI_P_GAP[$id]' '_TUI_P_FUSE[$id]' '_TUI_P_DIVIDER[$id]' '_TUI_P_DIVIDER_CLASS[$id]' '_TUI_P_TITLE_POS[$id]' '_TUI_P_TITLE_ALIGN[$id]' '_TUI_P_RESIZABLE[$id]' '_TUI_P_HANDLE[$id]' '_TUI_P_ON_RESIZE[$id]' '_TUI_P_WEIGHTS0[$id]' '_TUI_P_STRICT_FIT[$id]' '_TUI_P_CONTENT[$id]' '_TUI_PANE_LAST_WIDGET[$id]' '_TUI_P_CONTENT_H[$id]'
+}
+
+# _tui_engine.clear_children PANE - PANE keeps its geometry and attributes but has no children (a shell's outlet between pages)
+_tui_engine.clear_children() {
+	unset '_TUI_P_CHILDREN[$1]' '_TUI_P_WEIGHTS[$1]' '_TUI_P_DIR[$1]' '_TUI_P_GAP[$1]' '_TUI_P_CELLW[$1]' '_TUI_P_CELLH[$1]'
 }
 
 # _tui_engine.forget_styles ID... - the class styles baked for these ids (keys "ID_normal", "ID_hover", ...)
@@ -299,6 +329,7 @@ tui.page.refresh() {
 		_tui_perf.end page_refresh
 		return 0
 	fi
+	_tui_store.save_page
 	_TUI_BUILD_TITLE=()
 	_TUI_BUILD_BORDER=()
 	for key in "${_RF_TARGETS[@]}"; do
@@ -318,11 +349,14 @@ tui.page.refresh() {
 	_TUI_P_LEAVES=()
 	_tui._collect_leaves root
 	_tui_refresh.after_teardown
+	_tui_store.restore_page
 	_tui_refresh.adopt
 	tui.cache.forget "$file" # the cached page predates this change: a visit before the refresh below lands rebuilds it
 	_tui_perf.end page_refresh
 	tui.relayout
-	((_TUI_RUNNING)) && tui.page.rebuild --quiet "$file" # bring the cache up to date in the background
+	# the cache catches up in the background, from the tree just expanded (a page of a shell is recorded on its next visit:
+	# the background build starts from a clean engine, shell included)
+	((_TUI_RUNNING && TUI_REFRESH_CACHE_JOB)) && [[ -z "$_TUI_SHELL_FILE" ]] && tui.page.rebuild --quiet --expanded "$file"
 	return 0
 }
 

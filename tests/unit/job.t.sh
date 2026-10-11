@@ -82,20 +82,20 @@ ti_job_spinner_appears_only_after_the_delay() {
 	tui.job.run --delay 0 j1 _jb_work_slow _jb_done
 	_tui_job.tick
 	eq 1 "$_TJ_ON"
-	ok '[[ " ${_TUI_OVERLAY_FNS[*]} " == *" _tui_job.spinner_draw "* ]]'
+	ok '[[ " ${_TUI_FL_ORDER[*]} " == *" _tui_job.spinner_draw "* ]]'
 	tui.job.cancel j1
 	eq 0 "$_TJ_ON"
-	ok '[[ " ${_TUI_OVERLAY_FNS[*]} " != *" _tui_job.spinner_draw "* ]]'
+	ok '[[ " ${_TUI_FL_ORDER[*]} " != *" _tui_job.spinner_draw "* ]]'
 }
 
 ti_job_spinner_is_gone_before_the_done_function_runs() {
 	_jb_reset
-	_jb_done_spin() { _JB_LOG+="on=$_TJ_ON;overlay=${_TUI_OVERLAY_FNS[*]};"; }
+	_jb_done_spin() { _JB_LOG+="on=$_TJ_ON;overlay=${_TUI_FL_ORDER[*]};"; }
 	tui.job.run --delay 0 j1 _jb_work_slow _jb_done_spin
 	_tui_job.tick # past the delay: the spinner is on
 	eq 1 "$_TJ_ON"
 	_jb_wait j1
-	eq "on=0;overlay=${_TUI_OVERLAY_FNS[*]};" "$_JB_LOG"
+	eq "on=0;overlay=${_TUI_FL_ORDER[*]};" "$_JB_LOG"
 	ok '[[ "$_JB_LOG" != *_tui_job.spinner_draw* ]]'
 }
 
@@ -192,4 +192,45 @@ t_page_rebuild_failure_keeps_the_page_and_reports_why() {
 	eval "$saved_g"
 	TUI_JOB_PREFIX=""
 	eq "Could not build rb3.xml: unterminated tag|error;" "$toasts" # no GOTO: the old page stays
+}
+
+ti_job_runs_in_the_foreground_when_background_jobs_are_off() {
+	_jb_reset
+	TUI_JOB_BACKGROUND=0 tui.job.run j9 _jb_work_fail _jb_done
+	TUI_JOB_BACKGROUND=0 tui.job.run j8 _jb_work_state _jb_done
+	eq "done:j9:3:partial;done:j8:0:x;" "$_JB_LOG" # finished before tui.job.run returned, same arguments to DONEFN
+	ok '! tui.job.running j9'
+	eq "" "$_JB_STATE" # still a child process: the work cannot change this shell
+}
+
+# A job's work is a copy of the main shell: it holds the same job table and counter. Jobs it starts itself (a page's on_visit
+# runs inside a page build) must neither stop the main shell's jobs nor reuse their file numbers.
+_jb_work_inner() {
+	sleep 0.02
+	printf inner
+}
+_jb_work_spawn() {
+	tui.job.run inner _jb_work_inner _jb_done
+	printf '%s' "${_TJ_FILES[inner]}"
+}
+_jb_work_clash() { tui.job.run outer _jb_work_ok _jb_done 9; }
+
+ti_job_a_job_started_inside_work_leaves_the_main_shells_jobs_alone() {
+	_jb_reset
+	tui.job.run outer _jb_work_slow _jb_done
+	tui.job.run clash _jb_work_clash _jb_done
+	ok '_jb_wait clash'
+	ok '_jb_wait outer'
+	match "$_JB_LOG" 'done:outer:0:slow;'
+}
+
+ti_job_files_of_a_job_started_inside_work_do_not_reuse_the_main_shells_numbers() {
+	_jb_reset
+	tui.job.run spawn _jb_work_spawn _jb_done
+	ok '_jb_wait spawn'
+	local nested=${_JB_LOG#done:spawn:0:}
+	nested=${nested%;}
+	tui.job.run next _jb_work_ok _jb_done 1
+	[[ -n "$nested" && "${_TJ_FILES[next]}" != "$nested" ]] || _t_fail "nested job dir [$nested] equals the next job's [${_TJ_FILES[next]}]"
+	_jb_wait next
 }

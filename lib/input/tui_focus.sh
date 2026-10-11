@@ -16,6 +16,7 @@
 # _tui_focus.ensure rebuilds on next use.
 # Which widget types are focusable by default is part of the type's contract: "focusable:yes" in its
 # tui.register.style_contract (lib/tui_registry.sh); the markup validator asks the same question.
+# requires:
 
 # _tui_focus.default_focusable TYPE - rc 0 if TYPE takes focus unless focusable="false"
 _tui_focus.default_focusable() {
@@ -50,7 +51,7 @@ tui.focus.set() {
 		focus_next) _TUI_W_FNEXT[$id]="$v" ;;
 		focus_prev) _TUI_W_FPREV[$id]="$v" ;;
 		autofocus)
-			_TUI_W_AUTOFOCUS[$id]="$v"
+			_ps.widgets.set "$id" autofocus "$v"
 			_TUI_FOCUS_AUTO=1
 			;;
 		*)
@@ -61,20 +62,25 @@ tui.focus.set() {
 	_TUI_FOCUS_DIRTY=1
 }
 
+# _tui_focus.ensure - rebuilds focus indices if marked dirty; otherwise a no-op.
 _tui_focus.ensure() {
 	((_TUI_FOCUS_DIRTY)) && _tui_focus.rebuild
 	return 0
 }
 
+# _tui_focus.rebuild - rebuilds _TUI_FOCUSABLE (document order) and _TUI_FOCUS_TAB (tab order) from widget attributes.
+# state:direct
 _tui_focus.rebuild() {
 	_tui_perf.begin focus_index
 	local id g t o f i j n
 	local -a first=() rest=() last=() vals=()
 	local -A bucket=()
 	_TUI_FOCUSABLE=() _TUI_FOCUS_TAB=() _TUI_FOCUS_POS=() _TUI_FOCUS_GNAV=() _TUI_FOCUS_GWRAP=() _TUI_FOCUS_REP=()
-	_TUI_FOCUS_DIRTY=0
+	_TUI_FOCUS_DIRTY=$((1 - _TUI_CACHES)) # caches off: never trusted, rebuilt on every use
 
 	for id in "${_TUI_W_ORDER[@]}"; do
+		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue                   # in a collapsed pane
+		[[ -z "$_TUI_L_TRAP" ]] || _tui_layer.in_scope "$id" || continue # outside the modal layer that holds the focus
 		if [[ -n "${_TUI_W_FOCUSABLE[$id]:-}" ]]; then
 			((_TUI_W_FOCUSABLE[$id])) || continue
 		else
@@ -131,25 +137,45 @@ _tui_focus.rebuild() {
 # tui.focus ID - Focuses a widget; its pane becomes the keyboard pane.
 # The dirty set is known: the old and the new widget, plus the border of every pane whose keyboard focus changed. So the
 # frame goes out raw in one flush, without the row diff of _tui_paint.flush (a hold of Up/Down pays this per repeat).
+# When scroll_into_view is enabled (default) for the widget's pane and the pane scrolls vertically, calls
+# _tui_scroll.reveal to ensure the widget is visible; if reveal changes the offset, redraws the entire pane's
+# widgets, border, and scrollbar instead of just the focus indicator.
 tui.focus() {
 	local id="$1" old="$_TUI_FOCUS_ID" oldpf="$_TUI_PANE_FOCUS" newpane="${_TUI_W_PANE[$1]:-}" oldpane="" x seen=" "
 	[[ -n "$old" ]] && oldpane="${_TUI_W_PANE[$old]:-}"
 	_tui_focus.set "$id"
 	local saved_frame="$_TUI_FRAME"
 	_TUI_FRAME=""
-	for x in "$old" "$id"; do
-		[[ -z "$x" || "$seen" == *" $x "* ]] && continue
-		seen+="$x "
-		_tui._draw_widget_buf "$x"
-	done
-	if [[ "$oldpane" != "$newpane" || "$oldpf" != "$newpane" ]]; then
-		seen=" "
-		for x in "$oldpane" "$newpane" "$oldpf"; do
+
+	# Check if scroll_into_view should trigger a pane redraw
+	local pane_full_redraw=0
+	if [[ -n "$newpane" ]]; then
+		local scroll="${_TUI_P_SCROLL[$newpane]:-none}"
+		if [[ "$scroll" == "v" || "$scroll" == "both" ]] && [[ "${_TUI_P_NOREVEAL[$newpane]:-0}" != 1 ]]; then
+			_tui_scroll.reveal "$id" && pane_full_redraw=1 # rc 0 = the offset moved: the whole pane repaints
+		fi
+	fi
+
+	# If reveal changed the offset, redraw the entire pane
+	if ((pane_full_redraw)); then
+		_tui._draw_pane_full_buf "$newpane"
+	else
+		# Normal fast path: draw only the old and new widget
+		for x in "$old" "$id"; do
 			[[ -z "$x" || "$seen" == *" $x "* ]] && continue
 			seen+="$x "
-			_tui._draw_pane_border_buf "$x"
+			_tui._draw_widget_buf "$x"
 		done
+		if [[ "$oldpane" != "$newpane" || "$oldpf" != "$newpane" ]]; then
+			seen=" "
+			for x in "$oldpane" "$newpane" "$oldpf"; do
+				[[ -z "$x" || "$seen" == *" $x "* ]] && continue
+				seen+="$x "
+				_tui._draw_pane_border_buf "$x"
+			done
+		fi
 	fi
+
 	local buf="$_TUI_FRAME"
 	_TUI_FRAME="$saved_frame"
 	[[ -n "$buf" ]] && _tui._flush "$buf"
@@ -163,6 +189,7 @@ _tui_focus.set() {
 	_TUI_FOCUS_IDX=-1
 	[[ -n "${_TUI_FOCUS_POS[$id]+x}" ]] && _TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$id]}"
 	_TUI_PANE_FOCUS="$newpane" # the keyboard pane follows widget focus
+	((_TUI_L_N)) && _tui_layer.on_focus "$id"
 	[[ -n "$newpane" ]] && _TUI_PANE_LAST_WIDGET[$newpane]="$id"
 	[[ -n "$g" ]] && _TUI_FOCUS_GLAST[$g]="$id"
 	_tui_text.is_text "$id" && _tui_text.on_focus "$id"

@@ -21,6 +21,7 @@ Runs `WORKFN ARG...` in the background and keeps the interface running. When it 
 - Because `WORKFN` is a separate process, it cannot change the main shell's variables. Hand a result back as output: whatever it prints becomes `OUTFILE`, and it may write more files named `"${TUI_JOB_PREFIX}name"`. Its error output goes to `"${TUI_JOB_PREFIX}err"`. Nothing it prints reaches the terminal.
 - `DONEFN` is where the result goes on screen. Nothing is drawn before it runs, so a page or a list built by `WORKFN` appears all at once, never half-finished. The spinner is already gone when `DONEFN` runs, and the screen is repainted afterwards if `DONEFN` did not redraw it.
 - `$TUI_JOB_PREFIX` is also set while `DONEFN` runs, so it can read those files. They are removed when the app exits.
+- `WORKFN` starts with an empty job table, so a job it starts itself is its own: it cannot cancel the main shell's job of the same `ID`, and its temp files carry the process id so they never collide with the main shell's.
 - Several jobs can run at once. One spinner is shown for all of them, with `(+N)` for the others.
 
 **Example**

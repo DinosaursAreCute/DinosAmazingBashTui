@@ -50,6 +50,30 @@
 .nav_link { fg: #839496; bg: #073642; }
 .nav_link:hover { fg: #839496; bg: #1a444f; }
 .nav_link:focus { fg: #fdf6e3; bg: #268bd2; mods: bold; }
+
+.home_tag {
+  fg: #586e75;
+  bg: #002b36;
+}
+
+.home_badge {
+  fg: #002b36;
+  bg: #b58900;
+  mods: bold;
+}
+
+.home_new {
+  fg: #002b36;
+  bg: #2aa198;
+  mods: bold;
+}
+
+.home_news {
+  fg: #268bd2;
+  bg: #002b36;
+  mods: bold;
+}
+
 .nav_divider { fg: #586e75; bg: #073642; mods: bold; }
 .brand { fg: #268bd2; mods: bold; }
 .clock { fg: #268bd2; bg: #073642; mods: bold; }
@@ -59,10 +83,12 @@
 /* <tabs> headers */
 .tab_header { fg: #839496; bg: #0a333e; }
 .tab_header:hover { fg: #839496; bg: #183e47; }
-.tab_header:focus { fg: #fdf6e3; bg: #268bd2; mods: bold; }
+.tab_header:focus { fg: #839496; bg: #183e47; }
+.tab_header:selected { fg: #fdf6e3; bg: #268bd2; mods: bold; }
 .tab_header_compact { fg: #586e75; bg: #073642; }
 .tab_header_compact:hover { fg: #839496; bg: #1a444f; }
-.tab_header_compact:focus { fg: #fdf6e3; bg: #268bd2; mods: bold; }
+.tab_header_compact:focus { fg: #839496; bg: #1a444f; }
+.tab_header_compact:selected { fg: #fdf6e3; bg: #268bd2; mods: bold; }
 
 /* checkboxes, progress bars */
 .check { fg: #586e75; }
@@ -133,3 +159,41 @@
 .toast_success { fg: #002b36; bg: #859900; }
 .toast_warn { fg: #002b36; bg: #b58900; }
 .toast_error { fg: #fdf6e3; bg: #dc322f; mods: bold; }
+
+/* resize handle and collapse button of resizable / collapsible panes (:collapsed = the pane is collapsed) */
+.resize_handle {
+  fg: #268bd2;
+}
+.resize_handle:hover {
+  fg: #839496;
+  mods: bold;
+}
+.collapse_button {
+  fg: #268bd2;
+  mods: bold;
+}
+.collapse_button:hover {
+  fg: #002b36;
+  bg: #268bd2;
+  mods: bold;
+}
+
+.layer_button {
+  fg: #268bd2;
+  mods: bold;
+}
+.layer_button:hover {
+  fg: #002b36;
+  bg: #268bd2;
+  mods: bold;
+}
+
+.layer_shadow {
+  fg: #586e75;
+}
+
+.collapse_button:collapsed {
+  fg: #002b36;
+  bg: #586e75;
+  mods: bold;
+}

@@ -2,13 +2,13 @@
 
 <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" alt="D.A.B.T" width="420">
 
-<h1><img src="img/app-title.svg" alt="Writing Your First App" height="30"></h1>
+<h1><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-title.svg" alt="Writing Your First App" height="30"></h1>
 
 **A step-by-step tutorial. No experience with terminal UIs needed - if you can write a bash function, you can do this.**
 
 </div>
 
-<h2 id="what-you-will-build"><img src="img/app-what.svg" alt="What you will build" height="30"></h2>
+<h2 id="what-you-will-build"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-what.svg" alt="What you will build" height="30"></h2>
 
 A small **to-do list that runs inside your terminal**: type a task, press Enter, it appears in a list, pick one and remove it. Your tasks are saved, so they are still there next time.
 
@@ -31,7 +31,7 @@ The finished app is in [`examples/first-app/`](https://github.com/DinosaursAreCu
 
 You need: **bash 5+**, and DABT either installed (`dabt --version` works) or as a checkout of this repository. That is all - no Python, no Node, no libraries.
 
-<h2 id="the-big-ideas"><img src="img/app-ideas.svg" alt="The big ideas" height="30"></h2>
+<h2 id="the-big-ideas"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-ideas.svg" alt="The big ideas" height="30"></h2>
 
 Read this part once. Everything after it is just applying it.
 
@@ -54,7 +54,7 @@ You describe the screen in XML. You write bash functions for the behaviour. DABT
 - **id** - the name you give a pane or widget so bash can find it (`inp_task`, `lst_tasks`).
 - **Callback** - a bash function DABT calls for you when something happens.
 
-<h2 id="step-1"><img src="img/app-1.svg" alt="Step 1: The folder" height="30"></h2>
+<h2 id="step-1"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-1.svg" alt="Step 1: The folder" height="30"></h2>
 
 Make a folder with this shape:
 
@@ -97,7 +97,7 @@ Three things are worth understanding here:
 3. **`tui.start_cached FILE`** does everything: prepares the terminal, loads the page, runs the event loop, and - importantly - **puts your terminal back to normal** when the app quits, even if it crashes. The `_cached` part loads all your pages once behind the logo screen and serves page switches from that, so switching pages stays instant; use it always.
 
 
-<h2 id="step-2"><img src="img/app-2.svg" alt="Step 2: A first page" height="30"></h2>
+<h2 id="step-2"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-2.svg" alt="Step 2: A first page" height="30"></h2>
 
 Create **`config/home.xml`** with the smallest useful page:
 
@@ -124,7 +124,7 @@ What the XML says:
 
 > **Rules of the format:** attribute values go in `"double"` or `'single'` quotes, a tag may run over several lines, and `<!-- comments -->` can stand anywhere. If you make a mistake, the app refuses to start and tells you the file, line and column.
 
-<h2 id="step-3"><img src="img/app-3.svg" alt="Step 3: Panes" height="30"></h2>
+<h2 id="step-3"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-3.svg" alt="Step 3: Panes" height="30"></h2>
 
 One box is boring. Let's split the screen. A pane can be **split** into children, either side by side (`split="h"`, *h*orizontal) or stacked (`split="v"`, *v*ertical). Each child can say how much room it takes.
 
@@ -154,7 +154,7 @@ root (stacked top-to-bottom)
 
 A child's size along the split comes from `height` (in a stacked split) or `width` (in a side-by-side split): a number of cells (`4`), a percentage (`38%`), or a share of what is left (`2fr`; a child without a size takes `1fr`). Resize your terminal and the boxes follow. `class="panel"` is a hook for styling in step 6.
 
-<h2 id="step-4"><img src="img/app-4.svg" alt="Step 4: Widgets" height="30"></h2>
+<h2 id="step-4"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-4.svg" alt="Step 4: Widgets" height="30"></h2>
 
 Now put widgets into the panes. A widget is written **inside the pane it belongs to**. Replace the three child panes with these:
 
@@ -190,7 +190,7 @@ Also add a footer line at the top of the page, which shows the keys that work (h
 
 If you run the app now, you can already Tab between the widgets and click buttons with the mouse. They just do nothing yet - `on_add` does not exist. Time to write it.
 
-<h2 id="step-5"><img src="img/app-5.svg" alt="Step 5: Behaviour" height="30"></h2>
+<h2 id="step-5"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-5.svg" alt="Step 5: Behaviour" height="30"></h2>
 
 Create **`config/home_callbacks.sh`** and tell the page to load it. In `home.xml`, right after `<tui>`:
 
@@ -259,7 +259,7 @@ Run it. Add a few tasks, select one (arrow keys in the list, or click), press **
 
 > **Golden rule of callbacks:** keep the *screen* in the XML and the *logic* in bash. Callbacks read widgets, change data, and update widgets. They never build layout. And they only call public `tui.*` functions - anything starting with `_tui.` is the framework's private business.
 
-<h2 id="step-6"><img src="img/app-6.svg" alt="Step 6: Style" height="30"></h2>
+<h2 id="step-6"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-6.svg" alt="Step 6: Style" height="30"></h2>
 
 The `class="..."` attributes you sprinkled around point at a stylesheet. Add it to the page (next to the `<script>` line):
 
@@ -284,7 +284,7 @@ Create **`config/theme.css`**:
 
 It reads like CSS: `.name { fg: text-color; bg: background; mods: bold underline; }`. Colors are names (`red`, `white`) or `#RRGGBB`. The `:hover` and `:focus` versions apply while the mouse or the keyboard is on that widget. A class you do not style just looks plain, so you can start with none and add them one at a time.
 
-<h2 id="step-7"><img src="img/app-7.svg" alt="Step 7: Save data" height="30"></h2>
+<h2 id="step-7"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-7.svg" alt="Step 7: Save data" height="30"></h2>
 
 Right now the tasks vanish when you quit. Your app has a private folder for exactly this: **`$TUI_APP_CONF`** (that is `~/.config/DABT/apps/tasks/`, from the `TUI_APP_NAME` you set in step 1). Anything you write there survives updates and reinstalls of your app.
 
@@ -303,7 +303,7 @@ Load in `tasks_visit`, before `_tasks_show`:
 
 And call `_tasks_save` before `_tasks_show` in `on_add`, `on_remove` and `do_clear`. Add a task, quit, start again: it is still there.
 
-<h2 id="step-8"><img src="img/app-8.svg" alt="Step 8: Install it" height="30"></h2>
+<h2 id="step-8"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-8.svg" alt="Step 8: Install it" height="30"></h2>
 
 To install your app like a real program, add a small metadata file **`.dabt.metadata`** next to `tasks.sh`:
 
@@ -328,7 +328,7 @@ dabt app remove tasks           # remove (your saved tasks stay unless you add -
 
 `dabt app install` **scans the code first** and shows you what it found - the same scan protects everyone who installs your app. You can also publish the folder as a git repository and install with `dabt app install https://github.com/you/tasks`.
 
-<h2 id="step-9"><img src="img/app-9.svg" alt="Step 9: Package it" height="30"></h2>
+<h2 id="step-9"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-9.svg" alt="Step 9: Package it" height="30"></h2>
 
 Installing from a folder works for you. To hand your app to other people, build a **package**: one signed file (`.dapk`) that carries your app, a list of checksums and your signature, so nobody can change it on the way without being noticed.
 
@@ -381,7 +381,7 @@ A package that was changed after signing, or was signed by another key, is **ref
 
 Need a package for a private test only? `dabt build --no-sign` builds one that installs only with `--allow-unsigned`. More options (`dabt.pkg`, dependencies, what gets included): [../guide/packaging.md](../guide/packaging.md).
 
-<h2 id="step-10"><img src="img/app-10.svg" alt="Step 10: Release it" height="30"></h2>
+<h2 id="step-10"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-10.svg" alt="Step 10: Release it" height="30"></h2>
 
 Put the app in a GitHub repository and let a workflow build and publish every release.
 
@@ -416,7 +416,7 @@ git push --follow-tags
 
 The tag starts the workflow: it builds and signs the package and creates a **draft** GitHub release with the `.dapk`, its checksum and the News. Read it on GitHub, then click **Publish release** (or run `dabt pkg publish --release`). Users then run `dabt app install https://github.com/you/tasks/releases/latest/download/tasks-0.1.1-N.dapk` (or `dabt app update tasks`). The **build number** (`-N`) is the workflow's run number, so every build has a unique, ever-growing name.
 
-<h2 id="recap"><img src="img/app-recap.svg" alt="Recap" height="30"></h2>
+<h2 id="recap"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-recap.svg" alt="Recap" height="30"></h2>
 
 | You wrote | What it is | Web equivalent |
 |---|---|---|
@@ -430,7 +430,7 @@ The tag starts the workflow: it builds and signs the package and creates a **dra
 
 The whole loop of a DABT app: **the user does something → DABT calls your function → you change your data → you update widgets.**
 
-<h2 id="where-next"><img src="img/app-next.svg" alt="Where next?" height="30"></h2>
+<h2 id="where-next"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/app-next.svg" alt="Where next?" height="30"></h2>
 
 - **More pages:** a `<button ... page="settings.xml"/>` opens another page.
 - **Parts every page shares** (a menu, a header) are written once as a *template* in a file such as `_templates.xml`, pulled in with `<include src="_templates.xml"/>` and placed with `<use template="menu"/>`. Loops and conditions (`<for>`, `<if>`) work the same way. See [Reusing markup](../guide/markup.md#reusing-markup).

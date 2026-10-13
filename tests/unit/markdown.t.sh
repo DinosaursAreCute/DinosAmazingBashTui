@@ -2303,6 +2303,116 @@ t_md_image_protocol_names_the_terminal_family() {
 	eq none "$p"
 }
 
+_md_ph_count() { # ROW -> _N : placeholder cells in ROW
+	local ph=$'\xf4\x8e\xbb\xae' row=$1
+	_N=0
+	while [[ "$row" == *"$ph"* ]]; do
+		row=${row#*"$ph"}
+		((_N++))
+	done
+}
+
+t_md_graphics_a_heading_that_is_a_picture_shows_the_picture() {
+	_md_png
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'## ![News](p.png)\n\ntext' 40
+	eq 5 "${#TUI_MD_ROWS[@]}" # 3 picture rows, a gap, the text
+	_md_ph_count "${TUI_MD_ROWS[0]}"
+	eq 10 "$_N"
+	eq "2|News|0|2|1" "${TUI_MD_HEADS[0]/#[0-9]|/2|}" # level 2, the alt text as the title, rows 0 to 2
+	eq 0 "${TUI_MD_ANCHORS[news]}"
+}
+
+t_md_graphics_an_html_header_image_is_the_same() {
+	_md_png
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'<h2 id="news"><img src="p.png" alt="News"></h2>\n\ntext' 40
+	_md_ph_count "${TUI_MD_ROWS[0]}"
+	eq 10 "$_N"
+	eq 0 "${TUI_MD_ANCHORS[news]}"
+}
+
+t_md_a_picture_heading_falls_back_to_its_alt_text() {
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	_md_flat '## ![News](missing.png)' 40
+	eq "News" "${_F%% *}"
+	[[ "$_F" != *"[img"* ]] || _t_fail "placeholder text in a heading: $_F"
+	eq 0 "${TUI_MD_ANCHORS[news]}"
+}
+
+t_md_a_picture_heading_is_its_alt_text_without_graphics() {
+	TUI_MD_IMAGES=placeholder
+	_md_flat $'<h2 id="n"><img src="x.png" alt="What is this"></h2>' 40
+	eq "What is this" "$_F"
+	TUI_MD_IMAGES=alt
+	_md_flat '## ![Q](x.png)' 40
+	eq "Q" "$_F"
+}
+
+t_md_a_heading_with_text_and_a_picture_is_unchanged() {
+	TUI_MD_IMAGES=placeholder
+	_md_flat '## Look ![x](x.png) here' 40
+	match "$_F" 'Look \[img: x\] here'
+}
+
+t_md_graphics_table_cells_of_pictures_are_drawn() {
+	_md_png
+	cp "$_T_ROOT/p.png" "$_T_ROOT/q.png"
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'| One | Two |\n|:-:|:-:|\n| ![x](p.png) | ![y](q.png) |' 60
+	eq 7 "${#TUI_MD_ROWS[@]}" # top, header, rule, 3 picture rows, bottom
+	_md_ph_count "${TUI_MD_ROWS[3]}"
+	eq 20 "$_N" # both pictures on the same row
+	eq 2 "${#TUI_MD_IMAGE_IDS[@]}"
+}
+
+t_md_graphics_html_img_cells_in_a_theme_table() {
+	_md_png
+	cp "$_T_ROOT/p.png" "$_T_ROOT/q.png"
+	cp "$_T_ROOT/p.png" "$_T_ROOT/r.png"
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'| A | B | C |\n|:---:|:---:|:---:|\n| <img src="p.png" alt="a" width="260"> | <img src="q.png" alt="b" width="260"> | <img src="r.png" alt="c" width="260"> |' 80
+	_md_ph_count "${TUI_MD_ROWS[3]}"
+	eq 30 "$_N"
+	eq 3 "${#TUI_MD_IMAGE_IDS[@]}"
+}
+
+t_md_graphics_table_pictures_shrink_to_a_share_of_the_width() {
+	printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x04\x00\x00\x00\x02\x00' >"$_T_ROOT/big.png" # 1024 x 512
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'| A | B |\n|---|---|\n| ![a](big.png) | ![b](big.png) |' 50
+	local r
+	for r in "${TUI_MD_ROWS[@]}"; do
+		_md_ph_count "$r"
+		((_N <= 50 - 7)) || _t_fail "a table row holds $_N picture cells: more than the table's content width"
+	done
+	_md_ph_count "${TUI_MD_ROWS[3]}"
+	((_N > 0)) || _t_fail "no picture drawn"
+}
+
+t_md_graphics_a_narrow_table_with_pictures_stacks_as_text() {
+	_md_png
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'| A | B |\n|---|---|\n| ![x](p.png) | ![y](p.png) |' 8
+	eq 0 "${#TUI_MD_IMAGE_IDS[@]}"
+}
+
+t_md_graphics_a_cell_with_text_and_a_picture_stays_text() {
+	_md_png
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'| A |\n|---|\n| see ![x](p.png) |' 40
+	eq 0 "${#TUI_MD_IMAGE_IDS[@]}"
+}
+
+t_md_graphics_a_linked_picture_in_a_cell_registers_one_link() {
+	_md_png
+	TUI_MD_IMAGES=graphics TUI_MD_IMAGE_PROTOCOL=kitty TUI_MD_BASE_DIR=$_T_ROOT
+	tui.md.render $'| A |\n|---|\n| [![x](p.png)](https://example.org) |' 40
+	eq 1 "${#TUI_MD_LINK_URLS[@]}"
+	eq 1 "${#TUI_MD_LINK_ROWS[@]}"
+	eq 0 "$((TUI_MD_LINK_ROWS[0] < 0))"
+}
+
 t_md_graphics_images_share_a_row_and_wrap() {
 	_md_png
 	cp "$_T_ROOT/p.png" "$_T_ROOT/q.png"

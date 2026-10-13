@@ -285,6 +285,24 @@ _tui_md.image_segment() {
 	return 1
 }
 
+# _tui_md.image_only TEXT -> _ALT - rc 0 when TEXT holds nothing but pictures ([![alt](src)](link) or ![alt](src)); _ALT is
+# their alt texts joined by a space. A heading or a table cell like that is a picture, not text.
+_tui_md.image_only() {
+	local rest=$1 n=0 sp=$'[[:space:]\x01]'
+	_ALT=""
+	while [[ -n "${rest//$sp/}" ]]; do
+		rest=${rest#"${rest%%[![:space:]$'\x01']*}"}
+		if [[ "$rest" =~ $_TUI_MD_RE_IMG_LINKED || "$rest" =~ $_TUI_MD_RE_IMG_PLAIN ]]; then
+			_ALT+="${_ALT:+ }${BASH_REMATCH[1]}"
+			((n++))
+			rest=${rest:${#BASH_REMATCH[0]}}
+		else
+			return 1
+		fi
+	done
+	((n > 0))
+}
+
 # _tui_md.image_strip TEXT WIDTH LINENO - when TEXT (a paragraph) holds only images, appends them left to right, wrapping like
 # words; rc 1 (nothing appended) when graphics are off, the terminal cannot show them, TEXT holds anything else, or no image
 # could be shown (then the paragraph renders as text with placeholders).

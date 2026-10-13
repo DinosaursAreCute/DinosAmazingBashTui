@@ -1199,8 +1199,18 @@ _tui_md.slug() {
 
 # _tui_md.heading LEVEL TEXT WIDTH LINENO - a heading in its font or style; records its anchor and outline entry.
 _tui_md.heading() {
-	local level=$1 text=$2 width=$3 ln=$4 h=${_TUI_MD_SGR[h$1]} first=${#TUI_MD_ROWS[@]} plain
-	if ((TUI_MD_FONTS)) && [[ -n "${_TUI_MD_HFONT[$level]:-}" ]] &&
+	local level=$1 text=$2 width=$3 ln=$4 h=${_TUI_MD_SGR[h$1]} first=${#TUI_MD_ROWS[@]} plain shown=0
+	# a heading that is only a picture (<h2><img alt="News"></h2>, the README's section banners): the picture where graphics
+	# can draw it, else its alt text as the heading
+	if [[ "$text" == *"!["* ]] && _tui_md.image_only "$text"; then
+		if [[ "$TUI_MD_IMAGES" == graphics ]] && _tui_md.image_strip "$text" "$width" "$ln"; then
+			shown=1
+		fi
+		text=$_ALT
+	fi
+	if ((shown)); then
+		:
+	elif ((TUI_MD_FONTS)) && [[ -n "${_TUI_MD_HFONT[$level]:-}" ]] &&
 		_tui_md.heading_banner "$text" "${_TUI_MD_HFONT[$level]}" "$width" "$h" "$ln"; then
 		:
 	else

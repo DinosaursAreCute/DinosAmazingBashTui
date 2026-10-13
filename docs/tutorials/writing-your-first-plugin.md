@@ -2,13 +2,13 @@
 
 <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" alt="D.A.B.T" width="420">
 
-<h1><img src="img/plugin-title.svg" alt="Writing Your First Plugin" height="30"></h1>
+<h1><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-title.svg" alt="Writing Your First Plugin" height="30"></h1>
 
 **A step-by-step tutorial. Ten minutes, one file, no experience with terminal UIs needed.**
 
 </div>
 
-<h2 id="what-you-will-build"><img src="img/plugin-what.svg" alt="What you will build" height="30"></h2>
+<h2 id="what-you-will-build"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-what.svg" alt="What you will build" height="30"></h2>
 
 A **Stretch reminder**: every 30 minutes a message pops up telling you to stand up. It also adds commands to the command bar (`ctrl+p`), a keyboard shortcut (`alt+s`), and remembers how often you want to be reminded.
 
@@ -16,7 +16,7 @@ The best part: **it works in every DABT app** - the demo, the File Explorer, the
 
 The finished file is [`examples/plugins/stretch.plugin.sh`](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/examples/plugins/stretch.plugin.sh).
 
-<h2 id="the-big-ideas"><img src="img/plugin-ideas.svg" alt="The big ideas" height="30"></h2>
+<h2 id="the-big-ideas"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-ideas.svg" alt="The big ideas" height="30"></h2>
 
 **An app is a program; a plugin is an add-on for programs.** An app has its own screens. A plugin has none of its own - it *adds behaviour* to whichever DABT app is running: extra commands, keys, timers, reactions to events. Think of a browser extension.
 
@@ -38,7 +38,7 @@ Vocabulary:
 | **timer** | a function DABT calls again and again on an interval |
 | **hook** | a function DABT calls when something happens (page changed, window resized, app quitting) |
 
-<h2 id="step-1-the-file"><img src="img/plugin-1.svg" alt="Step 1: The file" height="30"></h2>
+<h2 id="step-1-the-file"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-1.svg" alt="Step 1: The file" height="30"></h2>
 
 Create **`stretch.plugin.sh`**. Start with only its "business card" - comments in the first lines:
 
@@ -58,7 +58,7 @@ Create **`stretch.plugin.sh`**. Start with only its "business card" - comments i
 | `default: off` | it starts switched off; the user turns it on. (`on` = on for everyone the first time; after that, the user's choice is remembered.) |
 | `requires: other_plugin` | *(optional)* enable that plugin first, disable it last |
 
-<h2 id="step-2-on-enable"><img src="img/plugin-2.svg" alt="Step 2: On enable" height="30"></h2>
+<h2 id="step-2-on-enable"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-2.svg" alt="Step 2: On enable" height="30"></h2>
 
 Add the most important function. DABT looks for one named **`plugin.<id>.on_enable`** and calls it when the plugin is switched on. This is where you *register* what the plugin adds:
 
@@ -71,7 +71,7 @@ plugin.stretch.on_enable() {
 
 The name follows from your id: `# plugin: stretch` → `plugin.stretch.on_enable`. If they do not match, DABT never calls it and nothing happens.
 
-<h2 id="step-3-a-command"><img src="img/plugin-3.svg" alt="Step 3: A command" height="30"></h2>
+<h2 id="step-3-a-command"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-3.svg" alt="Step 3: A command" height="30"></h2>
 
 Every DABT app has a **command bar** (press `ctrl+p`): a searchable list of things to do. Add an entry to it. First write what should happen, as a plain bash function:
 
@@ -91,7 +91,7 @@ stretch_remind() {
 
 `tui.cmd.add ID TITLE FUNCTION` - an id, the text the user sees and searches, and the function to run. `--group` and `--desc` are decoration for the list.
 
-<h2 id="step-4-a-key"><img src="img/plugin-4.svg" alt="Step 4: A key" height="30"></h2>
+<h2 id="step-4-a-key"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-4.svg" alt="Step 4: A key" height="30"></h2>
 
 One more line in `on_enable` binds a key to the same function:
 
@@ -103,7 +103,7 @@ Key names are written like `ctrl+e`, `alt+s`, `f5`, `shift+tab`. A key you bind 
 
 > **Heads up:** your *terminal program* sees keys before DABT does, and some terminals keep certain combinations for themselves (tab switching, for example). If a key never arrives, try another one; the built-in `terminal_shortcuts` plugin can even show you which ones are taken.
 
-<h2 id="step-5-a-timer"><img src="img/plugin-5.svg" alt="Step 5: A timer" height="30"></h2>
+<h2 id="step-5-a-timer"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-5.svg" alt="Step 5: A timer" height="30"></h2>
 
 The reminder itself: call a function every N seconds with `tui.every SECONDS FUNCTION ID`.
 
@@ -124,7 +124,7 @@ stretch_tick() {
 
 The third argument, `stretch_timer`, is the timer's **name**. You need it to cancel or restart the timer later.
 
-<h2 id="step-6-settings"><img src="img/plugin-6.svg" alt="Step 6: Settings" height="30"></h2>
+<h2 id="step-6-settings"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-6.svg" alt="Step 6: Settings" height="30"></h2>
 
 Hard-coding "30 minutes" is not friendly. A plugin can keep settings that survive restarts - DABT stores them as `plugin.<id>.<key>` in the app's `dabt.conf`.
 
@@ -159,7 +159,7 @@ stretch_less() { stretch_set $(( STRETCH_MINUTES * 2 )); }
     tui.cmd.add stretch.less "Stretch: remind less often" stretch_less --group Stretch --desc "Doubles the interval"
 ```
 
-<h2 id="step-7-clean-up"><img src="img/plugin-7.svg" alt="Step 7: Clean up" height="30"></h2>
+<h2 id="step-7-clean-up"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-7.svg" alt="Step 7: Clean up" height="30"></h2>
 
 What happens when the user switches the plugin off? **You do not need to write anything.** The commands, the key and the timer are all removed by DABT because they were registered through `tui.cmd.add`, `tui.bind` and `tui.every`.
 
@@ -171,7 +171,7 @@ plugin.stretch.on_disable() { tui.notify "Stretch reminders off" info 2; }
 
 If your plugin does something DABT cannot see (starts a background process, changes a file), register the undo yourself: `tui.plugin.own run 'command that undoes it'`.
 
-<h2 id="step-8-try-it"><img src="img/plugin-8.svg" alt="Step 8: Try it" height="30"></h2>
+<h2 id="step-8-try-it"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-8.svg" alt="Step 8: Try it" height="30"></h2>
 
 Put the file where DABT looks for plugins - your plugin folder:
 
@@ -192,7 +192,7 @@ You can also install from the Plugins page with **Install file / folder** (it as
 
 If it misbehaves: the Plugins page shows a plugin's **state** and any error, and its **Details** show how many commands, keys, hooks and timers it registered. Common causes: the `# plugin:` id and the `plugin.<id>.on_enable` name do not match, or the file has a bash syntax error (`bash -n stretch.plugin.sh` finds it).
 
-<h2 id="step-9-scan-it"><img src="img/plugin-9.svg" alt="Step 9: Scan it" height="30"></h2>
+<h2 id="step-9-scan-it"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-9.svg" alt="Step 9: Scan it" height="30"></h2>
 
 Before you enable somebody else's plugin - or publish yours - run the built-in security scan:
 
@@ -204,7 +204,7 @@ or, inside the app: **Settings → Plugins →** select the plugin **→ [ Scan 
 
 A clean scan is not a guarantee - it is a list of *red flags*, checked by simple rules. It is one more reason to read a plugin before you trust it. Yours should come back clean.
 
-<h2 id="recap"><img src="img/plugin-recap.svg" alt="Recap" height="30"></h2>
+<h2 id="recap"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-recap.svg" alt="Recap" height="30"></h2>
 
 ```bash
 # plugin: stretch                       <- the id, and what the functions are named after
@@ -229,7 +229,7 @@ plugin.stretch.on_disable() { ... }     # optional; registrations are undone aut
 | remember a setting | `tui.plugin.config ID KEY VALUE` / `tui.config.get plugin.ID.KEY DEFAULT` |
 | undo something DABT cannot see | `tui.plugin.own run 'undo command'` |
 
-<h2 id="where-next"><img src="img/plugin-next.svg" alt="Where next?" height="30"></h2>
+<h2 id="where-next"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/docs/tutorials/img/plugin-next.svg" alt="Where next?" height="30"></h2>
 
 - **Hooks:** `tui.hook.on page my_fn` runs `my_fn FILE` after every page switch; also `init`, `ready`, `resize`, `key`, `quit`, `exit`. A `key` hook that returns 0 *consumes* the key. Full list: [../guide/plugins.md](../guide/plugins.md#hooks).
 - **Change pages:** a plugin can add to any page with an *addon*, a small XML file that appends, replaces or removes parts of a page; the page author decides what can be changed by giving panes an `id`. See [Changing pages from a plugin](../guide/plugins.md#changing-pages-from-a-plugin-addons).

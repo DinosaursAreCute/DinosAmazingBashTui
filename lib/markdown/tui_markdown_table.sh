@@ -83,12 +83,36 @@ _tui_md.table_cell() {
 	for ((k = l0; k < ${#TUI_MD_LINK_ROWS[@]}; k++)); do TUI_MD_LINK_ROWS[k]=-1; done # fixed when the table is placed
 }
 
+# _tui_md.table_image_cell CELL WIDTH -> _TB_LINES _TB_W - a cell that holds only pictures as placeholder rows of at most WIDTH
+# cells; rc 1 (nothing set) when graphics are off or no picture could be shown. The strip is laid out by _tui_md.image_strip
+# into scratch arrays, so the cell's links (already registered by the text render) are not registered twice.
+_tui_md.table_image_cell() {
+	[[ "$TUI_MD_IMAGES" == graphics && "$1" == *"!["* ]] || return 1
+	_tui_md.image_only "$1" || return 1
+	local -a TUI_MD_ROWS=() TUI_MD_MAP=() TUI_MD_LINK_URLS=() TUI_MD_LINK_TEXTS=() TUI_MD_LINK_ROWS=()
+	_tui_md.image_strip "$1" "$2" 0 || return 1
+	local l
+	_TB_LINES=("${TUI_MD_ROWS[@]}")
+	_TB_W=0
+	for l in "${_TB_LINES[@]}"; do
+		_tui_md.vlen "$l"
+		((_VL > _TB_W)) && _TB_W=$_VL
+	done
+	return 0
+}
+
 # _tui_md.table_emit LN CELL_INDEX0 - one table row from the rendered cells (uses _tui_md.table_render's locals)
 _tui_md.table_emit() {
 	local ln=$1 base=$2 hmax=1 cc kk text pad lw piece left right seg
 	local -a col_lines=() ll=()
 	for ((cc = 0; cc < cols; cc++)); do
-		_tui_md.table_cell "${rendered[base + cc]}" "${cw[cc]}" "${rwidth[base + cc]}"
+		if [[ -n "${imgl[$((base + cc))]+x}" ]]; then
+			IFS=$'\x1e' read -ra _TB_LINES <<<"${imgl[$((base + cc))]}"
+			text=${rendered[base + cc]//[!$'\x02']/} # the links of a picture cell keep their slot in the row list
+			for ((kk = 0; kk < ${#text}; kk++)); do TUI_MD_LINK_ROWS+=(-1); done
+		else
+			_tui_md.table_cell "${rendered[base + cc]}" "${cw[cc]}" "${rwidth[base + cc]}"
+		fi
 		printf -v text '%s\x1e' "${_TB_LINES[@]}"
 		col_lines[cc]=$text
 		((${#_TB_LINES[@]} > hmax)) && hmax=${#_TB_LINES[@]}
@@ -156,6 +180,31 @@ _tui_md.table_render() {
 		for word in $_PLAIN; do ((${#word} > mw[c])) && mw[c]=${#word}; done
 		((idx++))
 	done
+	# pictures: a cell of nothing but pictures is drawn as pictures, each no wider than an equal share of the table
+	local -A imgl=()
+	local nids=${#TUI_MD_IMAGE_IDS[@]} share=$(((width - 3 * cols - 1) / cols)) cells_all=("${hdr[@]}" "${rowcells[@]}") pic=0
+	if [[ "$TUI_MD_IMAGES" == graphics ]] && ((share >= 4)); then
+		for ((idx = 0; idx < ${#cells_all[@]}; idx++)); do
+			_tui_md.table_image_cell "${cells_all[idx]}" "$share" || continue
+			printf -v text '%s\x1e' "${_TB_LINES[@]}"
+			imgl[$idx]=$text
+			rwidth[idx]=$_TB_W
+			pic=1
+		done
+		if ((pic)); then # the columns' widths again: a picture cell is as wide as its picture and cannot shrink
+			for ((c = 0; c < cols; c++)); do nw[c]=1 mw[c]=1; done
+			for ((idx = 0; idx < ${#cells_all[@]}; idx++)); do
+				c=$((idx % cols))
+				((rwidth[idx] > nw[c])) && nw[c]=${rwidth[idx]}
+				if [[ -n "${imgl[$idx]+x}" ]]; then
+					((rwidth[idx] > mw[c])) && mw[c]=${rwidth[idx]}
+					continue
+				fi
+				_tui_md.strip_marks "${rendered[idx]}"
+				for word in $_PLAIN; do ((${#word} > mw[c])) && mw[c]=${#word}; done
+			done
+		fi
+	fi
 	local avail=$((width - 3 * cols - 1)) sum=0 widest
 	cw=("${nw[@]}")
 	for c in "${cw[@]}"; do ((sum += c)); done
@@ -186,6 +235,7 @@ _tui_md.table_render() {
 			done
 		done
 		for ((k = l0; k < ${#TUI_MD_LINK_ROWS[@]}; k++)); do ((TUI_MD_LINK_ROWS[k] < 0)) && TUI_MD_LINK_ROWS[k]=$first; done
+		TUI_MD_IMAGE_IDS=("${TUI_MD_IMAGE_IDS[@]:0:nids}") # as text: the pictures laid out above are not shown
 		i=$j
 		return 0
 	fi

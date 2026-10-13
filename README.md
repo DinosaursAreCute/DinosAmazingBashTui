@@ -216,42 +216,42 @@ Default theme, generated with `tools/debug/screenshot_all.sh`.
 <details open>
 <summary><b>Components: every terminal renderer, with fit-to-pane and live tabs</b></summary>
 
-<img src="screenshots/default/components.png" alt="Components" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/components.png" alt="Components" width="680">
 
 </details>
 
 <details>
 <summary><b>Case Study: real-world layout stress test</b></summary>
 
-<img src="screenshots/default/case_study.png" alt="Case Study" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/case_study.png" alt="Case Study" width="680">
 
 </details>
 
 <details>
 <summary><b>Documentation: one tab per markdown file</b></summary>
 
-<img src="screenshots/default/docu__doc_tab_3.png" alt="Docs" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/docu__doc_tab_3.png" alt="Docs" width="680">
 
 </details>
 
 <details>
 <summary><b>Scrolling: high-performance AWK shader viewports</b></summary>
 
-<img src="screenshots/default/scrolling.png" alt="Scrolling" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/scrolling.png" alt="Scrolling" width="680">
 
 </details>
 
 <details>
 <summary><b>Monitor: live CPU, memory, load and disk straight from /proc</b></summary>
 
-<img src="screenshots/default/monitor.png" alt="Monitor" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/monitor.png" alt="Monitor" width="680">
 
 </details>
 
 <details>
 <summary><b>Debug: every key and mouse event lights up as you press it</b></summary>
 
-<img src="screenshots/default/debug_input.png" alt="Keyboard and mouse" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/debug_input.png" alt="Keyboard and mouse" width="680">
 
 </details>
 <br/>
@@ -262,23 +262,23 @@ Switch the whole app from Settings or the command palette; the shipped themes li
 
 | Default | Ocean | Forest |
 |:---:|:---:|:---:|
-| <img src="screenshots/default/components_theme.png" alt="default" width="260"> | <img src="screenshots/ocean/components_theme.png" alt="ocean" width="260"> | <img src="screenshots/forest/components_theme.png" alt="forest" width="260"> |
+| <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/components_theme.png" alt="default" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/ocean/components_theme.png" alt="ocean" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/forest/components_theme.png" alt="forest" width="260"> |
 
 | Sunset | Light | Fallout |
 |:---:|:---:|:---:|
-| <img src="screenshots/sunset/components_theme.png" alt="sunset" width="260"> | <img src="screenshots/light/components_theme.png" alt="light" width="260"> | <img src="screenshots/fallout/components_theme.png" alt="fallout" width="260"> |
+| <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/sunset/components_theme.png" alt="sunset" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/light/components_theme.png" alt="light" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/fallout/components_theme.png" alt="fallout" width="260"> |
 
 | Neovim | Monkeytype | Hello Kitty |
 |:---:|:---:|:---:|
-| <img src="screenshots/neovim/components_theme.png" alt="neovim" width="260"> | <img src="screenshots/monkeytype/components_theme.png" alt="monkeytype" width="260"> | <img src="screenshots/hello_kitty/components_theme.png" alt="hello_kitty" width="260"> |
+| <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/neovim/components_theme.png" alt="neovim" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/monkeytype/components_theme.png" alt="monkeytype" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/hello_kitty/components_theme.png" alt="hello_kitty" width="260"> |
 
 | Solarized Dark | Solarized Light | Gruvbox |
 |:---:|:---:|:---:|
-| <img src="screenshots/solarized_dark/components_theme.png" alt="solarized_dark" width="260"> | <img src="screenshots/solarized_light/components_theme.png" alt="solarized_light" width="260"> | <img src="screenshots/gruvbox/components_theme.png" alt="gruvbox" width="260"> |
+| <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/solarized_dark/components_theme.png" alt="solarized_dark" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/solarized_light/components_theme.png" alt="solarized_light" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/gruvbox/components_theme.png" alt="gruvbox" width="260"> |
 
 | Dracula | Nord |
 |:---:|:---:|
-| <img src="screenshots/dracula/components_theme.png" alt="dracula" width="260"> | <img src="screenshots/nord/components_theme.png" alt="nord" width="260"> |
+| <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/dracula/components_theme.png" alt="dracula" width="260"> | <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/nord/components_theme.png" alt="nord" width="260"> |
 <br/>
 <br/>
 <h2 id="documentation"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/documentation.svg" alt="Documentation" height="35"></h2>

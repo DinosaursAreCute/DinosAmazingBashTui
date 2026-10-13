@@ -228,7 +228,7 @@ cp "$APP_DIR/addons/banner.xml" "$TUI_APP_CONF/addons/banner.xml"   # switch an 
 tui.page.refresh                                                    # the screen follows
 ```
 
-A refresh does not parse anything. Every page remembers the tree it was built from; the refresh applies the addons to that tree, compares the result with what is on screen pane by pane, and rebuilds only the panes whose content changed, together with everything below them. It stays within the 100 ms a page switch has, and what you typed or ticked in the panes that did not change stays as it is. See [How pages are built and refreshed](../design/pages-templates-addons-refresh.md) for what it does and when it gives up.
+A refresh does not parse anything. Every page remembers the tree it was built from; the refresh applies the addons to that tree, compares the result with what is on screen pane by pane, and rebuilds only the panes whose content changed, together with everything below them. It stays within the 100 ms a page switch has, and what you typed or ticked in the panes that did not change stays as it is. See [How pages are built and refreshed](../concepts/pages-templates-addons-refresh.md) for what it does and when it gives up.
 
 To keep a change refreshable:
 

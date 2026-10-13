@@ -957,7 +957,7 @@
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
       <xs:attribute name="min_width" type="xs:nonNegativeInteger"/>
-      <xs:attribute name="max_width" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="max_height" type="xs:nonNegativeInteger"/>
       <xs:attribute name="hpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="vpad" type="xs:nonNegativeInteger"/>
       <xs:attribute name="class" type="xs:string"/>

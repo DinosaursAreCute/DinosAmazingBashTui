@@ -17,6 +17,8 @@ import termios
 import time
 import shutil
 
+from . import scenarios
+
 CLK_TCK = os.sysconf("SC_CLK_TCK")
 PAGE_KB = os.sysconf("SC_PAGE_SIZE") // 1024
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -94,16 +96,36 @@ def _pane_costs(evs):
     return out
 
 
+def inherit_pipes(probe_w, trace_w):
+    """In a forked child, before exec: the probe pipe becomes fd 8, the trace pipe fd 9 (None = none) and nothing else
+    above stderr is inherited. With units starting side by side the parent's pipes can already sit on 8 or 9: dup2(8, 8)
+    does nothing and leaves close-on-exec set, so the app would run without its probes and never be seen ready. Both are
+    moved out of the way first."""
+    hi_probe = fcntl.fcntl(probe_w, fcntl.F_DUPFD, 100)
+    hi_trace = fcntl.fcntl(trace_w, fcntl.F_DUPFD, 100) if trace_w is not None else None
+    os.dup2(hi_probe, 8)
+    if hi_trace is not None:
+        os.dup2(hi_trace, 9)
+    for f in range(3, 256):
+        if f in (8, 9):
+            continue
+        try:
+            os.close(f)
+        except OSError:
+            pass
+
+
 class Session:
-    def __init__(self, home, rows=45, cols=150, trace_w=None, app=None, forward=None, probes=True):
+    def __init__(self, home, rows=45, cols=150, trace_w=None, app=None, forward=None, probes=True, env=None):
         """home: throw-away HOME dir. trace_w: write end of the xtrace pipe (or None).
         forward: callable(msg) receiving driver->aggregator messages (or None)."""
         self.home, self.rows, self.cols = home, rows, cols
+        self.extra_env = dict(env or {})   # per-unit environment, on top of the scenario file's
         self.probes = probes      # False while tracing: wrappers would hide the real file:line of what they wrap
         self.remembered = {}      # needle -> position, see where()
         self.raw = bytearray()    # tail of the terminal output, for locate()
         self.trace_w = trace_w
-        self.app = app or os.path.join(REPO, "bin", "DABT_demo.sh")
+        self.app = app or os.path.join(REPO, scenarios.DEFAULTS["app"] or os.path.join("bin", "DABT_demo.sh"))
         self.forward = forward
         self.events = []          # every probe event, in arrival order
         self.open_work = 0        # currently open work wrappers
@@ -128,7 +150,11 @@ class Session:
             text = f.read()
         bindir = os.path.dirname(os.path.abspath(self.app))
         shim = os.path.join(PROFILER_DIR, "probe_shim.sh")
-        text = text.replace('"$(dirname "$0")/../lib/tui.sh"', f'"{shim}"')
+        pattern = scenarios.DEFAULTS["shim_pattern"]
+        if pattern not in text:   # without the swap the app runs unprobed: timings with no attribution, silently
+            raise RuntimeError(f"{self.app} does not contain {pattern}: the profiler cannot put its probes in. "
+                               "Source the library that way, or set SHIM_PATTERN in the scenario file.")
+        text = text.replace(pattern, f'"{shim}"')
         text = text.replace('$(dirname "$0")', bindir)
         path = os.path.join(self._tmp, "app.sh")
         with open(path, "w") as f:
@@ -145,20 +171,15 @@ class Session:
             HOME=self.home, XDG_CONFIG_HOME=self.home + "/.config", XDG_CACHE_HOME=self.home + "/.cache",
             XDG_DATA_HOME=self.home + "/.local/share", XDG_STATE_HOME=self.home + "/.local/state",
             TERM="xterm-256color", COLORTERM="truecolor", LC_ALL="C.UTF-8", LANG="C.UTF-8", TZ="UTC",
-            DABT_DEMO_PAGE="components", PROF_REPO=REPO, PROF_WRAP=wrap, PROF_TRACE="1" if self.trace_w is not None else "0",
+            PROF_REPO=REPO, PROF_WRAP=wrap, PROF_TRACE="1" if self.trace_w is not None else "0",
         )
+        env.update(scenarios.ENV)
+        env.update(self.extra_env)
         self.t_spawn = now()
         pid, fd = pty.fork()
         if pid == 0:
             try:
-                os.dup2(probe_w, 8)
-                if self.trace_w is not None:
-                    os.dup2(self.trace_w, 9)
-                for f in range(10, 256):
-                    try:
-                        os.close(f)
-                    except OSError:
-                        pass
+                inherit_pipes(probe_w, self.trace_w)
                 os.chdir(REPO)
                 os.execvpe("bash", ["bash", app_copy], env)
             finally:
@@ -503,6 +524,7 @@ class Session:
                     m["frame_gap_ms"] = ((flushes[-1] - flushes[0]) / (len(flushes) - 1) * 1000) if len(flushes) > 1 else None
                     m["out_bytes"] = self.out_bytes - out0
                 res.update(m)
+                res.setdefault("out_bytes", self.out_bytes - out0)   # what the terminal received, direct draws included
                 res["ok"] = bool(m) and ok
                 res["went"] = any(e.kind == "E" and e.name == "tui.goto" for e in self.events[mark:])
                 if step.group == "shutdown":

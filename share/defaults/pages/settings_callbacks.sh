@@ -31,6 +31,38 @@ _dset_pretty() { # hello_kitty -> Hello kitty
 	printf '%s' "${t^}"
 }
 
+# _dset_binds - one row per bound command (yours, the app's, the defaults), with every key it has, straight from the binding
+# tables: a key bound in keybinds.xml or by tui.bind shows up here without this page knowing about it.
+declare -gA DSET_BIND_KEYS=() # row number -> the keys, joined
+_dset_binds() {
+	DSET_BIND_KEYS=()
+	local -A keys=() title=() grp=() order=()
+	local scope key cmd note g id n=0 o
+	while IFS=$'\t' read -r scope key cmd note; do
+		[[ -n "$key" && -n "$cmd" ]] || continue
+		g=""
+		if [[ "$note" == "["*"] "* ]]; then
+			g=${note#\[}
+			g=${g%%\]*}
+			note=${note#*\] }
+		fi
+		while [[ "$note" =~ ^(.*[^[:space:]])[[:space:]]*\((overridden|off|yours|pass|page|unsaved)\)$ ]]; do note=${BASH_REMATCH[1]}; done
+		id=$cmd
+		keys[$id]+="${keys[$id]:+  }$key"
+		if [[ -z "${title[$id]+x}" ]]; then
+			title[$id]=${note:-$cmd}
+			grp[$id]=${g:-app}
+		fi
+	done < <(tui.bind.list)
+	for id in "${!keys[@]}"; do order["${grp[$id]}|${title[$id]}|$id"]=$id; done
+	_tui_input.sorted_ids order
+	for o in "${_SIDS[@]}"; do
+		id=${order[$o]}
+		DSET_BIND_KEYS[$((++n))]=${keys[$id]}
+		_dset_add keybinds "bind.$n" "${title[$id]}" info "Runs \`${id}\`. Group: *${grp[$id]}*."
+	done
+}
+
 _dset_build() {
 	S_CAT=() S_KEY=() S_TITLE=() S_KIND=() S_DESC=()
 	DSET_THEME_FILE=()
@@ -48,10 +80,8 @@ _dset_build() {
 	_dset_add input tsfree "Free terminal shortcuts while DABT runs" toggle "Needs the *Terminal shortcuts* plugin: hands ctrl+c, ctrl+z and friends back to the terminal's own bindings while DABT runs."
 
 	_dset_add keybinds kb.editor "Keybind editor ..." action "See every keybind; add, remove and save your own."
-	_dset_add keybinds chord.palette "Command palette" info "Opens the command bar."
 	_dset_add keybinds chord.suspend "Keybinds off" info "Kill switch: turns every keyboard binding off and on."
 	_dset_add keybinds chord.terminal "Terminal mode" info "Passes keys straight to the terminal."
-	_dset_add keybinds chord.back "Back" info "Returns to the previous page."
 	local -A seen=()
 	local k
 	for k in "${!_TUI_BIND_DEF_GROUP[@]}"; do seen[${_TUI_BIND_DEF_GROUP[$k]}]=1; done
@@ -59,6 +89,7 @@ _dset_build() {
 	for g in "${_SIDS[@]}"; do
 		_dset_add keybinds "grp.$g" "Default keys: $g" toggle "Built-in keys of the *$g* group. Off removes them; your own bindings stay."
 	done
+	_dset_binds
 
 	_dset_add notifications npos "Position" choice "Where toasts appear on screen."
 	_dset_add notifications nsec "Stay for" choice "How long a toast stays. *until dismissed* keeps it until you close it."
@@ -102,10 +133,9 @@ _dset_value() {
 		coalesce) _dset_onoff "$TUI_INPUT_COALESCE" ;;
 		confirmq) _dset_onoff "$(tui.config.get confirm.quit 0)" ;;
 		tsfree) _dset_onoff "$(tui.config.get plugin.terminal_shortcuts.auto_free 0)" ;;
-		chord.palette) _DSET_V="ctrl+p" ;;
 		chord.suspend) _DSET_V="$TUI_KEYS_SUSPEND_KEY" ;;
 		chord.terminal) _DSET_V="$TUI_PASSTHROUGH_KEY" ;;
-		chord.back) _DSET_V="alt+backspace" ;;
+		bind.*) _DSET_V=${DSET_BIND_KEYS[${k#bind.}]} ;;
 		grp.*) _dset_onoff "$([[ -n "${_TUI_DEF_OFF[${k#grp.}]:-}" ]] && echo 0 || echo 1)" ;;
 		npos) _DSET_V="$(tui.notify.position)" ;;
 		nsec)

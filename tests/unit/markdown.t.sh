@@ -847,6 +847,46 @@ t_md_slice_pads_after_closing_the_style() {
 	eq "${s}ab${R}   " "$_SL"
 }
 
+t_md_cut_reports_the_cells_of_the_head() {
+	local s=${_TUI_MD_SGR[strong]}
+	_tui_md.cut "${s}abcdef${R}gh" 4
+	eq "${s}abcd" "$_CH"
+	eq 4 "$_CN"
+	_tui_md.cut "abc" 9
+	eq 3 "$_CN"
+	_tui_md.cut "" 5
+	eq 0 "$_CN"
+}
+
+t_md_cut_walks_ascii_runs_between_styles() {
+	local s=${_TUI_MD_SGR[strong]}
+	_tui_md.cut "ab${s}cd${R}ef${s}gh${R}ij" 7
+	eq "ab${s}cd${R}ef${s}g" "$_CH"
+	eq "h${R}ij" "$_CT"
+	eq 7 "$_CN"
+}
+
+t_md_cut_counts_wide_characters_in_the_head() {
+	local old=$LC_ALL u=$'Ã©'
+	LC_ALL=C.UTF-8
+	if ((${#u} == 1)); then
+		_tui_md.cut "ab日本cd" 5
+		eq "ab日本" "$_CH" # 日 and 本 are two cells each: a wide character that does not fit starts the tail
+		eq 6 "$_CN"
+	fi
+	LC_ALL=$old
+}
+
+t_md_cells_mixes_ascii_runs_and_wide_characters() {
+	local old=$LC_ALL u=$'Ã©'
+	LC_ALL=C.UTF-8
+	if ((${#u} == 1)); then
+		_tui_md.cells "abc日本def😀gh"
+		eq 14 "$_VL"
+	fi
+	LC_ALL=$old
+}
+
 t_md_slice_of_plain_text_is_a_substring() {
 	_tui_md.slice "abcdef" 1 3
 	eq "bcd" "$_SL"
@@ -942,6 +982,673 @@ t_md_show_file_reads_the_file() {
 	tui.md.strip "${rows[0]}" s
 	eq "From file" "$s"
 	tui.md.show_file p "$_T_ROOT/missing.md"
+	eq 1 $?
+}
+
+# ── memo, row cache and progressive render ────────────────────────────
+
+# _md_doc N -> _DOC : N paragraphs, each with a link and emphasis, a heading every fifth
+_md_doc() {
+	local i out=""
+	for ((i = 1; i <= $1; i++)); do
+		((i % 5 == 1)) && out+=$'# Section '"$i"$'\n\n'
+		out+="Paragraph $i has **bold words** and a [link $i](https://x.test/$i) with *some* more text to wrap around.\n\n"
+	done
+	_DOC=${out%$'\n\n'}
+}
+
+# _md_snapshot -> _SNAP : every output of the last render in one string
+_md_snapshot() {
+	local IFS=$'\x1e' k a=""
+	for k in "${!TUI_MD_ANCHORS[@]}"; do a+="$k=${TUI_MD_ANCHORS[$k]} "; done
+	_SNAP="${TUI_MD_ROWS[*]}|${TUI_MD_MAP[*]}|${TUI_MD_LINK_URLS[*]}|${TUI_MD_LINK_TEXTS[*]}|${TUI_MD_LINK_ROWS[*]}|${TUI_MD_HEADS[*]}|$a"
+}
+
+t_md_render_cached_matches_a_plain_render_and_hits_the_second_time() {
+	_md_doc 12
+	tui.md.render "$_DOC" 40
+	_md_snapshot
+	local want=$_SNAP
+	_tui_md.cache_clear
+	_tui_md.render_cached "$_DOC" 40
+	eq 0 "$_TUI_MD_HIT"
+	_md_snapshot
+	eq "$want" "$_SNAP"
+	TUI_MD_ROWS=() TUI_MD_LINK_URLS=() TUI_MD_HEADS=() TUI_MD_ANCHORS=()
+	_tui_md.render_cached "$_DOC" 40
+	eq 1 "$_TUI_MD_HIT"
+	_md_snapshot
+	eq "$want" "$_SNAP"
+}
+
+t_md_render_cache_key_covers_width_style_focus_and_flags() {
+	_md_doc 6
+	_tui_md.cache_clear
+	_tui_md.render_cached "$_DOC" 40
+	_tui_md.render_cached "$_DOC" 41
+	eq 0 "$_TUI_MD_HIT"
+	_tui_md.render_cached "$_DOC" 40
+	eq 1 "$_TUI_MD_HIT"
+	tui.md.style_set strong $'\e[31m'
+	_tui_md.render_cached "$_DOC" 40
+	eq 0 "$_TUI_MD_HIT"
+	_TUI_MD_FOCUS_LINK=2
+	_tui_md.render_cached "$_DOC" 40
+	eq 0 "$_TUI_MD_HIT"
+	_TUI_MD_FOCUS_LINK=-1
+	TUI_MD_BREAKS=1
+	_tui_md.render_cached "$_DOC" 40
+	eq 0 "$_TUI_MD_HIT"
+}
+
+t_md_render_cache_serves_the_rendered_focus_not_a_stale_one() {
+	_md_doc 4
+	_tui_md.cache_clear
+	_TUI_MD_FOCUS_LINK=1
+	_tui_md.render_cached "$_DOC" 40
+	local focused=${TUI_MD_ROWS[*]}
+	_TUI_MD_FOCUS_LINK=-1
+	_tui_md.render_cached "$_DOC" 40
+	[[ "${TUI_MD_ROWS[*]}" != "$focused" ]] || _t_fail "focus ignored by the cache"
+	_TUI_MD_FOCUS_LINK=1
+	_tui_md.render_cached "$_DOC" 40
+	eq "$focused" "${TUI_MD_ROWS[*]}"
+	_TUI_MD_FOCUS_LINK=-1
+}
+
+t_md_inline_memo_does_not_change_the_output_across_widths() {
+	_md_doc 15
+	_tui_md.memo_clear
+	tui.md.render "$_DOC" 30
+	tui.md.render "$_DOC" 55
+	_md_snapshot
+	local memoed=$_SNAP
+	_tui_md.memo_clear
+	tui.md.render "$_DOC" 55
+	_md_snapshot
+	eq "$_SNAP" "$memoed"
+}
+
+t_md_inline_memo_keeps_link_numbering_and_focus() {
+	_md_doc 8
+	_tui_md.memo_clear
+	_TUI_MD_FOCUS_LINK=3
+	tui.md.render "$_DOC" 30
+	_TUI_MD_FOCUS_LINK=3
+	tui.md.render "$_DOC" 50
+	eq 8 "${#TUI_MD_LINK_URLS[@]}"
+	eq "https://x.test/4" "${TUI_MD_LINK_URLS[3]}"
+	_md_snapshot
+	local a=$_SNAP
+	_tui_md.memo_clear
+	_TUI_MD_FOCUS_LINK=3
+	tui.md.render "$_DOC" 50
+	_md_snapshot
+	eq "$_SNAP" "$a"
+	_TUI_MD_FOCUS_LINK=-1
+}
+
+t_md_render_stops_at_a_block_boundary_and_resumes_to_the_same_result() {
+	_md_doc 20
+	tui.md.render "$_DOC" 40
+	_md_snapshot
+	local want=$_SNAP full=${#TUI_MD_ROWS[@]}
+	_tui_md.render_begin "$_DOC" 40 20
+	eq 0 "$_TUI_MD_RES_DONE"
+	((${#TUI_MD_ROWS[@]} >= 20 && ${#TUI_MD_ROWS[@]} < full)) || _t_fail "partial rows ${#TUI_MD_ROWS[@]} of $full"
+	local guard=0
+	while ((!_TUI_MD_RES_DONE && guard++ < 50)); do _tui_md.render_more 0 10; done
+	eq 1 "$_TUI_MD_RES_DONE"
+	_md_snapshot
+	eq "$want" "$_SNAP"
+}
+
+t_md_render_resumes_inside_lists_and_quotes_at_top_level_only() {
+	local doc=$'- a\n  - nested one\n  - nested two\n\n> quote line\n> more\n\n1. first\n2. second\n\ntail paragraph'
+	tui.md.render "$doc" 30
+	_md_snapshot
+	local want=$_SNAP
+	_tui_md.render_begin "$doc" 30 1
+	local guard=0
+	while ((!_TUI_MD_RES_DONE && guard++ < 50)); do _tui_md.render_more 0 1; done
+	_md_snapshot
+	eq "$want" "$_SNAP"
+}
+
+t_md_show_paints_the_first_screen_then_completes_on_demand() {
+	_foc_pane
+	_md_doc 30
+	tui.md.show p "$_DOC"
+	local -n rows=_TUI_PANE_CONTENT_p
+	local first=${#rows[@]}
+	eq 1 "${_TUI_MD_PEND[p]:-0}"
+	_tui_md.complete p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	((${#rows[@]} > first)) || _t_fail "rows did not grow: $first -> ${#rows[@]}"
+	tui.md.render "$_DOC" "${_TUI_MD_SHOWN_W[p]}"
+	eq "${#TUI_MD_ROWS[@]}" "${#rows[@]}"
+}
+
+t_md_link_next_completes_a_pending_render_first() {
+	_foc_pane
+	_md_doc 30
+	tui.md.show p "$_DOC"
+	eq 1 "${_TUI_MD_PEND[p]:-0}"
+	tui.md.link_prev p
+	eq 29 "${_TUI_MD_V[p.focus]}"
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+}
+
+t_md_forget_and_a_new_document_cancel_the_pending_render() {
+	_foc_pane
+	_md_doc 30
+	tui.md.show p "$_DOC"
+	eq 1 "${_TUI_MD_PEND[p]:-0}"
+	tui.md.show p "short"
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	tui.md.show p "$_DOC"
+	tui.md.forget p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+}
+
+# ── keys, click and help (f2) ─────────────────────────────────────────
+
+# _md_keys_pane TEXT [FILE] : pane p showing TEXT, 40 cells wide
+_md_keys_pane() {
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show p "$1" "${2:-}"
+	_tui_md.complete p
+}
+
+t_md_keys_help_lists_default_and_own_keys() {
+	local shown=""
+	tui.view() { shown=$2; }
+	tui.action.md_keys
+	match "$shown" 'alt\+j +Next link'
+	match "$shown" $'alt\\+l[^\n]*Follow the focused link'
+	tui.defaults.off markdown markdown_reader
+	tui.bind alt+x "tui.md.copy content section" --always --page
+	tui.action.md_keys
+	match "$shown" 'alt\+x +Copy the section at the top'
+	match "$shown" $'- +Next link'
+}
+
+t_md_keys_help_is_bound_to_f2_and_in_the_palette() {
+	grep -q 'key="f2" action="tui.action.md_keys"' "$TUI_DEFAULTS_DIR/keybinds.xml" || _t_fail "f2 not bound"
+	grep -q 'action="tui.action.md_keys"' "$TUI_DEFAULTS_DIR/commands.xml" || _t_fail "no palette command"
+}
+
+t_md_default_keys_bind_the_md_actions() {
+	eq "_tui_md.key_link_next" "${_TUI_BIND_DEF[alt+j]}"
+	eq "_tui_md.key_r_link_next" "${_TUI_BIND_DEF[n]}"
+	eq "_tui_md.key_r_bottom" "${_TUI_BIND_DEF[G]}"
+}
+
+t_md_keys_modes_are_validated() {
+	tui.md.keys p reader
+	eq reader "${_TUI_MD_KEYMODE[p]}"
+	tui.md.keys p bogus
+	eq 1 $?
+	eq reader "${_TUI_MD_KEYMODE[p]}"
+}
+
+t_md_chord_actions_act_on_the_only_markdown_pane() {
+	_md_keys_pane $'[a](#x) and [b](#y)\n\n# x\n\n# y'
+	_TUI_PANE_FOCUS="" _TUI_HOVERED_PANE=""
+	_tui_md.key_link_next
+	eq 0 "${_TUI_MD_V[p.focus]}"
+	_tui_md.key_link_next
+	eq 1 "${_TUI_MD_V[p.focus]}"
+}
+
+t_md_chord_actions_skip_a_pane_with_keys_none() {
+	_md_keys_pane "[a](#x)"
+	tui.md.keys p none
+	_TUI_PANE_FOCUS=p
+	_tui_md.key_link_next
+	eq 1 $?
+}
+
+t_md_reader_keys_need_the_keyboard_pane_in_reader_mode() {
+	_md_keys_pane $'[a](#x) and [b](#y)'
+	_TUI_PANE_FOCUS=p
+	_tui_md.key_r_link_next
+	eq 1 $? # chords mode: plain keys pass through
+	tui.md.keys p reader
+	_TUI_PANE_FOCUS=""
+	_tui_md.key_r_link_next
+	eq 1 $? # the pane does not have the keyboard
+	_TUI_PANE_FOCUS=p
+	_tui_md.key_r_link_next
+	eq 0 $?
+	eq 0 "${_TUI_MD_V[p.focus]}"
+}
+
+t_md_activate_follows_the_focused_link_in_a_reader_pane() {
+	_md_keys_pane $'[go](#sec)\n\n# Top\n\n# Sec'
+	tui.md.keys p reader
+	_TUI_PANE_FOCUS=p _TUI_FOCUS_ID=""
+	_tui_md.key_r_link_next
+	_TUI_MD_V[p.focus]=0
+	local before=${_TUI_MD_HIST[p]:-}
+	tui.action.activate
+	[[ "${_TUI_MD_HIST[p]:-}" != "$before" ]] || _t_fail "the link was not followed"
+}
+
+t_md_link_at_finds_the_link_under_a_column() {
+	_md_keys_pane $'see [alpha](#a) and [beta](#b) end\n\n# a\n\n# b'
+	_tui_md.link_at p 0 5
+	eq 0 "$_LI"
+	_tui_md.link_at p 0 20
+	eq 1 "$_LI"
+	_tui_md.link_at p 0 0
+	eq 1 $?
+	_tui_md.link_at p 0 10
+	eq 1 $?
+}
+
+t_md_link_at_follows_a_wrapped_link_on_its_second_row() {
+	_md_keys_pane $'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa [one two three four five](#a) tail\n\n# a'
+	_TUI_P_W[p]=21
+	tui.md.show p "$(<<<"" cat)aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa [one two three four five](#a) tail"$'\n\n# a'
+	_tui_md.complete p
+	local -n b=_TUI_MD_B_p
+	local r found=0
+	for r in "${!b[@]}"; do
+		tui.md.strip "${b[r]}" s
+		[[ "$s" == *"three"* || "$s" == *"four"* || "$s" == *"five"* ]] || continue
+		_tui_md.link_at p "$r" 1 && { eq 0 "$_LI"; found=1; }
+	done
+	eq 1 "$found"
+}
+
+t_md_click_follows_the_link_under_the_pointer() {
+	printf 'to [other](b.md) now\n' >"$_T_ROOT/a.md"
+	printf '# Other\n' >"$_T_ROOT/b.md"
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show_file p "$_T_ROOT/a.md"
+	_tui._content_rect p
+	tui.md.click p $((_CR_C + 4)) "$_CR_R"
+	eq 0 $?
+	eq "$_T_ROOT/b.md" "${_TUI_MD_V[p.file]}"
+}
+
+t_md_left_click_event_on_a_link_follows_it() {
+	printf 'to [other](b.md) now\n' >"$_T_ROOT/a.md"
+	printf '# Other\n' >"$_T_ROOT/b.md"
+	_foc_pane
+	_TUI_P_W[p]=41
+	_TUI_P_SCROLL[p]=v
+	tui.md.show_file p "$_T_ROOT/a.md"
+	_tui._content_rect p
+	TUI_EVENT_X=$((_CR_C + 4)) TUI_EVENT_Y=$_CR_R TUI_EVENT_RAWBTN=0 TUI_EVENT_PANE=p TUI_EVENT_WIDGET="" TUI_EVENT_ZONE="" TUI_EVENT_KEY=mouse:left
+	tui.action.click
+	eq "$_T_ROOT/b.md" "${_TUI_MD_V[p.file]}"
+	eq p "$_TUI_PANE_FOCUS"
+}
+
+t_md_click_off_a_link_is_not_handled() {
+	printf 'to [other](b.md) now\n' >"$_T_ROOT/a.md"
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show_file p "$_T_ROOT/a.md"
+	_tui._content_rect p
+	tui.md.click p $((_CR_C + 30)) "$_CR_R"
+	eq 1 $?
+	eq "$_T_ROOT/a.md" "${_TUI_MD_V[p.file]}"
+}
+
+t_md_show_with_a_file_resolves_relative_links_against_it() {
+	printf '# Other\n' >"$_T_ROOT/b.md"
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show p "see [b](b.md)" "$_T_ROOT/a.md"
+	_tui_md.complete p
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p
+	eq "$_T_ROOT/b.md" "${_TUI_MD_V[p.file]}"
+}
+
+# ── the focused link is drawn over the cached rows ───────────────────
+
+t_md_focus_step_renders_nothing_and_marks_only_the_focused_link() {
+	_md_keys_pane $'[one](#a) and [two](#b)\n\n# a\n\n# b'
+	local renders=$_TUI_MD_RENDERS base=${_TUI_MD_B_p[0]}
+	local focus=${_TUI_MD_SGR[link_focus]} plain=${_TUI_MD_SGR[link]}
+	_TUI_MD_V[p.focus]=-1
+	tui.md.link_next p
+	eq "$renders" "$_TUI_MD_RENDERS"
+	eq "$base" "${_TUI_MD_B_p[0]}" # the cached rows keep the plain link style
+	local -n shown=_TUI_PANE_CONTENT_p
+	[[ "${shown[0]}" == *"${focus}one"* ]] || _t_fail "first link not in the focus style: ${shown[0]@Q}"
+	[[ "${shown[0]}" == *"${plain}two"* ]] || _t_fail "second link lost its style"
+	tui.md.link_next p
+	[[ "${shown[0]}" == *"${plain}one"* && "${shown[0]}" == *"${focus}two"* ]] || _t_fail "focus did not move: ${shown[0]@Q}"
+}
+
+t_md_focus_overlay_covers_a_link_that_wraps() {
+	_foc_pane
+	_TUI_P_W[p]=22
+	tui.md.show p $'start [one two three four five six](#a) end\n\n# a'
+	_tui_md.complete p
+	local focus=${_TUI_MD_SGR[link_focus]}
+	tui.md.link_next p
+	local -n shown=_TUI_PANE_CONTENT_p
+	local r n=0
+	for r in "${!shown[@]}"; do [[ "${shown[r]}" == *"$focus"* ]] && ((n++)); done
+	((n >= 2)) || _t_fail "the wrapped link is focused on $n row(s)"
+}
+
+t_md_focus_state_does_not_enter_the_row_cache_key() {
+	_md_keys_pane $'[a](#x)\n\n# x'
+	local renders=$_TUI_MD_RENDERS
+	tui.md.link_next p
+	tui.md.link_prev p
+	tui.md.show p $'[a](#x)\n\n# x' # same text again: a cache hit
+	eq "$renders" "$_TUI_MD_RENDERS"
+}
+
+# ── the view first: a scrolled pane renders from the block it is on ──
+
+# _md_doc_dup N -> _DOC : N sections; every other heading repeats a name (anchors must stay unique and in order)
+_md_doc_dup() {
+	local i out=""
+	for ((i = 1; i <= $1; i++)); do
+		out+="## Usage"$'\n\n'
+		out+="Paragraph $i with **bold** and a [link $i](https://x.test/$i) and enough words to wrap around a narrow pane a few times."$'\n\n'
+		((i % 3 == 0)) && out+=$'- item with [list link](#usage)\n- second\n\n'
+		((i % 5 == 0)) && out+=$'```\ncode line one\ncode line two\n```\n\n'
+		out+="### Detail $((i % 4))"$'\n\n'
+	done
+	_DOC=${out%$'\n\n'}
+}
+
+# _md_pane_snapshot -> _SNAP : the pane's stored render in one string (same shape as _md_snapshot)
+_md_pane_snapshot() {
+	local IFS=$'\x1e' k a=""
+	local -n an=_TUI_MD_A_p
+	local -a keys
+	mapfile -t keys < <(printf '%s\n' "${!an[@]}" | sort)
+	for k in "${keys[@]}"; do a+="$k=${an[$k]} "; done
+	_SNAP="${_TUI_MD_B_p[*]}|${_TUI_MD_M_p[*]}|${_TUI_MD_U_p[*]}|${_TUI_MD_X_p[*]}|${_TUI_MD_LR_p[*]}|${_TUI_MD_H_p[*]}|$a"
+}
+_md_flat_snapshot() { # the same, from TUI_MD_* of a plain render
+	local IFS=$'\x1e' k a=""
+	local -a keys
+	mapfile -t keys < <(printf '%s\n' "${!TUI_MD_ANCHORS[@]}" | sort)
+	for k in "${keys[@]}"; do a+="$k=${TUI_MD_ANCHORS[$k]} "; done
+	_SNAP="${TUI_MD_ROWS[*]}|${TUI_MD_MAP[*]}|${TUI_MD_LINK_URLS[*]}|${TUI_MD_LINK_TEXTS[*]}|${TUI_MD_LINK_ROWS[*]}|${TUI_MD_HEADS[*]}|$a"
+}
+
+# a pane showing a long document, scrolled to row 200, then narrowed
+_md_scrolled_pane() {
+	_md_doc_dup 40
+	_foc_pane
+	_TUI_P_W[p]=41
+	_TUI_P_SCROLL[p]=v
+	tui.md.show p "$_DOC"
+	_tui_md.complete p
+	_TUI_P_SOFF_V[p]=200
+	_tui_md.top_line p
+	_L=$_TL
+	_TUI_P_W[p]=31
+}
+
+t_md_the_blocks_of_a_completed_render_are_recorded() {
+	_md_doc_dup 6
+	tui.md.render "$_DOC" 40
+	_tui_md.render_cached "$_DOC" 40
+	_tui_md.pd_find "$_DOC" || _t_fail "no prepared document"
+	local -n bi=_TUI_MD_PD_BI_$_PDS
+	eq 1 "${_TUI_MD_PD_HAS[_PDS]}"
+	eq 0 "${bi[0]}"
+	((${#bi[@]} > 10)) || _t_fail "only ${#bi[@]} blocks"
+}
+
+t_md_a_scrolled_pane_renders_from_its_block_first() {
+	_md_scrolled_pane
+	local full=${#_TUI_MD_B_p[@]}
+	_tui_md.refit
+	eq 1 "${_TUI_MD_PEND[p]:-0}"
+	((${_TUI_MD_M_p[0]} > 1)) || _t_fail "the render began at line ${_TUI_MD_M_p[0]}: not the view"
+	((${_TUI_MD_M_p[0]} <= _L)) || _t_fail "the render began after the top line ($_L)"
+	((${#_TUI_MD_B_p[@]} < full)) || _t_fail "the part above was rendered at once"
+	eq 0 "${_TUI_P_SOFF_V[p]}"
+}
+
+t_md_the_part_above_is_joined_and_the_document_is_whole() {
+	_md_scrolled_pane
+	_tui_md.refit
+	_tui_md.complete p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	_md_pane_snapshot
+	local got=$_SNAP
+	tui.md.render "$_DOC" "${_TUI_MD_SHOWN_W[p]}"
+	_md_flat_snapshot
+	eq "$_SNAP" "$got"
+}
+
+t_md_the_view_stays_on_its_source_line() {
+	_md_scrolled_pane
+	_tui_md.refit
+	_tui_md.complete p
+	_tui_md.top_line p
+	((_TL >= _L && _TL < _L + 6)) || _t_fail "top line $_TL, was $_L"
+}
+
+t_md_a_scroll_made_while_the_part_above_renders_is_kept() {
+	_md_scrolled_pane
+	_tui_md.refit
+	_tui_md.more_pane p 0 # the rows from the block on are in; the part above is next
+	local before=${#_TUI_MD_B_p[@]}
+	_TUI_P_SOFF_V[p]=7
+	_tui_md.complete p
+	local after=${#_TUI_MD_B_p[@]}
+	eq $((7 + after - before)) "${_TUI_P_SOFF_V[p]}"
+}
+
+t_md_a_resize_does_not_prepare_the_text_again() {
+	_md_scrolled_pane
+	local preps=$_TUI_MD_PREPS
+	_tui_md.refit
+	_tui_md.complete p
+	eq "$preps" "$_TUI_MD_PREPS"
+}
+
+t_md_an_unscrolled_pane_still_renders_from_the_top() {
+	_md_doc_dup 40
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show p "$_DOC"
+	_tui_md.complete p
+	_TUI_P_SOFF_V[p]=0
+	_TUI_P_W[p]=31
+	_tui_md.refit
+	eq 1 "${_TUI_MD_M_p[0]}"
+}
+
+t_md_a_theme_change_mid_render_restarts_it_whole() {
+	_md_scrolled_pane
+	_tui_md.refit
+	tui.md.style_set strong $'\e[35m'
+	_tui_md.sync
+	_tui_md.complete p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	_md_pane_snapshot
+	local got=$_SNAP
+	tui.md.render "$_DOC" "${_TUI_MD_SHOWN_W[p]}"
+	_md_flat_snapshot
+	eq "$_SNAP" "$got"
+}
+
+# ── disk snapshot ─────────────────────────────────────────────────────
+
+_md_disk_setup() {
+	TUI_HOME="$_T_ROOT/home"
+	_TUI_MD_DISK_DIR_OK=0
+	_md_doc 8
+	printf '%s\n' "$_DOC" >"$_T_ROOT/disk.md"
+	_TUI_MD_DISK_SRC="$_T_ROOT/disk.md"
+	_tui_md.cache_clear
+}
+
+t_md_disk_snapshot_serves_the_same_render_in_a_new_session() {
+	_md_disk_setup
+	local text
+	text=$(<"$_T_ROOT/disk.md")
+	_tui_md.render_cached "$text" 40
+	eq 0 "$_TUI_MD_HIT"
+	_md_snapshot
+	local want=$_SNAP renders=$_TUI_MD_RENDERS
+	_tui_md.cache_clear # a new session: the memory cache is empty
+	TUI_MD_ROWS=() TUI_MD_LINK_URLS=() TUI_MD_HEADS=() TUI_MD_ANCHORS=()
+	_tui_md.render_cached "$text" 40
+	eq 2 "$_TUI_MD_HIT"
+	eq "$renders" "$_TUI_MD_RENDERS"
+	_md_snapshot
+	eq "$want" "$_SNAP"
+}
+
+t_md_disk_snapshot_is_dropped_when_the_file_is_newer() {
+	_md_disk_setup
+	local text
+	text=$(<"$_T_ROOT/disk.md")
+	_tui_md.render_cached "$text" 40
+	_tui_md.disk_path "$_TUI_MD_DISK_SRC" 40
+	touch -d '2000-01-01' "$_DP"
+	_tui_md.cache_clear
+	_tui_md.render_cached "$text" 40
+	eq 0 "$_TUI_MD_HIT"
+}
+
+t_md_disk_snapshot_is_dropped_when_the_style_or_width_changed() {
+	_md_disk_setup
+	local text
+	text=$(<"$_T_ROOT/disk.md")
+	_tui_md.render_cached "$text" 40
+	_tui_md.cache_clear
+	_tui_md.render_cached "$text" 41
+	eq 0 "$_TUI_MD_HIT"
+	_tui_md.cache_clear
+	tui.md.style_set strong $'\e[35m'
+	_tui_md.render_cached "$text" 40
+	eq 0 "$_TUI_MD_HIT"
+}
+
+t_md_disk_snapshot_ignores_a_truncated_file() {
+	_md_disk_setup
+	local text
+	text=$(<"$_T_ROOT/disk.md")
+	_tui_md.render_cached "$text" 40
+	_tui_md.disk_path "$_TUI_MD_DISK_SRC" 40
+	local half
+	half=$(head -c 200 "$_DP")
+	printf '%s' "$half" >"$_DP"
+	_tui_md.cache_clear
+	_tui_md.render_cached "$text" 40
+	eq 0 "$_TUI_MD_HIT"
+}
+
+t_md_disk_snapshot_is_used_only_for_show_file() {
+	_md_disk_setup
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show p "text that is not the file"
+	eq "" "${_TUI_MD_V[p.disk]}"
+	tui.md.show_file p "$_T_ROOT/disk.md"
+	eq "$_T_ROOT/disk.md" "${_TUI_MD_V[p.disk]}"
+}
+
+t_md_disk_snapshot_keeps_awkward_text() {
+	_md_disk_setup
+	local text=$'# T\n\nquote \' dollar $x back\\slash `code` and \xe2\x80\x93 dash\n\n- [l](a b.md)'
+	printf '%s\n' "$text" >"$_T_ROOT/disk.md"
+	_tui_md.render_cached "$text" 40
+	_md_snapshot
+	local want=$_SNAP
+	_tui_md.cache_clear
+	_tui_md.render_cached "$text" 40
+	eq 2 "$_TUI_MD_HIT"
+	_md_snapshot
+	eq "$want" "$_SNAP"
+}
+
+# ── history: back and forward ─────────────────────────────────────────
+
+_md_hist_files() {
+	printf '# A\n\n[to b](b.md)\n' >"$_T_ROOT/a.md"
+	printf '# B\n\n[to c](c.md)\n' >"$_T_ROOT/b.md"
+	printf '# C\n' >"$_T_ROOT/c.md"
+	_foc_pane
+	_TUI_P_W[p]=41
+	tui.md.show_file p "$_T_ROOT/a.md"
+	_tui_md.complete p
+}
+
+t_md_forward_returns_to_where_back_came_from() {
+	_md_hist_files
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p
+	eq "$_T_ROOT/b.md" "${_TUI_MD_V[p.file]}"
+	tui.md.back p
+	eq "$_T_ROOT/a.md" "${_TUI_MD_V[p.file]}"
+	tui.md.forward p
+	eq "$_T_ROOT/b.md" "${_TUI_MD_V[p.file]}"
+}
+
+t_md_forward_without_history_is_rc_1() {
+	_md_hist_files
+	tui.md.forward p
+	eq 1 $?
+}
+
+t_md_following_a_link_drops_the_forward_stack() {
+	_md_hist_files
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p # a -> b
+	tui.md.back p      # b -> a, forward = b
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p # a -> b again: a new trail
+	tui.md.forward p
+	eq 1 $?
+}
+
+t_md_forward_can_go_on_two_documents() {
+	_md_hist_files
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p # a -> b
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p # b -> c
+	tui.md.back p
+	tui.md.back p
+	eq "$_T_ROOT/a.md" "${_TUI_MD_V[p.file]}"
+	tui.md.forward p
+	tui.md.forward p
+	eq "$_T_ROOT/c.md" "${_TUI_MD_V[p.file]}"
+}
+
+t_md_side_buttons_and_alt_arrows_are_history_keys() {
+	eq "_tui_md.key_forward" "${_TUI_BIND_DEF[mouse:side1]}"
+	eq "_tui_md.key_back" "${_TUI_BIND_DEF[mouse:side2]}"
+}
+
+t_md_alt_left_goes_back_in_a_markdown_pane_with_the_keyboard() {
+	_md_hist_files
+	_TUI_MD_V[p.focus]=0
+	tui.md.link_open p
+	_TUI_PANE_FOCUS=p
+	_tui_md.key_hist left
+	eq "$_T_ROOT/a.md" "${_TUI_MD_V[p.file]}"
+	_tui_md.key_hist right
+	eq "$_T_ROOT/b.md" "${_TUI_MD_V[p.file]}"
+}
+
+t_md_alt_arrows_fall_through_outside_a_markdown_pane() {
+	_md_hist_files
+	_TUI_PANE_FOCUS=""
+	_tui_md.key_hist left
 	eq 1 $?
 }
 

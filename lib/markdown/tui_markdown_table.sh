@@ -143,10 +143,10 @@ _tui_md.table_render() {
 	for cell in "${hdr[@]}" "${rowcells[@]}"; do
 		c=$((idx % cols))
 		if ((idx < cols)); then
-			_tui_md.inline "$cell" "$strong"
+			_tui_md.inline_memo "$cell" "$strong"
 			rendered+=("${strong}${_MD_OUT}${reset}")
 		else
-			_tui_md.inline "$cell" ""
+			_tui_md.inline_memo "$cell" ""
 			rendered+=("$_MD_OUT")
 		fi
 		_tui_md.vlen "${rendered[idx]//$'\x02'/}"

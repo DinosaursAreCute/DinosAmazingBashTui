@@ -28,7 +28,7 @@ may use Python; the DABT runtime stays pure bash.
    the untraced busy time; programs and forks are real time and stay as measured.
    `--scenario floor` replays warm switches between the three lightest pages (layout, case study, debug; one priming lap, ten
    measured laps) so the trace shows what a page switch costs when no page code runs. For `tui.goto`, `tui.cache.replay`,
-   `tui.render` and their neighbours (`FOCUS_ROOTS` in `dprof/scenarios.py`) the report lists, per switch and unpruned, the callee
+   `tui.render` and their neighbours (`FOCUS_ROOTS` in `scenarios/demo.py`) the report lists, per switch and unpruned, the callee
    the time went into, the functions that ran the commands and the hottest source lines below them: the "Page-switch floor"
    section of the deep dive and of `report.html`.
 3. **Report.** Terminal overview first (verdict tiles, latency scorecard against perceived-instant budgets,
@@ -41,7 +41,7 @@ Output: `reports/<timestamp>/{report.json,report.html,report.txt}`, `reports/lat
 
 ## Units, machine and resources
 
-Every run builds one **warmed template** first (a cold start fills the cache, a second start proves it is warm; both are measured as `startup.cold` / `startup.warm`). Each **unit** (`UNIT_GROUPS` in `dprof/scenarios.py`: nav, floor, input, scroll, one per held key, palette, theme, compose, workspace, state, scrollform, resize, idle, shutdown) then runs on its own: a private copy of the template HOME, a fresh app that lands on the default page, `setup` steps (navigate to the page, put it in its start state; timed and shown in the report's *Setup* panel, but never counted in a measured group), then the measured steps. Units share nothing, so what one does to the app (a dialog left open, a setting changed) cannot reach another, and they can run side by side: `--jobs N`. Parallel runs compete for the CPU, so the report says so and the timings are only comparable with runs made with the same `--jobs`. The traced pass always runs one unit at a time.
+Every run builds one **warmed template** first (a cold start fills the cache, a second start proves it is warm; both are measured as `startup.cold` / `startup.warm`). Each **unit** (`UNIT_GROUPS` in `scenarios/demo.py`: nav, floor, input, scroll, one per held key, palette, theme, compose, workspace, state, scrollform, resize, idle, shutdown) then runs on its own: a private copy of the template HOME, a fresh app that lands on the default page, `setup` steps (navigate to the page, put it in its start state; timed and shown in the report's *Setup* panel, but never counted in a measured group), then the measured steps. Units share nothing, so what one does to the app (a dialog left open, a setting changed) cannot reach another, and they can run side by side: `--jobs N`. Parallel runs compete for the CPU, so the report says so and the timings are only comparable with runs made with the same `--jobs`. The traced pass always runs one unit at a time.
 
 The report names the machine, specs only: CPU model, threads and cores, max MHz and governor, RAM, distro, kernel, virtual or bare metal, filesystem of the temp dir, bash and Python versions, plus a short id (a hash of those specs) to tell two machines apart. No host name, user name, path or address is read. While the run goes, a sampler reads `/proc` every 250 ms; per unit the report shows wall time, app CPU and memory, machine CPU, CPU used by **other work** (a finding when it is 0.5 core or more on a single-job run: the timings are inflated), mean frequency and peak memory use. Linux only; elsewhere those fields are empty.
 
@@ -68,7 +68,7 @@ The report names the machine, specs only: CPU model, threads and cores, max MHz 
 
 After the screen is updated, a quiet background job brings the cached copy of the page up to date; the scenario waits a second for it (a `setup` step) so it does not land in the next measurement. The board and every addon are put back as found. The probes also wrap `tui.page.refresh`, `tui.job.run`, `_tui_job.finish` and `_tui_job.spinner_draw`.
 
-The steps type into the *Title:* input and click buttons and tabs by their on-screen text, so they depend on the labels in `share/demo/compose.xml`. If a label changes, change the needles at the top of the scenario steps (`ADD_TASK`, `REMOVE_TASK`, `CYCLE_ENV`, `ADDON_BOXES`, `APPLY` in `dprof/scenarios.py`). `tests/unit/profiler_scenarios.t.sh` checks that every group has a title, a budget and steps.
+The steps type into the *Title:* input and click buttons and tabs by their on-screen text, so they depend on the labels in `share/demo/compose.xml`. If a label changes, change the needles at the top of the scenario steps (`ADD_TASK`, `REMOVE_TASK`, `CYCLE_ENV`, `ADDON_BOXES`, `APPLY` in `scenarios/demo.py`). `tests/unit/profiler_scenarios.t.sh` checks that every group has a title, a budget and steps.
 
 ## Scenario for the Home page
 
@@ -76,11 +76,11 @@ The steps type into the *Title:* input and click buttons and tabs by their on-sc
 
 Needles start with `~`: the rain writes about 100 KB a second and pushes the page's text out of the output tail the profiler reads, so a `remember` step stores the positions once and the later steps use them.
 
-`home.render` reports what the animation costs: main-loop frames and busy time, every byte the terminal received (the rain painter writes around the main loop's frames), and CPU and memory of the whole process tree, since the rain runs in a child process the usual per-step CPU figure would miss. The report shows them as the *HOME ANIMATION* tile. Needles are the tour button texts (`HOME_BUTTONS`, `HOME_CLICK` in `dprof/scenarios.py`); if `home.xml` changes them, edit those.
+`home.render` reports what the animation costs: main-loop frames and busy time, every byte the terminal received (the rain painter writes around the main loop's frames), and CPU and memory of the whole process tree, since the rain runs in a child process the usual per-step CPU figure would miss. The report shows them as the *HOME ANIMATION* tile. Needles are the tour button texts (`HOME_BUTTONS`, `HOME_CLICK` in `scenarios/demo.py`); if `home.xml` changes them, edit those.
 
 ## Scenarios for the v2 pages
 
-`--scenario workspace`, `--scenario state` and `--scenario scrollform` (all part of `full`, about 15 s each) profile the v2 behaviour. Each is a unit of its own (see `UNIT_GROUPS`). Steps that need a spot on screen use the `pointer` step kind (`session.py`): one mouse event (`_pointer` in `scenarios.py`: move, press, drag, release, wheel) placed relative to the on-screen text of a pane title, so the coordinates follow the terminal size and the divider the pointer drags.
+`--scenario workspace`, `--scenario state` and `--scenario scrollform` (all part of `full`, about 15 s each) profile the v2 behaviour. Each is a unit of its own (see `UNIT_GROUPS` in `scenarios/demo.py`). Steps that need a spot on screen use the `pointer` step kind (`session.py`): one mouse event (`pointer` in `dprof/scenarios.py`: move, press, drag, release, wheel) placed relative to the on-screen text of a pane title, so the coordinates follow the terminal size and the divider the pointer drags.
 
 | group | what it tells you |
 |---|---|
@@ -97,11 +97,62 @@ Needles start with `~`: the rain writes about 100 KB a second and pushes the pag
 | `scrollform.wheel`, `scrollform.pgdn` | wheel over a widget of the form, Page Down |
 | `scrollform.click` | click fields after the form has scrolled |
 
-The steps find panes by title (`Events`, `Logs`), the collapse button by its glyph and fields by their label; if the demo changes them, edit the needles above `_workspace_steps` in `dprof/scenarios.py`. A step whose needle is not on screen is reported as failed and its group is not a measurement. The `micro-benches` for the same code (`resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`) are in `tools/bench/run.sh`.
+The steps find panes by title (`Events`, `Logs`), the collapse button by its glyph and fields by their label; if the demo changes them, edit the needles above `_workspace_steps` in `scenarios/demo.py`. A step whose needle is not on screen is reported as failed and its group is not a measurement. The `micro-benches` for the same code (`resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`) are in `tools/bench/run.sh`.
 
 ## Held keys
 
 `--scenario held` models a user holding a key at the real repeat rate (33 ms between presses, holds of 0.1 to 1 s). Groups `held.nav`, `held.list`, `held.table`, `held.type`, `held.cursor`, `held.tab`, `held.scroll`, `held.page` (kind `held`), budget **50 ms**. Per press the lag is the time from the key sent to the first output the terminal receives; the report also shows the render cadence. A group is rated on its worst press. A press that paints nothing is paired with the next unrelated frame, so a group whose presses often paint nothing over-reports (`held.scroll` lands on a textarea).
+
+## Scenario files
+
+A run is based on a scenario file: a Python module that says which interactions to replay, how they are grouped, and what each group may cost. `--scenarios FILE` takes a path or a name in `tools/profiler/scenarios/` (default `demo`, the DABT demo; everything above this section describes that file). The engine (`dprof/scenarios.py`) loads it, checks its tables, and everything else (the pty driver, probes, trace, report) is the same for every file. To profile another app, write a new file; nothing in the engine changes.
+
+```
+tools/profiler/profile.sh --scenarios ~/myapp/profile_scenarios.py --app ~/myapp/bin/myapp.sh --scenario nav
+```
+
+A file defines (the docstring of `scenarios/demo.py` is the reference):
+
+| name | | meaning |
+|---|---|---|
+| `GROUP_INFO` | required | `{group: (title, kind, budget_ms)}`: every group a step can report |
+| `SCENARIOS` | required | `[(name, description, groups \| None)]`: what `--scenario` selects (`None` = everything) |
+| `UNIT_GROUPS` | required | `[(unit, [groups])]`: groups that share a start state; each group is in exactly one unit |
+| `steps(rows, cols, quick, wanted)` | required | the user session for the wanted groups, as a list of `Step`s; steps with group `"setup"` only prepare and are not measured |
+| `APP`, `ENV`, `SIZE` | optional | default app script (relative to the checkout), extra environment, terminal size |
+| `DEFAULT_PAGE` | optional | the setup step the app already starts on; leading steps with that detail are dropped |
+| `FOCUS_ROOTS` | optional | functions the trace breaks down in full (the "page-switch floor" section) |
+| `SHIM_PATTERN` | optional | the text of the app script that sources the library, which the profiler swaps for its probe shim |
+
+The step helpers (`Step`, `pointer`, `move`, `click`, `wheel`, `setup`, `palette_goto`, `fill`, key constants) come from `dprof.scenarios`. Step kinds: `key`, `click_text`, `pointer`, `repeat`, `idle`, `resize`, `remember`. A step may carry `expect=TEXT`: if it is not on screen afterwards the step is reported as failed.
+
+A file that misses a required name or has inconsistent tables (a scenario naming an unknown group, a group in two units) is refused with the reason. An app script that does not contain the `SHIM_PATTERN` text (by default `"$(dirname "$0")/../lib/tui.sh"`) stops the run: without the swap the app would run unprobed. Reports record the file's name (`meta.scenarios_file`); compare runs made with the same file, because the group names are the file's.
+
+Not yet in a file: the probed function list (`WRAP` in `dprof/session.py`; it is the framework's, not the app's), the layer rules of the call-graph tables (`FILE_LAYER` and `FUNC_RULES` in `dprof/analyze.py`) and the demo-specific `nav.key` hint in `dprof/insights.py` (shown only when that group exists).
+
+## Sweeps and perflab
+
+`--scenarios perflab` profiles the framework itself, not the demo: the fixture app in `tools/perflab/` (frozen pages, one feature each) driven by `scenarios/perflab.py`. Every feature is pushed along the axis its own code iterates over: `tui.tick.add` listeners, `tui.every` jobs, `key` hook handlers, table rows, table columns, buttons, textarea lines, input characters, markdown paragraphs and tables, widgets per page (navigation), palette commands. An axis has a **ladder** of sizes (`3, 30, 300, 3000`); the first rung is normal use, the last the extreme, and every rung is a unit of its own (a fresh app on that feature page at that size).
+
+```
+profile.sh --scenarios perflab                              normal and extreme of every axis
+profile.sh --scenarios perflab --scenario table             one feature, normal and extreme
+profile.sh --scenarios perflab --scenario sweep             every rung of every axis (on demand, latency only)
+profile.sh --scenarios perflab --scenario sweep-table --trace    one sweep with the call-stack trace
+profile.sh --scenarios perflab --scenario sweep --set scale=0.1  every ladder shrunk
+profile.sh --scenarios perflab --scenario sweep-table --set table.rows=1000,20000,200000
+```
+
+- **`--scenario floor`** is the perflab baseline: the normal use of every feature (each ladder's first rung), traced, **5 rounds and 5 traced passes**; with `--quick` 1 and 1, like the demo's quick run. A scenario file asks for its own pass counts with `RUNS` (`rounds`, `trace_runs`, `quick_rounds`, `quick_trace_runs`); `--rounds` and `--trace-runs N` override. The stacks of repeated traced passes add up and are reported as means per action.
+- **Parallel output.** With `--jobs N` every running unit has a section of its own at the bottom (spinner, current step, elapsed, `done/total`, and its latest steps), a finished unit is printed above as one block of its steps, and everything that failed is repeated at the end under *problems*. `--plain` (also the behaviour when stdout is not a terminal) turns the live part off: no cursor control, no colour, only the finished-unit blocks and the problems list, so it is safe in logs and CI.
+- **Sweep scenarios** are the ones a file lists in `SWEEP_SCENARIOS`. They are never part of `full`, and they run latency only: the xtrace pass is 3x slower and a large rung makes a trace nobody can read. `--trace` asks for it anyway, best on one feature's sweep.
+- **`--set NAME=VALUE`** (repeatable) reaches the scenario file through `scenarios.option()`. `scale=F` multiplies every default ladder; `feature.axis=a,b,c` replaces one axis's rungs.
+- **Group ids** are `feature.axis.N.action` (`table.rows.10000.down`). A rung reports `open` (first visit of the page at that size), the interactions that depend on the size, and for the registries `idle` as the process's cpu ms over a 3 s window.
+- **LIMITS panel.** Per feature, axis and action: the budget, `within` (the largest N whose every rung is inside it), `first over`, `hard` (the first rung that failed or never produced a measurement, e.g. the unit died) and the log-log `slope` of time against N (1.0 linear; above ~1.2 the cost class has changed). The numbers are in `report.json` (`limits`). Compare limits only between runs of the same scenario file on the same machine.
+- **What the engine gives a file for this:** `Unit.env` (the environment of one unit: `UNIT_ENV` in the file), `option()` / `ladder()`, `group_id()` / `parse_group()`, and `prepare(wanted, workdir)`, a hook that writes what the wanted rungs need (perflab writes one page per button rung) into a run-private directory before any app starts.
+- **Direct draws.** Text widgets, lists and inputs draw outside `_tui._flush`, so a step may report `0 fr`; the live line then shows `direct draw · N B`, and the settle time still covers the paint.
+- **Undo.** The textarea's undo step sends alt+z, the documented alias: a pty with default plugins did not deliver ctrl+z (0x1a) to the editor.
+- **Caveats.** Static feature pages sit next to the start page, so `tui.start_cached` has warmed them: their first visit is a cache replay plus `on_visit`. Generated pages (buttons) are built cold. Compare rungs of one axis with each other, not axes with axes. The perflab pages and callbacks are frozen on purpose; changing them starts a new series.
 
 ## Reading it
 
@@ -110,7 +161,7 @@ The steps find panes by title (`Events`, `Logs`), the collapse button by its gly
   Edit `FILE_LAYER` / `FUNC_RULES` in `dprof/analyze.py` if a function lands in the wrong layer.
 - **Subprocesses** is the layer for forks (`⟨fork⟩`) and external programs (`⟨awk⟩` ...); the fork table names
   the function that creates them.
-- Budgets live in `GROUP_INFO` in `dprof/scenarios.py`; the script itself is `interaction_steps` there.
+- Budgets live in `GROUP_INFO` in `scenarios/demo.py`; the script itself is `steps` there.
 
 ## Layout
 
@@ -120,7 +171,9 @@ The steps find panes by title (`Events`, `Logs`), the collapse button by its gly
 | `profile.py` | phases, options, saving and printing reports |
 | `probe_shim.sh` | stands in for `lib/tui.sh` inside the profiled app; installs the probes and xtrace |
 | `dprof/session.py` | pty session: input, settle detection, per-action metrics |
-| `dprof/scenarios.py` | the scripted user session and the budgets |
+| `scenarios/demo.py` | the scenario file of the DABT demo: the scripted user session, groups, budgets, units |
+| `scenarios/perflab.py` | the scenario file of the perflab fixture app: axes, ladders, rungs, limits |
+| `dprof/scenarios.py` | the engine side of scenario files: step vocabulary, loader, selection, options, sweep helpers |
 | `dprof/trace.py` | streaming xtrace aggregator |
 | `dprof/analyze.py`, `insights.py` | layers, calibration, call-graph tables, findings |
 | `dprof/live.py` | live progress (scrolling log with per-step timings + in-place footer) |

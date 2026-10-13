@@ -12,6 +12,7 @@
   <cmd id="dabt.keybinds" title="DABT: Keybinds"       action="tui.action.goto_default keybinds"  group="DABT" desc="See every keybind; add, remove, save your own (ships with DABT)"/>
 
   <cmd id="help.textkeys" title="Help: text editing keybinds" action="tui.action.text_keys" group="Help" desc="Every key for selecting, moving, cutting, pasting and undoing text (also f1)"/>
+  <cmd id="help.mdkeys"   title="Help: Markdown reading keybinds" action="tui.action.md_keys" group="Help" desc="The keys bound to links, search, outline, folds and copy in a Markdown pane (also f2)"/>
 
   <cmd id="dabt.update.check" title="DABT: Check for updates"  action="tui.action.update_check" group="DABT" desc="Ask GitHub whether a newer DABT is available"/>
   <cmd id="dabt.update"       title="DABT: Update DABT ..."   action="tui.action.update"       group="DABT" desc="Download the latest version, review what changes, resolve conflicts, apply"/>

@@ -460,7 +460,7 @@ Timers, clocks, watches and the system samplers share one tick listener, cost no
 
 Read-only. Pane getters return `1` for an unknown pane.
 
-<!-- api: tui.get.dimensions tui.get.terminal tui.get.position tui.get.rect tui.get.content_area tui.get.border tui.get.title tui.get.pad tui.get.split tui.get.children tui.get.parent tui.get.panes tui.get.lines tui.get.scroll tui.get.style tui.get.widgets tui.get.type tui.get.pane tui.get.action tui.get.checked tui.get.focused tui.get.hovered tui.get.pane_focus tui.get.page tui.get.pages tui.get.event tui.get.classes tui.get.class.style -->
+<!-- api: tui.get.dimensions tui.get.terminal tui.get.position tui.get.rect tui.get.content_area tui.get.border tui.get.title tui.get.pad tui.get.split tui.get.children tui.get.parent tui.get.panes tui.get.lines tui.get.scroll tui.get.style tui.get.widgets tui.get.type tui.get.pane tui.get.action tui.get.checked tui.get.focused tui.get.hovered tui.get.pane_focus tui.get.page tui.get.pages tui.get.event tui.get.classes tui.get.class.style tui.get.raw_input tui.errors.capture tui.errors.list tui.errors.count -->
 
 | Function | Summary |
 |---|---|
@@ -492,6 +492,10 @@ Read-only. Pane getters return `1` for an unknown pane.
 | [`tui.get.event`](core/tui.get.event.md) | Prints the current input event on one line: `type=… key=… x=… y=… pane=… widget=… button=…`. |
 | [`tui.get.classes`](core/tui.get.classes.md) | Prints every key the loaded theme defines, sorted, one per line. |
 | [`tui.get.class.style`](core/tui.get.class.style.md) | Prints one field of a theme class, without a pane or widget. |
+| [`tui.get.raw_input`](core/tui.get.raw_input.md) | Prints the bytes the terminal sent for the last key or mouse press, with control characters in caret notation: `^[` is ESC, `^?` is DEL, `^A` is ctrl+a. Pointer motion is not recorded. |
+| [`tui.errors.capture`](core/tui.errors.capture.md) | Sends the process's standard error to a file that the tick loop reads, so nothing a command or bash itself complains about (`file: line 12: x: bad array subscript`) is drawn over the screen. `tui.init` turns it on and `tui.cleanup` turns it off. |
+| [`tui.errors.list`](core/tui.errors.list.md) | Prints the last 50 captured errors, one per line: `TIME<TAB>MESSAGE<TAB>CONTEXT`. |
+| [`tui.errors.count`](core/tui.errors.count.md) | Prints how many distinct error messages were captured in this run. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -550,6 +554,14 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.get.classes.md %}
 
 {% include_relative core/tui.get.class.style.md %}
+
+{% include_relative core/tui.get.raw_input.md %}
+
+{% include_relative core/tui.errors.capture.md %}
+
+{% include_relative core/tui.errors.list.md %}
+
+{% include_relative core/tui.errors.count.md %}
 
 </div>
 

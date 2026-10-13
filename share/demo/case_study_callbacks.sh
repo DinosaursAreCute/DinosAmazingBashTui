@@ -8,7 +8,8 @@ on_tab_doc() {
 	if [[ -f "$doc_path" ]]; then
 		# a Markdown title in front, then the document itself, rendered by the Markdown renderer
 		text="# Bending The World To Your Will"$'\n\n'"$(<"$doc_path")"
-		tui.md.show "content" "$text"
+		tui.md.keys "content" reader
+		tui.md.show "content" "$text" "$doc_path" # the path lets the document's relative links resolve
 	else
 		tui.md.forget "content"
 		tui.capture part alert_string error "Document not found at: $doc_path"

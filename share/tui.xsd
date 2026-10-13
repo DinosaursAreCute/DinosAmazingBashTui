@@ -500,6 +500,10 @@
     <xs:complexType>
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="src" type="xs:string" use="required"/>
+      <!-- which default Markdown keys act on the pane: reader = plain keys too (n N b / o z y ...), chords = alt chords only -->
+      <xs:attribute name="keys">
+        <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="reader"/><xs:enumeration value="chords"/><xs:enumeration value="none"/></xs:restriction></xs:simpleType>
+      </xs:attribute>
     </xs:complexType>
   </xs:element>
 

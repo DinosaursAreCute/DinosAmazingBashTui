@@ -78,7 +78,9 @@ defaults, or point `TUI_DEFAULTS_DIR` at another directory. Each belongs to a **
 opt-out: `tui.defaults.off quit scroll` (app-wide), `tui.defaults.off --page quit`, or
 `<tui defaults="-quit,-scroll">` for one page. `tui.defaults.list` shows groups and their keys;
 `tui.bind.list` shows each default with its group. Your own `tui.bind` always beats a default.
-Groups: `focus`, `pane`, `scroll`, `click`, `wheel`, `paste`, `quit`.
+**Layouts:** bind letters, digits and function keys with `alt`/`ctrl`. A symbol such as `/` needs `shift` or AltGr on many layouts (`alt+shift+7` on a German one), and some terminals send that as `alt+7`: the symbol never arrives, so the chord cannot be told apart from `alt+7`. Plain symbol keys (`/`, `[`) are fine.
+
+Groups: `focus`, `pane`, `scroll`, `click`, `wheel`, `paste`, `quit`, `help`, `markdown`, `markdown_reader`.
 
 Markup binds are per page; add `scope="global"` to make one survive page changes.
 

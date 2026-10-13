@@ -91,10 +91,120 @@ tui.log() {
 	fi
 	printf '[%s] [%s] %s\n' "${ts#* }" "${2:-info}" "$1" 2>/dev/null >>"$TUI_LOG_DIR/${ts%% *}_${TUI_APP_NAME}.log" || return 0 # never fail a caller
 }
+# tui.log.debug MSG
 tui.log.debug() { tui.log "$1" "debug"; }
+# tui.log.info MSG
 tui.log.info() { tui.log "$1" "info"; }
+# tui.log.warn MSG
 tui.log.warn() { tui.log "$1" "warn"; }
+# tui.log.error MSG
 tui.log.error() { tui.log "$1" "error"; }
+
+# ═══════════════════════════════════════════════════════════════════════
+#  ERRORS: stderr never reaches the screen while the TUI runs
+# ═══════════════════════════════════════════════════════════════════════
+#   tui.errors.capture on|off     stderr goes to a file the tick loop reads (tui.init turns it on, tui.cleanup off)
+#   tui.errors.list               the last errors, one per line: TIME<TAB>MESSAGE<TAB>CONTEXT
+#   tui.errors.count              how many distinct errors this run
+# Every captured line (a bash error such as "file: line 12: x: bad array subscript", or what a command wrote) is logged
+# at level error with where it happened, the key and action being handled, the page and the focus, and shown once as an
+# error notification. A repeat is counted, not shown again. TUI_ERR_TRACE=1 turns on xtrace for the run so each error
+# also carries the call stack of the command that failed (slow: every command is traced). TUI_ERR_CAPTURE=0 leaves
+# stderr alone (plain terminal output, for debugging the framework itself).
+declare -g _TUI_ERR_ON=0 _TUI_ERR_FILE="" _TUI_ERR_IN="" _TUI_ERR_OUT="" _TUI_ERR_SAVE="" _TUI_ERR_LINES=0
+declare -g _TUI_ERR_ACTION="" _TUI_ERR_TOAST_US=0 _TUI_ERR_TOASTED=0
+declare -gA _TUI_ERR_SEEN=()
+declare -ga _TUI_ERR_RING=()
+
+tui.errors.capture() {
+	case "${1:-}" in
+		on)
+			((_TUI_ERR_ON)) && return 0
+			[[ "${TUI_ERR_CAPTURE:-1}" == 0 ]] && return 0
+			_TUI_ERR_FILE="${TMPDIR:-/tmp}/dabt-err.$$"
+			: >"$_TUI_ERR_FILE" 2>/dev/null || return 1
+			exec {_TUI_ERR_SAVE}>&2 {_TUI_ERR_OUT}>>"$_TUI_ERR_FILE" {_TUI_ERR_IN}<"$_TUI_ERR_FILE"
+			exec 2>&"$_TUI_ERR_OUT"
+			if [[ "${TUI_ERR_TRACE:-0}" == 1 ]]; then
+				BASH_XTRACEFD=$_TUI_ERR_OUT
+				PS4=$'\x1e${FUNCNAME[*]:-main} @ ${BASH_SOURCE[0]##*/}:${LINENO}\x1f '
+				set -x
+			fi
+			_TUI_ERR_ON=1
+			tui.tick.add _tui_errors.drain
+			;;
+		off)
+			((_TUI_ERR_ON)) || return 0
+			set +x
+			_tui_errors.drain
+			exec 2>&"$_TUI_ERR_SAVE"
+			exec {_TUI_ERR_SAVE}>&- {_TUI_ERR_OUT}>&- {_TUI_ERR_IN}<&-
+			rm -f "$_TUI_ERR_FILE" 2>/dev/null
+			_TUI_ERR_ON=0
+			;;
+		*) return 1 ;;
+	esac
+}
+
+# _tui_errors.drain - reads what was written to stderr since the last call and reports each line.
+_tui_errors.drain() {
+	((_TUI_ERR_ON)) || return 0
+	local line stack=""
+	while IFS= read -r -u "$_TUI_ERR_IN" line; do
+		((_TUI_ERR_LINES++))
+		if [[ "$line" == $'\x1e'* ]]; then # an xtrace line: its prefix is the stack of the command about to run
+			stack=${line#$'\x1e'}
+			stack=${stack%%$'\x1f'*}
+			continue
+		fi
+		[[ -n "$line" ]] && _tui_errors.report "$line" "$stack"
+	done
+	if ((_TUI_ERR_LINES > 5000)); then # tracing makes the file grow: start over (reading is at its end)
+		: >"$_TUI_ERR_FILE"
+		exec {_TUI_ERR_IN}<&-
+		exec {_TUI_ERR_IN}<"$_TUI_ERR_FILE"
+		_TUI_ERR_LINES=0
+	fi
+	return 0
+}
+
+# _tui_errors.report MESSAGE STACK - log with context, one notification per distinct message.
+_tui_errors.report() {
+	local msg=$1 stack=$2 where="" now short n
+	msg=${msg//"$TUI_ROOT"\//}
+	if [[ "$msg" =~ ^(.*):\ line\ ([0-9]+):\ (.*)$ ]]; then where="${BASH_REMATCH[1]}:${BASH_REMATCH[2]}"; fi
+	n=$((${_TUI_ERR_SEEN[$msg]:-0} + 1))
+	_TUI_ERR_SEEN[$msg]=$n
+	local ctx="page=${_TUI_MARKUP_FILE##*/} key=${TUI_EVENT_KEY:--} action=${_TUI_ERR_ACTION:--} widget=${_TUI_FOCUS_ID:--} pane=${_TUI_PANE_FOCUS:--}"
+	printf -v now '%(%H:%M:%S)T' -1
+	if ((${#_TUI_ERR_RING[@]} >= 50)); then _TUI_ERR_RING=("${_TUI_ERR_RING[@]:1}"); fi
+	_TUI_ERR_RING+=("$now"$'\t'"$msg"$'\t'"$ctx")
+	((n == 1 || n == 10 || n == 100 || n == 1000)) || return 0 # a message in a loop is logged at 1, 10, 100 ...
+	local rep=""
+	((n > 1)) && rep=" (x$n)"
+	tui.log "$msg$rep" error
+	tui.log "  context: $ctx" error
+	[[ -n "$where" ]] && tui.log "  at: $where" error
+	if [[ -n "$stack" ]]; then # "inner mid outer @ file:line": the callers, innermost first
+		local fns=${stack%% @ *}
+		tui.log "  stack: ${fns// / < } @ ${stack#* @ }" error
+	fi
+	((n == 1)) || return 0
+	short=${msg#*: line [0-9]*: }
+	((${#short} > 70)) && short="${short:0:67}..."
+	_TUI_ERR_TOASTED=$((_TUI_ERR_TOASTED + 1))
+	now=${EPOCHREALTIME//[!0-9]/}
+	if ((${_TUI_RUNNING:-0} && now - _TUI_ERR_TOAST_US > 1000000)); then # one toast a second, never a storm
+		_TUI_ERR_TOAST_US=$now
+		tui.notify "Error: $short (see the log)" error 6
+	fi
+}
+
+tui.errors.list() {
+	((${#_TUI_ERR_RING[@]})) && printf '%s\n' "${_TUI_ERR_RING[@]}"
+	return 0
+}
+tui.errors.count() { printf '%d\n' "${#_TUI_ERR_SEEN[@]}"; }
 
 # ═══════════════════════════════════════════════════════════════════════
 #  INIT / CLEANUP
@@ -113,6 +223,7 @@ _tui._install_exit_trap() {
 }
 
 tui.init() {
+	tui.errors.capture on # before anything can complain: stderr must not draw over the screen
 	# Installed here, not in tui.run: a tiling WM can still be settling the
 	# window (or a slow cache warm-up can still be running behind the
 	# splash) for a while between tui.init and tui.run's first render. A
@@ -225,6 +336,11 @@ tui.cleanup() {
 	term.main_screen
 	_tui._drain_input
 	stty "$_TUI_OLD_STTY" 2>/dev/null
+	if ((_TUI_ERR_ON)); then
+		local ecount=${#_TUI_ERR_SEEN[@]}
+		tui.errors.capture off
+		((ecount)) && printf 'DABT: %d error(s) were logged during this run: %s\n' "$ecount" "$(tui.log.file)" >&2
+	fi
 }
 
 _master_cleanup() {
@@ -2370,6 +2486,20 @@ tui.output() {
 	fi
 	_tui._calc_bounds "$pane"
 	((_TUI_RUNNING)) && _tui._queue_render "$pane"
+}
+
+# _tui.output_rows PANE ARRAY [KEEP] - tui.output for rows that already are an array (no newline in a row): no join, no split.
+# KEEP=1: the widest row did not change (only styles did), so the pane's measured width is kept.
+_tui.output_rows() {
+	local pane="$1"
+	local -n _or_rows="$2"
+	_TUI_PANE_CONTENT[$pane]=1
+	declare -g -a "_TUI_PANE_CONTENT_${pane}"
+	declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
+	pane_arr=("${_or_rows[@]}")
+	if [[ "${3:-}" == 1 ]]; then _ps.panes.set "$pane" lines "${#pane_arr[@]}"; else _tui._calc_bounds "$pane"; fi
+	((_TUI_RUNNING)) && _tui._queue_render "$pane"
+	return 0
 }
 
 tui.output_append() {

@@ -1,5 +1,9 @@
 """Live progress: a scrolling log of finished steps (each with its own stamp and duration) above a
-small in-place footer showing what is running right now, phase progress, ETA and trace throughput."""
+small in-place footer showing what is running right now, phase progress, ETA and trace throughput.
+
+Units that run side by side (--jobs N) report through the unit_* methods: each running unit is one row of
+the footer, a finished unit is printed as one block of its own steps, and what went wrong is repeated in
+full at the end. Without a terminal (or with --plain) there is no footer, only the finished-unit blocks."""
 import sys
 import threading
 import time
@@ -33,6 +37,7 @@ class NullLive:
 
 class LiveUI:
     FOOT = 4
+    SECTION_LINES = 4   # a running unit's section shows this many of its latest steps
 
     def __init__(self, phases, out=None, tty=None):
         """phases: [(key, label, weight_per_step, steps)] - weights let traced (slower) steps count for more."""
@@ -59,6 +64,9 @@ class LiveUI:
         self._th = None
         self._last_lines = 0
         self._last_t = time.time()
+        self._foot_n = self.FOOT
+        self.units = {}        # unit name -> {t0, cur, cur_t0, done, total, lines, bad}: units running side by side
+        self.problems = []     # (unit, text), once each: repeated in full after the run
 
     # ── lifecycle ────────────────────────────────────────────────────────────
     def begin(self, banner_lines):
@@ -74,6 +82,10 @@ class LiveUI:
             self._th.join(1)
         with self.lock:
             self._clear_footer()
+            if self.problems:
+                text = "\n".join(self._problem_lines())
+                self.out.write((text if self.tty else term.ANSI_RE.sub("", text)) + "\n")
+                self.out.flush()
 
     def phase(self, key, detail="", steps=None):
         with self.lock:
@@ -113,6 +125,67 @@ class LiveUI:
         self.tracer = tracer
         self.trace_samples = []
 
+    # ── units running side by side ───────────────────────────────────────────
+    def unit_begin(self, name, total):
+        with self.lock:
+            self.units[name] = {"t0": time.time(), "cur": None, "cur_t0": time.time(), "done": 0, "total": total,
+                                "lines": [], "bad": 0}
+
+    def unit_step_begin(self, name, desc):
+        with self.lock:
+            u = self.units.get(name)
+            if u:
+                u["cur"], u["cur_t0"] = desc, time.time()
+
+    def unit_step_end(self, name, desc, res):
+        now = time.time()
+        with self.lock:
+            u = self.units.get(name)
+            if not u:
+                return
+            dt = now - (u["cur_t0"] or now)
+            u["cur"] = None
+            u["done"] += 1
+            self.phase_done += 1
+            self.done_weight += self.weight
+            u["lines"].append(self._format_step(desc, res, dt, now))
+            if res.get("ok", True) is False or not res.get("alive", True) or res.get("tl", {}).get("ok") is False:
+                u["bad"] += 1
+
+    def unit_warn(self, name, text):
+        with self.lock:
+            u = self.units.get(name)
+            if u:
+                u["lines"].append(f"  {c('!', 'yellow', bold=True)} {c(text, 'yellow')}")
+            if (name, text) not in self.problems:
+                self.problems.append((name, text))
+
+    def unit_note(self, name, text):
+        with self.lock:
+            u = self.units.get(name)
+            if u:
+                u["lines"].append(f"  {c('•', 'cyan')} {c(text, 'dim')}")
+
+    def unit_done(self, name):
+        """The unit is over: its steps are printed together, under one header."""
+        with self.lock:
+            u = self.units.pop(name, None)
+            if not u:
+                return
+            took = time.time() - u["t0"]
+            glyph = c("✗", "red") if u["bad"] else c("✓", "green")
+            bad = c(f"  {u['bad']} step(s) failed", "red") if u["bad"] else ""
+            steps = f"{u['done']} steps"
+            head = (f"{c('▍', 'cyan')} {glyph} {c(name, 'white', bold=True)}  {c(steps, 'dim')}  "
+                    f"{c(eta_str(took) + ' min', 'dim')}{bad}")
+            self._log("\n".join([head] + u["lines"]))
+
+    def _problem_lines(self):
+        out = ["", f"{c('▌', 'red')} {c(f'{len(self.problems)} problem(s)', 'white', bold=True)}"]
+        for unit, text in self.problems:
+            out.append(f"  {c('✗', 'red')} {c(unit, 'white')}  {c(text, 'red')}")
+        return out
+
     # ── formatting ───────────────────────────────────────────────────────────
     def _format_step(self, desc, res, dt, now):
         group = res.get("group", "")
@@ -143,7 +216,10 @@ class LiveUI:
                 bits.append(c(f"per press: queue {fmt_ms(res['queue_ms'])} · lag med {fmt_ms(res['lag_med_ms'])} max {fmt_ms(res['lag_max_ms'])}"
                               f" · frame every {fmt_ms(gap) if gap else '-'}", "dim"))
             if res.get("frames") is not None:
-                bits.append(c(f"{res['frames']} fr · {fmt_bytes(res.get('bytes'))}", "dim"))
+                if not res["frames"] and res.get("out_bytes"):   # a widget that draws outside _tui._flush
+                    bits.append(c(f"direct draw · {fmt_bytes(res['out_bytes'])}", "dim"))
+                else:
+                    bits.append(c(f"{res['frames']} fr · {fmt_bytes(res.get('bytes'))}", "dim"))
             if res.get("went") is False and group.startswith("nav"):
                 bits.append(c("no page change", "yellow"))
         if not res.get("alive", True) and group != "shutdown":
@@ -173,7 +249,7 @@ class LiveUI:
 
     def _clear_footer(self):
         if self.tty and self.drawn:
-            self.out.write(f"\x1b[{self.FOOT - 1}A\r\x1b[J")
+            self.out.write(f"\x1b[{self._foot_n - 1}A\r\x1b[J")
             self.drawn = False
 
     def _loop(self):
@@ -194,7 +270,23 @@ class LiveUI:
         self.frame += 1
         now = time.time()
         spin = c(SPIN[self.frame % len(SPIN)], "cyan", bold=True)
-        if self.cur:
+        if self.units:   # one section per unit that is running right now: its header, then its latest steps
+            rows = []
+            running = sorted(self.units.items())
+            # what the terminal can hold: the global footer below takes 3 lines, the scrolling log keeps a few
+            budget = max(len(running), term.height() - 9)
+            per_unit = max(1, budget // len(running))
+            keep = max(0, min(self.SECTION_LINES, per_unit - 1))
+            for name, u in running:
+                what = (u["cur"] or "between steps").split(" · ", 1)[-1]
+                secs = f"{now - u['cur_t0']:5.1f} s"
+                count = f"{u['done']}/{u['total']}"
+                rows.append(f"  {spin} {c(pad(name, 26), 'white', bold=True)} {c(pad(what, 34), 'text')}"
+                            f" {c(secs, 'yellow')}  {c(count, 'dim')}")
+                for ln in (u["lines"][-keep:] if keep else []):
+                    rows.append(c("   ┊", "faint") + ln[1:])
+            l1 = "\n".join(rows)
+        elif self.cur:
             running = now - self.cur_t0
             l1 = f"  {spin} {c(self.cur, 'white', bold=True)}  {c(f'{running:5.1f} s', 'yellow')}"
         else:
@@ -214,5 +306,7 @@ class LiveUI:
             l3 = f"  {c('trace', 'faint')} {c('idle', 'faint')}"
         l4 = (f"  {c('slowest so far', 'dim')} {c(self.slowest[0], 'text')} {c(fmt_ms(self.slowest[1]), 'orange')}"
               if self.slowest else c("  ctrl+c aborts · the app under test runs in a hidden terminal", "faint"))
-        self.out.write("\n".join(term.clip(ln, w - 1) for ln in (l1, l2, l3, l4)))
+        lines = l1.split("\n") + [l2, l3, l4]
+        self._foot_n = len(lines)
+        self.out.write("\n".join(term.clip(ln, w - 1) for ln in lines))
         self.drawn = True

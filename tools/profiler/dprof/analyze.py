@@ -5,9 +5,10 @@ report.json can be re-rendered later or diffed against another run.
 """
 import os
 import re
+import math
 import statistics
 
-from .scenarios import FOCUS_ROOTS, GROUP_INFO
+from .scenarios import FOCUS_ROOTS, GROUP_INFO, parse_group
 
 # layer -> (title, what it is)
 LAYERS = {
@@ -153,6 +154,8 @@ def latency_groups(rounds):
         g["spans"] = span_costs(acts)
         # the number the rating uses: what the user waits for in this kind of interaction
         metric = "settle" if kind in ("nav", "resize", "shutdown", "startup", "held") else "paint"
+        if kind == "idle" and parse_group(gid) and g.get("cpu"):
+            metric = "cpu"   # a sweep rung's idle cost: the process's cpu time over the window (tick functions are not probed)
         if g.get(metric) is None or g[metric]["n"] < max(1, len(acts) // 4):
             metric = "busy" if g.get("busy") else "settle"
         g["metric"] = metric
@@ -182,6 +185,55 @@ def latency_groups(rounds):
                          "busy_pct": sum(a["busy_ms"] for a in acts) / (secs * 10)}
         groups.append(g)
     return groups
+
+
+def limits(latency, groups_run=None):
+    """Sweep groups (`feature.axis.N.action`) folded into one row per feature, axis and action: the rungs measured, the
+    largest N whose every rung up to it is inside the budget (`within`), the first N over it (`first_over`), the first N
+    that failed or never produced a measurement (`hard`), and the log-log slope of time against N (1.0 = linear;
+    `slope_max` is the steepest step between two rungs and `at` the N it ends on, where a cost class changes)."""
+    by = {}
+    for g in latency:
+        p = parse_group(g["id"])
+        if p:
+            by.setdefault((p[0], p[1], p[3]), {})[p[2]] = g
+    expected = {}
+    for gid in GROUP_INFO:   # rungs the run was asked for, so a rung that died shows as a hole
+        p = parse_group(gid)
+        if p and (groups_run is None or gid in groups_run) and (p[0], p[1], p[3]) in by:
+            expected.setdefault((p[0], p[1], p[3]), set()).add(p[2])
+    rows = []
+    for key, rungs in sorted(by.items()):
+        feature, axis, action = key
+        ns = sorted(set(rungs) | expected.get(key, set()))
+        any_g = next(iter(rungs.values()))
+        budget = any_g.get("budget_ms")
+        pts, within, first_over, hard, still_within = [], None, None, None, True
+        for n in ns:
+            g = rungs.get(n)
+            v = g.get("value") if g else None
+            failed = (g.get("failed", 0) if g else 1)
+            pts.append({"n": n, "value": v, "rating": g["rating"] if g else "missing", "failed": failed})
+            if g is None or v is None or failed:
+                hard = hard if hard is not None else n
+                still_within = False
+            elif budget and v > budget:
+                first_over = first_over if first_over is not None else n
+                still_within = False
+            elif still_within:
+                within = n
+        good = [(p["n"], p["value"]) for p in pts if p["value"] and p["value"] > 0 and not p["failed"]]
+        slope = slope_max = slope_at = None
+        if len(good) >= 2 and good[-1][0] > good[0][0]:
+            slope = math.log(good[-1][1] / good[0][1]) / math.log(good[-1][0] / good[0][0])
+            for (n0, v0), (n1, v1) in zip(good, good[1:]):
+                sg = math.log(v1 / v0) / math.log(n1 / n0)
+                if slope_max is None or sg > slope_max:
+                    slope_max, slope_at = sg, n1
+        rows.append({"feature": feature, "axis": axis, "action": action, "title": any_g.get("title", ""),
+                     "kind": any_g.get("kind"), "budget_ms": budget, "points": pts, "within": within,
+                     "first_over": first_over, "hard": hard, "slope": slope, "slope_max": slope_max, "slope_at": slope_at})
+    return rows
 
 
 def frame_sources(acts, depth=4):
@@ -292,6 +344,32 @@ def _calibration(group_id, latency, trace_actions, bucket, global_k):
     return max(0.03, min(1.0, k)), real_ms
 
 
+def _add(a, b):
+    """a + b for the nested counters of a trace bucket: dicts of numbers or of [number, ...] lists."""
+    if isinstance(a, dict):
+        out = dict(a)
+        for k, v in b.items():
+            out[k] = _add(out[k], v) if k in out else (list(v) if isinstance(v, list) else v)
+        return out
+    if isinstance(a, list):
+        return [x + y for x, y in zip(a, b)]
+    return a + b
+
+
+def merge_buckets(a, b):
+    """The same group traced in two passes: totals and stacks add up (n_actions counts both passes, so per-action
+    figures are the mean over them); the process count is the larger of the two."""
+    out = {}
+    for k in set(a) | set(b):
+        if k not in a or k not in b:
+            out[k] = a.get(k, b.get(k))
+        elif k == "pids":
+            out[k] = max(a[k], b[k])
+        else:
+            out[k] = _add(a[k], b[k])
+    return out
+
+
 def attribution(traces, latency_list, repo_files):
     """traces: list of trace dicts ({'trace': aggregator result, 'actions': [...]}) -> attribution view."""
     latency = {g["id"]: g for g in latency_list}
@@ -303,7 +381,7 @@ def attribution(traces, latency_list, repo_files):
             continue
         funcfile.update(t["trace"]["funcfile"])
         for key, b in t["trace"]["buckets"].items():
-            buckets[key] = b
+            buckets[key] = merge_buckets(buckets[key], b) if key in buckets else b
         for a in t.get("actions", []):
             n_actions[a["group"]] = n_actions.get(a["group"], 0) + 1
 
@@ -663,6 +741,7 @@ def build_report(meta, rounds, traces, baseline=None):
     for gv in attr["groups"].values():   # stacks are only needed to build the trees
         for v in gv.values():
             v.pop("stacks", None)
+    report["limits"] = limits(lat, meta.get("groups_run"))
     report["insights"] = insights.generate(report)
     report["compare"] = compare(report, baseline) if baseline else None
     return report

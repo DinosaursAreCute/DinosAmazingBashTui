@@ -10,32 +10,58 @@ _TUI_MD_RE_TAG='<(/?)([A-Za-z][A-Za-z0-9]*)([[:space:]][^<>]*)?(/?)>'
 _TUI_MD_RE_REFDEF='^[[:space:]]{0,3}\[([^]]+)\]:[[:space:]]*<?([^[:space:]>]+)>?([[:space:]]+("[^"]*"|'"'"'[^'"'"']*'"'"'|\([^)]*\)))?[[:space:]]*$'
 _TUI_MD_RE_HTMLHEAD='^[[:space:]]*<[hH]([1-6])[^>]*>(.*)</[hH]\1>[[:space:]]*$'
 
-# _tui_md.html_inline LINE -> _HTML_LINE - the tags of one line that has no code spans.
+# _tui_md.html_attr ATTRS NAME -> _HTML_ATTR - the value of NAME="value" in a tag's attributes ("" when there is none).
+_tui_md.html_attr() {
+	local v=$1
+	_HTML_ATTR=""
+	[[ "$v" == *"$2=\""* ]] || return 0
+	v=${v#*"$2=\""}
+	[[ "$v" == *'"'* ]] && _HTML_ATTR=${v%%'"'*}
+	return 0
+}
+
+# _tui_md.html_inline LINE -> _HTML_LINE - the tags of one line that has no code spans. A tag is "<" "/"? NAME, then nothing,
+# a space and anything but "<>", or "/", then ">". Plain expansions: this runs for every line with a "<" (a README is full of
+# <img> and <h2>), and a regex per tag was the cost.
 _tui_md.html_inline() {
-	local s=$1 out="" pre tag closing attrs name href alt src
-	while [[ "$s" =~ $_TUI_MD_RE_TAG ]]; do
-		tag=${BASH_REMATCH[0]}
-		closing=${BASH_REMATCH[1]}
-		name=${BASH_REMATCH[2],,}
-		attrs=${BASH_REMATCH[3]}
-		pre=${s%%"$tag"*}
-		out+=$pre
-		s=${s#*"$tag"}
+	local s=$1 out="" t closing name rest attrs alt src
+	while [[ "$s" == *"<"* ]]; do
+		out+=${s%%<*}
+		s=${s#*<}
+		if [[ "$s" != *">"* ]]; then
+			out+="<$s"
+			s=""
+			break
+		fi
+		t=${s%%">"*}
+		closing=""
+		[[ "$t" == "/"* ]] && closing="/"
+		name=${t#"$closing"}
+		name=${name%%[!A-Za-z0-9]*}
+		rest=${t:${#closing}+${#name}}
+		if [[ "$t" == *"<"* || "$name" != [A-Za-z]* ]] || [[ -n "$rest" && "$rest" != "/" && "$rest" != [[:space:]]* ]]; then
+			out+="<" # not a tag: the "<" is text
+			continue
+		fi
+		attrs=""
+		[[ "$rest" == [[:space:]]* ]] && attrs=$rest
+		s=${s#*">"}
+		name=${name,,}
 		case "$name" in
 			br) out+=" "$'\x01'" " ;;
 			img)
-				alt="" src=""
-				[[ "$attrs" =~ alt=\"([^\"]*)\" ]] && alt=${BASH_REMATCH[1]}
-				[[ "$attrs" =~ src=\"([^\"]*)\" ]] && src=${BASH_REMATCH[1]}
+				_tui_md.html_attr "$attrs" alt
+				alt=$_HTML_ATTR
+				_tui_md.html_attr "$attrs" src
+				src=$_HTML_ATTR
 				out+="![${alt}](${src})"
 				;;
 			a)
 				if [[ -n "$closing" ]]; then
 					out+="](${_HTML_HREF:-})"
 				else
-					href=""
-					[[ "$attrs" =~ href=\"([^\"]*)\" ]] && href=${BASH_REMATCH[1]}
-					_HTML_HREF=$href
+					_tui_md.html_attr "$attrs" href
+					_HTML_HREF=$_HTML_ATTR
 					out+="["
 				fi
 				;;
@@ -64,17 +90,20 @@ _tui_md.html_entities() {
 }
 
 # _tui_md.html_pass TEXT -> _MD_ROW - fills _TUI_MD_REFS and returns TEXT with tags mapped, comments and definitions blanked.
+# A line without "<", "&", a backtick, "~" or "]:" outside a fence or comment cannot change: it is skipped with one test.
 _tui_md.html_pass() {
-	local line out="" infence=0 fchar="" flen=0 incomment=0 lead ct run rest seg i n
+	local line out="" infence=0 fchar="" flen=0 incomment=0 lead ct run rest seg i j
 	local -a lines segs
-	mapfile -t lines <<<"$1"
-	for line in "${lines[@]}"; do
+	_tui_md.split "$1" lines
+	for i in "${!lines[@]}"; do
+		line=${lines[i]}
+		if ((! incomment && ! infence)) && [[ "$line" != *[\<\&\`~]* && "$line" != *"]:"* ]]; then continue; fi
 		if ((incomment)); then
 			if [[ "$line" == *"-->"* ]]; then
 				incomment=0
 				line=${line#*-->}
 			else
-				out+=$'\n'
+				lines[i]=""
 				continue
 			fi
 		fi
@@ -86,12 +115,10 @@ _tui_md.html_pass() {
 				rest=${ct:${#run}}
 				((${#run} >= flen)) && [[ -z "${rest// /}" ]] && infence=0
 			fi
-			out+=$line$'\n'
 			continue
 		fi
 		if [[ "$line" == *'```'* || "$line" == *'~~~'* ]] && [[ "$line" =~ $_TUI_MD_RE_FENCE ]]; then
 			infence=1 fchar=${BASH_REMATCH[1]:0:1} flen=${#BASH_REMATCH[1]}
-			out+=$line$'\n'
 			continue
 		fi
 		while [[ "$line" == *"<!--"* ]]; do
@@ -107,13 +134,15 @@ _tui_md.html_pass() {
 			seg=${BASH_REMATCH[1],,}
 			seg=${seg//[[:space:]]/ }
 			_TUI_MD_REFS[$seg]=${BASH_REMATCH[2]}
-			out+=$'\n'
+			lines[i]=""
 			continue
 		fi
 		if [[ "$line" == *"<"* ]]; then
-			if [[ "$line" =~ ^[[:space:]]*\<[hH][rR][[:space:]/]*\>[[:space:]]*$ ]]; then
+			lead=${line%%[! 	]*}
+			ct=${line#"$lead"}
+			if [[ "$ct" == "<"[hH][rR]* && "$line" =~ ^[[:space:]]*\<[hH][rR][[:space:]/]*\>[[:space:]]*$ ]]; then
 				line="---"
-			elif [[ "$line" =~ $_TUI_MD_RE_HTMLHEAD ]]; then
+			elif [[ "$ct" == "<"[hH][1-6]* && "$line" =~ $_TUI_MD_RE_HTMLHEAD ]]; then
 				printf -v seg '%*s' "${BASH_REMATCH[1]}" ''
 				line="${seg// /#} ${BASH_REMATCH[2]}"
 			fi
@@ -121,9 +150,9 @@ _tui_md.html_pass() {
 				# only the parts between code spans
 				IFS='`' read -ra segs <<<"$line"
 				line=""
-				for i in "${!segs[@]}"; do
-					seg=${segs[i]}
-					if ((i % 2 == 0)); then
+				for j in "${!segs[@]}"; do
+					seg=${segs[j]}
+					if ((j % 2 == 0)); then
 						_tui_md.html_inline "$seg"
 						seg=$_HTML_LINE
 					fi
@@ -138,7 +167,8 @@ _tui_md.html_pass() {
 			_tui_md.html_entities "$line"
 			line=$_HTML_LINE
 		}
-		out+=$line$'\n'
+		lines[i]=$line
 	done
+	((${#lines[@]})) && printf -v out '%s\n' "${lines[@]}"
 	_MD_ROW=${out%$'\n'}
 }

@@ -41,21 +41,24 @@ The classes are `h1` to `h6`, `strong`, `em`, `code`, `codeblock`, `quote`, `bul
 
 ## Reading documents in a pane
 
-The demo's Docs page binds these keys:
+A Markdown pane reads with the keyboard and the mouse; nothing has to be bound by the app. The keys act on the keyboard pane, else the pane under the pointer, else the only Markdown pane of the page. `f2` shows the list with the keys as bound right now.
 
 | Key | Action |
 |---|---|
+| left click on a link | follow it ([`tui.md.click`](../api/markdown/tui.md.click.md)) |
 | `alt+j` / `alt+k` | next / previous link |
-| `alt+enter` | follow the focused link ([`tui.md.link_open`](../api/markdown/tui.md.link_open.md)) |
-| `alt+b` | back to the previous document or position ([`tui.md.back`](../api/markdown/tui.md.back.md)) |
-| `alt+/` | search ([`tui.md.search`](../api/markdown/tui.md.search.md)) |
+| `alt+l` | follow the focused link ([`tui.md.link_open`](../api/markdown/tui.md.link_open.md)) |
+| `alt+b`, `alt+left`, mouse side button 2 | back to the previous document or position ([`tui.md.back`](../api/markdown/tui.md.back.md)) |
+| `alt+right`, mouse side button 1 | forward again ([`tui.md.forward`](../api/markdown/tui.md.forward.md)) |
+| `alt+s` | search ([`tui.md.search_prompt`](../api/markdown/tui.md.search_prompt.md)) |
 | `alt+g` / `alt+h` | next / previous match |
 | `alt+o` | outline: jump to a heading ([`tui.md.outline_choose`](../api/markdown/tui.md.outline_choose.md)) |
 | `alt+z` | fold or unfold the section at the top ([`tui.md.fold_toggle`](../api/markdown/tui.md.fold_toggle.md)) |
-| `alt+y` | copy the section ([`tui.md.copy`](../api/markdown/tui.md.copy.md)) |
-| `alt+u` | copy the document |
+| `alt+y` / `alt+u` | copy the section / the document ([`tui.md.copy`](../api/markdown/tui.md.copy.md)) |
 
-Links to `#anchor` scroll to that heading; a relative `.md` link loads that file in the pane ([`tui.md.on_navigate`](../api/markdown/tui.md.on_navigate.md) is called); other links are copied to the clipboard. Set a custom handler for the first case with [`tui.md.on_link`](../api/markdown/tui.md.on_link.md).
+**Reader mode.** `<markdown pane="docs" src="x.md" keys="reader"/>` or `tui.md.keys docs reader` adds plain keys, in the style of a pager, that act while the pane has the keyboard (click it or press `f6`): `n` / `N` next / previous link, `Enter` follow, `b` or `Backspace` back, `/` search, `]` / `[` next / previous match, `o` outline, `z` fold, `y` / `Y` copy section / document, `g` / `G` top / bottom, and `j` / `k` scroll as in any pane. A focused text box keeps its keys. `none` turns the keys off for a pane. The demo's Docs and Case Study pages use reader mode.
+
+Links to `#anchor` scroll to that heading; a relative `.md` link loads that file in the pane ([`tui.md.on_navigate`](../api/markdown/tui.md.on_navigate.md) is called); other links are copied to the clipboard. A pane filled with [`tui.md.show`](../api/markdown/tui.md.show.md) needs the `FILE` argument for relative links to resolve. Set a custom handler for the first case with [`tui.md.on_link`](../api/markdown/tui.md.on_link.md).
 
 ## Images
 

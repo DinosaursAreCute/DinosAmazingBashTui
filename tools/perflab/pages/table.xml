@@ -1,0 +1,7 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd" on_visit="perflab_table_visit">
+  <script src="perflab_callbacks.sh"/>
+  <pane id="root" title="perflab table" border="single">
+    <label id="lbl_ready" text="PERFLAB table ready"/>
+    <table id="perflab_table" rows="20" columns="col1|col2" action="perflab_noop"/>
+  </pane>
+</tui>

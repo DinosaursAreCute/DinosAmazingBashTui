@@ -74,33 +74,9 @@ on_docu_visit() {
 	tui.list.set "lst_docs" "${titles[@]}"
 	tui.list.select "lst_docs" 0
 	tui.focus "lst_docs"
-	_docu_bind_keys
+	tui.md.keys content reader # plain reading keys (n N b / o z y ...) while the pane has the keyboard; alt chords always
 	tui.md.on_navigate docu_navigated
 	load_document "${files[0]}"
-}
-
-# the reading keys: links, back, search, outline, fold, copy (the document pane has no focus of its own)
-_docu_bind_keys() {
-	tui.bind alt+j "tui.md.link_next content" --always --page --desc "Next link"
-	tui.bind alt+k "tui.md.link_prev content" --always --page --desc "Previous link"
-	tui.bind alt+enter "tui.md.link_open content" --always --page --desc "Follow the focused link"
-	tui.bind alt+b "tui.md.back content" --always --page --desc "Back to the previous document"
-	tui.bind alt+/ docu_search --always --page --desc "Search the document"
-	tui.bind alt+g "tui.md.search_next content" --always --page --desc "Next match"
-	tui.bind alt+h "tui.md.search_prev content" --always --page --desc "Previous match"
-	tui.bind alt+o "tui.md.outline_choose content" --always --page --desc "Heading outline"
-	tui.bind alt+z "tui.md.fold_toggle content" --always --page --desc "Fold / unfold the section at the top"
-	tui.bind alt+y "tui.md.copy content section" --always --page --desc "Copy the section at the top (source)"
-	tui.bind alt+u "tui.md.copy content doc" --always --page --desc "Copy the whole document (source)"
-}
-
-docu_search() { tui.prompt "Search this document (empty clears)" docu_search_submit --title "Search"; }
-
-docu_search_submit() { # TEXT
-	local info
-	tui.md.search "content" "$1" || tui.notify "No match for '$1'" warn 2
-	tui.md.search_info "content" info
-	[[ -n "$info" ]] && tui.notify "Match $info   alt+g next, alt+h previous" info 3
 }
 
 # docu_navigated FILE PANE - a followed link loaded another document: show it in the list and the title

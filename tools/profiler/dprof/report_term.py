@@ -299,6 +299,29 @@ def machine_block(rep, W):
     return lines
 
 
+def limits_block(rep, W):
+    """Sweep runs: where each feature stops being instant, per axis and action."""
+    rows = rep.get("limits") or []
+    if not rows:
+        return []
+    lines = [c("rungs = values of the axis that ran · within = largest N with every rung inside the budget · "
+               "slope = log-log time vs N (1.0 linear, above ~1.2 worse than linear)", "dim"),
+             pad(c("feature · axis · action", "dim"), 36) + pad(c("budget", "dim"), 8, "r") + pad(c("within", "dim"), 10, "r")
+             + pad(c("first over", "dim"), 12, "r") + pad(c("hard", "dim"), 10, "r") + pad(c("slope", "dim"), 8, "r")]
+    for r in rows:
+        rungs = "   ".join(f"{p['n']}: " + ("✗" if p["value"] is None or p["failed"] else fmt_ms(p["value"])) for p in r["points"])
+        slope = f"{r['slope']:.2f}" if r["slope"] is not None else "–"
+        col = "red" if (r["slope_max"] or 0) > 1.5 else "yellow" if (r["slope_max"] or 0) > 1.2 else "text"
+        lines.append(pad(c(f"{r['feature']} · {r['axis']} · {r['action']}", "white"), 36)
+                     + pad(c(fmt_ms(r["budget_ms"]) if r["budget_ms"] else "–", "dim"), 8, "r")
+                     + pad(c(str(r["within"]) if r["within"] is not None else "none", "green" if r["within"] is not None else "red"), 10, "r")
+                     + pad(c(str(r["first_over"]) if r["first_over"] is not None else "–", "yellow" if r["first_over"] is not None else "dim"), 12, "r")
+                     + pad(c(str(r["hard"]) if r["hard"] is not None else "–", "red" if r["hard"] is not None else "dim"), 10, "r")
+                     + pad(c(slope, col), 8, "r"))
+        lines.append("    " + c(rungs, "dim"))
+    return lines
+
+
 def setup_block(rep, W):
     """What it costs to reach each unit's start state. Not part of any measured group above."""
     rows = rep.get("setup") or []
@@ -566,6 +589,10 @@ def render(rep, W=None, deep=True):
     if mb:
         out.append("")
         out += panel("MACHINE & RESOURCES", mb, W, "dim", "specs only, no host or user names")
+    lb = limits_block(rep, W - 4)
+    if lb:
+        out.append("")
+        out += panel("LIMITS", lb, W, "orange", "per sweep axis")
     sb = setup_block(rep, W - 4)
     if sb:
         out.append("")

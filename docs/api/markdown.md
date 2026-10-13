@@ -92,7 +92,7 @@
 
 The settings that choose how Markdown is drawn (profile, tables, images, highlighting), and the navigation, search, folding and copy functions of a document shown in a pane.
 
-<!-- api: tui.md.profile tui.md.tables tui.md.table_overflow tui.md.images tui.md.image_protocol tui.md.highlight tui.md.link_next tui.md.link_prev tui.md.link_open tui.md.on_link tui.md.on_navigate tui.md.back tui.md.search tui.md.search_next tui.md.search_prev tui.md.search_info tui.md.outline_choose tui.md.fold_toggle tui.md.copy -->
+<!-- api: tui.md.profile tui.md.tables tui.md.table_overflow tui.md.images tui.md.image_protocol tui.md.highlight tui.md.link_next tui.md.link_prev tui.md.link_open tui.md.on_link tui.md.on_navigate tui.md.back tui.md.search tui.md.search_next tui.md.search_prev tui.md.search_info tui.md.outline_choose tui.md.fold_toggle tui.md.copy tui.md.forward tui.md.search_prompt tui.md.keys tui.md.click tui.action.md_keys -->
 
 | Function | Summary |
 |---|---|
@@ -115,6 +115,11 @@ The settings that choose how Markdown is drawn (profile, tables, images, highlig
 | [`tui.md.outline_choose`](markdown/tui.md.outline_choose.md) | Opens a list ([`tui.choose`](/api/chrome/tui.choose.html)) of the headings of the document shown in `PANE`, indented by level; choosing one scrolls the pane to its top. |
 | [`tui.md.fold_toggle`](markdown/tui.md.fold_toggle.md) | Folds or unfolds the section under a heading of the document shown in `PANE`. |
 | [`tui.md.copy`](markdown/tui.md.copy.md) | Copies part of the document shown in `PANE` to the clipboard with [`tui.clipboard.copy`](/api/input/tui.clipboard.copy.html), and notifies. |
+| [`tui.md.forward`](markdown/tui.md.forward.md) | Goes forward in `PANE`'s document history after [`tui.md.back`](tui.md.back.md): the document (and scroll position) the last back stepped over. Following a link starts a new trail and drops what was ahead. |
+| [`tui.md.search_prompt`](markdown/tui.md.search_prompt.md) | Asks for a search text in a prompt, then runs [`tui.md.search`](tui.md.search.md) on `PANE` with it. An empty text clears the search; the match shown (`3/12`) or `No match` is announced as a notification. |
+| [`tui.md.keys`](markdown/tui.md.keys.md) | Chooses which default Markdown keys act on `PANE` (`<markdown keys="..."/>` does the same in markup). |
+| [`tui.md.click`](markdown/tui.md.click.md) | Follows the link drawn under the screen cell `X`,`Y` of `PANE`, exactly like focusing it and calling [`tui.md.link_open`](tui.md.link_open.md). A left click on a link in a Markdown pane does this by itself. |
+| [`tui.action.md_keys`](markdown/tui.action.md_keys.md) | Opens a scrollable list of the Markdown reading commands (links, back, search, outline, folds, copy) with the keys bound to them right now: the defaults and the app's own binds. A command without a key shows `-`. Bound to `f2` by default, and listed in the command palette as "Help: Markdown reading keybinds". |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
@@ -155,6 +160,16 @@ The settings that choose how Markdown is drawn (profile, tables, images, highlig
 {% include_relative markdown/tui.md.fold_toggle.md %}
 
 {% include_relative markdown/tui.md.copy.md %}
+
+{% include_relative markdown/tui.md.forward.md %}
+
+{% include_relative markdown/tui.md.search_prompt.md %}
+
+{% include_relative markdown/tui.md.keys.md %}
+
+{% include_relative markdown/tui.md.click.md %}
+
+{% include_relative markdown/tui.action.md_keys.md %}
 
 </div>
 

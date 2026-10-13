@@ -1,0 +1,7 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd" on_visit="perflab_input_visit">
+  <script src="perflab_callbacks.sh"/>
+  <pane id="root" title="perflab input" border="single">
+    <label id="lbl_ready" text="PERFLAB input ready"/>
+    <input id="perflab_in" label="text:"/>
+  </pane>
+</tui>

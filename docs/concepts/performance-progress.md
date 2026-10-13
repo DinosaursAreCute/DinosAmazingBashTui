@@ -29,7 +29,7 @@ The profile also changed what we think matters. Colour and theme work is worth a
 
 ## Preliminary result: first deep run vs current deep run
 
-Status: preliminary. Both runs are `--deep` full scenarios (5 rounds, traced cold start), taken 2026-09-30 about 2.5 hours apart on the same machine: the first is `20260930-193435` (before any change in this document), the current is `20260930-214915` (after changes 1–7). Medians of the probe-measured latency; budgets are the perceived-instant lines from `tools/profiler/dprof/scenarios.py`.
+Status: preliminary. Both runs are `--deep` full scenarios (5 rounds, traced cold start), taken 2026-09-30 about 2.5 hours apart on the same machine: the first is `20260930-193435` (before any change in this document), the current is `20260930-214915` (after changes 1–7). Medians of the probe-measured latency; budgets are the perceived-instant lines from `tools/profiler/scenarios/demo.py`.
 
 ### Latency, all interactions
 
@@ -935,7 +935,7 @@ Open points:
 
 ## 16. Standing against the budgets
 
-Budgets are the perceived-instant lines in `tools/profiler/dprof/scenarios.py`. Baseline is the first deep run (`20260930-193435`); current is the latest deep run (`20260930-214915`). Theme switching and alt+2 are compared with their first measured values where they exist (the baseline alt+2 was a no-op).
+Budgets are the perceived-instant lines in `tools/profiler/scenarios/demo.py`. Baseline is the first deep run (`20260930-193435`); current is the latest deep run (`20260930-214915`). Theme switching and alt+2 are compared with their first measured values where they exist (the baseline alt+2 was a no-op).
 
 | interaction | budget | baseline | current | state |
 |---|---|---|---|---|

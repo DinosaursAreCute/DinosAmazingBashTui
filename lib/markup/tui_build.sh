@@ -175,13 +175,16 @@ tui.register tag tui _tui_build.tag.tui
 tui.register tag script _tui_build.tag.script
 tui.register tag theme _tui_build.tag.theme
 
-# <markdown pane="ID" src="FILE"/>: FILE (relative to the page) rendered as Markdown into the scrolling pane ID.
+# <markdown pane="ID" src="FILE" [keys="reader|chords|none"]/>: FILE (relative to the page) rendered as Markdown into the
+# scrolling pane ID; keys picks which default Markdown keys act on it (tui.md.keys).
 _tui_build.tag.markdown() {
-	local node="$1" mpane msrc
+	local node="$1" mpane msrc mkeys
 	_tui_build.attrv "$node" pane mpane
 	_tui_build.attrv "$node" src msrc
+	_tui_build.attrv "$node" keys mkeys
 	[[ -z "$mpane" || -z "$msrc" ]] && return 0
 	[[ "$msrc" != /* ]] && msrc="${_TUI_MARKUP_DIR}/${msrc}"
+	[[ -n "$mkeys" ]] && tui.md.keys "$mpane" "$mkeys"
 	tui.md.show_file "$mpane" "$msrc"
 }
 tui.register tag markdown _tui_build.tag.markdown

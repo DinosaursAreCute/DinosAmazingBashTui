@@ -147,6 +147,106 @@ _bench_v2() {
 	done
 }
 
+# ── markdown renderer (lib/markdown): a fixed ~400-line document, a fixed pane ──
+# _bench_md_doc -> _BMD : 40 sections of heading, paragraph (emphasis, code, a link), list, and every tenth a fence and a table
+_bench_md_doc() {
+	local i out=""
+	for ((i = 1; i <= 40; i++)); do
+		out+="## Section $i"$'\n\n'
+		out+="Paragraph $i has **bold words**, *emphasis*, \`inline code\` and a [link $i](https://x.test/$i) with enough text to wrap around a few times in a narrow pane."$'\n\n'
+		out+="- first item of $i with a [list link](#section-$i)"$'\n'"- second item"$'\n'"  - nested item"$'\n\n'
+		if ((i % 10 == 0)); then
+			out+=$'```bash\n# a code block\nfor i in 1 2 3; do\n\techo "$i"\ndone\n```\n\n'
+			out+=$'| Name | Value | Note |\n|---|---|---|\n| a | 1 | first |\n| b | 2 | second |\n\n'
+		fi
+	done
+	_BMD=$out
+}
+_BMD_W=100
+_b_md_cold() {
+	_tui_md.cache_clear
+	_tui_md.memo_clear
+	tui.md.render "$_BMD" 100
+}
+_b_md_new_width() {
+	_tui_md.cache_clear
+	((_BMD_W = _BMD_W == 100 ? 99 : 100))
+	tui.md.render "$_BMD" "$_BMD_W"
+}
+_b_md_cache_hit() { _tui_md.render_cached "$_BMD" 100; }
+_b_md_first_screen() {
+	_tui_md.cache_clear
+	_tui_md.render_begin "$_BMD" 100 40
+}
+_b_md_paint_pane() {
+	_tui_md.cache_clear
+	_tui_md.paint_pane p full
+}
+_b_md_link_step() { _tui_md.link_step p 1; }
+_b_md_slice() { _tui_md.slice "$_BMD_ROW" 5 60; }
+_b_md_disk_hit() {
+	_tui_md.cache_clear
+	_tui_md.render_cached "$_BMD" 100
+}
+_b_md_split() { _tui_md.split "$_BMD" _BMD_LINES; }
+
+# _bench_md_view NAME SOFF - the time from a width change to the viewport being painted (paint_pane returns), for a pane scrolled
+# to SOFF: what the budget (100 ms, accepted < 500) is about. The part above and the rest follow in time slices.
+_bench_md_view() {
+	local name=$1 soff=$2 i t0 t1 w=101 sum=0 d n=0
+	local -a durs=()
+	for ((i = 0; i < 8; i++)); do
+		_tui_md.complete p
+		((w = w == 101 ? 91 : 101))
+		_TUI_P_W[p]=$w
+		_TUI_P_SOFF_V[p]=$soff
+		_tui_md.cache_clear # the memory cache of a width; the prepared text and its block records stay
+		t0=${EPOCHREALTIME//[!0-9]/}
+		_tui_md.paint_pane p
+		t1=${EPOCHREALTIME//[!0-9]/}
+		durs+=($((t1 - t0)))
+		((sum += t1 - t0, n++))
+	done
+	_tui_md.complete p
+	mapfile -t durs < <(printf '%s\n' "${durs[@]}" | sort -n)
+	printf '%s\t%d\t%d\t0\n' "$name" "$((sum / n))" "${durs[$((n * 95 / 100 >= n ? n - 1 : n * 95 / 100))]}"
+}
+
+_bench_markdown() {
+	_bench_md_doc
+	local -a rows
+	tui.md.render "$_BMD" 100
+	_BMD_ROW=${TUI_MD_ROWS[12]}
+	_TUI_ROWS=30 _TUI_COLS=120
+	_TUI_P_ROW[p]=1 _TUI_P_COL[p]=1 _TUI_P_H[p]=28 _TUI_P_W[p]=101
+	_TUI_P_BORDER[p]=none _TUI_P_BORDER_EXPL[p]=1 _TUI_P_HPAD[p]=0 _TUI_P_VPAD[p]=0
+	_TUI_P_ALL=(p) _TUI_P_LEAVES=(p) _TUI_P_SCROLL[p]=v
+	_TUI_RUNNING=0
+	tui.md.show p "$_BMD"
+	_tui_md.complete p
+	_tui_md.cache_clear
+	_tui_md.paint_pane p full # a completed render: the block records exist
+	_bench_md_view md_view_top 0
+	_bench_md_view md_view_scrolled 300
+	_bench_run md_render_cold 5 _b_md_cold
+	_bench_run md_render_new_width 5 _b_md_new_width
+	_tui_md.cache_clear
+	_tui_md.render_cached "$_BMD" 100
+	_bench_run md_render_cache_hit 30 _b_md_cache_hit
+	_bench_run md_first_screen 10 _b_md_first_screen
+	_bench_run md_paint_pane 5 _b_md_paint_pane
+	_bench_run md_link_step 20 _b_md_link_step
+	_bench_run md_slice_row 100 _b_md_slice
+	_bench_run md_split_lines 30 _b_md_split
+	# the snapshot of a file shown with tui.md.show_file: a new session has an empty memory cache and loads it
+	printf '%s\n' "$_BMD" >"$_BENCH_ROOT/md_bench.md"
+	_TUI_MD_DISK_SRC="$_BENCH_ROOT/md_bench.md"
+	_tui_md.cache_clear
+	_tui_md.render_cached "$_BMD" 100 # writes the snapshot
+	_bench_run md_disk_hit 20 _b_md_disk_hit
+	_TUI_MD_DISK_SRC=""
+}
+
 {
 	_bench_run cold_page_load 10 _b_cold_load
 	_bench_run warm_page_load 20 _b_warm_load
@@ -157,6 +257,7 @@ _bench_v2() {
 	_bench_run resize_relayout 30 _b_resize_relayout
 	_bench_run scroll_burst 30 _b_scroll_burst
 	_bench_v2
+	_bench_markdown
 } >"$BENCH_REPO/tools/bench/.run_out.$$"
 
 if [[ -z "$_BENCH_COMPARE" ]]; then
@@ -168,6 +269,15 @@ fi
 _BENCH_FAIL=0
 while IFS=$'\t' read -r name mean p95 forks; do
 	base_mean="$(awk -F'\t' -v n="$name" '$1==n{print $2}' "$_BENCH_COMPARE")"
+	# G4: a viewport must be painted within the budget (docs/design/markdown-render-budget.md): 100 ms, hard stop at 500 ms.
+	if [[ "$name" == md_view_* ]]; then
+		if ((mean > 500000)); then
+			printf 'G4\ttools/bench/run.sh:0\t%s: %dus mean > the 500 ms ceiling\n' "$name" "$mean"
+			_BENCH_FAIL=1
+		elif ((mean > 100000)); then
+			printf 'note\ttools/bench/run.sh:0\t%s: %dus mean is over the 100 ms budget\n' "$name" "$mean"
+		fi
+	fi
 	[[ -z "$base_mean" ]] && continue
 	# G3: no bench more than 5% slower in mean than the recorded baseline.
 	limit=$((base_mean * 105 / 100))

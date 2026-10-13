@@ -54,10 +54,10 @@ def startup_timeline(sess):
     }
 
 
-def start_app(cfg, home, label, tracer=None):
+def start_app(cfg, home, label, tracer=None, env=None):
     fwd = tracer.send if tracer else None
     sess = Session(home, cfg.rows, cfg.cols, trace_w=tracer.w if tracer else None, forward=fwd,
-                   probes=tracer is None)
+                   probes=tracer is None, env=env)
     if fwd:
         fwd(("label", label, int(now() * 1e6), True))
     sess.start()
@@ -122,6 +122,22 @@ class _LockedUI:
         return call
 
 
+class _UnitUI:
+    """What one unit of a parallel run reports to: the live UI keeps each unit's steps together (unit_* methods)."""
+
+    def __init__(self, ui, name, total):
+        self._ui, self._name = ui, name
+        ui.unit_begin(name, total)
+
+    def step_begin(self, desc): self._ui.unit_step_begin(self._name, desc)
+    def step_end(self, desc, res): self._ui.unit_step_end(self._name, desc, res)
+    def warn(self, text): self._ui.unit_warn(self._name, text)
+    def note(self, text): self._ui.unit_note(self._name, text)
+    def phase(self, *a, **k): pass
+    def set_tracer(self, *a): pass
+    def done(self): self._ui.unit_done(self._name)
+
+
 def _copy_home(template):
     """A private HOME with the warmed cache of the template: every unit starts from the same state."""
     home = tempfile.mkdtemp(prefix="dprof-home-")
@@ -152,11 +168,13 @@ def run_unit(cfg, ui, template, unit, sampler=None, jobs=1):
     t0 = time.time()
     try:
         ui.step_begin(f"{unit.name} · start")
-        sess, tl = start_app(cfg, home, "setup")
+        sess, tl = start_app(cfg, home, "setup", env=unit.env)
         ui.step_end(f"{unit.name} · start", {"group": "setup", "settle_ms": tl["ready_ms"], "tl": tl})
         res["setup"].append({"detail": "start app (warm cache)", "ms": tl["ready_ms"], "ok": tl["ok"]})
         if not tl["ok"]:
-            res["warnings"].append(f"unit '{unit.name}': the app did not reach its first frame; its steps were skipped")
+            msg = f"unit '{unit.name}': the app did not reach its first frame; its steps were skipped"
+            res["warnings"].append(msg)
+            ui.warn(msg)
             sess.close()
             return res
         t_steps = time.time()
@@ -197,9 +215,18 @@ def latency_round(cfg, ui, round_no, sampler=None):
         jobs = max(1, min(cfg.jobs, len(todo))) if todo else 1
         if jobs > 1:
             out["warnings"].append(f"{jobs} units ran side by side: timings include the contention between them")
-            shared = _LockedUI(ui)
+            if hasattr(ui, "unit_begin"):
+                def run(u):
+                    uui = _UnitUI(ui, u.name, len(u.steps) + 1)
+                    try:
+                        return run_unit(cfg, uui, template, u, sampler, jobs)
+                    finally:
+                        uui.done()
+            else:   # a UI without per-unit output: one terminal behind a lock
+                shared = _LockedUI(ui)
+                run = lambda u: run_unit(cfg, shared, template, u, sampler, jobs)
             with ThreadPoolExecutor(max_workers=jobs) as pool:
-                results = list(pool.map(lambda u: run_unit(cfg, shared, template, u, sampler, jobs), todo))
+                results = list(pool.map(run, todo))
         else:
             results = [run_unit(cfg, ui, template, u, sampler, 1) for u in todo]
         for r in results:
@@ -227,13 +254,13 @@ def traced_session(cfg, ui, cold):
         s0.close()
         results.append(_traced(cfg, ui, template, "startup.warm", []))
         for unit in units(cfg.rows, cfg.cols, cfg.quick, cfg.wanted):
-            results.append(_traced(cfg, ui, template, unit.name, unit.steps))
+            results.append(_traced(cfg, ui, template, unit.name, unit.steps, unit.env))
         return results
     finally:
         shutil.rmtree(template, ignore_errors=True)
 
 
-def _traced(cfg, ui, template, name, steps):
+def _traced(cfg, ui, template, name, steps, env=None):
     tracer = Tracer(WRAPPED)
     ui.set_tracer(tracer)
     home = template if name == "startup.cold" else _copy_home(template)
@@ -241,7 +268,7 @@ def _traced(cfg, ui, template, name, steps):
     try:
         label = name if name.startswith("startup.") else "setup"
         ui.step_begin(f"{name} (traced)")
-        sess, tl = start_app(cfg, home, label, tracer)
+        sess, tl = start_app(cfg, home, label, tracer, env=env)
         ui.step_end(name, {"group": label, "settle_ms": tl["ready_ms"], "tl": tl, "traced": True})
         if name == "startup.cold" or not steps:
             sess.close()

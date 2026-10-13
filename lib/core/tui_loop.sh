@@ -98,6 +98,7 @@ tui.run() {
 					else
 						_tui_input.coalesce_mouse "$seq" # wheel spins: merge into one
 						seq="$_TUI_SEQ_BUF"
+						_TUI_LAST_RAW=$'\e'"$seq"
 					fi
 					_tui._handle_mouse "$seq"
 				elif

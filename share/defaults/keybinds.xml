@@ -48,6 +48,37 @@
 
   <!-- help -->
   <bind key="f1" action="tui.action.text_keys" group="help" desc="Show the text-editing keys"/>
+  <bind key="f2" action="tui.action.md_keys"   group="help" desc="Show the Markdown reading keys"/>
+
+  <!-- markdown: act on the keyboard pane, else the pane under the pointer, else the only Markdown pane (tui.md.keys sets the
+       mode per pane). Chords are letters on purpose: alt+symbol keys need shift or AltGr on many layouts (alt+shift+7 is alt+/ on a German one) and some terminals report that as alt+7. Chords work in every Markdown pane; the plain "reader" keys only in a pane set to keys="reader" while it
+       has the keyboard (click it or f6). j / k scroll through the scroll group. -->
+  <bind key="alt+j"  action="_tui_md.key_link_next"    group="markdown" desc="Next link"/>
+  <bind key="alt+k"  action="_tui_md.key_link_prev"    group="markdown" desc="Previous link"/>
+  <bind key="alt+l"  action="_tui_md.key_link_open"    group="markdown" desc="Follow the focused link"/>
+  <bind key="alt+b"  action="_tui_md.key_back"         group="markdown" desc="Back to the previous document"/>
+  <bind key="mouse:side2" action="_tui_md.key_back"    group="markdown" desc="Back (side mouse button)"/>
+  <bind key="mouse:side1" action="_tui_md.key_forward" group="markdown" desc="Forward (side mouse button)"/>
+  <bind key="alt+s"  action="_tui_md.key_search"       group="markdown" desc="Search the document"/>
+  <bind key="alt+g"  action="_tui_md.key_search_next"  group="markdown" desc="Next match"/>
+  <bind key="alt+h"  action="_tui_md.key_search_prev"  group="markdown" desc="Previous match"/>
+  <bind key="alt+o"  action="_tui_md.key_outline"      group="markdown" desc="Heading outline"/>
+  <bind key="alt+z"  action="_tui_md.key_fold"         group="markdown" desc="Fold or unfold the section at the top"/>
+  <bind key="alt+y"  action="_tui_md.key_copy_section" group="markdown" desc="Copy the section at the top (source)"/>
+  <bind key="alt+u"  action="_tui_md.key_copy_doc"    group="markdown" desc="Copy the whole document (source)"/>
+  <bind key="n"         action="_tui_md.key_r_link_next"    group="markdown_reader" desc="Next link (reader mode)"/>
+  <bind key="N"         action="_tui_md.key_r_link_prev"    group="markdown_reader" desc="Previous link (reader mode)"/>
+  <bind key="b"         action="_tui_md.key_r_back"         group="markdown_reader" desc="Back (reader mode)"/>
+  <bind key="backspace" action="_tui_md.key_r_back"         group="markdown_reader" desc="Back (reader mode)"/>
+  <bind key="/"         action="_tui_md.key_r_search"       group="markdown_reader" desc="Search (reader mode)"/>
+  <bind key="]"         action="_tui_md.key_r_search_next"  group="markdown_reader" desc="Next match (reader mode)"/>
+  <bind key="["         action="_tui_md.key_r_search_prev"  group="markdown_reader" desc="Previous match (reader mode)"/>
+  <bind key="o"         action="_tui_md.key_r_outline"      group="markdown_reader" desc="Outline (reader mode)"/>
+  <bind key="z"         action="_tui_md.key_r_fold"         group="markdown_reader" desc="Fold (reader mode)"/>
+  <bind key="y"         action="_tui_md.key_r_copy_section" group="markdown_reader" desc="Copy the section (reader mode)"/>
+  <bind key="Y"         action="_tui_md.key_r_copy_doc"     group="markdown_reader" desc="Copy the document (reader mode)"/>
+  <bind key="g"         action="_tui_md.key_r_top"          group="markdown_reader" desc="To the top (reader mode)"/>
+  <bind key="G"         action="_tui_md.key_r_bottom"       group="markdown_reader" desc="To the bottom (reader mode)"/>
 
   <!-- click: left button on widgets and scrollbars -->
   <bind key="mouse:left" action="tui.action.click"          group="click" desc="Click"/>

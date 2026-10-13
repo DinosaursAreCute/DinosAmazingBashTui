@@ -1,7 +1,7 @@
 ### `tui.md.show`
 
 ```bash
-tui.md.show PANE TEXT
+tui.md.show PANE TEXT [FILE]
 ```
 
 Renders `TEXT` as Markdown into the scrolling pane `PANE` (`scroll="v"`).
@@ -10,6 +10,7 @@ Renders `TEXT` as Markdown into the scrolling pane `PANE` (`scroll="v"`).
 
 - `PANE`: the ID of a pane with `scroll="v"`.
 - `TEXT`: the Markdown source.
+- `FILE`: where `TEXT` came from. Relative links (`other.md`, `../x.md#anchor`) resolve against its folder and `tui.md.back` can return to it.
 
 **Notes**
 

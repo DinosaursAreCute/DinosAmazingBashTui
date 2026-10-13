@@ -67,6 +67,25 @@ declare -gA _TUI_MD_SHOWN=() _TUI_MD_SHOWN_W=() # pane -> source text / width it
 declare -gi _TUI_MD_HOOKED=0
 declare -g _TUI_MD_NEXT_FILE=""
 declare -gi _TUI_MD_KEEP=0 _TUI_MD_DEPTH=0
+declare -gA _TUI_MD_IMEMO=() # inline results of whole paragraphs/headings: "BASE\x1fLINKS_BEFORE\x1fTEXT" -> record
+declare -g _TUI_MD_IMEMO_SIG=""
+declare -gi _TUI_MD_TOP=0 _TUI_MD_STOP=0 _TUI_MD_STOP_ROWS=0 _TUI_MD_STOP_AT=0 # resumable top-level block loop
+declare -gi _TUI_MD_RES_DONE=1 _TUI_MD_RES_I=0 _TUI_MD_RES_EM=0 _TUI_MD_RES_PP=0 _TUI_MD_RES_W=0
+declare -ga _TUI_MD_LINES=() # the numbered source lines of the render in progress
+declare -gi _TUI_MD_HIT=0 _TUI_MD_RENDERS=0 # renders started (a cache hit starts none)
+declare -g _TUI_MD_LAST="" # the Markdown pane shown last
+declare -g _TUI_MD_DISK_SRC="" _TUI_MD_NEXT_DISK="" _TUI_MD_DC_KEY="" _DP=""
+declare -gi _TUI_MD_DC_OK=0 _TUI_MD_DISK_DIR_OK=0
+declare -ga _TUI_MD_BI=() _TUI_MD_BE=() _TUI_MD_BP=() # top-level blocks of the render: line index, "a block came before", "a paragraph came before"
+declare -gi _TUI_MD_END_I=0 _TUI_MD_PD_NEXT=0 _TUI_MD_PREPS=0
+declare -ga _TUI_MD_PD_KEY=() _TUI_MD_PD_DEG=() _TUI_MD_PD_HAS=() # prepared documents: slot -> text, degraded flag, blocks known
+declare -g _PDS="" _BK="" _TL=0
+declare -gA _TUI_MD_PEND=() _TUI_MD_RS=() # pane -> 1 while its render is unfinished; pane.FIELD -> where it resumes
+declare -ga _TUI_MD_RC_KEY=() # row cache: slot -> key; the slot's arrays are _TUI_MD_RC_<what>_<slot>
+declare -gi _TUI_MD_RC_NEXT=0
+declare -g _CK="" _TUI_MD_RES_KEY=""
+declare -ga _TUI_MD_RC_DEG=()
+declare -gi _CN=0
 declare -g _MD_OUT="" _VL=0 _FC=0 _CE=0 _LT="" _LU="" _LN=0 _CH="" _CT="" _MD_ROW=""
 
 # control bytes removed from input: everything below 0x20 except tab and newline, plus DEL
@@ -425,7 +444,7 @@ _tui_md.heading_banner() {
 	sgr=${sgr//\[4;/\[}
 	sgr=${sgr//;4;/;}
 	sgr=${sgr//;4m/m}
-	_tui_md.inline "$1" ""
+	_tui_md.inline_memo "$1" ""
 	plain=${_MD_OUT//[!$'\x02']/}
 	marks=${#plain}
 	tui.md.strip "$_MD_OUT" plain
@@ -515,13 +534,17 @@ _tui_md.charw() {
 # _tui_md.cells STR -> _VL - terminal cells of a plain string. Pure ASCII is ${#}; under a UTF-8 locale wide characters count
 # twice and combining marks not at all. Under LC_ALL=C bytes are counted, as ${#} does.
 _tui_md.cells() {
-	local s=$1 i c cp
+	local s=$1 run c cp
 	_VL=${#s}
 	[[ "$s" != *[!\ -~]* ]] && return 0
 	local u=$'\xc3\xa9'
 	((${#u} == 1)) || return 0
-	for ((i = 0; i < ${#s}; i++)); do
-		c=${s:i:1}
+	while [[ -n "$s" ]]; do
+		run=${s%%[!\ -~]*} # an ASCII run costs one cell per character: skipped whole
+		s=${s:${#run}}
+		[[ -z "$s" ]] && break
+		c=${s:0:1}
+		s=${s:1}
 		printf -v cp '%d' "'$c"
 		((cp < 0x300)) && continue
 		_tui_md.charw "$cp"
@@ -557,14 +580,24 @@ _tui_md.track() {
 	done
 }
 
-# _tui_md.cut STR N -> _CH _CT - the first N visible cells of STR and the rest; SGR sequences stay whole.
+# _tui_md.cut STR N -> _CH _CT _CN - the first N visible cells of STR, the rest, and the cells of the head; SGR sequences stay whole.
 _tui_md.cut() {
-	local s=$1 n=$2 head="" seq cnt=0 c cp w
+	local s=$1 n=$2 head="" seq run cnt=0 c cp w left
 	if [[ $s != *$'\e['* && "$s" != *[!\ -~]* ]]; then
 		_CH=${s:0:n} _CT=${s:n}
+		_CN=${#_CH}
 		return 0
 	fi
 	while [[ -n "$s" ]] && ((cnt < n)); do
+		run=${s%%[!\ -~]*} # an ASCII run is one cell per character: taken whole, no per-character loop
+		if [[ -n "$run" ]]; then
+			left=$((n - cnt))
+			((${#run} > left)) && run=${run:0:left}
+			head+=$run
+			s=${s:${#run}}
+			((cnt += ${#run}))
+			continue
+		fi
 		if [[ "${s:0:2}" == $'\e[' ]]; then
 			seq=${s%%m*}m
 			head+=$seq
@@ -572,18 +605,15 @@ _tui_md.cut() {
 			continue
 		fi
 		c=${s:0:1}
-		w=1
-		if [[ "$c" != [\ -~] ]]; then
-			printf -v cp '%d' "'$c"
-			_tui_md.charw "$cp"
-			w=$_CW
-		fi
+		printf -v cp '%d' "'$c"
+		_tui_md.charw "$cp"
+		w=$_CW
 		((cnt + w > n)) && break # a wide character that does not fit starts the next row
 		head+=$c
 		s=${s:1}
 		((cnt += w))
 	done
-	_CH=$head _CT=$s
+	_CH=$head _CT=$s _CN=$cnt
 }
 
 # _tui_md.wrap STR WIDTH LINENO - word-wraps STR (words split on spaces, \x01 = hard break) and appends the rows.
@@ -911,6 +941,203 @@ _tui_md.inline() {
 	_MD_OUT=$out
 }
 
+# _tui_md.memo_clear - forgets the memoized inline results.
+_tui_md.memo_clear() {
+	_TUI_MD_IMEMO=()
+	_TUI_MD_IMEMO_SIG=""
+}
+
+# _tui_md.memo_sync - drops the memo when anything an inline result depends on besides its text changed.
+_tui_md.memo_sync() {
+	local sig="${_TUI_MD_SGR[*]}|$TUI_MD_IMAGES|$TUI_MD_LINK_URL|$TUI_MD_DEGRADED|${_TUI_MD_PLACEHOLDER:-}|$TUI_MD_BASE_DIR|${!_TUI_MD_REFS[*]}|${_TUI_MD_REFS[*]}"
+	[[ "$sig" == "$_TUI_MD_IMEMO_SIG" ]] && return 0
+	_TUI_MD_IMEMO=()
+	_TUI_MD_IMEMO_SIG=$sig
+}
+
+# _tui_md.inline_memo TEXT BASE -> _MD_OUT - _tui_md.inline of a whole paragraph or heading, memoized: the result does not
+# depend on the width, so a resize reuses it. A hit replays the links the span collected. The focus style is part of the
+# result: an entry is reused only while the focused link is outside the links it holds, or was the same when it was made.
+_tui_md.inline_memo() {
+	if ((TUI_MD_DEGRADED)) || [[ "$1" != *[\\*_\`\[~\<]* ]]; then
+		_tui_md.inline "$1" "$2"
+		return 0
+	fi
+	local n0=${#TUI_MD_LINK_URLS[@]} key v k fc urls texts f=$_TUI_MD_FOCUS_LINK e i
+	key="$2"$'\x1f'"$n0"$'\x1f'"$1"
+	if [[ -n "${_TUI_MD_IMEMO[$key]+x}" ]]; then
+		v=${_TUI_MD_IMEMO[$key]}
+		k=${v%%$'\x1e'*} v=${v#*$'\x1e'}
+		fc=${v%%$'\x1e'*} v=${v#*$'\x1e'}
+		urls=${v%%$'\x1e'*} v=${v#*$'\x1e'}
+		texts=${v%%$'\x1e'*}
+		if ((f == fc)) || ! { ((f >= n0 && f < n0 + k)) || ((fc >= n0 && fc < n0 + k)); }; then
+			_MD_OUT=${v#*$'\x1e'}
+			if ((k > 0)); then
+				local -a arr
+				IFS=$'\x1f' read -ra arr <<<"$urls"
+				for e in "${arr[@]}"; do TUI_MD_LINK_URLS+=("${e:1}"); done
+				IFS=$'\x1f' read -ra arr <<<"$texts"
+				for e in "${arr[@]}"; do TUI_MD_LINK_TEXTS+=("${e:1}"); done
+			fi
+			return 0
+		fi
+	fi
+	_tui_md.inline "$1" "$2"
+	k=$((${#TUI_MD_LINK_URLS[@]} - n0))
+	urls="" texts=""
+	for ((i = n0; i < n0 + k; i++)); do
+		urls+="E${TUI_MD_LINK_URLS[i]}"$'\x1f'
+		texts+="E${TUI_MD_LINK_TEXTS[i]}"$'\x1f'
+	done
+	((${#_TUI_MD_IMEMO[@]} >= 4096)) && _TUI_MD_IMEMO=()
+	_TUI_MD_IMEMO[$key]="$k"$'\x1e'"$f"$'\x1e'"$urls"$'\x1e'"$texts"$'\x1e'"$_MD_OUT"
+}
+
+# ── row cache ──────────────────────────────────────────────────────────
+
+_TUI_MD_RC_SLOTS=6
+_TUI_MD_RC_ARRAYS=(ROWS MAP URLS TEXTS LROWS HEADS)
+
+# _tui_md.cache_clear - forgets every cached render.
+_tui_md.cache_clear() { _TUI_MD_RC_KEY=(); _TUI_MD_RC_NEXT=0; }
+
+# _tui_md.cache_flags WIDTH -> _CK - everything a render depends on besides the text. Graphics images read files and
+# allocate ids, so a render that may show one is not cacheable (rc 1).
+_tui_md.cache_flags() {
+	[[ "$TUI_MD_IMAGES" == graphics ]] && return 1
+	_tui_md.sync
+	_CK="$1|$TUI_MD_BREAKS|$TUI_MD_FONTS|$TUI_MD_TABLES|$TUI_MD_TABLE_OVERFLOW|$TUI_MD_IMAGES|$TUI_MD_LINK_URL|$TUI_MD_MAX_BYTES"
+	_CK+="|$_TUI_MD_FOCUS_LINK|$TUI_MD_BASE_DIR|${_TUI_MD_PLACEHOLDER:-}|${LC_ALL-}${LC_CTYPE-}${LANG-}|${_TUI_MD_HFONT[*]}|${!_TUI_MD_HL[*]}|${_TUI_MD_SGR[*]}"
+}
+
+# _tui_md.cache_get FLAGS TEXT - loads a cached render into TUI_MD_*; rc 1 on a miss.
+_tui_md.cache_get() {
+	local key="$1"$'\x1f'"$2" s k
+	for s in "${!_TUI_MD_RC_KEY[@]}"; do
+		[[ "${_TUI_MD_RC_KEY[s]}" == "$key" ]] || continue
+		local -n rows=_TUI_MD_RC_ROWS_$s map=_TUI_MD_RC_MAP_$s urls=_TUI_MD_RC_URLS_$s texts=_TUI_MD_RC_TEXTS_$s
+		local -n lrows=_TUI_MD_RC_LROWS_$s heads=_TUI_MD_RC_HEADS_$s anch=_TUI_MD_RC_ANCH_$s
+		TUI_MD_ROWS=("${rows[@]}") TUI_MD_MAP=("${map[@]}") TUI_MD_LINK_URLS=("${urls[@]}") TUI_MD_LINK_TEXTS=("${texts[@]}")
+		TUI_MD_LINK_ROWS=("${lrows[@]}") TUI_MD_HEADS=("${heads[@]}")
+		TUI_MD_ANCHORS=()
+		for k in "${!anch[@]}"; do TUI_MD_ANCHORS[$k]=${anch[$k]}; done
+		TUI_MD_DEGRADED=${_TUI_MD_RC_DEG[s]}
+		TUI_MD_IMAGE_IDS=() _TUI_MD_REFS=()
+		return 0
+	done
+	return 1
+}
+
+# _tui_md.cache_put FLAGS TEXT - keeps the completed render in TUI_MD_* (the oldest of the slots is replaced).
+_tui_md.cache_put() {
+	local s=$_TUI_MD_RC_NEXT k
+	_TUI_MD_RC_NEXT=$(((s + 1) % _TUI_MD_RC_SLOTS))
+	declare -ga "_TUI_MD_RC_ROWS_$s" "_TUI_MD_RC_MAP_$s" "_TUI_MD_RC_URLS_$s" "_TUI_MD_RC_TEXTS_$s" "_TUI_MD_RC_LROWS_$s" "_TUI_MD_RC_HEADS_$s"
+	declare -gA "_TUI_MD_RC_ANCH_$s"
+	local -n rows=_TUI_MD_RC_ROWS_$s map=_TUI_MD_RC_MAP_$s urls=_TUI_MD_RC_URLS_$s texts=_TUI_MD_RC_TEXTS_$s
+	local -n lrows=_TUI_MD_RC_LROWS_$s heads=_TUI_MD_RC_HEADS_$s anch=_TUI_MD_RC_ANCH_$s
+	rows=("${TUI_MD_ROWS[@]}") map=("${TUI_MD_MAP[@]}") urls=("${TUI_MD_LINK_URLS[@]}") texts=("${TUI_MD_LINK_TEXTS[@]}")
+	lrows=("${TUI_MD_LINK_ROWS[@]}") heads=("${TUI_MD_HEADS[@]}")
+	anch=()
+	for k in "${!TUI_MD_ANCHORS[@]}"; do anch[$k]=${TUI_MD_ANCHORS[$k]}; done
+	_TUI_MD_RC_DEG[s]=$TUI_MD_DEGRADED
+	_TUI_MD_RC_KEY[s]="$1"$'\x1f'"$2"
+}
+
+# ── disk snapshot: a file's render survives the session ──────────────────────
+# $TUI_HOME/cache/markdown/<path with / as %>@<width>.rows holds the render of a file shown with tui.md.show_file as shell
+# assignments, plus the key it was made for. It is used while it is newer than the file and its key is today's (same width,
+# styles, flags): one source, no parse. The last line sets _TUI_MD_DC_OK, so a half-written file is never used.
+
+# _tui_md.disk_path SRC WIDTH -> _DP - rc 1 when there is no usable place.
+_tui_md.disk_path() {
+	local n=${1//\//%}
+	[[ -n "${TUI_HOME:-}" && -n "$1" ]] && ((${#n} < 180)) || return 1
+	_DP="$TUI_HOME/cache/markdown/$n@$2.rows"
+}
+
+# _tui_md.disk_get SRC WIDTH KEY - loads the snapshot into TUI_MD_*; rc 1 on a miss.
+_tui_md.disk_get() {
+	_tui_md.disk_path "$1" "$2" || return 1
+	[[ -r "$_DP" && "$_DP" -nt "$1" ]] || return 1
+	_TUI_MD_DC_KEY="" _TUI_MD_DC_OK=0
+	source "$_DP" 2>/dev/null || return 1
+	[[ $_TUI_MD_DC_OK == 1 && "$_TUI_MD_DC_KEY" == "$3" ]]
+}
+
+# _tui_md.disk_dump NAME - one array as an assignment (nothing for an empty one: printf %q with no argument prints '')
+_tui_md.disk_dump() {
+	local -n _dd=$1
+	((${#_dd[@]})) || {
+		printf '%s=()\n' "$1"
+		return 0
+	}
+	printf '%s=(' "$1"
+	printf ' %q' "${_dd[@]}"
+	printf ' )\n'
+}
+
+# _tui_md.disk_put SRC WIDTH KEY - writes the completed render in TUI_MD_* (best effort).
+_tui_md.disk_put() {
+	local k dir="${TUI_HOME:-}/cache/markdown"
+	_tui_md.disk_path "$1" "$2" || return 1
+	((_TUI_MD_DISK_DIR_OK)) || {
+		mkdir -p "$dir" 2>/dev/null || return 1
+		_TUI_MD_DISK_DIR_OK=1
+	}
+	{
+		printf '_TUI_MD_DC_KEY=%q\n' "$3"
+		_tui_md.disk_dump TUI_MD_ROWS
+		_tui_md.disk_dump TUI_MD_MAP
+		_tui_md.disk_dump TUI_MD_LINK_URLS
+		_tui_md.disk_dump TUI_MD_LINK_TEXTS
+		_tui_md.disk_dump TUI_MD_LINK_ROWS
+		_tui_md.disk_dump TUI_MD_HEADS
+		printf 'TUI_MD_ANCHORS=()\n'
+		for k in "${!TUI_MD_ANCHORS[@]}"; do printf 'TUI_MD_ANCHORS[%q]=%q\n' "$k" "${TUI_MD_ANCHORS[$k]}"; done
+		printf 'TUI_MD_DEGRADED=%d\n_TUI_MD_DC_OK=1\n' "$TUI_MD_DEGRADED"
+	} >"$_DP" 2>/dev/null
+}
+
+# _tui_md.render_cached TEXT WIDTH [ROWS] - tui.md.render through the row cache (_TUI_MD_HIT says whether it hit). With
+# ROWS > 0 a miss may stop early (_TUI_MD_RES_DONE=0); the caller finishes it and calls _tui_md.cache_done.
+_tui_md.render_cached() {
+	local width=$2
+	((width < 1)) && width=1
+	_TUI_MD_HIT=0
+	if _tui_md.cache_flags "$width"; then
+		_TUI_MD_RES_KEY=$_CK
+		if _tui_md.cache_get "$_CK" "$1"; then
+			_TUI_MD_HIT=1 _TUI_MD_RES_DONE=1
+			_tui_perf.count md_cache_hit
+			return 0
+		fi
+		if [[ -n "$_TUI_MD_DISK_SRC" ]] && ((_TUI_MD_FOCUS_LINK < 0)) && _tui_perf.begin md_disk_load && _tui_md.disk_get "$_TUI_MD_DISK_SRC" "$width" "$_CK"; then
+			_tui_perf.end md_disk_load
+			TUI_MD_IMAGE_IDS=() _TUI_MD_REFS=()
+			_TUI_MD_HIT=2 _TUI_MD_RES_DONE=1
+			_tui_md.cache_put "$_CK" "$1"
+			_tui_perf.count md_disk_hit
+			return 0
+		fi
+		_tui_perf.count md_cache_miss
+		_tui_perf.begin md_render
+		_tui_md.render_begin "$1" "$width" "${3:-0}" "${4:-0}" "${5:-0}" "${6:-0}"
+		_tui_perf.end md_render
+		if ((_TUI_MD_RES_DONE && ${4:-0} == 0)); then # a render that began mid-document is not the document
+			_tui_md.cache_put "$_CK" "$1"
+			_tui_md.pd_blocks "$1"
+			[[ -n "$_TUI_MD_DISK_SRC" ]] && ((_TUI_MD_FOCUS_LINK < 0)) && _tui_md.disk_put "$_TUI_MD_DISK_SRC" "$width" "$_CK"
+		fi
+		return 0
+	fi
+	_TUI_MD_RES_KEY=""
+	_tui_md.render_begin "$1" "$width" 0
+	((_TUI_MD_RES_DONE)) && _tui_md.pd_blocks "$1"
+	return 0
+}
+
 # _tui_md.is_blank TEXT - rc 0 when TEXT holds only whitespace.
 _tui_md.is_blank() { [[ -z "${1//[[:space:]]/}" ]]; }
 
@@ -977,7 +1204,7 @@ _tui_md.heading() {
 		_tui_md.heading_banner "$text" "${_TUI_MD_HFONT[$level]}" "$width" "$h" "$ln"; then
 		:
 	else
-		_tui_md.inline "$text" "$h"
+		_tui_md.inline_memo "$text" "$h"
 		_tui_md.wrap "$h$_MD_OUT" "$width" "$ln"
 	fi
 	plain=${text//[\*_\`~|]/}
@@ -997,7 +1224,20 @@ _tui_md.blocks() {
 	local n=${#L[@]} i=0 j k ln t tl lnj emitted=0 start
 	local fc fchar flen lead ct run rest sgr pad line h text hard
 	local setext lang hlfn task level plain ind marker spaces off ordered lkind="" loose iw pw pfx glyph cont first nt prevpara=0 nogap
+	local top=$_TUI_MD_TOP start_i=0
+	_TUI_MD_TOP=0
+	if ((top)); then # the top-level call may resume where the last one stopped
+		i=$_TUI_MD_RES_I emitted=$_TUI_MD_RES_EM prevpara=$_TUI_MD_RES_PP start_i=$i
+		((_TUI_MD_END_I > 0 && _TUI_MD_END_I < n)) && n=$_TUI_MD_END_I # a window [start, end): the prefix of a viewport-first render
+	fi
 	while ((i < n)); do
+		# stop at a block boundary once the row budget or the time slice is used; one block always makes progress
+		if ((top && _TUI_MD_STOP && i > start_i)) &&
+			{ ((_TUI_MD_STOP_ROWS && ${#TUI_MD_ROWS[@]} >= _TUI_MD_STOP_ROWS)) ||
+				((_TUI_MD_STOP_AT && ${EPOCHREALTIME//[!0-9]/} >= _TUI_MD_STOP_AT)); }; then
+			_TUI_MD_RES_I=$i _TUI_MD_RES_EM=$emitted _TUI_MD_RES_PP=$prevpara _TUI_MD_RES_DONE=0
+			return 0
+		fi
 		ln=${L[i]%%:*}
 		t=${L[i]#*:}
 		if [[ -z "${t//[[:space:]]/}" ]]; then
@@ -1005,6 +1245,11 @@ _tui_md.blocks() {
 			((i++))
 			continue
 		fi
+		((top)) && { # where this block starts: a later render can begin here instead of at the top
+			_TUI_MD_BI+=("$i")
+			_TUI_MD_BE+=("$emitted")
+			_TUI_MD_BP+=("$prevpara")
+		}
 		# a list that follows its paragraph line directly is tight (the usual "- a" / "  - b" nesting)
 		nogap=0
 		((prevpara)) && ! _tui_md.is_plain "$t" && [[ "$t" =~ $_TUI_MD_RE_LIST && ! "$t" =~ $_TUI_MD_RE_HR ]] && nogap=1
@@ -1239,13 +1484,15 @@ _tui_md.blocks() {
 				_tui_md.heading "$setext" "$text" "$width" "$ln"
 				((j++))
 			else
-				_tui_md.inline "$text" ""
+				_tui_md.inline_memo "$text" ""
 				_tui_md.wrap "$_MD_OUT" "$width" "$ln"
 				prevpara=1
 			fi
 			i=$j
 		fi
 	done
+	((top)) && _TUI_MD_RES_DONE=1
+	return 0
 }
 
 # _tui_md.prepare TEXT -> _MD_ROW (the cleaned text) - drops control bytes and carriage returns; sets TUI_MD_DEGRADED.
@@ -1255,17 +1502,117 @@ _tui_md.prepare() {
 	_MD_ROW=$t
 	TUI_MD_DEGRADED=0
 	((${#t} > TUI_MD_MAX_BYTES)) && TUI_MD_DEGRADED=1
+	((_TUI_MD_PREPS++))
+	_tui_md.reset_out
+	return 0
+}
+
+# _tui_md.reset_out - empties what a render produces.
+_tui_md.reset_out() {
 	TUI_MD_ROWS=() TUI_MD_MAP=() TUI_MD_LINK_URLS=() TUI_MD_LINK_TEXTS=() TUI_MD_LINK_ROWS=() TUI_MD_HEADS=()
 	TUI_MD_ANCHORS=() _TUI_MD_REFS=() TUI_MD_IMAGE_IDS=()
-	return 0
+}
+
+# ── prepared documents: the width-independent half of a render ────────────────
+# Control bytes, tabs, HTML and reference definitions, the split into numbered lines: none of it depends on the width, so it is
+# done once per text (4 kept). A render at another width starts from the numbered lines. Once a render has completed the
+# slot also holds where every top-level block starts (_tui_md.pd_blocks), which lets a later render begin in the middle.
+
+# _tui_md.pd_find TEXT -> _PDS - the slot of a prepared text (rc 1: none).
+_tui_md.pd_find() {
+	local s
+	for s in "${!_TUI_MD_PD_KEY[@]}"; do
+		[[ "${_TUI_MD_PD_KEY[s]}" == "$1" ]] && {
+			_PDS=$s
+			return 0
+		}
+	done
+	return 1
+}
+
+# _tui_md.pd_put TEXT - keeps _TUI_MD_LINES, _TUI_MD_REFS and the degraded flag of a render that just prepared TEXT.
+_tui_md.pd_put() {
+	local s=$_TUI_MD_PD_NEXT k
+	_TUI_MD_PD_NEXT=$(((s + 1) % 4))
+	declare -ga "_TUI_MD_PD_LINES_$s" "_TUI_MD_PD_BI_$s" "_TUI_MD_PD_BE_$s" "_TUI_MD_PD_BP_$s"
+	declare -gA "_TUI_MD_PD_REFS_$s"
+	local -n ln=_TUI_MD_PD_LINES_$s refs=_TUI_MD_PD_REFS_$s bi=_TUI_MD_PD_BI_$s be=_TUI_MD_PD_BE_$s bp=_TUI_MD_PD_BP_$s
+	ln=("${_TUI_MD_LINES[@]}")
+	refs=()
+	for k in "${!_TUI_MD_REFS[@]}"; do refs[$k]=${_TUI_MD_REFS[$k]}; done
+	bi=() be=() bp=()
+	_TUI_MD_PD_KEY[s]=$1
+	_TUI_MD_PD_DEG[s]=$TUI_MD_DEGRADED
+	_TUI_MD_PD_HAS[s]=0
+}
+
+# _tui_md.pd_blocks TEXT - keeps the block records (_TUI_MD_BI/BE/BP) of the completed render of TEXT.
+_tui_md.pd_blocks() {
+	_tui_md.pd_find "$1" || return 0
+	local -n bi=_TUI_MD_PD_BI_$_PDS be=_TUI_MD_PD_BE_$_PDS bp=_TUI_MD_PD_BP_$_PDS
+	bi=("${_TUI_MD_BI[@]}") be=("${_TUI_MD_BE[@]}") bp=("${_TUI_MD_BP[@]}")
+	_TUI_MD_PD_HAS[_PDS]=1
+}
+
+# _tui_md.block_for_line SLOT LINE -> _BK - index of the top-level block that holds source line LINE (1-based).
+_tui_md.block_for_line() {
+	local -n bi=_TUI_MD_PD_BI_$1
+	local k
+	_BK=0
+	for k in "${!bi[@]}"; do
+		((bi[k] + 1 <= $2)) || break
+		_BK=$k
+	done
+}
+
+# _tui_md.scratch_clean - removes the scratch file at exit.
+_tui_md.scratch_clean() {
+	[[ -n "$_TUI_MD_SCRATCH" && "$_TUI_MD_SCRATCH" != "-" ]] && rm -f "$_TUI_MD_SCRATCH"
+	_TUI_MD_SCRATCH=""
+}
+
+# _tui_md.split TEXT ARRAY - TEXT's lines into ARRAY. mapfile reads a file ~3x faster than a here-string (which goes through a
+# pipe): the text is written to a private scratch file first (a builtin write, no fork; the file is made once per process).
+declare -g _TUI_MD_SCRATCH=""
+_tui_md.split() {
+	local -n _sp_out=$2
+	if [[ -z "$_TUI_MD_SCRATCH" ]]; then
+		_tui_mktemp _TUI_MD_SCRATCH dabt-md 2>/dev/null || _TUI_MD_SCRATCH="-"
+	fi
+	if [[ "$_TUI_MD_SCRATCH" != "-" ]] && printf '%s\n' "$1" >"$_TUI_MD_SCRATCH" 2>/dev/null; then
+		mapfile -t _sp_out <"$_TUI_MD_SCRATCH"
+	else
+		mapfile -t _sp_out <<<"$1"
+	fi
 }
 
 # tui.md.render TEXT WIDTH - renders TEXT into rows of at most WIDTH cells (containers need a few cells more than their prefix).
 tui.md.render() {
+	_tui_md.render_begin "$1" "$2" 0
+}
+
+# _tui_md.render_begin TEXT WIDTH ROWS [START_I EM PP] - starts a render; with ROWS > 0 it stops at the first block boundary
+# past ROWS rows (_TUI_MD_RES_DONE=0) and _tui_md.render_more continues it. ROWS 0 renders everything. START_I EM PP begin
+# at a recorded top-level block instead of the first (viewport first: what is above is rendered afterwards).
+_tui_md.render_begin() {
 	local width=$2
 	((width < 1)) && width=1
 	_TUI_MD_KEEP=0 _TUI_MD_DEPTH=0
+	((_TUI_MD_RENDERS++))
 	_tui_md.sync
+	_TUI_MD_RES_DONE=1 _TUI_MD_RES_I=${4:-0} _TUI_MD_RES_EM=${5:-0} _TUI_MD_RES_PP=${6:-0} _TUI_MD_RES_W=$width _TUI_MD_LINES=()
+	_TUI_MD_BI=() _TUI_MD_BE=() _TUI_MD_BP=() _TUI_MD_END_I=0
+	if _tui_md.pd_find "$1"; then # prepared before, at any width
+		local k
+		local -n _pln=_TUI_MD_PD_LINES_$_PDS _prf=_TUI_MD_PD_REFS_$_PDS
+		_tui_md.reset_out
+		TUI_MD_DEGRADED=${_TUI_MD_PD_DEG[_PDS]}
+		_TUI_MD_LINES=("${_pln[@]}")
+		for k in "${!_prf[@]}"; do _TUI_MD_REFS[$k]=${_prf[$k]}; done
+		_TUI_MD_RES_DONE=0
+		_tui_md.render_more 0 "$3"
+		return 0
+	fi
 	_tui_md.prepare "$1"
 	[[ -z "$_MD_ROW" ]] && return 0
 	local text=${_MD_ROW//$'\t'/    }
@@ -1275,17 +1622,35 @@ tui.md.render() {
 		_tui_md.html_pass "$text" # tags mapped, comments and [label]: url definitions blanked (same line count)
 		text=$_MD_ROW
 	fi
-	mapfile -t lines <<<"$text"
+	_tui_md.split "$text" lines
 	for ((i = 0; i < ${#lines[@]}; i++)); do lines[i]="$((i + 1)):${lines[i]}"; done
-	_tui_md.blocks "$width" "${lines[@]}"
-	[[ -n "${_TUI_MD_SGR[page]}" ]] && _tui_md.page_rows "$width"
+	_TUI_MD_LINES=("${lines[@]}")
+	_tui_md.pd_put "$1"
+	_TUI_MD_RES_I=${4:-0} _TUI_MD_RES_EM=${5:-0} _TUI_MD_RES_PP=${6:-0}
+	_TUI_MD_RES_DONE=0
+	_tui_md.render_more 0 "$3"
+}
+
+# _tui_md.render_more BUDGET_US ROWS - continues a render: stops at the first block boundary after BUDGET_US microseconds
+# or when TUI_MD_ROWS holds ROWS rows (0 = no limit). The page background is applied to the rows of this step.
+_tui_md.render_more() {
+	local from=${#TUI_MD_ROWS[@]}
+	((_TUI_MD_RES_DONE)) && return 0
+	_tui_md.memo_sync
+	_TUI_MD_STOP_ROWS=$2 _TUI_MD_STOP_AT=0 _TUI_MD_STOP=0
+	if (($1 > 0)); then _TUI_MD_STOP_AT=$((${EPOCHREALTIME//[!0-9]/} + $1)); fi
+	((_TUI_MD_STOP_ROWS || _TUI_MD_STOP_AT)) && _TUI_MD_STOP=1
+	_TUI_MD_TOP=1
+	_tui_md.blocks "$_TUI_MD_RES_W" "${_TUI_MD_LINES[@]}"
+	_TUI_MD_STOP=0
+	[[ -n "${_TUI_MD_SGR[page]}" ]] && _tui_md.page_rows "$_TUI_MD_RES_W" "$from"
 	return 0
 }
 
-# _tui_md.page_rows WIDTH - the document background: every row, gaps included, padded to WIDTH under the page style.
+# _tui_md.page_rows WIDTH [FROM] - the document background: every row from FROM on, gaps included, padded to WIDTH under the page style.
 _tui_md.page_rows() {
 	local pg=${_TUI_MD_SGR[page]} reset=$_TUI_MD_RESET i row pad
-	for i in "${!TUI_MD_ROWS[@]}"; do
+	for ((i = ${2:-0}; i < ${#TUI_MD_ROWS[@]}; i++)); do
 		row=${TUI_MD_ROWS[i]}
 		_tui_md.vlen "$row"
 		pad=""
@@ -1411,30 +1776,283 @@ _tui_md.slice() {
 	fi
 	_tui_md.cut "$row" "$width"
 	head=$_CH
-	_tui_md.vlen "$head"
-	((_VL < width)) && printf -v pad '%*s' $((width - _VL)) ''
+	((_CN < width)) && printf -v pad '%*s' $((width - _CN)) ''
 	_SL="${act}${head}${pad}"
 	_tui_md.track "$head"
 	[[ -n "$act" ]] && _SL+=$_TUI_MD_RESET
 	return 0
 }
 
-# _tui_md.paint_pane PANE - renders the pane's source at its current width (focused link, folds and search kept) into the pane.
+# _tui_md.top_line PANE -> _TL - the source line (1-based) of the row at the top of the pane's view; rc 1 without a render.
+_tui_md.top_line() {
+	local off=${_TUI_P_SOFF_V[$1]:-0} r
+	local -n _tm=_TUI_MD_M_$1 _td=_TUI_MD_D_$1
+	((${#_tm[@]})) || return 1
+	for r in "${!_td[@]}"; do
+		if ((_td[r] >= off)); then
+			_TL=${_tm[r]:-1}
+			((_TL < 1)) && _TL=1
+			return 0
+		fi
+	done
+	return 1
+}
+
+# _tui_md.scroll_to_line PANE LINE - puts the first row of source line LINE (or the first row after it) at the top of the view.
+_tui_md.scroll_to_line() {
+	local r
+	local -n _tm=_TUI_MD_M_$1 _td=_TUI_MD_D_$1
+	for r in "${!_tm[@]}"; do
+		if ((_tm[r] >= $2)); then
+			_TUI_P_SOFF_V[$1]=${_td[r]:-0}
+			((${_TUI_RUNNING:-0})) && _tui._queue_render "$1"
+			return 0
+		fi
+	done
+	return 1
+}
+
+# _tui_md.paint_pane PANE [full] - renders the pane's source at its current width (folds and search kept) into the pane.
+# Without "full" only the first screens are rendered and painted at once; _tui_md.more_timer finishes the rest. A pane that is
+# scrolled keeps its place by source line, not by row: when the document is known (its top-level blocks are recorded) the
+# render begins at the block that holds the top line, so the view is what is painted first, and the part above follows.
 _tui_md.paint_pane() {
-	local pane=$1 w
+	local pane=$1 w rows L=0 start=0 em=0 pp=0 text slot
 	_tui._content_rect "$pane"
 	w=$((_CR_W - 1)) # the scrollbar column
 	((w < 1)) && w=1
+	rows=$((_CR_H + _CR_H / 2 + 4))
+	[[ "${2:-}" == full ]] && rows=0
 	_TUI_MD_SHOWN_W[$pane]=$w
-	_TUI_MD_FOCUS_LINK=${_TUI_MD_V[$pane.focus]:--1}
+	_TUI_MD_FOCUS_LINK=-1 # the focused link is drawn over the rows by _tui_md.compose, so a focus step re-renders nothing
 	TUI_MD_BASE_DIR=""
 	[[ -n "${_TUI_MD_V[$pane.file]:-}" ]] && TUI_MD_BASE_DIR=${_TUI_MD_V[$pane.file]%/*}
-	tui.md.render "${_TUI_MD_SHOWN[$pane]}" "$w"
+	unset '_TUI_MD_PEND[$pane]'
+	text=${_TUI_MD_SHOWN[$pane]}
+	if ((${_TUI_P_SOFF_V[$pane]:-0} > 0)) && _tui_md.top_line "$pane"; then L=$_TL; fi
+	if ((L > 1 && rows > 0)); then
+		if _tui_md.pd_find "$text" && ((${_TUI_MD_PD_HAS[_PDS]:-0})); then
+			slot=$_PDS
+			_tui_md.block_for_line "$slot" "$L"
+			if ((_BK > 0)); then
+				local -n _bi=_TUI_MD_PD_BI_$slot _be=_TUI_MD_PD_BE_$slot _bp=_TUI_MD_PD_BP_$slot
+				start=${_bi[_BK]} em=${_be[_BK]} pp=${_bp[_BK]}
+			fi
+		fi
+		((start > 0)) || rows=0 # no record of the blocks yet: render it all now, the place is kept by line
+	fi
+	_TUI_MD_DISK_SRC=${_TUI_MD_V[$pane.disk]:-}
+	_tui_md.render_cached "$text" "$w" "$rows" "$start" "$em" "$pp"
+	_TUI_MD_DISK_SRC=""
 	_TUI_MD_FOCUS_LINK=-1
 	TUI_MD_BASE_DIR=""
 	_tui_md.images_present "$pane"
 	_tui_md.store "$pane"
+	_TUI_MD_RS[$pane.pre_end]="" _TUI_MD_RS[$pane.pstarted]=""
+	if ((start > 0 && _TUI_MD_HIT == 0)); then
+		# viewport first: the rows shown begin at block START; the part above is rendered by _tui_md.more_pane
+		_tui_md.pend_save "$pane"
+		_TUI_MD_RS[$pane.pre_end]=$start _TUI_MD_RS[$pane.l]=$L _TUI_MD_RS[$pane.soff0]=0
+		((_TUI_MD_RES_DONE)) && _TUI_MD_RS[$pane.phase]=pre || _TUI_MD_RS[$pane.phase]=fwd
+		_TUI_MD_RS[$pane.pi]=0 _TUI_MD_RS[$pane.pem]=0 _TUI_MD_RS[$pane.ppp]=0
+		_TUI_P_SOFF_V[$pane]=0
+		_TUI_MD_PEND[$pane]=1
+		tui.after 0.02 _tui_md.more_timer md_more
+		_tui_md.compose "$pane"
+		return 0
+	fi
+	if ((!_TUI_MD_RES_DONE)); then
+		_tui_md.pend_save "$pane"
+		_TUI_MD_RS[$pane.phase]=fwd
+		_TUI_MD_PEND[$pane]=1
+		tui.after 0.02 _tui_md.more_timer md_more
+	fi
 	_tui_md.compose "$pane"
+	((L > 1 && _TUI_MD_RES_DONE)) && _tui_md.scroll_to_line "$pane" "$L"
+	return 0
+}
+
+# _tui_md.pend_save PANE - keeps what resuming the unfinished render needs besides the rows _tui_md.store holds.
+_tui_md.pend_save() {
+	local pane=$1 k
+	declare -ga "_TUI_MD_LN_$pane"
+	declare -gA "_TUI_MD_RF_$pane"
+	local -n ln=_TUI_MD_LN_$pane rf=_TUI_MD_RF_$pane
+	ln=("${_TUI_MD_LINES[@]}")
+	rf=()
+	for k in "${!_TUI_MD_REFS[@]}"; do rf[$k]=${_TUI_MD_REFS[$k]}; done
+	_TUI_MD_RS[$pane.i]=$_TUI_MD_RES_I _TUI_MD_RS[$pane.em]=$_TUI_MD_RES_EM _TUI_MD_RS[$pane.pp]=$_TUI_MD_RES_PP
+	_TUI_MD_RS[$pane.w]=$_TUI_MD_RES_W _TUI_MD_RS[$pane.key]=$_TUI_MD_RES_KEY _TUI_MD_RS[$pane.deg]=$TUI_MD_DEGRADED
+	_TUI_MD_RS[$pane.disk]=${_TUI_MD_V[$pane.disk]:-}
+}
+
+# _tui_md.more_pane PANE BUDGET_US - renders the next slice of the pane's unfinished render (BUDGET_US 0: all of it), then
+# stores, caches (when complete) and repaints it. Two phases: "fwd" goes on with the blocks after the last one rendered; a
+# viewport-first render then continues with "pre", the blocks above where it began, and joins them in front.
+_tui_md.more_pane() {
+	local pane=$1 k phase
+	[[ -n "${_TUI_MD_PEND[$pane]+x}" ]] || return 0
+	_tui_md.sync_key
+	if [[ "$_SK" != "$_TUI_MD_SYNC_KEY" ]]; then # the theme changed meanwhile: the rows so far no longer match
+		_tui_md.paint_pane "$pane" full
+		return 0
+	fi
+	phase=${_TUI_MD_RS[$pane.phase]:-fwd}
+	_TUI_MD_KEEP=0 _TUI_MD_DEPTH=0 _TUI_MD_FOCUS_LINK=-1
+	TUI_MD_BASE_DIR=""
+	[[ -n "${_TUI_MD_V[$pane.file]:-}" ]] && TUI_MD_BASE_DIR=${_TUI_MD_V[$pane.file]%/*}
+	if [[ -n "${_TUI_MD_RS[$pane.key]}" ]] && _tui_md.cache_flags "${_TUI_MD_RS[$pane.w]}" && [[ "$_CK" != "${_TUI_MD_RS[$pane.key]}" ]]; then
+		TUI_MD_BASE_DIR="" # a style or setting changed since the render began: what is rendered so far does not match
+		_tui_md.paint_pane "$pane" full
+		return 0
+	fi
+	_tui_perf.begin md_slice
+	if [[ "$phase" == pre ]]; then
+		_tui_md.prefix_slice "$pane" "$2"
+		_tui_perf.end md_slice
+		TUI_MD_BASE_DIR=""
+		return 0
+	fi
+	_tui_md.unstash "_TUI_MD_" "$pane"
+	local -n ln=_TUI_MD_LN_$pane rf=_TUI_MD_RF_$pane
+	_TUI_MD_LINES=("${ln[@]}")
+	_TUI_MD_REFS=()
+	for k in "${!rf[@]}"; do _TUI_MD_REFS[$k]=${rf[$k]}; done
+	_TUI_MD_RES_I=${_TUI_MD_RS[$pane.i]} _TUI_MD_RES_EM=${_TUI_MD_RS[$pane.em]} _TUI_MD_RES_PP=${_TUI_MD_RS[$pane.pp]}
+	_TUI_MD_RES_W=${_TUI_MD_RS[$pane.w]} TUI_MD_DEGRADED=${_TUI_MD_RS[$pane.deg]} _TUI_MD_RES_DONE=0
+	_tui_md.render_more "$2" 0
+	_tui_perf.end md_slice
+	TUI_MD_BASE_DIR=""
+	_tui_md.store "$pane"
+	if ((_TUI_MD_RES_DONE)); then
+		if [[ -n "${_TUI_MD_RS[$pane.pre_end]}" ]]; then
+			_TUI_MD_RS[$pane.phase]=pre # the blocks from the start of the render to the end are in: the part above is left
+		else
+			_tui_md.finish "$pane"
+		fi
+	else
+		_TUI_MD_RS[$pane.i]=$_TUI_MD_RES_I _TUI_MD_RS[$pane.em]=$_TUI_MD_RES_EM _TUI_MD_RS[$pane.pp]=$_TUI_MD_RES_PP
+	fi
+	_tui_md.compose "$pane"
+}
+
+# _tui_md.finish PANE - the render in TUI_MD_* (and stored) is the whole document: cache it, drop the pending state.
+_tui_md.finish() {
+	local pane=$1
+	unset '_TUI_MD_PEND[$pane]'
+	_TUI_MD_RS[$pane.pre_end]=""
+	if [[ -n "${_TUI_MD_RS[$pane.key]}" ]]; then
+		_tui_md.cache_put "${_TUI_MD_RS[$pane.key]}" "${_TUI_MD_SHOWN[$pane]}"
+		[[ -n "${_TUI_MD_RS[$pane.disk]}" ]] && _tui_md.disk_put "${_TUI_MD_RS[$pane.disk]}" "${_TUI_MD_RS[$pane.w]}" "${_TUI_MD_RS[$pane.key]}"
+	fi
+	_tui_md.pd_blocks "${_TUI_MD_SHOWN[$pane]}"
+}
+
+# _tui_md.stash PREFIX PANE / _tui_md.unstash PREFIX PANE - copy the render in TUI_MD_* to / from the pane's arrays named
+# PREFIX<WHAT>_PANE (the pane's displayed render is stored by _tui_md.store, the prefix of a viewport-first one is parked under
+# _TUI_MD_PR_).
+_tui_md.stash() {
+	local pre=$1 pane=$2 k
+	declare -ga "${pre}ROWS_$pane" "${pre}MAP_$pane" "${pre}URLS_$pane" "${pre}TEXTS_$pane" "${pre}LROWS_$pane" "${pre}HEADS_$pane" "${pre}BI_$pane" "${pre}BE_$pane" "${pre}BP_$pane"
+	local -n a=${pre}ROWS_$pane b=${pre}MAP_$pane c=${pre}URLS_$pane d=${pre}TEXTS_$pane e=${pre}LROWS_$pane f=${pre}HEADS_$pane
+	local -n g=${pre}BI_$pane h=${pre}BE_$pane i=${pre}BP_$pane
+	a=("${TUI_MD_ROWS[@]}") b=("${TUI_MD_MAP[@]}") c=("${TUI_MD_LINK_URLS[@]}") d=("${TUI_MD_LINK_TEXTS[@]}")
+	e=("${TUI_MD_LINK_ROWS[@]}") f=("${TUI_MD_HEADS[@]}") g=("${_TUI_MD_BI[@]}") h=("${_TUI_MD_BE[@]}") i=("${_TUI_MD_BP[@]}")
+}
+_tui_md.unstash() {
+	local pre=$1 pane=$2 k
+	if [[ "$pre" == _TUI_MD_ ]]; then # the pane's displayed render: the names _tui_md.store uses
+		local -n a=_TUI_MD_B_$pane b=_TUI_MD_M_$pane c=_TUI_MD_U_$pane d=_TUI_MD_X_$pane e=_TUI_MD_LR_$pane f=_TUI_MD_H_$pane
+		local -n g=_TUI_MD_BI_$pane h=_TUI_MD_BE_$pane i=_TUI_MD_BP_$pane an=_TUI_MD_A_$pane
+		TUI_MD_ANCHORS=()
+		for k in "${!an[@]}"; do TUI_MD_ANCHORS[$k]=${an[$k]}; done
+	else
+		local -n a=${pre}ROWS_$pane b=${pre}MAP_$pane c=${pre}URLS_$pane d=${pre}TEXTS_$pane e=${pre}LROWS_$pane f=${pre}HEADS_$pane
+		local -n g=${pre}BI_$pane h=${pre}BE_$pane i=${pre}BP_$pane
+		TUI_MD_ANCHORS=()
+	fi
+	TUI_MD_ROWS=("${a[@]}") TUI_MD_MAP=("${b[@]}") TUI_MD_LINK_URLS=("${c[@]}") TUI_MD_LINK_TEXTS=("${d[@]}")
+	TUI_MD_LINK_ROWS=("${e[@]}") TUI_MD_HEADS=("${f[@]}") _TUI_MD_BI=("${g[@]}") _TUI_MD_BE=("${h[@]}") _TUI_MD_BP=("${i[@]}")
+}
+
+# _tui_md.prefix_slice PANE BUDGET_US - the second phase of a viewport-first render: the blocks above the one it began at.
+# Rendered on their own, then joined in front of the stored rows (row numbers shifted, anchors rebuilt in document order).
+_tui_md.prefix_slice() {
+	local pane=$1 k np h lvl plain first last ln soff0 l
+	local -n ln_=_TUI_MD_LN_$pane rf=_TUI_MD_RF_$pane
+	if [[ -n "${_TUI_MD_RS[$pane.pstarted]:-}" ]]; then
+		_tui_md.unstash "_TUI_MD_PR_" "$pane"
+	else
+		_tui_md.reset_out
+		_TUI_MD_BI=() _TUI_MD_BE=() _TUI_MD_BP=()
+		_TUI_MD_RS[$pane.pstarted]=1
+	fi
+	_TUI_MD_LINES=("${ln_[@]}")
+	_TUI_MD_REFS=()
+	for k in "${!rf[@]}"; do _TUI_MD_REFS[$k]=${rf[$k]}; done
+	_TUI_MD_RES_I=${_TUI_MD_RS[$pane.pi]:-0} _TUI_MD_RES_EM=${_TUI_MD_RS[$pane.pem]:-0} _TUI_MD_RES_PP=${_TUI_MD_RS[$pane.ppp]:-0}
+	_TUI_MD_RES_W=${_TUI_MD_RS[$pane.w]} TUI_MD_DEGRADED=${_TUI_MD_RS[$pane.deg]} _TUI_MD_RES_DONE=0
+	_TUI_MD_END_I=${_TUI_MD_RS[$pane.pre_end]}
+	_tui_md.render_more "$2" 0
+	_TUI_MD_END_I=0
+	if ((!_TUI_MD_RES_DONE)); then
+		_tui_md.stash "_TUI_MD_PR_" "$pane"
+		_TUI_MD_RS[$pane.pi]=$_TUI_MD_RES_I _TUI_MD_RS[$pane.pem]=$_TUI_MD_RES_EM _TUI_MD_RS[$pane.ppp]=$_TUI_MD_RES_PP
+		return 0
+	fi
+	# join: the prefix first, then the rows shown so far (their row numbers move down by the prefix's length)
+	np=${#TUI_MD_ROWS[@]}
+	local -n fb=_TUI_MD_B_$pane fm=_TUI_MD_M_$pane fu=_TUI_MD_U_$pane fx=_TUI_MD_X_$pane flr=_TUI_MD_LR_$pane fh=_TUI_MD_H_$pane
+	local -n fbi=_TUI_MD_BI_$pane fbe=_TUI_MD_BE_$pane fbp=_TUI_MD_BP_$pane
+	TUI_MD_ROWS+=("${fb[@]}")
+	TUI_MD_MAP+=("${fm[@]}")
+	TUI_MD_LINK_URLS+=("${fu[@]}")
+	TUI_MD_LINK_TEXTS+=("${fx[@]}")
+	for k in "${flr[@]}"; do TUI_MD_LINK_ROWS+=($((k + np))); done
+	for h in "${fh[@]}"; do
+		IFS='|' read -r lvl plain first last ln <<<"$h"
+		TUI_MD_HEADS+=("$lvl|$plain|$((first + np))|$((last + np))|$ln")
+	done
+	_TUI_MD_BI+=("${fbi[@]}") _TUI_MD_BE+=("${fbe[@]}") _TUI_MD_BP+=("${fbp[@]}")
+	TUI_MD_ANCHORS=()
+	for h in "${TUI_MD_HEADS[@]}"; do
+		IFS='|' read -r lvl plain first last ln <<<"$h"
+		_tui_md.slug "$plain"
+		TUI_MD_ANCHORS[$_SLUG]=$first
+	done
+	_tui_md.store "$pane"
+	soff0=${_TUI_MD_RS[$pane.soff0]:-0}
+	l=${_TUI_MD_RS[$pane.l]:-0}
+	_TUI_MD_RS[$pane.pstarted]=""
+	_TUI_MD_RS[$pane.phase]=fwd
+	_tui_md.finish "$pane"
+	_tui_md.compose "$pane"
+	# the view: still where the render left it (nobody scrolled) -> the line it was on; scrolled meanwhile -> kept relative
+	if ((${_TUI_P_SOFF_V[$pane]:-0} == soff0)); then
+		_tui_md.scroll_to_line "$pane" "$l"
+	else
+		_TUI_P_SOFF_V[$pane]=$((${_TUI_P_SOFF_V[$pane]:-0} + np))
+		((${_TUI_RUNNING:-0})) && _tui._queue_render "$pane"
+	fi
+}
+
+# _tui_md.complete PANE - finishes the pane's render now; everything that reads the whole document (links, search, outline,
+# folds, copy, scrolling to a row) calls it first.
+_tui_md.complete() {
+	local guard=0
+	while [[ -n "${_TUI_MD_PEND[$1]+x}" ]] && ((guard++ < 8)); do _tui_md.more_pane "$1" 0; done # a viewport-first render takes two steps
+	return 0
+}
+
+# _tui_md.more_timer - one time slice of the next unfinished pane; re-arms itself while any is left.
+_tui_md.more_timer() {
+	local pane
+	for pane in "${!_TUI_MD_PEND[@]}"; do
+		_tui_md.more_pane "$pane" 25000
+		break
+	done
+	((${#_TUI_MD_PEND[@]})) && tui.after 0.02 _tui_md.more_timer md_more
+	return 0
 }
 
 # _tui_md.refit - after a resize, a page switch or the first layout: re-renders the shown panes whose width changed and
@@ -1443,7 +2061,7 @@ _tui_md.refit() {
 	local pane
 	for pane in "${!_TUI_MD_SHOWN[@]}"; do
 		if [[ -z "${_TUI_P_W[$pane]+x}" ]]; then
-			unset '_TUI_MD_SHOWN[$pane]' '_TUI_MD_SHOWN_W[$pane]'
+			unset '_TUI_MD_SHOWN[$pane]' '_TUI_MD_SHOWN_W[$pane]' '_TUI_MD_PEND[$pane]'
 			continue
 		fi
 		_tui._content_rect "$pane"
@@ -1460,15 +2078,18 @@ _tui_md.refit_soon() {
 }
 _tui_md.refit_timer() { _tui_md.refit; }
 
-# tui.md.show PANE TEXT - renders TEXT into a scrolling pane (scroll="v"); re-rendered when the pane's width changes.
+# tui.md.show PANE TEXT [FILE] - renders TEXT into a scrolling pane (scroll="v"); re-rendered when the pane's width changes.
+# FILE is where TEXT came from: relative links resolve against its folder and "back" can return to it.
 # Also what <markdown pane="PANE" src="FILE"/> does.
 tui.md.show() {
 	# a different document starts at the top with no focus, folds or search; the same one (a resize) keeps them
 	[[ "${_TUI_MD_SHOWN[$1]-}" == "$2" && -n "${_TUI_MD_SHOWN[$1]+x}" ]] || _tui_md.reset_view "$1"
-	_TUI_MD_V[$1.file]=$_TUI_MD_NEXT_FILE # a file path only when tui.md.show_file brought the text
+	_TUI_MD_V[$1.file]=${3:-$_TUI_MD_NEXT_FILE} # a file path when tui.md.show_file or FILE brought the text
+	_TUI_MD_V[$1.disk]=$_TUI_MD_NEXT_FILE # only a text that is the file's contents may use its disk snapshot
 	_TUI_MD_NEXT_FILE=""
+	_TUI_MD_LAST=$1
 	_TUI_MD_SHOWN[$1]=$2
-	unset '_TUI_MD_SHOWN_W[$1]'
+	unset '_TUI_MD_SHOWN_W[$1]' '_TUI_MD_PEND[$1]'
 	if ((!_TUI_MD_HOOKED)); then
 		_TUI_MD_HOOKED=1
 		tui.hook.on ready _tui_md.refit # the first frame and a page switch are drawn right
@@ -1476,6 +2097,7 @@ tui.md.show() {
 		tui.hook.on resize _tui_md.refit_soon # a drag fires this per step: wait until it pauses
 		tui.hook.on layout _tui_md.refit_soon
 		tui.hook.on exit _tui_md.images_clear
+		tui.hook.on exit _tui_md.scratch_clean
 	fi
 	# a pane that is not laid out yet (page build) is painted by the ready / page hook
 	[[ -n "${_TUI_P_W[$1]+x}" ]] && _tui_md.paint_pane "$1"
@@ -1484,7 +2106,7 @@ tui.md.show() {
 
 # tui.md.forget PANE - PANE is no longer re-rendered on resize; its current content stays until replaced.
 tui.md.forget() {
-	unset '_TUI_MD_SHOWN[$1]' '_TUI_MD_SHOWN_W[$1]' "_TUI_MD_V[$1.file]"
+	unset '_TUI_MD_SHOWN[$1]' '_TUI_MD_SHOWN_W[$1]' '_TUI_MD_PEND[$1]' "_TUI_MD_V[$1.file]"
 	return 0
 }
 

@@ -15,3 +15,14 @@ layer_drag_step	38358	38738	0
 layer_hit	53	58	0
 goto_pair_shell	28366	30880	0
 goto_pair_plain	29085	29524	0
+md_view_top	31181	31564	0
+md_view_scrolled	34161	39916	0
+md_render_cold	323040	324075	0
+md_render_new_width	262304	263371	0
+md_render_cache_hit	2139	2193	0
+md_first_screen	26425	27613	0
+md_paint_pane	285149	286632	0
+md_link_step	5141	6529	0
+md_slice_row	1728	1755	0
+md_split_lines	331	403	0
+md_disk_hit	5039	5750	0

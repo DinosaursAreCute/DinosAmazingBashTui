@@ -19,12 +19,13 @@ _lab_state() {
 	for g in "${!_TUI_DEF_OFF[@]}"; do off+="${off:+ }$g"; done
 	tui.bind.dirty && rc=" (unsaved changes)" || rc=""
 	local -a u=("${!_TUI_UBIND[@]}")
-	local overlay_on=off keys_off=no passthrough=no last_event paste_more=""
+	local overlay_on=off keys_off=no passthrough=no last_event raw_input paste_more=""
 	[[ $_LAB_OVERLAY == 1 ]] && overlay_on=on
 	[[ $_TUI_KEYS_SUSPENDED == 1 ]] && keys_off=YES
 	[[ $_TUI_PASSTHROUGH == 1 ]] && passthrough=YES
 	((${#TUI_LAST_PASTE} > 40)) && paste_more=…
 	tui.capture last_event tui.get.event
+	tui.capture raw_input tui.get.raw_input
 	tui.set_text lab_state "modal            ${_TUI_MODAL:-none}"$'\n'"\
 overlay box      ${overlay_on}"$'\n'"\
 keybinds off     ${keys_off}   (chord $TUI_KEYS_SUSPEND_KEY)"$'\n'"\
@@ -36,6 +37,7 @@ default groups   off: ${off:-none}"$'\n'"\
 commands         ${#_TUI_CMD_IDS[@]} registered ($((${#_TUI_CMD_DYN[@]})) from providers)"$'\n'"\
 page history     ${#_TUI_PAGE_HISTORY[@]} back-steps"$'\n'"\
 last input       ${last_event}"$'\n'"\
+raw input        ${raw_input:--}"$'\n'"\
 last paste       ${TUI_LAST_PASTE:0:40}${paste_more}"
 }
 
@@ -56,6 +58,28 @@ lab_palette_q() {
 	_lab_log "opening the palette with a query"
 	tui.palette.open "theme "
 }
+# ── errors: deliberate mistakes, to see them captured (log + one error toast, nothing drawn over the screen) ──
+lab_err_subscript() {
+	_lab_log "reading an associative array with an empty key: expect one error toast and a log entry"
+	local -A lab_bad=([a]=1)
+	local key=""
+	: "${lab_bad[$key]}"
+}
+lab_err_missing() {
+	_lab_log "calling a command that does not exist"
+	dabt_lab_no_such_command --now
+}
+lab_err_external() {
+	_lab_log "an external command writing to stderr"
+	ls /dabt_lab_no_such_directory
+}
+lab_err_storm() {
+	_lab_log "the same error 25 times: one toast, counted in the log"
+	local i key=""
+	local -A lab_bad=([a]=1)
+	for i in {1..25}; do : "${lab_bad[$key]}"; done
+}
+
 lab_hello() { _lab_log "the 'Lab: hello' command ran (from the palette or tui.cmd.run)"; }
 lab_cmd_add() {
 	tui.cmd.add lab.hello "Lab: hello" "lab_hello" --group Lab --desc "Added at runtime with tui.cmd.add" --key ctrl+alt+h

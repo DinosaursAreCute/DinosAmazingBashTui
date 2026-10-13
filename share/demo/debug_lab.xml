@@ -45,6 +45,11 @@
         <button id="ld_tk" row="13" text="[ sticky until cleared ]" action="lab_toast_sticky" class="sc_purple" align="fill"/>
         <button id="ld_tc" row="14" text="[ clear all ]"       action="lab_toast_clear"   class="warning_button" align="fill"/>
         <button id="ld_tg" row="15" text="[ toast, then change page ]" action="lab_toast_page" class="info_button" align="fill"/>
+        <label  id="ld_h3" row="17" text="Errors (stderr is captured)" class="brand"/>
+        <button id="ld_er1" row="18" text="[ bad array subscript ]"     action="lab_err_subscript" class="danger_button" align="fill"/>
+        <button id="ld_er2" row="19" text="[ command not found ]"       action="lab_err_missing"   class="danger_button" align="fill"/>
+        <button id="ld_er3" row="20" text="[ external command fails ]"  action="lab_err_external"  class="danger_button" align="fill"/>
+        <button id="ld_er4" row="21" text="[ same error x25 (no storm) ]" action="lab_err_storm"   class="warning_button" align="fill"/>
       </pane>
       <pane id="right" split="v" weight="30" border="none">
         <pane id="lab_state" weight="52" title="Live state (updates by itself)" border="single" class="panel" hpad="1" scroll="both"/>

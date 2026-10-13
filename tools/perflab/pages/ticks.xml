@@ -1,0 +1,7 @@
+<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../share/tui.xsd" on_visit="perflab_ticks_visit">
+  <script src="perflab_callbacks.sh"/>
+  <pane id="root" title="perflab ticks" border="single">
+    <label id="lbl_ready" text="PERFLAB ticks ready"/>
+    <button id="btn_probe" text="[ Probe ]" action="perflab_noop"/>
+  </pane>
+</tui>

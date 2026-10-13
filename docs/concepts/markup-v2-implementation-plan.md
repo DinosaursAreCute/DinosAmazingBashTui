@@ -77,7 +77,7 @@ Suite at the last verified run: 767 pass, 0 fail (before the shell work started)
 | 3A showcase | `share/demo/workspace.xml` | An on-call console replaces `styles.xml`; nav entry `btn_workspace`. |
 | 3D store and reset | `lib/state/tui_store.sh` | One `page\|id\|field` store (value, cursor, scroll, sel, collapsed, size, focus); `keep_value`, `keep_collapsed`, `keep_size`, `keep_state`; `tui.page.reset`, `reset_field`, `reset_all`, `resettable`; `alt+shift+r` and a footer item. |
 | 3D disk and focus | `lib/state/tui_store.sh` | `persist="disk"` writes `TUI_HOME/state/store` (data-only, never sourced, 0600); `keep_focus`, `focus_on_enter`. |
-| Profiler | `tools/profiler/dprof/scenarios.py`, `tools/bench/run.sh` | Scenarios `workspace`, `state`, `scrollform`; micro-benches `resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`. |
+| Profiler | `tools/profiler/scenarios/demo.py`, `tools/bench/run.sh` | Scenarios `workspace`, `state`, `scrollform`; micro-benches `resize_drag_step`, `collapse_toggle`, `hit_with_handles`, `hover_zone_move`, `store_save_restore`. |
 | Test runner | `tools/t.sh` | `_t_fixture NAME FUNC` builds a page once per run and replays its globals. |
 
 **Deviations from the stage 3 spec**

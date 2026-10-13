@@ -35,6 +35,13 @@ def width(default=120):
         return default
 
 
+def height(default=40):
+    try:
+        return max(10, shutil.get_terminal_size((80, default)).lines)
+    except OSError:
+        return default
+
+
 def rgb(name):
     return PAL[name] if isinstance(name, str) else name
 

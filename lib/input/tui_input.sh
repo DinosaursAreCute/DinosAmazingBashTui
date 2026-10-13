@@ -11,6 +11,7 @@
 #   tui.bind.reset                     drop every user binding
 #   tui.bind.list                      table of all bindings (user + default)
 #   tui.get.event                      "key=.. type=.. x=.. y=.. pane=.. widget=.."
+#   tui.get.raw_input                  the bytes of the last key or mouse press in caret notation: ^[[55;4u
 #   _TUI_ON_KEY_EVENT=fn   hook: fn NAME runs for every decoded key/mouse name (used by the Debug keyboard view)
 #
 #   COMMAND is a function name (optionally with args): "on_quit", "tui.action.scroll down 10".
@@ -31,7 +32,7 @@
 # Inside a handler these are set:
 #   TUI_EVENT_TYPE   key | mouse         TUI_EVENT_KEY     canonical name ("ctrl+c")
 #   TUI_EVENT_X/Y    pointer col/row     TUI_EVENT_PANE    pane (focused / under pointer)
-#   TUI_EVENT_WIDGET widget id           TUI_EVENT_BUTTON  left|middle|right|""
+#   TUI_EVENT_WIDGET widget id           TUI_EVENT_BUTTON  left|middle|right|side1..side4|""
 #   TUI_EVENT_ZONE   hit-zone kind (mouse: scrollbar|widget|hitbox|divider|handle|chevron|title), _ID its id, _ARG v|h
 #
 # Built-in actions (all bound by default, all rebindable):
@@ -146,10 +147,23 @@ _tui_input.name_seq() {
         "["*)
             body="${seq#\[}"; final="${body: -1}"; body="${body%?}"
             IFS=';' read -r num mod third <<< "$body"
+            # kitty sub-parameters: KEY[:SHIFTED[:BASE]] and MODS[:EVENT] (1 press, 2 repeat, 3 release)
+            local shifted="" ev=""
+            [[ "$num" == *:* ]] && { shifted="${num#*:}"; shifted="${shifted%%:*}"; num="${num%%:*}"; }
+            [[ "$mod" == *:* ]] && { ev="${mod#*:}"; mod="${mod%%:*}"; }
+            [[ "$ev" == 3 ]] && return                    # a key release is not a key
             [[ "$mod" =~ ^[0-9]+$ ]] || mod=1
             _tui_input.mods "$mod"
             # CSI u (kitty/foot/wezterm) and xterm modifyOtherKeys (CSI 27;mods;cp ~) carry a codepoint
-            if [[ "$final" == u ]]; then _tui_input.name_codepoint "$num"
+            if [[ "$final" == u ]]; then
+                _tui_input.name_codepoint "$num"
+                # the terminal says which character shift made of this key (alt+shift+7 on a German layout is "/"):
+                # that character, not the unshifted key, is what a binding is written with
+                if [[ -n "$shifted" && "$_MODS" == *shift+* && "$_KEY" != [a-zA-Z] ]]; then
+                    local base="$_KEY"
+                    _tui_input.name_codepoint "$shifted"
+                    if [[ -n "$_KEY" && "$_KEY" != [a-zA-Z] ]]; then _MODS="${_MODS/shift+/}"; else _KEY="$base"; fi
+                fi
             elif [[ "$final" == "~" && "$num" == 27 ]]; then _tui_input.name_codepoint "$third"; fi
             if [[ -n "$_KEY" ]]; then
                 [[ "$_MODS" == "shift+" && "$_KEY" == [a-z] ]] && { _KEY="${_KEY^^}"; _MODS=""; }
@@ -196,7 +210,8 @@ _tui_input.name_mouse() {
         case $(( btn & 3 )) in 0) kind=up ;; 1) kind=down ;; 2) kind=left ;; 3) kind=right ;; esac
         _KEY="${pre}wheel:${kind}"; return
     fi
-    case $(( btn & 3 )) in 0) b=left ;; 1) b=middle ;; 2) b=right ;; 3) b="" ;; esac
+    if (( btn & 128 )); then b="side$(( (btn & 3) + 1 ))"      # buttons 8-11 (the thumb buttons): not left/middle/right
+    else case $(( btn & 3 )) in 0) b=left ;; 1) b=middle ;; 2) b=right ;; 3) b="" ;; esac; fi
     TUI_EVENT_BUTTON="$b"
     if [[ "$end" == "m" ]]; then _KEY="${pre}release"
     elif (( btn & 32 )); then
@@ -353,6 +368,21 @@ _tui_input.sorted_ids() {
     done
 }
 
+# tui.get.raw_input - the bytes the terminal sent for the last key or mouse press (pointer motion excluded), control
+# characters in caret notation: ESC is ^[, DEL ^?. What the key decoder saw, before any name was made of it.
+declare -g _TUI_LAST_RAW=""
+tui.get.raw_input() {
+    local raw="$_TUI_LAST_RAW" out="" c i code
+    for (( i = 0; i < ${#raw}; i++ )); do
+        c="${raw:i:1}"
+        printf -v code '%d' "'$c"
+        if (( code == 127 )); then out+='^?'
+        elif (( code < 32 )); then printf -v c "\\$(printf '%03o' $(( code + 64 )))"; out+="^$c"
+        else out+="$c"; fi
+    done
+    printf '%s\n' "$out"
+}
+
 tui.get.event() {
     printf 'type=%s key=%s x=%s y=%s pane=%s widget=%s button=%s\n' "$TUI_EVENT_TYPE" "$TUI_EVENT_KEY" \
         "$TUI_EVENT_X" "$TUI_EVENT_Y" "$TUI_EVENT_PANE" "$TUI_EVENT_WIDGET" "$TUI_EVENT_BUTTON"
@@ -364,6 +394,7 @@ tui.get.event() {
 # defined (a saved user bind whose page/callback isn't loaded right now) is skipped, not an error.
 _tui_input.run() {
     local cmd="$1" part
+    _TUI_ERR_ACTION="$cmd" # context for tui.errors: what was running when something complained
     local -a words
     while [[ -n "$cmd" ]]; do
         part="${cmd%%;*}"
@@ -417,7 +448,7 @@ _tui_input.dispatch() {
 # every non-mouse key. rc 1 = nothing bound it (caller feeds a focused input).
 _tui_input.key_event() {
     local char="$1" seq="$2"
-    if [[ -n "$char" ]]; then _tui_input.name_char "$char"; else _tui_input.name_seq "$seq"; fi
+    if [[ -n "$char" ]]; then _TUI_LAST_RAW="$char"; _tui_input.name_char "$char"; else _TUI_LAST_RAW=$'\e'"$seq"; _tui_input.name_seq "$seq"; fi
     local name="$_KEY"
     [[ -z "$name" ]] && return 1
     # Terminal-control mode: only the chord is heard; everything else is swallowed.
@@ -498,6 +529,10 @@ tui.action.unfocus()    { [[ -n "$_TUI_FOCUS_ID" ]] && _tui._unfocus; }
 
 # Enter on the focused widget: press a button, toggle a checkbox, submit an input.
 tui.action.activate() {
+    # a Markdown pane in reader mode that has the keyboard: Enter follows its focused link
+    if declare -F _tui_md.key_r_link_open >/dev/null &&
+        { [[ -z "$_TUI_FOCUS_ID" ]] || [[ "${_TUI_W_PANE[$_TUI_FOCUS_ID]:-}" != "$_TUI_PANE_FOCUS" ]]; } &&
+        _tui_md.key_r_link_open; then return 0; fi
     [[ -n "$_TUI_FOCUS_ID" ]] || return 0
     local ftype="${_TUI_W_TYPE[$_TUI_FOCUS_ID]}" faction="${_TUI_W_ACTION[$_TUI_FOCUS_ID]:-}"
     case "$ftype" in
@@ -561,6 +596,8 @@ _tui_input.scroll_target() {
 # move keyboard focus to the neighbouring pane as before
 tui.action.scroll_or_pane() {
     local dir="$1" mode
+    # a Markdown pane that has the keyboard: alt+left / alt+right are back / forward in its document history
+    if [[ "$dir" == left || "$dir" == right ]] && declare -F _tui_md.key_hist >/dev/null && _tui_md.key_hist "$dir"; then return 0; fi
     if _tui_input.scroll_target; then
         mode="${_TUI_P_SCROLL[$_ST]:-none}"
         case "$dir" in
@@ -630,7 +667,7 @@ tui.action.click() {
 
     # Scrollbar jump: only while the left button is actually down (press or
     # drag), never on bare hover.
-    if [[ "$TUI_EVENT_ZONE" == scrollbar ]] && (( (btn & 3) == 0 )); then
+    if [[ "$TUI_EVENT_ZONE" == scrollbar ]] && (( (btn & 195) == 0 )); then   # the plain left button only
         _tui_hit.scrollbar_jump "$TUI_EVENT_ZONE_ID" "$TUI_EVENT_ZONE_ARG" "$mx" "$my"
         return
     fi
@@ -662,6 +699,8 @@ tui.action.click() {
                 fi ;;
         esac
     else
+        # a click on a link in a Markdown pane follows it
+        if [[ -n "$p" ]] && declare -F tui.md.click >/dev/null && tui.md.click "$p" "$mx" "$my"; then return 0; fi
         # clicking a scrollable pane makes it the keyboard pane too
         [[ -n "$p" && "${_TUI_P_SCROLL[$p]:-none}" != none ]] && tui.pane.focus "$p"
         # a sticky input (shell prompt) keeps focus when you click empty space

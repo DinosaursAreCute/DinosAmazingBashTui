@@ -59,6 +59,7 @@ def parse():
                    help="headless output: no live footer, no cursor control, no colour; with --jobs each finished unit is "
                         "printed as one block (also the behaviour whenever stdout is not a terminal)")
     p.add_argument("--width", type=int)
+    p.add_argument("--events", metavar="FILE", help="append machine-readable progress (one JSON object per line) to FILE; used by the Studio app")
     a = p.parse_args()
     try:   # before the size is read: a scenario file may set the terminal size
         scenarios.set_options(a.set)
@@ -185,7 +186,7 @@ def main():
     commit, branch = sh("git", "rev-parse", "--short", "HEAD"), sh("git", "rev-parse", "--abbrev-ref", "HEAD")
     dirty = bool(sh("git", "status", "--porcelain", "--untracked-files=no"))
     t_start = time.time()
-    live = LiveUI(phases, tty=False if a.plain else None)
+    live = LiveUI(phases, tty=False if a.plain else None, events=a.events)
     mode = "quick" if a.quick else "deep" if a.deep else "standard"
     live.begin([
         "",
@@ -240,6 +241,7 @@ def main():
         os.makedirs(out, exist_ok=True)
         with open(os.path.join(out, "report.json"), "w") as f:
             json.dump(rep, f, default=str)
+        live.event("report", dir=out)
         txt = report_term.render(rep, 140)
         with open(os.path.join(out, "report.txt"), "w") as f:
             f.write(term.ANSI_RE.sub("", "\n".join(txt)) + "\n")

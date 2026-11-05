@@ -154,6 +154,13 @@ profile.sh --scenarios perflab --scenario sweep-table --set table.rows=1000,2000
 - **Undo.** The textarea's undo step sends alt+z, the documented alias: a pty with default plugins did not deliver ctrl+z (0x1a) to the editor.
 - **Caveats.** Static feature pages sit next to the start page, so `tui.start_cached` has warmed them: their first visit is a cache replay plus `on_visit`. Generated pages (buttons) are built cold. Compare rungs of one axis with each other, not axes with axes. The perflab pages and callbacks are frozen on purpose; changing them starts a new series.
 
+## Machine-readable progress (`--events`)
+
+`--events FILE` appends one JSON object per line to FILE while the run goes, next to the normal output: `begin` (the phases), `phase`,
+`step_begin` / `step_end` (group, ready/settle/paint ms, frames, ok), `unit_begin` / `unit_done`, `note`, `warn`, `report` (the folder the
+report was written to) and `finish` (the problems list). Every line has `t`, seconds since the start. It is what the DABT Profiler Studio
+(a separate Kotlin app that runs, watches and reads these reports) uses for live progress; any other tool can tail it.
+
 ## Reading it
 
 - **Typical** is the median; **done** is key-to-last-frame, **feedback** is key-to-first-painted-frame.

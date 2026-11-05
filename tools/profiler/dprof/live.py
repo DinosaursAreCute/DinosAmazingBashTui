@@ -4,6 +4,7 @@ small in-place footer showing what is running right now, phase progress, ETA and
 Units that run side by side (--jobs N) report through the unit_* methods: each running unit is one row of
 the footer, a finished unit is printed as one block of its own steps, and what went wrong is repeated in
 full at the end. Without a terminal (or with --plain) there is no footer, only the finished-unit blocks."""
+import json
 import sys
 import threading
 import time
@@ -27,6 +28,7 @@ def eta_str(sec):
 
 
 class NullLive:
+    def event(self, *a, **k): pass
     def phase(self, *a, **k): pass
     def warn(self, *a): pass
     def step_begin(self, *a): pass
@@ -39,9 +41,10 @@ class LiveUI:
     FOOT = 4
     SECTION_LINES = 4   # a running unit's section shows this many of its latest steps
 
-    def __init__(self, phases, out=None, tty=None):
+    def __init__(self, phases, out=None, tty=None, events=None):
         """phases: [(key, label, weight_per_step, steps)] - weights let traced (slower) steps count for more."""
         self.out = out or sys.stdout
+        self.events = open(events, "a", buffering=1) if events else None   # --events FILE: one JSON object per line for other tools (the Studio app)
         self.tty = term.is_tty() if tty is None else tty
         self.phases = phases
         self.total_weight = sum(w * n for _, _, w, n in phases) or 1
@@ -68,8 +71,26 @@ class LiveUI:
         self.units = {}        # unit name -> {t0, cur, cur_t0, done, total, lines, bad}: units running side by side
         self.problems = []     # (unit, text), once each: repeated in full after the run
 
+    def event(self, kind, **kw):
+        """Machine-readable progress: appends {"t": seconds, "e": kind, ...} to the --events file (no-op without one)."""
+        if self.events:
+            try:
+                self.events.write(json.dumps({"t": round(time.time() - self.t_start, 3), "e": kind, **kw}, default=str) + "\n")
+            except (OSError, ValueError):
+                pass
+
+    @staticmethod
+    def _res_brief(res):
+        keys = ("group", "ok", "alive", "settle_ms", "paint_ms", "frames", "out_bytes", "went", "lag_med_ms", "lag_max_ms", "note")
+        out = {k: res[k] for k in keys if k in res}
+        tl = res.get("tl")
+        if isinstance(tl, dict):
+            out["ready_ms"] = tl.get("ready_ms")
+        return out
+
     # ── lifecycle ────────────────────────────────────────────────────────────
     def begin(self, banner_lines):
+        self.event("begin", phases=[{"key": k, "label": l, "steps": n} for k, l, _, n in self.phases])
         for ln in banner_lines:
             self._print(ln)
         if self.tty:
@@ -77,6 +98,7 @@ class LiveUI:
             self._th.start()
 
     def finish(self):
+        self.event("finish", problems=[{"unit": u, "text": t} for u, t in self.problems])
         self.stop.set()
         if self._th:
             self._th.join(1)
@@ -95,6 +117,7 @@ class LiveUI:
             self.phase_label = label + (f" · {detail}" if detail else "")
             self.weight, self.phase_steps, self.phase_done = w, (steps or n), 0
             self.cur = None
+            self.event("phase", key=key, label=self.phase_label, index=idx + 1, of=len(self.phases), steps=self.phase_steps)
             self._log(f"{c('▌', 'cyan')} {c(self.phase_label, 'white', bold=True)}  "
                       f"{c(f'phase {idx + 1}/{len(self.phases)}', 'dim')}")
 
@@ -102,6 +125,7 @@ class LiveUI:
     def step_begin(self, desc):
         with self.lock:
             self.cur, self.cur_t0 = desc, time.time()
+            self.event("step_begin", desc=desc)
 
     def step_end(self, desc, res):
         now = time.time()
@@ -111,14 +135,17 @@ class LiveUI:
             self.phase_done += 1
             self.done_weight += self.weight
             line = self._format_step(desc, res, dt, now)
+            self.event("step_end", desc=desc, took_ms=round(dt * 1000, 1), **self._res_brief(res))
             self._log(line)
 
     def note(self, text):
         with self.lock:
+            self.event("note", text=text)
             self._log(f"  {c('•', 'cyan')} {c(text, 'dim')}")
 
     def warn(self, text):
         with self.lock:
+            self.event("warn", text=text)
             self._log(f"  {c('!', 'yellow', bold=True)} {c(text, 'yellow')}")
 
     def set_tracer(self, tracer):
@@ -128,6 +155,7 @@ class LiveUI:
     # ── units running side by side ───────────────────────────────────────────
     def unit_begin(self, name, total):
         with self.lock:
+            self.event("unit_begin", unit=name, total=total)
             self.units[name] = {"t0": time.time(), "cur": None, "cur_t0": time.time(), "done": 0, "total": total,
                                 "lines": [], "bad": 0}
 
@@ -136,6 +164,7 @@ class LiveUI:
             u = self.units.get(name)
             if u:
                 u["cur"], u["cur_t0"] = desc, time.time()
+                self.event("step_begin", unit=name, desc=desc)
 
     def unit_step_end(self, name, desc, res):
         now = time.time()
@@ -149,11 +178,13 @@ class LiveUI:
             self.phase_done += 1
             self.done_weight += self.weight
             u["lines"].append(self._format_step(desc, res, dt, now))
+            self.event("step_end", unit=name, desc=desc, took_ms=round(dt * 1000, 1), **self._res_brief(res))
             if res.get("ok", True) is False or not res.get("alive", True) or res.get("tl", {}).get("ok") is False:
                 u["bad"] += 1
 
     def unit_warn(self, name, text):
         with self.lock:
+            self.event("warn", unit=name, text=text)
             u = self.units.get(name)
             if u:
                 u["lines"].append(f"  {c('!', 'yellow', bold=True)} {c(text, 'yellow')}")
@@ -173,6 +204,7 @@ class LiveUI:
             if not u:
                 return
             took = time.time() - u["t0"]
+            self.event("unit_done", unit=name, steps=u["done"], failed=u["bad"], took_s=round(took, 2))
             glyph = c("✗", "red") if u["bad"] else c("✓", "green")
             bad = c(f"  {u['bad']} step(s) failed", "red") if u["bad"] else ""
             steps = f"{u['done']} steps"

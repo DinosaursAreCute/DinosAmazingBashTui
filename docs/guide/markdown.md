@@ -73,3 +73,5 @@ Links to `#anchor` scroll to that heading; a relative `.md` link loads that file
 - **Lifetime:** images are deleted from the terminal when the document changes and when the app exits.
 
 Set it in Settings > Markdown > Images, or `tui.md.images graphics` (config `md.images=graphics`).
+
+**Pictures as headings and table cells.** A heading that holds only a picture (`<h2 id="news"><img src="..." alt="news"></h2>`, the README's section banners) is drawn as the picture in `graphics` mode; in the other modes, and until the picture has arrived, it is its alt text as a heading, so the outline and `#news` anchors work either way. A table cell that holds only pictures is drawn as pictures, each no wider than an equal share of the table (the theme tables of the README); a table too narrow for that, or a cell that mixes text and a picture, stays text.

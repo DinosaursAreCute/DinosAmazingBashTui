@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds docs/design/performance-explorer.html (the interactive performance page of the documentation site)
+"""Builds docs/concepts/performance-explorer.html (the interactive performance page of the documentation site)
 from saved profiler reports: tools/profiler/site/explorer.template.html + the data below.
 
     python3 tools/profiler/site_export.py            # write the page
@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 REPORTS = os.path.join(HERE, "reports")
 TEMPLATE = os.path.join(HERE, "site", "explorer.template.html")
-OUT = os.path.join(REPO, "docs", "design", "performance-explorer.html")
+OUT = os.path.join(REPO, "docs", "concepts", "performance-explorer.html")
 sys.path.insert(0, HERE)
 from dprof.analyze import LAYERS  # noqa: E402
 
@@ -43,6 +43,10 @@ REVISIONS = [
     # the focus work (the only before for the held groups); devex2 is the newest deep run.
     ("held0", "Stage 2 without the focus work", "20261002-222307", "Page templates, addons, refresh and the hit/focus index; a focus move still redraws the pane border and diffs every frame, and arrow-key search recomputes every widget position.", True),
     ("devex2", "DevEx Update 2", "20261002-223527", "Stage 2 of markup v2 (templates, addons, refresh, hit and focus index) and the held-key work: a focus move paints its known dirty rows as one raw frame and skips the pane border inside a pane; arrow-key search reads cached widget rects.", True),
+    # DevEx Update 4: the build with the background render of Markdown documents and cached pictures (runs after 23:00 on 5 Nov).
+    ("devex4-nav", "DevEx Update 4, page switches", "20261105-230830", "Markdown renderer with documents rendered by a background process and cached pictures; the ten-page switch by click and by key (nav run, 2 rounds, traced).", True),
+    ("devex4-floor", "DevEx Update 4, page-switch floor", "20261105-233707", "The page-switch floor on the same build (quick run, traced).", True),
+    ("devex4", "DevEx Update 4", "20261105-234102", "The Markdown renderer, documents rendered by a background process, cached pictures, cheaper fused-pane frames and the select widget fix (full run, 2 rounds, traced).", True),
 ]
 
 

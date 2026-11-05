@@ -549,7 +549,10 @@ declare -g _TUI_RESIZED=0
 # Optional page hook, called after a resize re-layout (cleared on tui.reset_ui).
 declare -g _TUI_ON_RESIZE_FN=""
 
-tui.on_resize() { _TUI_RESIZED=1; }
+tui.on_resize() {
+	_TUI_RESIZED=1
+	_TERM_SIZE="" # term.size re-measures
+}
 
 # _tui._read_term_size - sets _TUI_ROWS/_TUI_COLS from the tty, but only from a
 # sane reading. Mid-drag, stty can fail or report 0x0; the old code fell back
@@ -564,6 +567,7 @@ _tui._read_term_size() {
 		if [[ "$r" =~ ^[0-9]+$ && "$c" =~ ^[0-9]+$ ]] && ((r > 0 && c > 0)); then
 			_TUI_ROWS=$r
 			_TUI_COLS=$c
+			_TERM_SIZE="$r $c"
 			return 0
 		fi
 		read -rt 0.02 <> <(:)

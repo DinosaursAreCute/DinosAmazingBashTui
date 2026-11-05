@@ -588,12 +588,18 @@ fillrow() {
 # ─────────────────────────────────────────────
 
 # Get terminal size in characters → TERM_ROWS, TERM_COLS
+# Measured once, then served from _TERM_SIZE until tui.on_resize (SIGWINCH) clears it.
+# A failed measurement yields 24 80 and is not cached.
+declare -g _TERM_SIZE=""
 term.size() {
-	local _r _c
-	# /dev/tty first: stdin may be redirected (a pipe, a here-string) even though a terminal is attached
-	read -r _r _c < <(stty size 2>/dev/null </dev/tty || stty size 2>/dev/null || echo "24 80")
-	printf -v "${1:-TERM_ROWS}" '%s' "$_r"
-	printf -v "${2:-TERM_COLS}" '%s' "$_c"
+	local _s=$_TERM_SIZE
+	if [[ -z "$_s" ]]; then
+		# /dev/tty first: stdin may be redirected (a pipe, a here-string) even though a terminal is attached
+		_s="$(stty size 2>/dev/null </dev/tty || stty size 2>/dev/null)"
+		if [[ "$_s" =~ ^[0-9]+\ [0-9]+$ ]]; then _TERM_SIZE=$_s; else _s="24 80"; fi
+	fi
+	printf -v "${1:-TERM_ROWS}" '%s' "${_s% *}"
+	printf -v "${2:-TERM_COLS}" '%s' "${_s#* }"
 }
 
 # Get terminal size in pixels → TERM_PX_H, TERM_PX_W

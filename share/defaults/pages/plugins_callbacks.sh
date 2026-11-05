@@ -16,10 +16,14 @@ _plg_human() {
 _plg_fill() {
 	local keep="${1:-0}" n st v src title
 	local -a rows=()
-	while IFS=$'\t' read -r n st v src title; do rows+=("$n|$st|$v|$(tui.plugin.get "$n" author)|$src"); done < <(tui.plugin.list)
+	local n_on=0
+	while IFS=$'\t' read -r n st v src title; do
+		rows+=("$n|$st|$v|$(tui.plugin.get "$n" author)|$src")
+		[[ "$st" == enabled ]] && ((n_on++))
+	done < <(tui.plugin.list)
 	tui.table.set plg_table "Plugin|State|Ver|Author|From" "${rows[@]}"
 	tui.table.select plg_table "$keep"
-	tui.update plg_h2 "${#rows[@]} detected, $(tui.plugin.list | grep -c $'\tenabled\t') enabled   yours go in ${TUI_PLUGINS_DIR/#$HOME/~}"
+	tui.update plg_h2 "${#rows[@]} detected, $n_on enabled   yours go in ${TUI_PLUGINS_DIR/#$HOME/~}"
 }
 _plg_name() {
 	local r

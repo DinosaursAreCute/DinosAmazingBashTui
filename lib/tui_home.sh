@@ -106,7 +106,7 @@ _tui_home.meta_load() {
 }
 _tui_home.meta_save() {
 	local k out="" ordered
-	mkdir -p "$TUI_APP_CONF" 2>/dev/null || return 1
+	[[ -d "$TUI_APP_CONF" ]] || mkdir -p "$TUI_APP_CONF" 2>/dev/null || return 1
 	for k in name title description dabt_version app_dir entry first_run last_run runs; do
 		[[ -n "${_TUI_META[$k]+x}" ]] && out+="$k=${_TUI_META[$k]}"$'\n'
 	done

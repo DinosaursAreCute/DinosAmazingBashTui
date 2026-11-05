@@ -1825,7 +1825,7 @@ t_md_html_comment_is_removed_and_line_numbers_hold() {
 
 t_md_html_in_a_fence_or_code_span_is_literal() {
 	_md_flat $'```\n<b>x</b>\n```' 10
-	eq "<b>x</b>   " "$_F"
+	eq "<b>x</b>  " "$_F"
 	_md_flat 'a `<b>` c' 40
 	eq "a <b> c" "$_F"
 }

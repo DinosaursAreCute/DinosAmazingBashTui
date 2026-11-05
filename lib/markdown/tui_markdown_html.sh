@@ -85,7 +85,7 @@ _tui_md.html_entities() {
 	s=${s//&quot;/\"}
 	s=${s//&#39;/\'}
 	s=${s//&copy;/©}
-	s=${s//&amp;/&}
+	s=${s//&amp;/"&"} # quoted replacement: a bare & would stand for the matched text (bash 5.2+)
 	_HTML_LINE=$s
 }
 

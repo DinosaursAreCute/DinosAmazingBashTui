@@ -83,7 +83,8 @@ tui.table() {
 	_tui_wx.arr "$1"
 	_WXA=()
 }
-tui.select() {
+# _tui_wx.select_new ID PANE ROW LABEL [ACTION_FN] - the select widget; `tui.select` (lib/tui.sh) calls it when given more than ID [true|false]
+_tui_wx.select_new() {
 	_tui_wx.new "$1" select "$2" "$3" 1 || return 1
 	_ps.widgets.set "$1" label "${4:-}"
 	_ps.widgets.set "$1" action "${5:-}"
@@ -755,7 +756,7 @@ _markup_wx() {
 		select)
 			_markup_attrv "$line" label _ma1
 			_markup_attrv "$line" action _ma2
-			tui.select "$id" "$pane" "$row" "$_ma1" "$_ma2"
+			_tui_wx.select_new "$id" "$pane" "$row" "$_ma1" "$_ma2"
 			local sv
 			_markup_attrv "$line" value sv
 			[[ -n "$sv" ]] && tui.set "$id" "$sv"

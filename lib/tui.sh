@@ -1079,7 +1079,12 @@ tui.update() {
 }
 # tui.select ID [true|false] - marks a button selected (default true) so it draws its .class:selected look
 # even while another widget has focus (focus and hover still win). Redraws ID when the flag changes.
+# tui.select ID PANE ROW LABEL [ACTION_FN] (more than two arguments) builds the select widget instead.
 tui.select() {
+	if (($# > 2)); then
+		_tui_wx.select_new "$@"
+		return
+	fi
 	local widget_id="$1" wanted="${2:-true}"
 	local was_selected="${_TUI_W_SELECTED[$widget_id]:-}" state_label="not selected"
 	[[ -n "$was_selected" ]] && state_label="selected"
@@ -1580,6 +1585,7 @@ _tui._sgr_from() {
 	return 0
 }
 
+[[ -z "$key" ]] && printf "EMPTYKEY %s\n" "${FUNCNAME[*]} @ ${BASH_SOURCE[2]##*/}:${BASH_LINENO[1]}" >>/tmp/claude-1000/ek.txt
 _tui._style_v() {
 	local key="$1" fb="${2:-}" bgfb="${3:-}" fg bg mods
 	fg="${_TUI_STYLE_FG[$key]:-}"

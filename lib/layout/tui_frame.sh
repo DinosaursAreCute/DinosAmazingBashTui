@@ -178,13 +178,51 @@ _tui_frame.title_span() {
 	_TS1=$((_TS0 + ${#title} + 1))
 }
 
+# Junction cache: what the pass draws depends only on the fused panes' geometry, effective border and divider override,
+# not on frame content, so the cell tables and the drawn runs are built once per layout and replayed. Validated by a
+# signature of those inputs (one short loop over the fused panes), so no layout code has to invalidate it.
+declare -g _TUI_JN_SIG=""
+declare -gA _TUI_JN_MASK=() _TUI_JN_CNT=()                                # "row,col" -> edge mask / number of fused boxes sharing the cell
+declare -ga _TUI_JN_ROW=() _TUI_JN_COL=() _TUI_JN_PANE=() _TUI_JN_BODY=() # one entry per run of cells
+
 # _tui_frame.junctions - redraws every cell shared by two or more fused boxes with the glyph for the lines
 # meeting there. Appends to _TUI_FRAME; a no-op (one test) on a page without fused panes.
 # state:direct
 _tui_frame.junctions() {
 	((${#_TUI_P_FUSE[@]})) || return 0
-	local -A mask=() cnt=() hst=() vst=() dvd=() last=()
-	local p r c h w b st ov x y k
+	local p sig=""
+	for p in "${_TUI_P_ALL[@]}"; do
+		[[ "${_TUI_P_FUSE[$p]:-}" == true ]] || continue
+		_tui._eff_border "$p"
+		sig+="$p ${_TUI_P_ROW[$p]} ${_TUI_P_COL[$p]} ${_TUI_P_H[$p]} ${_TUI_P_W[$p]} $_TB ${_TUI_P_DIVIDER[$p]:-};"
+	done
+	[[ -n "$sig" ]] || return 0
+	[[ "$sig" == "$_TUI_JN_SIG" ]] || _tui_frame.junctions_build "$sig"
+	local i cls
+	for ((i = 0; i < ${#_TUI_JN_ROW[@]}; i++)); do
+		p="${_TUI_JN_PANE[i]}"
+		_tui.emit_goto "${_TUI_JN_ROW[i]}" "${_TUI_JN_COL[i]}"
+		cls="${_TUI_P_DIVIDER_CLASS[$p]:-}"
+		if [[ -n "$cls" ]] && _tui._sgr_from "${_TUI_CLASS_FG[$cls]:-}" "${_TUI_CLASS_BG[$cls]:-${_TUI_STYLE_BG[${p}_border]:-}}" "${_TUI_CLASS_MOD[$cls]:-}"; then
+			_tui.emit "$_SGR"
+		else
+			_tui.emit_ring "${p}_border" "${p}_border" "$p"
+		fi
+		_tui.emit "${_TUI_JN_BODY[i]}"
+		_tui.emit_reset
+	done
+	_tui_frame.shared_titles _TUI_JN_MASK _TUI_JN_CNT
+}
+
+# _tui_frame.junctions_build SIG - rebuilds the junction cache: marks every border cell of every fused box, picks the
+# glyph of each cell shared by two or more, then joins straight neighbours (same glyph, same owner) into runs so a long
+# shared edge is one goto + one colour + one string instead of one of each per cell.
+# state:direct
+_tui_frame.junctions_build() {
+	_TUI_JN_SIG="$1"
+	_TUI_JN_MASK=() _TUI_JN_CNT=() _TUI_JN_ROW=() _TUI_JN_COL=() _TUI_JN_PANE=() _TUI_JN_BODY=()
+	local -A hst=() vst=() dvd=() last=() glyph=() used=()
+	local p r c h w b st ov x y k hs vs
 	for p in "${_TUI_P_ALL[@]}"; do
 		[[ "${_TUI_P_FUSE[$p]:-}" == true ]] || continue
 		_tui._eff_border "$p"
@@ -194,9 +232,9 @@ _tui_frame.junctions() {
 		for ((x = c; x < c + w; x++)); do
 			for y in "$r" $((r + h - 1)); do
 				k="$y,$x"
-				((mask[$k] |= (x < c + w - 1 ? 2 : 0) | (x > c ? 8 : 0)))
+				((_TUI_JN_MASK[$k] |= (x < c + w - 1 ? 2 : 0) | (x > c ? 8 : 0)))
 				[[ "${last[$k]:-}" == "$p" ]] || {
-					((cnt[$k]++))
+					((_TUI_JN_CNT[$k]++))
 					last[$k]=$p
 				}
 				hst[$k]=$b dvd[$k]=$ov
@@ -205,18 +243,17 @@ _tui_frame.junctions() {
 		for ((y = r; y < r + h; y++)); do
 			for x in "$c" $((c + w - 1)); do
 				k="$y,$x"
-				((mask[$k] |= (y < r + h - 1 ? 4 : 0) | (y > r ? 1 : 0)))
+				((_TUI_JN_MASK[$k] |= (y < r + h - 1 ? 4 : 0) | (y > r ? 1 : 0)))
 				[[ "${last[$k]:-}" == "$p" ]] || {
-					((cnt[$k]++))
+					((_TUI_JN_CNT[$k]++))
 					last[$k]=$p
 				}
 				vst[$k]=$b dvd[$k]=$ov
 			done
 		done
 	done
-	local hs vs cls fg bg mods
-	for k in "${!cnt[@]}"; do
-		((cnt[$k] > 1)) || continue
+	for k in "${!_TUI_JN_CNT[@]}"; do
+		((_TUI_JN_CNT[$k] > 1)) || continue
 		hs="${hst[$k]:-}" vs="${vst[$k]:-}"
 		if [[ -n "${dvd[$k]}" ]]; then
 			st="${dvd[$k]}"
@@ -229,19 +266,39 @@ _tui_frame.junctions() {
 		elif [[ "$vs" == double && "$hs" == single ]]; then
 			st=vdouble
 		else st="$vs"; fi
-		_tui_canvas.junction "$st" "${mask[$k]}"
-		p="${last[$k]}"
-		_tui.emit_goto "${k%,*}" "${k#*,}"
-		cls="${_TUI_P_DIVIDER_CLASS[$p]:-}"
-		if [[ -n "$cls" ]] && _tui._sgr_from "${_TUI_CLASS_FG[$cls]:-}" "${_TUI_CLASS_BG[$cls]:-${_TUI_STYLE_BG[${p}_border]:-}}" "${_TUI_CLASS_MOD[$cls]:-}"; then
-			_tui.emit "$_SGR"
-		else
-			_tui.emit_ring "${p}_border" "${p}_border" "$p"
-		fi
-		_tui.emit "$_TC_J"
-		_tui.emit_reset
+		_tui_canvas.junction "$st" "${_TUI_JN_MASK[$k]}"
+		glyph[$k]=$_TC_J
 	done
-	_tui_frame.shared_titles mask cnt
+	# Runs: a straight horizontal cell (mask 10) joins its left/right neighbours, a straight vertical one (mask 5) its upper/lower,
+	# when glyph and owner match; any other cell (corner, T, cross, a lone cell) is a run of one.
+	local m g n cx cy dy body
+	for k in "${!glyph[@]}"; do
+		[[ -n "${used[$k]:-}" ]] && continue
+		y=${k%,*} x=${k#*,} g=${glyph[$k]} p=${last[$k]} m=${_TUI_JN_MASK[$k]}
+		if ((m == 10)); then
+			while [[ "${glyph[$y,$((x - 1))]:-}" == "$g" && "${last[$y,$((x - 1))]}" == "$p" && "${_TUI_JN_MASK[$y,$((x - 1))]}" == 10 ]]; do ((x--)); done
+			n=0 cx=$x
+			while [[ "${glyph[$y,$cx]:-}" == "$g" && "${last[$y,$cx]}" == "$p" && "${_TUI_JN_MASK[$y,$cx]}" == 10 ]]; do
+				used[$y,$cx]=1
+				((n++, cx++))
+			done
+			_tui._repeat_v "$g" "$n"
+			body=$_R
+		elif ((m == 5)); then
+			while [[ "${glyph[$((y - 1)),$x]:-}" == "$g" && "${last[$((y - 1)),$x]}" == "$p" && "${_TUI_JN_MASK[$((y - 1)),$x]}" == 5 ]]; do ((y--)); done
+			body="" cy=$y dy=0
+			while [[ "${glyph[$cy,$x]:-}" == "$g" && "${last[$cy,$x]}" == "$p" && "${_TUI_JN_MASK[$cy,$x]}" == 5 ]]; do
+				used[$cy,$x]=1
+				((dy++)) && body+=$'\e['"$cy;${x}H"
+				body+=$g
+				((cy++))
+			done
+		else
+			used[$k]=1
+			body=$g
+		fi
+		_TUI_JN_ROW+=("$y") _TUI_JN_COL+=("$x") _TUI_JN_PANE+=("$p") _TUI_JN_BODY+=("$body")
+	done
 }
 
 # _tui_frame.shared_titles MASK CNT - the title tags the junction pass just wiped: a fused box whose title line is

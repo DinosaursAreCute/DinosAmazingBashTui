@@ -6,7 +6,7 @@
 # in docu.xml, which fires once the page's panes/widgets are built. The documents are drawn by the Markdown renderer.
 tui.require terminal_renderer
 
-_DOCU_ROOT="$TUI_ROOT"
+_DOCU_ROOT="${DABT_DOCS_ROOT:-$TUI_ROOT}" # DABT_DOCS_ROOT: show another folder (the profiler uses one whose pictures are local files)
 declare -ga _DOCU_FILES=()
 
 # Short list label for a markdown file: the part of its first H1 heading

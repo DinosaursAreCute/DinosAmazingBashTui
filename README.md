@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" alt="D.A.B.T - DinosAmazingBashTui" width="720">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" alt="D.A.B.T - DinosAmazingBashTui" width="720"/>
 
 **A TUI framework for bash: build terminal UIs in pure bash, no ncurses required.**
 Declarative XML pages + CSS-like themes + bash callbacks, with mouse support, live process panes and a built-in app manager (`dabt`) to install, update and security-scan apps.
@@ -22,19 +22,19 @@ Pure Bash 5 plus POSIX utilities. No Python, no Node, no ncurses. A zero-depende
 
 [**News**](#news) · [**Quick start**](#quick-start) · [**Features**](#features) · [**The `dabt` command**](#the-dabt-command) · [**Apps & security scan**](#security-scan) · [**Plugins**](#plugins) · [**Docs**](#documentation) · [**Changelog**](CHANGELOG.md)
 
-<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/settings.gif" alt="Home" width="760">
-<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/home.gif" alt="Home" width="760>
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/settings.gif" alt="Home" width="760"/>
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/home.gif" alt="Home" width="760"/>
 </div>
 
 ---
 
 <br/>
 <br/>
-<h2 id="news"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/news.svg" alt="news"></h2>
+<h2 id="news"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/news.svg" alt="news"/></h2>
 
 - **DevEx Update 4: Markdown, rendered.** A Markdown renderer for bash: headings (in block letters if you like), tables, links you can follow, highlighted code, task lists, a small HTML subset, and pictures in kitty and Ghostty. It powers the Docs page (now with a document list), a `markdown` mode for text areas, a `<markdown>` tag and the new full-screen editor in `examples/md-editor`. Settings is one page with a category sidebar and a live search, with Markdown and Plugins inside. [Guide](docs/guide/markdown.md)
 - **DevEx Update 3.5: Resizable widgets because space attribution is not an objective fact.**
-- **DevEx Update 2: Cleaned house, now off to the next venture** (unreleased). Pages are data now: templates, loops, conditionals, components and addons in the markup, and `tui.page.refresh` rebuilds only the panes that changed, shown live in the new Compose demo page. Holding Up/Down on the nav bar costs 47 ms of work per second instead of 478 and paints 4.3 KB instead of 49.5. Page switches and start-up got 6 to 20% slower from the stage 2 pipeline; winning that back is next. [Release notes](release-notes/devex-update-2.md) · [The performance journey](docs/concepts/performance-journey.md)
+- **DevEx Update 2: Cleaned house, now off to the next venture** (v0.0.23). Pages are data now: templates, loops, conditionals, components and addons in the markup, and `tui.page.refresh` rebuilds only the panes that changed, shown live in the new Compose demo page. Holding Up/Down on the nav bar costs 47 ms of work per second instead of 478 and paints 4.3 KB instead of 49.5. Page switches and start-up got 6 to 20% slower from the stage 2 pipeline; winning that back is next. [Release notes](release-notes/devex-update-2.md) · [The performance journey](docs/concepts/performance-journey.md)
 - **DevEx Update 1.93,75: Grinding the cleanup rubble to dust** (v0.0.22). A page switch between trivial pages is 86 ms instead of 136: the render cache now hits across pages, the page snapshot is rewritten once instead of on every replay, and the footer, the terminal-size read and the relayout only run when something changed. The profiler gained a page-switch "floor" trace. [Release notes](release-notes/devex-update-1.93,75.md) · [The performance journey](docs/concepts/performance-journey.md)
 - **DevEx Update 1.87,5: Clearing the rubble** (v0.0.21). Closing the command palette is 13 ms instead of 52, switching pages by key 106 ms instead of 229, and the demo no longer starts a process on every visit, tick or keystroke. New `tui.capture` and `tui.modal.dismiss`, a developer guide for fast apps, and a DABT-versus-Textual comparison harness. [Release notes](release-notes/devex-update-1.87,5.md) · [Designing fast apps](docs/guide/performance.md)
 - **DevEx Update 1.75: Blowing up a mountain** (v0.0.20). Page switches twice as fast, idle repaints down 90%, warm start 0.29 s. [Release notes](release-notes/devex-update-1.75.md) · [The performance journey](docs/concepts/performance-journey.md)
@@ -43,7 +43,7 @@ Every change is in the [changelog](CHANGELOG.md).
 
 <br/>
 <br/>
-<h2 id="what-is-this"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/what-is-this.svg" alt="What is this?" height="35"></h2>
+<h2 id="what-is-this"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/what-is-this.svg" alt="What is this?" height="35"/></h2>
 
 D.A.B.T (DinosAmazingBashTui) is a bash TUI framework and application manager in one.
 
@@ -83,7 +83,7 @@ tui.start "share/demo/home.xml"
 
 <br/>
 <br/>
-<h2 id="quick-start"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/quick-start.svg" alt="Quick start" height="35"></h2>
+<h2 id="quick-start"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/quick-start.svg" alt="Quick start" height="35"/></h2>
 
 **Install** (Single Command Install: Downloads the repo and installs it):
 
@@ -113,7 +113,7 @@ dabt doctor          # where everything lives, what version is installed
 
 <br/>
 <br/>
-<h2 id="features"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/features.svg" alt="Features" height="35"></h2>
+<h2 id="features"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/features.svg" alt="Features" height="35"/></h2>
 
 | | |
 |---|---|
@@ -136,7 +136,7 @@ dabt doctor          # where everything lives, what version is installed
 
 <br/>
 <br/>
-<h2 id="security-scan"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/security.svg" alt="Security scan" height="35"></h2>
+<h2 id="security-scan"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/security.svg" alt="Security scan" height="35"/></h2>
 
 Apps and plugins are shell code that runs with your permissions. DABT scans them before you install them (`dabt app install`, `tui.plugin.install`) and on demand with `dabt scan PATH`. By default findings only warn; `--strict` refuses to install on HIGH findings (`--force` overrides, `--no-scan` skips).
 
@@ -163,7 +163,7 @@ Install either with `dabt scan --install shellcheck|semgrep`. DABT finds a known
 - **used only by `dabt scan`**: they are not loaded by the TUI framework and add no runtime dependency to any app.
 
 
-<h2 id="vs-code-extension"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/vs-code-extension.svg" alt="VS Code extension" height="35"></h2>
+<h2 id="vs-code-extension"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/vs-code-extension.svg" alt="VS Code extension" height="35"/></h2>
 
 
 **[DABT Tools](https://github.com/DinosaursAreCute/DinosAmazingDabtPlugin)** is a companion VS Code extension for writing DABT apps: inlay hints and signature help for `dabt` function arguments, `class=` completion with live theme-aware color swatches, and required-attribute markers on your XML markup — all inferred straight from your app's own source, not a hardcoded schema.
@@ -174,7 +174,7 @@ Grab the `.vsix` from [the latest release](https://github.com/DinosaursAreCute/D
 local/bin/dabt`. Details: [docs/guide/install-and-update.md](docs/guide/install-and-update.md).
 <br/>
 <br/>
-<h2 id="the-dabt-command"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/the-dabt-command.svg" alt="The dabt command" height="35"></h2>
+<h2 id="the-dabt-command"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/the-dabt-command.svg" alt="The dabt command" height="35"/></h2>
 
 | Command | What it does |
 |---|---|
@@ -200,7 +200,7 @@ local/bin/dabt`. Details: [docs/guide/install-and-update.md](docs/guide/install-
 
 <br/>
 <br/>
-<h2 id="plugins"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/plugins.svg" alt="Plugins" height="35"></h2>
+<h2 id="plugins"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/plugins.svg" alt="Plugins" height="35"/></h2>
 
 A plugin is one bash file that adds commands, keys, hooks, timers or overlays to any DABT app. Plugins live in `~/.config/DABT/plugins/`, are shared by every app, and can be enabled, disabled, reloaded, installed and removed while the app runs (Settings → Plugins, the command bar, or `tui.plugin.*`). Everything a plugin registered is cleaned up automatically when it is removed.
 
@@ -209,28 +209,28 @@ Ships with **`terminal_shortcuts`**: detects your terminal (kitty, GNOME Termina
 See [docs/guide/plugins.md](docs/guide/plugins.md) and [examples/plugins/](examples/plugins/).
 <br/>
 <br/>
-<h2 id="screenshots"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/screenshots.svg" alt="Screenshots" height="35"></h2>
+<h2 id="screenshots"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/screenshots.svg" alt="Screenshots" height="35"/></h2>
 
 Default theme, generated with `tools/debug/screenshot_all.sh`.
 
 <details open>
 <summary><b>Components: every terminal renderer, with fit-to-pane and live tabs</b></summary>
 
-<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/components.png" alt="Components" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/components.png" alt="Components" width="680"/>
 
 </details>
 
 <details>
 <summary><b>Case Study: real-world layout stress test</b></summary>
 
-<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/case_study.png" alt="Case Study" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/case_study.png" alt="Case Study" width="680"/>
 
 </details>
 
 <details>
 <summary><b>Documentation: one tab per markdown file</b></summary>
 
-<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/docu__doc_tab_3.png" alt="Docs" width="680">
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/screenshots/default/docu__doc_tab_3.png" alt="Docs" width="680"/>
 
 </details>
 

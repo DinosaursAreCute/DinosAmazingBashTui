@@ -11,4 +11,5 @@ currently being supported with security updates.
 
 ## Reporting a Vulnerability
 
-If you find an issue please open an issue and prefix the titel with [SECURITY]
+If you find an issue please open an issue and prefix the titel with [SECURITY] or reach out to me on Discord via DinosaursAreCute 
+

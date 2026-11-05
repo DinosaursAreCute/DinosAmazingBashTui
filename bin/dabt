@@ -158,7 +158,7 @@ case "${1:-}" in
     -h|--help|help)         _help ;;
     --demo|demo)            shift; exec bash "$TUI_ROOT/bin/DABT_demo.sh" "$@" ;;
     -d|--details|doctor|paths) _details ;;
-    -v|--version|version)   read -r v < "$TUI_ROOT/VERSION"; echo "DABT $v" ;;
+    -v|--version|version)   while IFS= read -r v && [[ -z "${v//[[:space:]]/}" ]]; do :; done < "$TUI_ROOT/VERSION"; echo "DABT ${v//[[:space:]]/}" ;;
     install)                shift; exec bash "$TUI_ROOT/install.sh" "$@" ;;
     app)
         shift

@@ -28,11 +28,17 @@ declare -ga _TUI_MD_DIA=(
 	081B 081C 081D 081E 081F 0820 0821 0822 0823 0825 0826 0827 0829 082A 082B 082C
 )
 declare -ga _TUI_MD_DIAC=()          # the diacritics as UTF-8 characters, index = row or column number
+declare -g _TUI_MD_ZWSET=""          # the same diacritics as one string (a bracket expression in _tui_md.cells)
 declare -gA _TUI_MD_ZW=()            # code point (decimal) of a diacritic -> 1: zero cells wide
+declare -gA _TUI_MD_SEG=()           # "PATH|COLS|ROWS" -> the picture's placeholder rows joined by \x1e (memo of _tui_md.image_segment)
+declare -gA _TUI_MD_ID_OWNER=()      # kitty image id -> the "PATH|COLS|ROWS" key that owns it
 declare -gA _TUI_MD_IMG_ID=()        # "PATH|COLS|ROWS" -> kitty image id
 declare -gA _TUI_MD_IMG_SENT=()      # image id -> 1 once its commands went to the terminal
 declare -gA TUI_MD_IMAGE_CMD=()      # image id -> the APC command of the last render that creates it
 declare -ga TUI_MD_IMAGE_IDS=()      # ids the last render shows
+declare -ga TUI_MD_IMAGE_MISS=()     # sources the last render could not show yet (a remote picture not fetched, a missing file)
+declare -gi _TUI_MD_NO_FETCH=0       # 1 in a background render: it only notes what is missing, the pane that takes the render starts the downloads
+declare -gi _TUI_MD_IMG_EPOCH=0      # bumped when a picture becomes available: a render that was made before it is outdated
 declare -gA _TUI_MD_PNG=()           # path -> "WIDTHxHEIGHT"
 declare -gi _TUI_MD_IMG_NEXT=0 TUI_MD_IMAGE_MAX_COLS="${TUI_MD_IMAGE_MAX_COLS:-60}" TUI_MD_IMAGE_MAX_ROWS="${TUI_MD_IMAGE_MAX_ROWS:-20}"
 declare -g TUI_MD_BASE_DIR="${TUI_MD_BASE_DIR:-}" _TUI_MD_PLACEHOLDER=""
@@ -64,6 +70,7 @@ _tui_md.img_init() {
 		_tui_md.utf8 $((16#$h))
 		_TUI_MD_DIAC+=("$_U8")
 		_TUI_MD_ZW[$((16#$h))]=1
+		_TUI_MD_ZWSET+=$_U8
 	done
 	_tui_md.utf8 $((0x10EEEE))
 	_TUI_MD_PLACEHOLDER=$_U8
@@ -87,17 +94,52 @@ _tui_md.b64() {
 	_B64=$out
 }
 
+# _tui_md.img_id KEY -> _IID - the kitty image id of "PATH|COLS|ROWS": a hash of the key (0x800000 up, away from the small ids other
+# tools use), so a picture has the same id in every session and a stored render stays valid. A clash with another picture's id
+# takes the next free one.
+_tui_md.img_id() {
+	local key=$1 id
+	if [[ -n "${_TUI_MD_IMG_ID[$key]+x}" ]]; then
+		_IID=${_TUI_MD_IMG_ID[$key]}
+		return 0
+	fi
+	local LC_ALL=C h=5381 i c n=${#1}
+	for ((i = 0; i < n; i++)); do
+		printf -v c '%d' "'${key:i:1}"
+		h=$(((h * 33 + c) & 0x7FFFFFFF))
+	done
+	id=$((_TUI_MD_IMG_BASE + h % 8388607))
+	while [[ -n "${_TUI_MD_ID_OWNER[$id]+x}" && "${_TUI_MD_ID_OWNER[$id]}" != "$key" ]]; do
+		((++id > 16777214)) && id=$_TUI_MD_IMG_BASE
+	done
+	_TUI_MD_ID_OWNER[$id]=$key
+	_TUI_MD_IMG_ID[$key]=$id
+	_IID=$id
+}
+
 # _tui_md.png_size PATH -> _PW _PH - pixel size from the PNG header; rc 1 when it is not a readable PNG
 _tui_md.png_size() {
-	local info
+	local info side flat
 	if [[ -z "${_TUI_MD_PNG[$1]+x}" ]]; then
 		[[ -f "$1" && -r "$1" ]] || return 1
-		# the IHDR chunk: 8-byte signature, 4 length, 4 type, then width and height as big-endian 32-bit numbers
-		info=$(od -An -tu1 -N24 -- "$1" 2>/dev/null) || return 1
-		local -a b
-		read -ra b <<<"${info//$'\n'/ }" # od prints 16 bytes a line
-		((${#b[@]} == 24 && b[0] == 137 && b[1] == 80 && b[2] == 78 && b[3] == 71)) || return 1
-		_TUI_MD_PNG[$1]="$((b[16] << 24 | b[17] << 16 | b[18] << 8 | b[19]))x$((b[20] << 24 | b[21] << 16 | b[22] << 8 | b[23]))"
+		# the size is kept next to the pictures, valid while the file is not newer: od (a fork) only runs the first time
+		_tui_md.cache_dir
+		flat=${1//[^A-Za-z0-9._-]/_}
+		((${#flat} > 150)) && flat=${flat:0:120}_${#1}
+		side="$_CD/s_$flat"
+		if [[ -f "$side" && ! "$1" -nt "$side" ]]; then
+			IFS= read -r info <"$side" 2>/dev/null || info=""
+			[[ "$info" =~ ^[0-9]+x[0-9]+$ ]] && _TUI_MD_PNG[$1]=$info
+		fi
+		if [[ -z "${_TUI_MD_PNG[$1]+x}" ]]; then
+			# the IHDR chunk: 8-byte signature, 4 length, 4 type, then width and height as big-endian 32-bit numbers
+			info=$(od -An -tu1 -N24 -- "$1" 2>/dev/null) || return 1
+			local -a b
+			read -ra b <<<"${info//$'\n'/ }" # od prints 16 bytes a line
+			((${#b[@]} == 24 && b[0] == 137 && b[1] == 80 && b[2] == 78 && b[3] == 71)) || return 1
+			_TUI_MD_PNG[$1]="$((b[16] << 24 | b[17] << 16 | b[18] << 8 | b[19]))x$((b[20] << 24 | b[21] << 16 | b[22] << 8 | b[23]))"
+			printf '%s\n' "${_TUI_MD_PNG[$1]}" >"$side" 2>/dev/null
+		fi
 	fi
 	_PW=${_TUI_MD_PNG[$1]%%x*}
 	_PH=${_TUI_MD_PNG[$1]##*x}
@@ -120,11 +162,12 @@ _tui_md.is_png() {
 # _tui_md.convert FILE -> _IMGP - FILE as a PNG in the cache (SVG with rsvg-convert, other formats with ImageMagick or ffmpeg,
 # first frame of an animation); rc 1 when no installed tool can read it.
 _tui_md.convert() {
-	local f=$1 sum size name out head
+	local f=$1 flat out head
 	_tui_md.cache_dir
-	read -r sum size name < <(cksum <"$f") || return 1
-	out="$_CD/${sum}_${size}.png"
-	if [[ ! -f "$out" ]]; then
+	flat=${f//[^A-Za-z0-9._-]/_} # named after the path, validated by its age: no cksum of the whole file, no fork
+	((${#flat} > 150)) && flat=${flat:0:120}_${#f}
+	out="$_CD/c_$flat.png"
+	if [[ ! -f "$out" || "$f" -nt "$out" ]]; then
 		IFS= read -r -N 300 head <"$f" 2>/dev/null || true
 		if [[ "$head" == *"<svg"* ]]; then
 			command -v rsvg-convert >/dev/null 2>&1 || return 1
@@ -154,44 +197,102 @@ _tui_md.convert() {
 	_IMGP=$out
 }
 
-# _tui_md.fetch URL - starts a background download of URL into the cache (once); the image shows after the next re-render.
-_tui_md.fetch() {
-	local url=$1 sum size name file
-	[[ -n "${_TUI_MD_FETCH_PENDING[$url]+x}" ]] && return 0
-	_tui_md.cache_dir
-	read -r sum size name < <(cksum <<<"$url")
-	file="$_CD/url_${sum}_${size}.src"
-	_TUI_MD_FETCH_PENDING[$url]=$file
-	if command -v curl >/dev/null 2>&1; then
-		(curl -fsSL --max-time 15 --max-filesize 8000000 -o "$file.part" -- "$url" && mv -f "$file.part" "$file") >/dev/null 2>&1 &
-	elif command -v wget >/dev/null 2>&1; then
-		(wget -q -T 15 -O "$file.part" -- "$url" && mv -f "$file.part" "$file") >/dev/null 2>&1 &
+# _tui_md.url_file URL -> _UF - where the download of URL is kept: the URL with everything but letters, digits and ._- as "_"
+# (a long one cut, with its length added), so a lookup needs no fork. A file an older version stored under the cksum of the URL
+# is used when there is one (the lookup that finds it forks cksum, and only runs for a download that is not there yet).
+# Needs _tui_md.cache_dir to have run.
+_tui_md.url_file() {
+	local flat=${1//[^A-Za-z0-9._-]/_} sum size f
+	((${#flat} > 150)) && flat=${flat:0:120}_${#1}
+	_UF="$_CD/url_$flat.src"
+	[[ -f "$_UF" || -e "$_UF.run" ]] && return 0
+	read -r sum size _ < <(cksum <<<"$1")
+	for f in "$_CD"/url_${sum}_*.src; do [[ -f "$f" ]] && _UF=$f && return 0; done
+	return 0
+}
+
+# _tui_md.image_ready SRC - rc 0 when the picture SRC (as written in the Markdown) can be shown now: a local file that exists, a remote one
+# already downloaded (and fetching is on).
+_tui_md.image_ready() {
+	local src=$1
+	if [[ "$src" == http://* || "$src" == https://* ]]; then
+		((TUI_MD_IMAGE_FETCH)) || return 1
+		_tui_md.cache_dir
+		_tui_md.url_file "$src"
+		[[ -f "$_UF" ]]
 	else
-		return 1
+		[[ -f "$src" ]]
 	fi
+}
+
+# Downloads: a picture that is not in the cache is fetched in the background, at most TUI_MD_IMAGE_FETCH_JOBS at a time (a README
+# with fifty pictures must not start fifty curl processes at once: the big ones then time out). A running download has a
+# "FILE.run" marker, a finished one is FILE; a download that ended without a file is tried again, three times in all.
+# _tui_md.fetch URL - queues the download of URL (once).
+declare -gi TUI_MD_IMAGE_FETCH_JOBS="${TUI_MD_IMAGE_FETCH_JOBS:-5}" _TUI_MD_FETCH_AT=0
+declare -gA _TUI_MD_FETCH_TRIES=() _TUI_MD_FETCH_STARTED=() # URL -> tries so far; URL -> 1 while its curl was started and not collected
+declare -ga _TUI_MD_FETCH_QUEUE=()
+_tui_md.fetch() {
+	local url=$1
+	[[ -n "${_TUI_MD_FETCH_PENDING[$url]+x}" ]] && return 0
+	((${_TUI_MD_FETCH_TRIES[$url]:-0} >= 3)) && return 1
+	command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || return 1
+	_tui_md.cache_dir
+	_tui_md.url_file "$url"
+	_TUI_MD_FETCH_PENDING[$url]=$_UF
+	_TUI_MD_FETCH_QUEUE+=("$url")
+	_tui_md.fetch_start
 	_TUI_MD_FETCH_POLLS=0
 	tui.after 0.7 _tui_md.fetch_poll md_fetch 2>/dev/null
 }
 
-# _tui_md.fetch_poll - a finished download makes the shown panes render again; polls for about 40 s
+# _tui_md.fetch_start - starts queued downloads while fewer than the allowed number run.
+_tui_md.fetch_start() {
+	local url file running=0 f
+	for f in "${_TUI_MD_FETCH_PENDING[@]}"; do [[ -e "$f.run" ]] && ((running++)); done
+	while ((running < TUI_MD_IMAGE_FETCH_JOBS && ${#_TUI_MD_FETCH_QUEUE[@]} > 0)); do
+		url=${_TUI_MD_FETCH_QUEUE[0]}
+		_TUI_MD_FETCH_QUEUE=("${_TUI_MD_FETCH_QUEUE[@]:1}")
+		file=${_TUI_MD_FETCH_PENDING[$url]:-}
+		[[ -n "$file" ]] || continue
+		((_TUI_MD_FETCH_TRIES[$url]++))
+		_TUI_MD_FETCH_STARTED[$url]=1
+		: >"$file.run"
+		if command -v curl >/dev/null 2>&1; then
+			(curl -fsSL --max-time 30 --max-filesize 8000000 -o "$file.part" -- "$url" && mv -f "$file.part" "$file"; rm -f "$file.part" "$file.run") >/dev/null 2>&1 &
+		else
+			(wget -q -T 30 -O "$file.part" -- "$url" && mv -f "$file.part" "$file"; rm -f "$file.part" "$file.run") >/dev/null 2>&1 &
+		fi
+		((running++))
+	done
+}
+
+# _tui_md.fetch_poll - collects finished downloads, starts the next ones, retries a failed one, and lets the shown panes render
+# again once the downloads settle (or every 1.5 s while they go on): one re-render per batch, not one per picture.
 _tui_md.fetch_poll() {
-	local url done=0 pane
+	local url pane file t
 	for url in "${!_TUI_MD_FETCH_PENDING[@]}"; do
-		if [[ -f "${_TUI_MD_FETCH_PENDING[$url]}" ]]; then
-			unset '_TUI_MD_IMGPNG[$url]' '_TUI_MD_FETCH_PENDING[$url]'
+		file=${_TUI_MD_FETCH_PENDING[$url]}
+		if [[ -f "$file" ]]; then
+			unset '_TUI_MD_IMGPNG[$url]' '_TUI_MD_FETCH_PENDING[$url]' '_TUI_MD_FETCH_STARTED[$url]'
 			_TUI_MD_FETCHED[$url]=1
-			done=1
-		elif [[ ! -e "${_TUI_MD_FETCH_PENDING[$url]}.part" ]] && ((_TUI_MD_FETCH_POLLS > 2)); then
-			unset '_TUI_MD_FETCH_PENDING[$url]' # the download failed: placeholders stay
+			_TUI_MD_FETCH_DIRTY=1
+		elif [[ -n "${_TUI_MD_FETCH_STARTED[$url]+x}" && ! -e "$file.run" ]]; then
+			unset '_TUI_MD_FETCH_PENDING[$url]' '_TUI_MD_FETCH_STARTED[$url]' # ended without a file: the next render asks again (up to 3 tries)
 		fi
 	done
-	if ((done)); then
+	_tui_md.fetch_start
+	t=${EPOCHREALTIME//[!0-9]/}
+	if ((_TUI_MD_FETCH_DIRTY && (${#_TUI_MD_FETCH_PENDING[@]} == 0 || t - _TUI_MD_FETCH_AT >= 1500000))); then
+		_TUI_MD_FETCH_DIRTY=0 _TUI_MD_FETCH_AT=$t
+		((_TUI_MD_IMG_EPOCH++))
 		for pane in "${!_TUI_MD_SHOWN[@]}"; do unset '_TUI_MD_SHOWN_W[$pane]'; done
 		_tui_md.refit
 	fi
-	((++_TUI_MD_FETCH_POLLS < 60 && ${#_TUI_MD_FETCH_PENDING[@]} > 0)) && tui.after 0.7 _tui_md.fetch_poll md_fetch 2>/dev/null
+	((++_TUI_MD_FETCH_POLLS < 300 && ${#_TUI_MD_FETCH_PENDING[@]} > 0)) && tui.after 0.7 _tui_md.fetch_poll md_fetch 2>/dev/null
 	return 0
 }
+declare -gi _TUI_MD_FETCH_DIRTY=0
 declare -gA _TUI_MD_FETCHED=() # URL -> 1 once its file is in the cache
 
 # _tui_md.image_png SRC -> _IMGP - a PNG file for SRC (a path relative to TUI_MD_BASE_DIR, or a URL); rc 1 when there is none yet
@@ -204,12 +305,17 @@ _tui_md.image_png() {
 			[[ -n "$_IMGP" ]]
 			return
 		fi
+		if [[ -n "${_TUI_MD_FETCH_PENDING[$src]+x}" ]]; then # on its way: nothing to look up again
+			TUI_MD_IMAGE_MISS+=("$src")
+			return 1
+		fi
 		_tui_md.cache_dir
-		read -r key _ < <(cksum <<<"$src")
-		local f
-		for f in "$_CD"/url_${key}_*.src; do [[ -f "$f" ]] && file=$f; done
-		if [[ -z "${file:-}" ]]; then
-			_tui_md.fetch "$src"
+		_tui_md.url_file "$src"
+		if [[ -f "$_UF" ]]; then
+			file=$_UF
+		else
+			TUI_MD_IMAGE_MISS+=("$src")
+			((_TUI_MD_NO_FETCH)) || _tui_md.fetch "$src"
 			return 1
 		fi
 	else
@@ -220,7 +326,10 @@ _tui_md.image_png() {
 			[[ -n "$_IMGP" ]]
 			return
 		fi
-		[[ -f "$file" && -r "$file" ]] || return 1
+		if [[ ! -f "$file" || ! -r "$file" ]]; then
+			TUI_MD_IMAGE_MISS+=("$file")
+			return 1
+		fi
 	fi
 	if _tui_md.is_png "$file"; then
 		_IMGP=$file
@@ -235,7 +344,7 @@ _tui_md.image_png() {
 # _tui_md.image_segment ALT SRC WIDTH -> _SEG_COLS _SEG_ROWS (rows in _SEG_LINES) - one picture as placeholder rows, or the
 # placeholder text when it cannot be shown
 _tui_md.image_segment() {
-	local alt=$1 src=$2 width=$3 path cols rows key id r c line fg txt
+	local alt=$1 src=$2 width=$3 path cols rows key id r c line fg txt pad
 	_SEG_LINES=()
 	if _tui_md.image_png "$src" && _tui_md.png_size "$_IMGP"; then
 		path=$_IMGP
@@ -256,21 +365,26 @@ _tui_md.image_segment() {
 		((rows < 1)) && rows=1
 		((rows > ${#_TUI_MD_DIAC[@]})) && rows=${#_TUI_MD_DIAC[@]}
 		key="$path|$cols|$rows"
-		if [[ -z "${_TUI_MD_IMG_ID[$key]+x}" ]]; then
-			_TUI_MD_IMG_ID[$key]=$((_TUI_MD_IMG_BASE + ++_TUI_MD_IMG_NEXT))
+		_tui_md.img_id "$key"
+		id=$_IID
+		TUI_MD_IMAGE_IDS+=("$id")
+		if [[ -n "${_TUI_MD_SEG[$key]+x}" ]]; then # the same picture at the same size: nothing to build again
+			IFS=$'\x1e' read -ra _SEG_LINES <<<"${_TUI_MD_SEG[$key]}"
+			_SEG_COLS=$cols _SEG_ROWS=$rows
+			return 0
 		fi
-		id=${_TUI_MD_IMG_ID[$key]}
 		_tui_md.b64 "$path"
 		# transmit by path (t=f), PNG (f=100), with a virtual placement (U=1, a=T) of cols x rows cells; quiet (q=2)
 		TUI_MD_IMAGE_CMD[$id]=$'\e_Ga=T,U=1,f=100,t=f,i='"$id,c=$cols,r=$rows,q=2;$_B64"$'\e\\'
-		TUI_MD_IMAGE_IDS+=("$id")
 		fg=$'\e[38;2;'"$((id >> 16 & 255));$((id >> 8 & 255));$((id & 255))m"
+		printf -v pad '%*s' $((cols - 1)) ''
+		pad=${pad// /$_TUI_MD_PLACEHOLDER} # the cells right of the first one, in one expansion
 		for ((r = 0; r < rows; r++)); do
 			# the first cell of a row names row and column, the others continue from the cell on their left
-			line="${fg}${_TUI_MD_PLACEHOLDER}${_TUI_MD_DIAC[r]}${_TUI_MD_DIAC[0]}"
-			for ((c = 1; c < cols; c++)); do line+=$_TUI_MD_PLACEHOLDER; done
-			_SEG_LINES+=("${line}${_TUI_MD_RESET}")
+			_SEG_LINES+=("${fg}${_TUI_MD_PLACEHOLDER}${_TUI_MD_DIAC[r]}${_TUI_MD_DIAC[0]}${pad}${_TUI_MD_RESET}")
 		done
+		printf -v pad '%s\x1e' "${_SEG_LINES[@]}"
+		_TUI_MD_SEG[$key]=${pad%$'\x1e'}
 		_SEG_COLS=$cols _SEG_ROWS=$rows
 		return 0
 	fi
@@ -384,14 +498,18 @@ _tui_md.image_strip() {
 # _tui_md.images_present PANE - after a render: remembers which images the pane shows, deletes the ones it no longer shows
 # and sends the new ones (see _tui_md.images_send).
 _tui_md.images_present() {
-	local pane=$1 id out="" old=" ${_TUI_MD_V[$pane.imgs]:-} " now=" ${TUI_MD_IMAGE_IDS[*]} "
-	for id in $old; do
-		[[ "$now" == *" $id "* ]] && continue
-		if [[ -n "${_TUI_MD_IMG_SENT[$id]+x}" ]]; then
-			out+=$'\e_Ga=d,d=I,i='"$id"$',q=2\e\\'
-			unset '_TUI_MD_IMG_SENT[$id]'
-		fi
-	done
+	local pane=$1 keep=${2:-0} id out="" old=" ${_TUI_MD_V[$pane.imgs]:-} " now=" ${TUI_MD_IMAGE_IDS[*]} "
+	if ((keep)); then # a render that is not the whole document yet: what the pane showed before may still be needed
+		for id in $old; do [[ "$now" == *" $id "* ]] || now+="$id "; done
+	else
+		for id in $old; do
+			[[ "$now" == *" $id "* ]] && continue
+			if [[ -n "${_TUI_MD_IMG_SENT[$id]+x}" ]]; then
+				out+=$'\e_Ga=d,d=I,i='"$id"$',q=2\e\\'
+				unset '_TUI_MD_IMG_SENT[$id]'
+			fi
+		done
+	fi
 	now=${now# }
 	_TUI_MD_V[$pane.imgs]=${now% }
 	((${_TUI_RUNNING:-0})) && [[ -n "$out" ]] && printf '%s' "$out"
@@ -399,17 +517,21 @@ _tui_md.images_present() {
 	return 0
 }
 
-# _tui_md.images_send - writes the transmit-and-place command of every shown image the terminal has not got yet. The output
-# goes to the terminal, so it waits until the app runs (the ready hook and every refit call this again).
+# _tui_md.images_send [REPAINT] - writes the transmit-and-place command of every shown image the terminal has not got yet. The output
+# goes to the terminal, so it waits until the app runs (the ready hook and every refit call this again). With REPAINT the panes
+# that got pictures are drawn again: rows painted before their picture existed are not redrawn by every terminal on their own.
 _tui_md.images_send() {
-	local pane id out=""
+	local pane id out="" sent
 	((${_TUI_RUNNING:-0})) || return 0
 	for pane in "${!_TUI_MD_SHOWN[@]}"; do
+		sent=0
 		for id in ${_TUI_MD_V[$pane.imgs]:-}; do
 			[[ -n "${_TUI_MD_IMG_SENT[$id]+x}" ]] && continue
 			out+=${TUI_MD_IMAGE_CMD[$id]}
 			_TUI_MD_IMG_SENT[$id]=1
+			sent=1
 		done
+		((sent && ${1:-0})) && _tui._queue_render "$pane"
 	done
 	[[ -n "$out" ]] && printf '%s' "$out"
 	return 0

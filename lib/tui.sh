@@ -1585,7 +1585,6 @@ _tui._sgr_from() {
 	return 0
 }
 
-[[ -z "$key" ]] && printf "EMPTYKEY %s\n" "${FUNCNAME[*]} @ ${BASH_SOURCE[2]##*/}:${BASH_LINENO[1]}" >>/tmp/claude-1000/ek.txt
 _tui._style_v() {
 	local key="$1" fb="${2:-}" bgfb="${3:-}" fg bg mods
 	fg="${_TUI_STYLE_FG[$key]:-}"
@@ -2494,6 +2493,9 @@ tui.output() {
 	((_TUI_RUNNING)) && _tui._queue_render "$pane"
 }
 
+# 1 while the caller knows the rows in view did not change (a Markdown slice that only appended rows below them): the content and
+# bounds are stored, the repaint is skipped.
+declare -g _TUI_OUTPUT_QUIET=0
 # _tui.output_rows PANE ARRAY [KEEP] - tui.output for rows that already are an array (no newline in a row): no join, no split.
 # KEEP=1: the widest row did not change (only styles did), so the pane's measured width is kept.
 _tui.output_rows() {
@@ -2504,7 +2506,7 @@ _tui.output_rows() {
 	declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
 	pane_arr=("${_or_rows[@]}")
 	if [[ "${3:-}" == 1 ]]; then _ps.panes.set "$pane" lines "${#pane_arr[@]}"; else _tui._calc_bounds "$pane"; fi
-	((_TUI_RUNNING)) && _tui._queue_render "$pane"
+	((_TUI_RUNNING && ! _TUI_OUTPUT_QUIET)) && _tui._queue_render "$pane"
 	return 0
 }
 

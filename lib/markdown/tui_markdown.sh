@@ -80,11 +80,20 @@ declare -ga _TUI_MD_BI=() _TUI_MD_BE=() _TUI_MD_BP=() # top-level blocks of the 
 declare -gi _TUI_MD_END_I=0 _TUI_MD_PD_NEXT=0 _TUI_MD_PREPS=0
 declare -ga _TUI_MD_PD_KEY=() _TUI_MD_PD_DEG=() _TUI_MD_PD_HAS=() # prepared documents: slot -> text, degraded flag, blocks known
 declare -g _PDS="" _BK="" _TL=0
+declare -gA _TUI_MD_BG=() _TUI_MD_BGAT=() _TUI_MD_BGFAIL=() # pane -> pid of its background render / when it started / 1 when it gave nothing
+declare -g TUI_MD_BACKGROUND="${TUI_MD_BACKGROUND:-1}"      # 0: always render the rest of a document in slices, in this process
+declare -gi _TUI_MD_GEN=0 # counts what overwrites the render in TUI_MD_* (another render, a cache hit, an unstash)
+declare -g _TUI_MD_OWNER="" # "PANE:GEN": the unfinished render of PANE is still in TUI_MD_* untouched, a slice can go on from it
+declare -g _TUI_MD_APPEND=0 # 1 while a background slice stores rows it only appended (see _tui_md.compose)
+declare -gA _TUI_MD_QN=() # pane -> slices since its render began (every 4th repaints)
 declare -gA _TUI_MD_PEND=() _TUI_MD_RS=() # pane -> 1 while its render is unfinished; pane.FIELD -> where it resumes
 declare -ga _TUI_MD_RC_KEY=() # row cache: slot -> key; the slot's arrays are _TUI_MD_RC_<what>_<slot>
 declare -gi _TUI_MD_RC_NEXT=0
 declare -g _CK="" _TUI_MD_RES_KEY=""
-declare -ga _TUI_MD_RC_DEG=()
+declare -ga _TUI_MD_RC_DEG=() _TUI_MD_RC_IDS=() # per cache slot: degraded flag; ids of the pictures the render shows
+declare -g _TUI_MD_RES_EPOCH=0 # _TUI_MD_IMG_EPOCH when the render in progress began (a download finishing makes it outdated)
+declare -gA _TUI_MD_DC_OWN=() _TUI_MD_DC_CMD=() # a disk snapshot's pictures: id -> "PATH|COLS|ROWS" key / transmit command
+declare -ga _TUI_MD_DC_MISS=()
 declare -gi _CN=0
 declare -g _MD_OUT="" _VL=0 _FC=0 _CE=0 _LT="" _LU="" _LN=0 _CH="" _CT="" _MD_ROW=""
 
@@ -539,6 +548,15 @@ _tui_md.cells() {
 	[[ "$s" != *[!\ -~]* ]] && return 0
 	local u=$'\xc3\xa9'
 	((${#u} == 1)) || return 0
+	if [[ -n "$_TUI_MD_PLACEHOLDER" && "$s" == *"$_TUI_MD_PLACEHOLDER"* ]]; then
+		# a picture's rows: placeholder cells (one cell each), their row/column diacritics (none) and plain ASCII between pictures
+		run=${s//"$_TUI_MD_PLACEHOLDER"/}
+		c=${run//["$_TUI_MD_ZWSET"]/}
+		if [[ "$c" != *[!\ -~]* ]]; then
+			_VL=$((${#s} - ${#run} + ${#c}))
+			return 0
+		fi
+	fi
 	while [[ -n "$s" ]]; do
 		run=${s%%[!\ -~]*} # an ASCII run costs one cell per character: skipped whole
 		s=${s:${#run}}
@@ -697,8 +715,12 @@ _tui_md.code_end() {
 # _tui_md.find_close STR FROM CH N DEPTH -> _FC - start of the N delimiter characters that close an emphasis opened before FROM.
 # A run that can only open (space before, text after) is a nested span: it is skipped together with its own closer.
 _tui_md.find_close() {
-	local s=$1 i=$2 ch=$3 n=$4 d=$5 len=${#1} c j m p nx can_close can_open k
+	local s=$1 i=$2 ch=$3 n=$4 d=$5 len=${#1} c j m p nx can_close can_open k rest sp="[\\\\\`$3]"
 	while ((i < len)); do
+		rest=${s:i}
+		rest=${rest%%$sp*} # jump to the next backslash, backtick or delimiter instead of stepping
+		((i += ${#rest}))
+		((i < len)) || break
 		c=${s:i:1}
 		if [[ "$c" == '\' ]]; then
 			((i += 2))
@@ -742,8 +764,12 @@ _tui_md.find_close() {
 
 # _tui_md.link STR -> _LT _LU _LN - parses "[text](url "title")" at the start of STR: text, url, index after ")"; rc 1 when it is not a link.
 _tui_md.link() {
-	local s=$1 len=${#1} i=1 depth=1 j pd=1 ch dest
+	local s=$1 len=${#1} i=1 depth=1 j pd=1 ch dest rest
 	while ((i < len)); do
+		rest=${s:i}
+		rest=${rest%%[\\\`\[\]]*} # jump to the next backslash, backtick or bracket
+		((i += ${#rest}))
+		((i < len)) || break
 		ch=${s:i:1}
 		case "$ch" in
 			'\')
@@ -783,6 +809,10 @@ _tui_md.link() {
 	fi
 	j=$((i + 2))
 	while ((j < len)); do
+		rest=${s:j}
+		rest=${rest%%[\\()]*} # jump to the next backslash or parenthesis
+		((j += ${#rest}))
+		((j < len)) || break
 		ch=${s:j:1}
 		case "$ch" in
 			'\')
@@ -994,42 +1024,95 @@ _tui_md.inline_memo() {
 	_TUI_MD_IMEMO[$key]="$k"$'\x1e'"$f"$'\x1e'"$urls"$'\x1e'"$texts"$'\x1e'"$_MD_OUT"
 }
 
+# ── the inline memo on disk ─────────────────────────────────────────────
+# $TUI_HOME/cache/markdown/<path with / as %>.memo holds the inline results made while a file was rendered, with the signature
+# they are valid for (_tui_md.memo_sync). A new session, or the same file at another width, starts from them: only the wrapping
+# is left to do. Loaded once per file and session; saved, by a background process, when a render of the file completes and the
+# memo has grown since it was loaded.
+declare -gA _TUI_MD_MEMO_FROM=() _TUI_MD_DM=() # file -> entries it was loaded or last saved with; the entries being loaded
+declare -g _TUI_MD_DM_SIG="" _TUI_MD_DM_OK=0
+
+_tui_md.memo_path() {
+	local n=${1//\//%}
+	[[ -n "${TUI_HOME:-}" && -n "$1" ]] && ((${#n} < 180)) || return 1
+	_MP="$TUI_HOME/cache/markdown/$n.memo"
+}
+
+# _tui_md.memo_load SRC - merges the file's stored inline results into the memo when they were made under today's signature.
+_tui_md.memo_load() {
+	local k
+	[[ -n "${_TUI_MD_MEMO_FROM[$1]+x}" ]] && return 0
+	_TUI_MD_MEMO_FROM[$1]=0
+	_tui_md.memo_path "$1" || return 1
+	[[ -r "$_MP" && "$_MP" -nt "$1" ]] || return 1
+	_TUI_MD_DM=() _TUI_MD_DM_SIG="" _TUI_MD_DM_OK=0
+	source "$_MP" 2>/dev/null
+	if [[ $_TUI_MD_DM_OK == 1 && "$_TUI_MD_DM_SIG" == "$_TUI_MD_IMEMO_SIG" ]]; then
+		for k in "${!_TUI_MD_DM[@]}"; do _TUI_MD_IMEMO[$k]=${_TUI_MD_DM[$k]}; done
+		_TUI_MD_MEMO_FROM[$1]=${#_TUI_MD_DM[@]}
+	fi
+	_TUI_MD_DM=()
+}
+
+# _tui_md.memo_save SRC - writes the memo for SRC in a background process (nothing when it has not grown).
+_tui_md.memo_save() {
+	local n=${#_TUI_MD_IMEMO[@]}
+	((n > 0 && n != ${_TUI_MD_MEMO_FROM[$1]:--1})) || return 0
+	_tui_md.memo_path "$1" || return 1
+	_TUI_MD_MEMO_FROM[$1]=$n
+	local f=$_MP
+	(
+		{
+			printf '_TUI_MD_DM_SIG=%q\n' "$_TUI_MD_IMEMO_SIG"
+			for k in "${!_TUI_MD_IMEMO[@]}"; do printf '_TUI_MD_DM[%q]=%q\n' "$k" "${_TUI_MD_IMEMO[$k]}"; done
+			printf '_TUI_MD_DM_OK=1\n'
+		} >"$f.$BASHPID" 2>/dev/null && mv -f "$f.$BASHPID" "$f" 2>/dev/null
+	) >/dev/null 2>&1 &
+}
+
 # ── row cache ──────────────────────────────────────────────────────────
 
 _TUI_MD_RC_SLOTS=6
+_TUI_MD_CACHE_VER=3 # bump when what a snapshot holds changes: older snapshots are then never read
 _TUI_MD_RC_ARRAYS=(ROWS MAP URLS TEXTS LROWS HEADS)
 
 # _tui_md.cache_clear - forgets every cached render.
 _tui_md.cache_clear() { _TUI_MD_RC_KEY=(); _TUI_MD_RC_NEXT=0; }
 
-# _tui_md.cache_flags WIDTH -> _CK - everything a render depends on besides the text. Graphics images read files and
-# allocate ids, so a render that may show one is not cacheable (rc 1).
+# _tui_md.cache_flags WIDTH -> _CK - everything a render depends on besides the text. A graphics render also depends on the
+# pictures it found: the memory cache adds _TUI_MD_IMG_EPOCH to the key (a download finishing bumps it), the disk snapshot
+# keeps the pictures' ids and the sources it could not show (see _tui_md.disk_images_ok).
 _tui_md.cache_flags() {
-	[[ "$TUI_MD_IMAGES" == graphics ]] && return 1
 	_tui_md.sync
-	_CK="$1|$TUI_MD_BREAKS|$TUI_MD_FONTS|$TUI_MD_TABLES|$TUI_MD_TABLE_OVERFLOW|$TUI_MD_IMAGES|$TUI_MD_LINK_URL|$TUI_MD_MAX_BYTES"
+	_CK="$1|v$_TUI_MD_CACHE_VER|$TUI_MD_BREAKS|$TUI_MD_FONTS|$TUI_MD_TABLES|$TUI_MD_TABLE_OVERFLOW|$TUI_MD_IMAGES|$TUI_MD_LINK_URL|$TUI_MD_MAX_BYTES"
 	_CK+="|$_TUI_MD_FOCUS_LINK|$TUI_MD_BASE_DIR|${_TUI_MD_PLACEHOLDER:-}|${LC_ALL-}${LC_CTYPE-}${LANG-}|${_TUI_MD_HFONT[*]}|${!_TUI_MD_HL[*]}|${_TUI_MD_SGR[*]}"
+	if [[ "$TUI_MD_IMAGES" == graphics ]]; then
+		local _ip
+		tui.md.image_protocol _ip
+		_CK+="|$_ip|$TUI_MD_IMAGE_MAX_COLS|$TUI_MD_IMAGE_MAX_ROWS|$TUI_MD_IMAGE_FETCH"
+	fi
 }
 
 # _tui_md.cache_get FLAGS TEXT - loads a cached render into TUI_MD_*; rc 1 on a miss.
 _tui_md.cache_get() {
-	local key="$1"$'\x1f'"$2" s k
+	local key="$1|${_TUI_MD_IMG_EPOCH:-0}"$'\x1f'"$2" s k
 	for s in "${!_TUI_MD_RC_KEY[@]}"; do
 		[[ "${_TUI_MD_RC_KEY[s]}" == "$key" ]] || continue
 		local -n rows=_TUI_MD_RC_ROWS_$s map=_TUI_MD_RC_MAP_$s urls=_TUI_MD_RC_URLS_$s texts=_TUI_MD_RC_TEXTS_$s
 		local -n lrows=_TUI_MD_RC_LROWS_$s heads=_TUI_MD_RC_HEADS_$s anch=_TUI_MD_RC_ANCH_$s
+		((_TUI_MD_GEN++))
 		TUI_MD_ROWS=("${rows[@]}") TUI_MD_MAP=("${map[@]}") TUI_MD_LINK_URLS=("${urls[@]}") TUI_MD_LINK_TEXTS=("${texts[@]}")
 		TUI_MD_LINK_ROWS=("${lrows[@]}") TUI_MD_HEADS=("${heads[@]}")
 		TUI_MD_ANCHORS=()
 		for k in "${!anch[@]}"; do TUI_MD_ANCHORS[$k]=${anch[$k]}; done
 		TUI_MD_DEGRADED=${_TUI_MD_RC_DEG[s]}
-		TUI_MD_IMAGE_IDS=() _TUI_MD_REFS=()
+		TUI_MD_IMAGE_IDS=(${_TUI_MD_RC_IDS[s]}) TUI_MD_IMAGE_MISS=() _TUI_MD_REFS=()
 		return 0
 	done
 	return 1
 }
 
-# _tui_md.cache_put FLAGS TEXT - keeps the completed render in TUI_MD_* (the oldest of the slots is replaced).
+# _tui_md.cache_put FLAGS TEXT [EPOCH] - keeps the completed render in TUI_MD_* (the oldest of the slots is replaced).
 _tui_md.cache_put() {
 	local s=$_TUI_MD_RC_NEXT k
 	_TUI_MD_RC_NEXT=$(((s + 1) % _TUI_MD_RC_SLOTS))
@@ -1042,7 +1125,8 @@ _tui_md.cache_put() {
 	anch=()
 	for k in "${!TUI_MD_ANCHORS[@]}"; do anch[$k]=${TUI_MD_ANCHORS[$k]}; done
 	_TUI_MD_RC_DEG[s]=$TUI_MD_DEGRADED
-	_TUI_MD_RC_KEY[s]="$1"$'\x1f'"$2"
+	_TUI_MD_RC_IDS[s]="${TUI_MD_IMAGE_IDS[*]}"
+	_TUI_MD_RC_KEY[s]="$1|${3:-${_TUI_MD_IMG_EPOCH:-0}}"$'\x1f'"$2"
 }
 
 # ── disk snapshot: a file's render survives the session ──────────────────────
@@ -1061,9 +1145,37 @@ _tui_md.disk_path() {
 _tui_md.disk_get() {
 	_tui_md.disk_path "$1" "$2" || return 1
 	[[ -r "$_DP" && "$_DP" -nt "$1" ]] || return 1
-	_TUI_MD_DC_KEY="" _TUI_MD_DC_OK=0
+	((_TUI_MD_GEN++))
+	_TUI_MD_DC_KEY="" _TUI_MD_DC_OK=0 _TUI_MD_DC_OWN=() _TUI_MD_DC_CMD=()
+	TUI_MD_IMAGE_IDS=() TUI_MD_IMAGE_MISS=()
 	source "$_DP" 2>/dev/null || return 1
-	[[ $_TUI_MD_DC_OK == 1 && "$_TUI_MD_DC_KEY" == "$3" ]]
+	[[ $_TUI_MD_DC_OK == 1 && "$_TUI_MD_DC_KEY" == "$3" ]] && _tui_md.disk_images_ok "$_DP"
+}
+
+# _tui_md.disk_images_ok SNAPSHOT - the pictures of a loaded snapshot are still what they were: every picture file exists and
+# is older than the snapshot, no id belongs to another picture in this session, and none of the sources the snapshot could not
+# show is available now. Then the ids and transmit commands are registered.
+_tui_md.disk_images_ok() {
+	local id key m
+	for id in "${TUI_MD_IMAGE_IDS[@]}"; do
+		key=${_TUI_MD_DC_OWN[$id]:-}
+		[[ -n "$key" ]] || return 1
+		[[ -z "${_TUI_MD_ID_OWNER[$id]+x}" || "${_TUI_MD_ID_OWNER[$id]}" == "$key" ]] || return 1
+		key=${key%|*|*}
+		[[ -f "$key" && ! "$key" -nt "$1" ]] || return 1
+	done
+	for m in "${TUI_MD_IMAGE_MISS[@]}"; do
+		_tui_md.image_ready "$m" && return 1
+	done
+	for id in "${TUI_MD_IMAGE_IDS[@]}"; do
+		key=${_TUI_MD_DC_OWN[$id]}
+		_TUI_MD_ID_OWNER[$id]=$key _TUI_MD_IMG_ID[$key]=$id TUI_MD_IMAGE_CMD[$id]=${_TUI_MD_DC_CMD[$id]}
+	done
+	# the pictures the snapshot could not show are still to be downloaded (the render that made it may have been a background one)
+	if ((TUI_MD_IMAGE_FETCH)); then
+		for m in "${TUI_MD_IMAGE_MISS[@]}"; do [[ "$m" == http://* || "$m" == https://* ]] && _tui_md.fetch "$m"; done
+	fi
+	return 0
 }
 
 # _tui_md.disk_dump NAME - one array as an assignment (nothing for an empty one: printf %q with no argument prints '')
@@ -1086,6 +1198,7 @@ _tui_md.disk_put() {
 		mkdir -p "$dir" 2>/dev/null || return 1
 		_TUI_MD_DISK_DIR_OK=1
 	}
+	local id
 	{
 		printf '_TUI_MD_DC_KEY=%q\n' "$3"
 		_tui_md.disk_dump TUI_MD_ROWS
@@ -1096,8 +1209,13 @@ _tui_md.disk_put() {
 		_tui_md.disk_dump TUI_MD_HEADS
 		printf 'TUI_MD_ANCHORS=()\n'
 		for k in "${!TUI_MD_ANCHORS[@]}"; do printf 'TUI_MD_ANCHORS[%q]=%q\n' "$k" "${TUI_MD_ANCHORS[$k]}"; done
+		printf 'TUI_MD_IMAGE_IDS=(%s)\n' "${TUI_MD_IMAGE_IDS[*]}"
+		_tui_md.disk_dump TUI_MD_IMAGE_MISS
+		for id in "${TUI_MD_IMAGE_IDS[@]}"; do
+			printf '_TUI_MD_DC_OWN[%s]=%q\n_TUI_MD_DC_CMD[%s]=%q\n' "$id" "${_TUI_MD_ID_OWNER[$id]}" "$id" "${TUI_MD_IMAGE_CMD[$id]}"
+		done
 		printf 'TUI_MD_DEGRADED=%d\n_TUI_MD_DC_OK=1\n' "$TUI_MD_DEGRADED"
-	} >"$_DP" 2>/dev/null
+	} >"$_DP.$BASHPID" 2>/dev/null && mv -f "$_DP.$BASHPID" "$_DP" 2>/dev/null # written whole or not at all: a background render may be read at any moment
 }
 
 # _tui_md.render_cached TEXT WIDTH [ROWS] - tui.md.render through the row cache (_TUI_MD_HIT says whether it hit). With
@@ -1107,7 +1225,7 @@ _tui_md.render_cached() {
 	((width < 1)) && width=1
 	_TUI_MD_HIT=0
 	if _tui_md.cache_flags "$width"; then
-		_TUI_MD_RES_KEY=$_CK
+		_TUI_MD_RES_KEY=$_CK _TUI_MD_RES_EPOCH=${_TUI_MD_IMG_EPOCH:-0}
 		if _tui_md.cache_get "$_CK" "$1"; then
 			_TUI_MD_HIT=1 _TUI_MD_RES_DONE=1
 			_tui_perf.count md_cache_hit
@@ -1115,7 +1233,7 @@ _tui_md.render_cached() {
 		fi
 		if [[ -n "$_TUI_MD_DISK_SRC" ]] && ((_TUI_MD_FOCUS_LINK < 0)) && _tui_perf.begin md_disk_load && _tui_md.disk_get "$_TUI_MD_DISK_SRC" "$width" "$_CK"; then
 			_tui_perf.end md_disk_load
-			TUI_MD_IMAGE_IDS=() _TUI_MD_REFS=()
+			_TUI_MD_REFS=()
 			_TUI_MD_HIT=2 _TUI_MD_RES_DONE=1
 			_tui_md.cache_put "$_CK" "$1"
 			_tui_perf.count md_disk_hit
@@ -1128,7 +1246,7 @@ _tui_md.render_cached() {
 		if ((_TUI_MD_RES_DONE && ${4:-0} == 0)); then # a render that began mid-document is not the document
 			_tui_md.cache_put "$_CK" "$1"
 			_tui_md.pd_blocks "$1"
-			[[ -n "$_TUI_MD_DISK_SRC" ]] && ((_TUI_MD_FOCUS_LINK < 0)) && _tui_md.disk_put "$_TUI_MD_DISK_SRC" "$width" "$_CK"
+			[[ -n "$_TUI_MD_DISK_SRC" ]] && ((_TUI_MD_FOCUS_LINK < 0)) && _tui_md.disk_put "$_TUI_MD_DISK_SRC" "$width" "$_CK" && _tui_md.memo_save "$_TUI_MD_DISK_SRC"
 		fi
 		return 0
 	fi
@@ -1519,6 +1637,8 @@ _tui_md.prepare() {
 
 # _tui_md.reset_out - empties what a render produces.
 _tui_md.reset_out() {
+	((_TUI_MD_GEN++))
+	TUI_MD_IMAGE_MISS=()
 	TUI_MD_ROWS=() TUI_MD_MAP=() TUI_MD_LINK_URLS=() TUI_MD_LINK_TEXTS=() TUI_MD_LINK_ROWS=() TUI_MD_HEADS=()
 	TUI_MD_ANCHORS=() _TUI_MD_REFS=() TUI_MD_IMAGE_IDS=()
 }
@@ -1647,6 +1767,7 @@ _tui_md.render_more() {
 	local from=${#TUI_MD_ROWS[@]}
 	((_TUI_MD_RES_DONE)) && return 0
 	_tui_md.memo_sync
+	[[ -n "$_TUI_MD_DISK_SRC" ]] && _tui_md.memo_load "$_TUI_MD_DISK_SRC"
 	_TUI_MD_STOP_ROWS=$2 _TUI_MD_STOP_AT=0 _TUI_MD_STOP=0
 	if (($1 > 0)); then _TUI_MD_STOP_AT=$((${EPOCHREALTIME//[!0-9]/} + $1)); fi
 	((_TUI_MD_STOP_ROWS || _TUI_MD_STOP_AT)) && _TUI_MD_STOP=1
@@ -1766,6 +1887,7 @@ tui.md.style_lines() {
 	local state=$1 infence=0 fchar="" flen=0 line
 	shift
 	[[ -n "$state" ]] && infence=1 fchar=${state%%:*} flen=${state##*:}
+	((_TUI_MD_GEN++))
 	TUI_MD_ROWS=()
 	_TUI_MD_KEEP=1 _TUI_MD_DEPTH=0 TUI_MD_DEGRADED=0
 	for line in "$@"; do
@@ -1837,7 +1959,7 @@ _tui_md.paint_pane() {
 	_TUI_MD_FOCUS_LINK=-1 # the focused link is drawn over the rows by _tui_md.compose, so a focus step re-renders nothing
 	TUI_MD_BASE_DIR=""
 	[[ -n "${_TUI_MD_V[$pane.file]:-}" ]] && TUI_MD_BASE_DIR=${_TUI_MD_V[$pane.file]%/*}
-	unset '_TUI_MD_PEND[$pane]'
+	unset '_TUI_MD_PEND[$pane]' '_TUI_MD_BG[$pane]'
 	text=${_TUI_MD_SHOWN[$pane]}
 	if ((${_TUI_P_SOFF_V[$pane]:-0} > 0)) && _tui_md.top_line "$pane"; then L=$_TL; fi
 	if ((L > 1 && rows > 0)); then
@@ -1856,15 +1978,19 @@ _tui_md.paint_pane() {
 	_TUI_MD_DISK_SRC=""
 	_TUI_MD_FOCUS_LINK=-1
 	TUI_MD_BASE_DIR=""
-	_tui_md.images_present "$pane"
+	_tui_md.images_present "$pane" $((!_TUI_MD_RES_DONE || (start > 0 && _TUI_MD_HIT == 0))) # keep: a render that is not the whole document
+	_TUI_MD_V[$pane.miss]=${TUI_MD_IMAGE_MISS[*]}
 	_tui_md.store "$pane"
 	_TUI_MD_RS[$pane.pre_end]="" _TUI_MD_RS[$pane.pstarted]=""
 	if ((start > 0 && _TUI_MD_HIT == 0)); then
-		# viewport first: the rows shown begin at block START; the part above is rendered by _tui_md.more_pane
-		_tui_md.pend_save "$pane"
+		# viewport first: the rows shown begin at block START; the rest is rendered by a background process (_tui_md.bg_start)
+		# or, when there is none, by _tui_md.more_pane in slices
 		_TUI_MD_RS[$pane.pre_end]=$start _TUI_MD_RS[$pane.l]=$L _TUI_MD_RS[$pane.soff0]=0
-		((_TUI_MD_RES_DONE)) && _TUI_MD_RS[$pane.phase]=pre || _TUI_MD_RS[$pane.phase]=fwd
-		_TUI_MD_RS[$pane.pi]=0 _TUI_MD_RS[$pane.pem]=0 _TUI_MD_RS[$pane.ppp]=0
+		if ! _tui_md.bg_start "$pane" "$text" "$w"; then
+			_tui_md.pend_save "$pane"
+			((_TUI_MD_RES_DONE)) && _TUI_MD_RS[$pane.phase]=pre || { _TUI_MD_RS[$pane.phase]=fwd _TUI_MD_OWNER="$pane:$_TUI_MD_GEN"; }
+			_TUI_MD_RS[$pane.pi]=0 _TUI_MD_RS[$pane.pem]=0 _TUI_MD_RS[$pane.ppp]=0
+		fi
 		_TUI_P_SOFF_V[$pane]=0
 		_TUI_MD_PEND[$pane]=1
 		tui.after 0.02 _tui_md.more_timer md_more
@@ -1872,13 +1998,65 @@ _tui_md.paint_pane() {
 		return 0
 	fi
 	if ((!_TUI_MD_RES_DONE)); then
-		_tui_md.pend_save "$pane"
-		_TUI_MD_RS[$pane.phase]=fwd
+		if ! _tui_md.bg_start "$pane" "$text" "$w"; then
+			_tui_md.pend_save "$pane"
+			_TUI_MD_RS[$pane.phase]=fwd _TUI_MD_OWNER="$pane:$_TUI_MD_GEN"
+		fi
 		_TUI_MD_PEND[$pane]=1
 		tui.after 0.02 _tui_md.more_timer md_more
 	fi
 	_tui_md.compose "$pane"
 	((L > 1 && _TUI_MD_RES_DONE)) && _tui_md.scroll_to_line "$pane" "$L"
+	return 0
+}
+
+# ── the rest of a document in a background process ──────────────────────
+# A pane paints the rows in view and then needs the whole document (scrollbar, links, search, the rows below). Instead of
+# rendering the rest in this process in slices (each one stores and paints the rows again and delays input), a forked process
+# renders the whole document at the pane's width and leaves it in the disk snapshot (the file's render, see _tui_md.disk_put);
+# the pane takes it from there when it is done (_tui_md.bg_collect: one paint_pane that hits the snapshot). Only for a file shown
+# with tui.md.show_file; anything else, a failed snapshot or TUI_MD_BACKGROUND=0 renders in slices as before.
+
+# _tui_md.bg_start PANE TEXT WIDTH - forks the render; rc 1 when it cannot be used (the caller renders in slices).
+_tui_md.bg_start() {
+	local pane=$1 text=$2 w=$3 src=${_TUI_MD_V[$pane.disk]:-} base=""
+	((TUI_MD_BACKGROUND)) && [[ -n "$src" && -z "${_TUI_MD_BGFAIL[$pane]:-}" ]] || return 1
+	_tui_md.disk_path "$src" "$w" || return 1
+	[[ -n "${_TUI_MD_V[$pane.file]:-}" ]] && base=${_TUI_MD_V[$pane.file]%/*}
+	(
+		_TUI_MD_DISK_SRC=$src TUI_MD_BASE_DIR=$base _TUI_MD_FOCUS_LINK=-1 _TUI_MD_NO_FETCH=1
+		_tui_md.render_cached "$text" "$w" 0
+	) >/dev/null 2>&1 &
+	_TUI_MD_BG[$pane]=$!
+	_TUI_MD_BGAT[$pane]=${EPOCHREALTIME//[!0-9]/}
+	return 0
+}
+
+# _tui_md.bg_collect PANE BLOCK - the pane's background render, when it has finished (BLOCK=1: waits for it): the pane is painted
+# again from the snapshot, at the place it was. rc 1 while it still runs.
+_tui_md.bg_collect() {
+	local pane=$1 pid=${_TUI_MD_BG[$pane]:-} soff l
+	[[ -n "$pid" ]] || return 0
+	if ((${2:-0})); then
+		wait "$pid" 2>/dev/null
+	elif kill -0 "$pid" 2>/dev/null; then
+		if ((${EPOCHREALTIME//[!0-9]/} - ${_TUI_MD_BGAT[$pane]:-0} > 60000000)); then
+			kill "$pid" 2>/dev/null
+			wait "$pid" 2>/dev/null
+		else
+			return 1
+		fi
+	else
+		wait "$pid" 2>/dev/null
+	fi
+	unset '_TUI_MD_BG[$pane]'
+	soff=${_TUI_P_SOFF_V[$pane]:-0}
+	l=${_TUI_MD_RS[$pane.l]:-0}
+	_TUI_MD_BGFAIL[$pane]=1 # if the snapshot is not there, this paint renders in slices instead of forking again
+	_tui_md.paint_pane "$pane"
+	((_TUI_MD_RES_DONE)) && unset '_TUI_MD_BGFAIL[$pane]'
+	# a pane that has not been scrolled since the first paint returns to the line it was opened at
+	((soff == 0 && l > 1 && _TUI_MD_RES_DONE)) && _tui_md.scroll_to_line "$pane" "$l"
 	return 0
 }
 
@@ -1892,7 +2070,7 @@ _tui_md.pend_save() {
 	rf=()
 	for k in "${!_TUI_MD_REFS[@]}"; do rf[$k]=${_TUI_MD_REFS[$k]}; done
 	_TUI_MD_RS[$pane.i]=$_TUI_MD_RES_I _TUI_MD_RS[$pane.em]=$_TUI_MD_RES_EM _TUI_MD_RS[$pane.pp]=$_TUI_MD_RES_PP
-	_TUI_MD_RS[$pane.w]=$_TUI_MD_RES_W _TUI_MD_RS[$pane.key]=$_TUI_MD_RES_KEY _TUI_MD_RS[$pane.deg]=$TUI_MD_DEGRADED
+	_TUI_MD_RS[$pane.w]=$_TUI_MD_RES_W _TUI_MD_RS[$pane.key]=$_TUI_MD_RES_KEY _TUI_MD_RS[$pane.deg]=$TUI_MD_DEGRADED _TUI_MD_RS[$pane.epoch]=$_TUI_MD_RES_EPOCH
 	_TUI_MD_RS[$pane.disk]=${_TUI_MD_V[$pane.disk]:-}
 }
 
@@ -1902,6 +2080,10 @@ _tui_md.pend_save() {
 _tui_md.more_pane() {
 	local pane=$1 k phase
 	[[ -n "${_TUI_MD_PEND[$pane]+x}" ]] || return 0
+	if [[ -n "${_TUI_MD_BG[$pane]+x}" ]]; then # a background process renders it: wait for it only when the caller needs it now
+		_tui_md.bg_collect "$pane" $(($2 == 0))
+		return 0
+	fi
 	_tui_md.sync_key
 	if [[ "$_SK" != "$_TUI_MD_SYNC_KEY" ]]; then # the theme changed meanwhile: the rows so far no longer match
 		_tui_md.paint_pane "$pane" full
@@ -1911,7 +2093,7 @@ _tui_md.more_pane() {
 	_TUI_MD_KEEP=0 _TUI_MD_DEPTH=0 _TUI_MD_FOCUS_LINK=-1
 	TUI_MD_BASE_DIR=""
 	[[ -n "${_TUI_MD_V[$pane.file]:-}" ]] && TUI_MD_BASE_DIR=${_TUI_MD_V[$pane.file]%/*}
-	if [[ -n "${_TUI_MD_RS[$pane.key]}" ]] && _tui_md.cache_flags "${_TUI_MD_RS[$pane.w]}" && [[ "$_CK" != "${_TUI_MD_RS[$pane.key]}" ]]; then
+	if [[ -n "${_TUI_MD_RS[$pane.key]}" ]] && _tui_md.cache_flags "${_TUI_MD_RS[$pane.w]}" && [[ "$_CK" != "${_TUI_MD_RS[$pane.key]}" || "${_TUI_MD_RS[$pane.epoch]:-0}" != "${_TUI_MD_IMG_EPOCH:-0}" ]]; then
 		TUI_MD_BASE_DIR="" # a style or setting changed since the render began: what is rendered so far does not match
 		_tui_md.paint_pane "$pane" full
 		return 0
@@ -1923,17 +2105,27 @@ _tui_md.more_pane() {
 		TUI_MD_BASE_DIR=""
 		return 0
 	fi
-	_tui_md.unstash "_TUI_MD_" "$pane"
+	local -n _ob=_TUI_MD_B_$pane
+	local oldrows=${#_ob[@]} quiet=0 fast=0
 	local -n ln=_TUI_MD_LN_$pane rf=_TUI_MD_RF_$pane
-	_TUI_MD_LINES=("${ln[@]}")
-	_TUI_MD_REFS=()
-	for k in "${!rf[@]}"; do _TUI_MD_REFS[$k]=${rf[$k]}; done
+	if [[ "$_TUI_MD_OWNER" == "$pane:$_TUI_MD_GEN" ]]; then
+		fast=1 # nothing else touched the render since this pane's last slice: it is still in TUI_MD_*, no copying back
+	else
+		_tui_md.unstash "_TUI_MD_" "$pane"
+		_TUI_MD_LINES=("${ln[@]}")
+		_TUI_MD_REFS=()
+		for k in "${!rf[@]}"; do _TUI_MD_REFS[$k]=${rf[$k]}; done
+	fi
 	_TUI_MD_RES_I=${_TUI_MD_RS[$pane.i]} _TUI_MD_RES_EM=${_TUI_MD_RS[$pane.em]} _TUI_MD_RES_PP=${_TUI_MD_RS[$pane.pp]}
 	_TUI_MD_RES_W=${_TUI_MD_RS[$pane.w]} TUI_MD_DEGRADED=${_TUI_MD_RS[$pane.deg]} _TUI_MD_RES_DONE=0
+	TUI_MD_IMAGE_IDS=(${_TUI_MD_V[$pane.imgs]:-}) TUI_MD_IMAGE_MISS=(${_TUI_MD_V[$pane.miss]:-})
 	_tui_md.render_more "$2" 0
 	_tui_perf.end md_slice
 	TUI_MD_BASE_DIR=""
-	_tui_md.store "$pane"
+	if ((fast)); then _tui_md.store_more "$pane"; else _tui_md.store "$pane"; fi
+	_TUI_MD_OWNER="$pane:$_TUI_MD_GEN"
+	_TUI_MD_V[$pane.miss]=${TUI_MD_IMAGE_MISS[*]}
+	_tui_md.images_present "$pane" 1 # pictures that came into the rows with this slice
 	if ((_TUI_MD_RES_DONE)); then
 		if [[ -n "${_TUI_MD_RS[$pane.pre_end]}" ]]; then
 			_TUI_MD_RS[$pane.phase]=pre # the blocks from the start of the render to the end are in: the part above is left
@@ -1942,8 +2134,14 @@ _tui_md.more_pane() {
 		fi
 	else
 		_TUI_MD_RS[$pane.i]=$_TUI_MD_RES_I _TUI_MD_RS[$pane.em]=$_TUI_MD_RES_EM _TUI_MD_RS[$pane.pp]=$_TUI_MD_RES_PP
+		# rows were only appended below a view that was already full of rendered rows: nothing on screen changes but the
+		# scrollbar thumb, so only every 4th slice repaints
+		_tui._content_rect "$pane"
+		((oldrows >= ${_TUI_P_SOFF_V[$pane]:-0} + _CR_H && ++_TUI_MD_QN[$pane] % 4)) && quiet=1
 	fi
+	_TUI_OUTPUT_QUIET=$quiet _TUI_MD_APPEND=$((!_TUI_MD_RES_DONE))
 	_tui_md.compose "$pane"
+	_TUI_OUTPUT_QUIET=0 _TUI_MD_APPEND=0
 }
 
 # _tui_md.finish PANE - the render in TUI_MD_* (and stored) is the whole document: cache it, drop the pending state.
@@ -1952,8 +2150,9 @@ _tui_md.finish() {
 	unset '_TUI_MD_PEND[$pane]'
 	_TUI_MD_RS[$pane.pre_end]=""
 	if [[ -n "${_TUI_MD_RS[$pane.key]}" ]]; then
-		_tui_md.cache_put "${_TUI_MD_RS[$pane.key]}" "${_TUI_MD_SHOWN[$pane]}"
-		[[ -n "${_TUI_MD_RS[$pane.disk]}" ]] && _tui_md.disk_put "${_TUI_MD_RS[$pane.disk]}" "${_TUI_MD_RS[$pane.w]}" "${_TUI_MD_RS[$pane.key]}"
+		TUI_MD_IMAGE_IDS=(${_TUI_MD_V[$pane.imgs]:-}) TUI_MD_IMAGE_MISS=(${_TUI_MD_V[$pane.miss]:-}) # the whole document's pictures
+		_tui_md.cache_put "${_TUI_MD_RS[$pane.key]}" "${_TUI_MD_SHOWN[$pane]}" "${_TUI_MD_RS[$pane.epoch]:-0}"
+		[[ -n "${_TUI_MD_RS[$pane.disk]}" ]] && _tui_md.disk_put "${_TUI_MD_RS[$pane.disk]}" "${_TUI_MD_RS[$pane.w]}" "${_TUI_MD_RS[$pane.key]}" && _tui_md.memo_save "${_TUI_MD_RS[$pane.disk]}"
 	fi
 	_tui_md.pd_blocks "${_TUI_MD_SHOWN[$pane]}"
 }
@@ -1971,6 +2170,7 @@ _tui_md.stash() {
 }
 _tui_md.unstash() {
 	local pre=$1 pane=$2 k
+	((_TUI_MD_GEN++))
 	if [[ "$pre" == _TUI_MD_ ]]; then # the pane's displayed render: the names _tui_md.store uses
 		local -n a=_TUI_MD_B_$pane b=_TUI_MD_M_$pane c=_TUI_MD_U_$pane d=_TUI_MD_X_$pane e=_TUI_MD_LR_$pane f=_TUI_MD_H_$pane
 		local -n g=_TUI_MD_BI_$pane h=_TUI_MD_BE_$pane i=_TUI_MD_BP_$pane an=_TUI_MD_A_$pane
@@ -1989,6 +2189,7 @@ _tui_md.unstash() {
 # Rendered on their own, then joined in front of the stored rows (row numbers shifted, anchors rebuilt in document order).
 _tui_md.prefix_slice() {
 	local pane=$1 k np h lvl plain first last ln soff0 l
+	((_TUI_MD_GEN++))
 	local -n ln_=_TUI_MD_LN_$pane rf=_TUI_MD_RF_$pane
 	if [[ -n "${_TUI_MD_RS[$pane.pstarted]:-}" ]]; then
 		_tui_md.unstash "_TUI_MD_PR_" "$pane"
@@ -2003,8 +2204,10 @@ _tui_md.prefix_slice() {
 	_TUI_MD_RES_I=${_TUI_MD_RS[$pane.pi]:-0} _TUI_MD_RES_EM=${_TUI_MD_RS[$pane.pem]:-0} _TUI_MD_RES_PP=${_TUI_MD_RS[$pane.ppp]:-0}
 	_TUI_MD_RES_W=${_TUI_MD_RS[$pane.w]} TUI_MD_DEGRADED=${_TUI_MD_RS[$pane.deg]} _TUI_MD_RES_DONE=0
 	_TUI_MD_END_I=${_TUI_MD_RS[$pane.pre_end]}
+	TUI_MD_IMAGE_IDS=(${_TUI_MD_V[$pane.pids]:-}) TUI_MD_IMAGE_MISS=(${_TUI_MD_V[$pane.pmiss]:-})
 	_tui_md.render_more "$2" 0
 	_TUI_MD_END_I=0
+	_TUI_MD_V[$pane.pids]=${TUI_MD_IMAGE_IDS[*]} _TUI_MD_V[$pane.pmiss]=${TUI_MD_IMAGE_MISS[*]} # the prefix's pictures, kept across its slices
 	if ((!_TUI_MD_RES_DONE)); then
 		_tui_md.stash "_TUI_MD_PR_" "$pane"
 		_TUI_MD_RS[$pane.pi]=$_TUI_MD_RES_I _TUI_MD_RS[$pane.pem]=$_TUI_MD_RES_EM _TUI_MD_RS[$pane.ppp]=$_TUI_MD_RES_PP
@@ -2031,6 +2234,9 @@ _tui_md.prefix_slice() {
 		TUI_MD_ANCHORS[$_SLUG]=$first
 	done
 	_tui_md.store "$pane"
+	TUI_MD_IMAGE_IDS+=(${_TUI_MD_V[$pane.imgs]:-}) TUI_MD_IMAGE_MISS+=(${_TUI_MD_V[$pane.miss]:-}) # the prefix's pictures and the view's
+	_TUI_MD_V[$pane.miss]=${TUI_MD_IMAGE_MISS[*]} _TUI_MD_V[$pane.pids]="" _TUI_MD_V[$pane.pmiss]=""
+	_tui_md.images_present "$pane" 1
 	soff0=${_TUI_MD_RS[$pane.soff0]:-0}
 	l=${_TUI_MD_RS[$pane.l]:-0}
 	_TUI_MD_RS[$pane.pstarted]=""
@@ -2056,9 +2262,23 @@ _tui_md.complete() {
 
 # _tui_md.more_timer - one time slice of the next unfinished pane; re-arms itself while any is left.
 _tui_md.more_timer() {
-	local pane
+	local pane budget
 	for pane in "${!_TUI_MD_PEND[@]}"; do
-		_tui_md.more_pane "$pane" 25000
+		if [[ -n "${_TUI_MD_BG[$pane]+x}" ]]; then
+			_tui_md.bg_collect "$pane" 0
+			break
+		fi
+		# a slice costs a fixed 5 to 25 ms on top of its rendering that grows with the rows already there (they are stored and
+		# painted again): the longer the document so far, the longer the slice, so the overhead stays a fraction of the work
+		local -n _mb=_TUI_MD_B_$pane
+		budget=$((25000 + ${#_mb[@]} * 50))
+		_tui_md.more_pane "$pane" "$budget"
+		# the next slices follow at once unless a key or mouse event is waiting (the loop's tick would add 20 ms to each); at
+		# most 4 and 150 ms, so the loop still runs its own work (hooks, refit) between batches
+		local n=1 t0=${EPOCHREALTIME//[!0-9]/}
+		while [[ -n "${_TUI_MD_PEND[$pane]+x}" ]] && ((n++ < 4 && ${EPOCHREALTIME//[!0-9]/} - t0 < 150000)) && ! read -t 0; do
+			_tui_md.more_pane "$pane" "$budget"
+		done
 		break
 	done
 	((${#_TUI_MD_PEND[@]})) && tui.after 0.02 _tui_md.more_timer md_more
@@ -2071,13 +2291,13 @@ _tui_md.refit() {
 	local pane
 	for pane in "${!_TUI_MD_SHOWN[@]}"; do
 		if [[ -z "${_TUI_P_W[$pane]+x}" ]]; then
-			unset '_TUI_MD_SHOWN[$pane]' '_TUI_MD_SHOWN_W[$pane]' '_TUI_MD_PEND[$pane]'
+			unset '_TUI_MD_SHOWN[$pane]' '_TUI_MD_SHOWN_W[$pane]' '_TUI_MD_PEND[$pane]' '_TUI_MD_BG[$pane]'
 			continue
 		fi
 		_tui._content_rect "$pane"
 		((_CR_W - 1 == ${_TUI_MD_SHOWN_W[$pane]:-0})) || _tui_md.paint_pane "$pane"
 	done
-	declare -F _tui_md.images_send >/dev/null && _tui_md.images_send
+	declare -F _tui_md.images_send >/dev/null && _tui_md.images_send 1
 	return 0
 }
 
@@ -2094,6 +2314,7 @@ _tui_md.refit_timer() { _tui_md.refit; }
 tui.md.show() {
 	# a different document starts at the top with no focus, folds or search; the same one (a resize) keeps them
 	[[ "${_TUI_MD_SHOWN[$1]-}" == "$2" && -n "${_TUI_MD_SHOWN[$1]+x}" ]] || _tui_md.reset_view "$1"
+	unset '_TUI_MD_BG[$1]' '_TUI_MD_BGFAIL[$1]' # a process rendering the previous text is of no use now (it still leaves its snapshot)
 	_TUI_MD_V[$1.file]=${3:-$_TUI_MD_NEXT_FILE} # a file path when tui.md.show_file or FILE brought the text
 	_TUI_MD_V[$1.disk]=$_TUI_MD_NEXT_FILE # only a text that is the file's contents may use its disk snapshot
 	_TUI_MD_NEXT_FILE=""

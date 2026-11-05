@@ -44,13 +44,13 @@ _tui_canvas.glyphs() {
 # horizontals over single verticals (╤ ╪), "vdouble" the reverse (╥ ╫); the box-drawing
 # block has no other single/double mixes. Arrays, not string slicing: ${s:i:1} is
 # byte-indexed under LC_ALL=C.
-declare -gA _TC_JUNCTIONS=()
+declare -gA _TC_JUNCTIONS=() # "STYLE:MASK" -> glyph (one hash lookup per cell, no splitting)
 _tui_canvas.init_junctions() {
-	local style row
+	local style row i
 	local -a g
 	while read -r style row; do
 		read -ra g <<<"$row"
-		_TC_JUNCTIONS[$style]="${g[*]}"
+		for i in "${!g[@]}"; do _TC_JUNCTIONS[$style:$((i + 1))]="${g[i]}"; done
 	done <<'TABLE'
 single │ ─ └ │ │ ┌ ├ ─ ┘ ─ ┴ ┐ ┤ ┬ ┼
 double ║ ═ ╚ ║ ║ ╔ ╠ ═ ╝ ═ ╩ ╗ ╣ ╦ ╬
@@ -67,7 +67,5 @@ _tui_canvas.junction() {
 		_TC_J=" "
 		return
 	fi
-	local -a g
-	read -ra g <<<"${_TC_JUNCTIONS[$1]:-${_TC_JUNCTIONS[single]}}"
-	_TC_J="${g[$(($2 - 1))]}"
+	_TC_J="${_TC_JUNCTIONS[$1:$2]:-${_TC_JUNCTIONS[single:$2]}}"
 }

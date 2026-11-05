@@ -38,6 +38,8 @@ WRAP = [
     # tui.page.refresh (lib/markup/tui_refresh.sh) and background jobs (lib/tui_job.sh). _tui_job.tick runs on every loop
     # pass while a job is pending and is deliberately not probed. _tui_job.finish is a span only: a job lands when it is
     # done, not as part of the click that started it, so it must not stretch that click's settle time.
+    # one time slice of a Markdown render that is finished in the background: work, even when it paints nothing
+    ("_tui_md.more_pane", "w"), ("_tui_md.bg_collect", "w"),
     ("tui.page.refresh", "w"), ("tui.job.run", "w"), ("_tui_job.finish", "s"), ("_tui_job.spinner_draw", "s"),
 ]
 WORK_FNS = {n for n, k in WRAP if k in "wpa"}

@@ -127,7 +127,7 @@ dapk.version.resolve() {
 		src="tag $CI_COMMIT_TAG"
 	fi
 	if [[ -z "$v" && -r "$dir/VERSION" ]]; then
-		read -r v <"$dir/VERSION"
+		while IFS= read -r v && [[ -z "${v//[[:space:]]/}" ]]; do :; done <"$dir/VERSION" # the first line with something on it
 		v="${v//[[:space:]]/}"
 		src="VERSION"
 	fi

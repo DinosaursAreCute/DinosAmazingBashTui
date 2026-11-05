@@ -925,11 +925,11 @@ t_md_textarea_draw_styles_the_source_in_markdown_mode() {
 	_TUI_W_VALUE[ta]=$'# Title\nplain'
 	tui.text.mode ta markdown
 	_TUI_FRAME=""
-	_tui_text.draw_area ta 1 1 20 3 0 "" p
+	_tui_text.draw_area ta 1 1 20 3 0 textarea p
 	[[ "$_TUI_FRAME" == *"${_TUI_MD_SGR[h1]}Title"* ]] || _t_fail "heading style missing: $_TUI_FRAME"
 	tui.text.mode ta plain
 	_TUI_FRAME=""
-	_tui_text.draw_area ta 1 1 20 3 0 "" p
+	_tui_text.draw_area ta 1 1 20 3 0 textarea p
 	[[ "$_TUI_FRAME" != *"${_TUI_MD_SGR[h1]}"* ]] || _t_fail "plain mode must not style"
 }
 
@@ -1549,6 +1549,118 @@ t_md_disk_snapshot_ignores_a_truncated_file() {
 	_tui_md.cache_clear
 	_tui_md.render_cached "$text" 40
 	eq 0 "$_TUI_MD_HIT"
+}
+
+# ── the rest of a document in a background process ───────────────────
+
+# _md_bg_pane - pane p (41 cells wide, 10 high: the first screen does not hold the document) showing a 30 paragraph file
+_md_bg_pane() {
+	_md_disk_setup
+	_TUI_MD_DISK_SRC=""
+	_foc_pane
+	_TUI_P_W[p]=41
+	_md_doc 30
+	printf '%s\n' "$_DOC" >"$_T_ROOT/bg.md"
+}
+
+t_md_background_render_gives_the_rows_slices_give() {
+	_md_bg_pane
+	TUI_MD_BACKGROUND=0
+	tui.md.show_file p "$_T_ROOT/bg.md"
+	eq "" "${_TUI_MD_BG[p]-}"
+	_tui_md.complete p
+	local -n rows=_TUI_PANE_CONTENT_p
+	local want="${rows[*]}" n=${#rows[@]}
+	TUI_MD_BACKGROUND=1
+	rm -rf "$TUI_HOME/cache"
+	_TUI_MD_DISK_DIR_OK=0
+	_tui_md.cache_clear
+	tui.md.show p "other text"
+	tui.md.show_file p "$_T_ROOT/bg.md"
+	[[ -n "${_TUI_MD_BG[p]-}" ]] || _t_fail "no background render was started"
+	eq 1 "${_TUI_MD_PEND[p]:-0}"
+	_tui_md.complete p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	eq "" "${_TUI_MD_BG[p]-}"
+	eq "$n" "${#rows[@]}"
+	eq "$want" "${rows[*]}"
+}
+
+t_md_background_render_is_not_used_without_a_snapshot_place_or_when_off() {
+	_md_bg_pane
+	TUI_HOME=""
+	tui.md.show_file p "$_T_ROOT/bg.md"
+	eq "" "${_TUI_MD_BG[p]-}"
+	eq 1 "${_TUI_MD_PEND[p]:-0}" # slices instead
+	_tui_md.complete p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	TUI_HOME="$_T_ROOT/home"
+	TUI_MD_BACKGROUND=0
+	tui.md.show p "other text"
+	tui.md.show_file p "$_T_ROOT/bg.md"
+	eq "" "${_TUI_MD_BG[p]-}"
+}
+
+t_md_background_render_that_leaves_no_snapshot_falls_back_to_slices() {
+	_md_bg_pane
+	tui.md.show_file p "$_T_ROOT/bg.md"
+	[[ -n "${_TUI_MD_BG[p]-}" ]] || _t_fail "no background render was started"
+	wait "${_TUI_MD_BG[p]}" 2>/dev/null
+	rm -rf "$TUI_HOME/cache" # the process finished but its snapshot is gone
+	_tui_md.cache_clear
+	_tui_md.complete p
+	eq 0 "${_TUI_MD_PEND[p]:-0}"
+	local -n rows=_TUI_PANE_CONTENT_p
+	((${#rows[@]} > 10)) || _t_fail "the document did not complete: ${#rows[@]} rows"
+}
+
+t_md_memo_is_saved_with_a_snapshot_and_loaded_in_a_new_session() {
+	_md_disk_setup
+	local text
+	text=$(<"$_T_ROOT/disk.md")
+	_tui_md.render_cached "$text" 40
+	wait
+	_tui_md.memo_path "$_TUI_MD_DISK_SRC"
+	[[ -s "$_MP" ]] || _t_fail "no memo file: $_MP"
+	local before=${#_TUI_MD_IMEMO[@]}
+	((before > 0)) || _t_fail "the render made no memo entries"
+	_TUI_MD_IMEMO=() _TUI_MD_MEMO_FROM=()
+	_tui_md.memo_sync
+	TUI_MD_ROWS=()
+	_tui_md.memo_load "$_TUI_MD_DISK_SRC"
+	# a different signature (refs) would drop it; this one is the render's own
+	_tui_md.render_begin "$text" 41 0
+	((${#_TUI_MD_IMEMO[@]} >= before)) || _t_fail "memo not used: ${#_TUI_MD_IMEMO[@]} < $before"
+}
+
+# ── picture downloads ───────────────────────────────────────────────
+
+t_md_downloads_queue_beyond_the_limit_and_every_one_arrives() {
+	command -v curl >/dev/null 2>&1 || return 0
+	XDG_CACHE_HOME="$_T_ROOT/xdgcache"
+	TUI_MD_IMAGE_FETCH=1 TUI_MD_IMAGE_FETCH_JOBS=2
+	_TUI_MD_FETCH_PENDING=() _TUI_MD_FETCH_QUEUE=() _TUI_MD_FETCH_TRIES=() _TUI_MD_FETCH_STARTED=() _TUI_MD_FETCHED=()
+	local i f urls=()
+	for i in 1 2 3 4 5 6 7 8; do
+		f="$_T_ROOT/pic$i.bin"
+		printf 'picture %s\n' "$i" >"$f"
+		urls+=("file://$f")
+		_tui_md.fetch "file://$f"
+	done
+	eq 8 "${#_TUI_MD_FETCH_PENDING[@]}" # all of them are known, queued ones included
+	local guard=0
+	while ((${#_TUI_MD_FETCH_PENDING[@]} > 0 && guard++ < 200)); do
+		_tui_md.fetch_poll
+		read -rt 0.05 <> <(:)
+	done
+	eq 0 "${#_TUI_MD_FETCH_PENDING[@]}"
+	eq 8 "${#_TUI_MD_FETCHED[@]}"
+	local u
+	_tui_md.cache_dir
+	for u in "${urls[@]}"; do
+		_tui_md.url_file "$u"
+		[[ -f "$_UF" ]] || _t_fail "not downloaded: $u"
+	done
 }
 
 t_md_disk_snapshot_is_used_only_for_show_file() {

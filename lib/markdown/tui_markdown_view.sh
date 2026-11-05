@@ -51,6 +51,23 @@ _tui_md.store() {
 	for k in "${!TUI_MD_ANCHORS[@]}"; do a[$k]=${TUI_MD_ANCHORS[$k]}; done
 }
 
+# _tui_md.store_more PANE - _tui_md.store for a render that only grew since the last store: what is stored stays, the new rows,
+# links, headings and block records are appended (a copy of everything on every slice grows with the document).
+_tui_md.store_more() {
+	local pane=$1 k
+	local -n b=_TUI_MD_B_$pane u=_TUI_MD_U_$pane x=_TUI_MD_X_$pane lr=_TUI_MD_LR_$pane h=_TUI_MD_H_$pane m=_TUI_MD_M_$pane a=_TUI_MD_A_$pane
+	local -n bi=_TUI_MD_BI_$pane be=_TUI_MD_BE_$pane bp=_TUI_MD_BP_$pane
+	bi+=("${_TUI_MD_BI[@]:${#bi[@]}}") be+=("${_TUI_MD_BE[@]:${#be[@]}}") bp+=("${_TUI_MD_BP[@]:${#bp[@]}}")
+	b+=("${TUI_MD_ROWS[@]:${#b[@]}}")
+	unset '_TUI_MD_BOUNDS[$pane]'
+	u+=("${TUI_MD_LINK_URLS[@]:${#u[@]}}")
+	x+=("${TUI_MD_LINK_TEXTS[@]:${#x[@]}}")
+	lr+=("${TUI_MD_LINK_ROWS[@]:${#lr[@]}}")
+	h+=("${TUI_MD_HEADS[@]:${#h[@]}}")
+	m+=("${TUI_MD_MAP[@]:${#m[@]}}")
+	for k in "${!TUI_MD_ANCHORS[@]}"; do a[$k]=${TUI_MD_ANCHORS[$k]}; done
+}
+
 # _tui_md.mark_row ROW QUERY -> _MARKED - ROW with every occurrence of QUERY (case-insensitive, plain text) in reverse video.
 _tui_md.mark_row() {
 	local row=$1 q=${2,,} plain pl out="" i=0 p=0 len in=0 seq rest off=0 pre si=0 nextstart endpos=-1 ql=${#2}
@@ -127,14 +144,17 @@ _tui_md.compose() {
 		shown=("${base[@]}")
 		for r in "${!fover[@]}"; do shown[r]=${fover[$r]}; done
 		if [[ "${_TUI_MD_DID[$pane]:-}" != "$total" ]]; then
-			disp=()
-			for ((r = 0; r < total; r++)); do disp[r]=$r; done
+			r=${_TUI_MD_DID[$pane]:-0} # an identity map that only grew is extended, not rebuilt
+			((r > 0 && r < total)) || { disp=(); r=0; }
+			for (( ; r < total; r++)); do disp[r]=$r; done
 			_TUI_MD_DID[$pane]=$total
 		fi
 		# the rows are the stored ones with a style swapped: their widest is what it was
 		local keep=0
 		[[ "${_TUI_MD_BOUNDS[$pane]:-}" == "$total" ]] && keep=1
+		((_TUI_MD_APPEND)) && keep=1 # an unfinished render: rows are only added, none is wider than the render width; measured once at the end
 		_tui.output_rows "$pane" shown "$keep"
+		((_TUI_MD_APPEND)) && _ps.panes.set "$pane" max_w "${_TUI_MD_SHOWN_W[$pane]:-0}"
 		_TUI_MD_BOUNDS[$pane]=$total
 		_tui_perf.end md_compose
 		return 0

@@ -28,6 +28,30 @@ from dprof.scenarios import ESC, Step, click, fill, move, palette_goto, pointer,
 
 APP = "bin/DABT_demo.sh"
 ENV = {"DABT_DEMO_PAGE": "components"}   # the page the demo opens on (Home is the heaviest page and has no menu)
+
+def _image_docs(mode):
+    """DPROF_IMAGES=1 (local files) or =remote (http://127.0.0.1:8765/, serve the repo there with python3 -m http.server 8765, fetching on):
+    the Docs page shows the README with its pictures drawn with the kitty graphics protocol, which the profiler's terminal otherwise
+    does not claim to speak (and the profiler has no network)."""
+    import os
+    import re
+    import tempfile
+    root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+    base = "http://127.0.0.1:8765/" if mode == "remote" else root + "/"
+    text = open(os.path.join(root, "README.md"), encoding="utf-8").read()
+    text = text.replace("https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/", base)
+    text = re.sub(r"https://img\.shields\.io/[^\")\s]*", base + "assets/logo.png", text)
+    d = tempfile.mkdtemp(prefix="dprof_docs_")
+    open(os.path.join(d, "README.md"), "w", encoding="utf-8").write(text)
+    env = {"TUI_MD_IMAGE_PROTOCOL": "kitty", "TUI_MD_IMAGES": "graphics", "DABT_DOCS_ROOT": d}
+    if mode == "remote":
+        env["TUI_MD_IMAGE_FETCH"] = "1"
+    return env
+
+
+import os as _os
+if _os.environ.get("DPROF_IMAGES"):
+    ENV.update(_image_docs(_os.environ["DPROF_IMAGES"]))
 SIZE = "150x45"                          # the demo needs ~111 columns to show its nav pane
 
 # (page, nav label clicked to reach it). Clicking is what a mouse user does and does not depend on
@@ -72,6 +96,8 @@ GROUP_INFO = {
     "nav.revisit": ("Page switch, revisit", "nav", 100),
     "nav.key": ("Page switch by key (alt+1…0, every page)", "nav", 100),
     "nav.floor": ("Page switch, trivial pages (the floor)", "nav", 100),
+    "docs.first": ("Docs page, first visit (until the whole document is rendered)", "nav", 500),
+    "docs.revisit": ("Docs page, revisit", "nav", 150),
     "focus.next": ("Focus next (Tab)", "input", 50),
     "focus.prev": ("Focus previous (Shift+Tab)", "input", 50),
     "hover.move": ("Mouse hover", "input", 30),
@@ -125,6 +151,7 @@ SCENARIOS = [
     ("full", "Everything: start, navigation, input, scrolling, palette, themes, resize, idle, quit", None),
     ("startup", "Cold start (empty cache) and warm start", {"startup.cold", "startup.warm"}),
     ("nav", "Page navigation: first visit, revisit, key binding", {"nav.first", "nav.revisit", "nav.key"}),
+    ("docs", "Docs page only: first visit (the Markdown document rendered to the end) and revisit; the quick way to measure Markdown work", {"docs.first", "docs.revisit"}),
     ("floor", "Warm switches between the three lightest pages, repeated: what a page switch costs with no page code (read the \"Page-switch floor\" section of the trace)", {"nav.floor"}),
     ("input", "Focus, hover and click", {"focus.next", "focus.prev", "hover.move", "click"}),
     ("scroll", "Wheel, burst and Page Down scrolling", {"scroll.step", "scroll.burst", "scroll.page"}),
@@ -298,11 +325,15 @@ def steps(rows, cols, quick=False, wanted=None):
     S = []
     add = S.append
     if want("nav.first", "nav.revisit", "nav.key"):
+        # The nav column sits in the shared shell and is not repainted by a page switch, so a heavy page (Docs paints hundreds of KB) pushes the
+        # labels out of the output tail the profiler reads (200 KB): the labels are remembered once, while the start page shows them, and clicked
+        # by "~" needle.
+        add(Step("setup", "remember the nav", "remember", [label for _, label in PAGES]))
         for group in ("nav.first", "nav.revisit"):
             if want(group):
                 for name, label in PAGES:
-                    add(Step(group, name, "click_text", label, quiet=0.15))
-                add(Step(group, "components", "click_text", "Components", quiet=0.15))   # back to the start page
+                    add(Step(group, name, "click_text", "~" + label, quiet=0.15))
+                add(Step(group, "components", "click_text", "~Components", quiet=0.15))   # back to the start page
         if want("nav.key"):
             # alt+1..9 and alt+0 are bound in the nav template (_templates.xml): every page once by key, so the median is over all pages and each
             # can be compared with clicking the same page (nav.first/nav.revisit details). The run before ends on the start page (components), so
@@ -310,6 +341,14 @@ def steps(rows, cols, quick=False, wanted=None):
             keys = ("1", "7") if quick else ("1", "3", "4", "5", "6", "7", "8", "9", "0", "2")
             for k in keys:
                 add(Step("nav.key", f"alt+{k} {KEY_PAGE[k]}", "key", ESC + k.encode(), quiet=0.15, timeout=1.0))
+    if want("docs.first", "docs.revisit"):
+        add(Step("setup", "remember the nav", "remember", ["Components", "Docs"]))
+        add(Step("docs.first", "docs", "click_text", "~Docs", quiet=0.3, timeout=8.0))
+        if ENV.get("DABT_DOCS_ROOT"):   # pictures arrive in the background (downloads): stay until they have
+            add(Step("setup", "pictures arrive", "idle", 6.0))
+        add(Step("setup", "components", "click_text", "~Components", quiet=0.3))
+        add(Step("docs.revisit", "docs", "click_text", "~Docs", quiet=0.3, timeout=8.0))
+        add(Step("setup", "components again", "click_text", "~Components", quiet=0.3))
     if want("nav.floor"):
         # layout, case study and debug carry no on_visit work: every millisecond here is the framework. One priming lap
         # (labelled setup, not reported) takes the first-visit costs out; the measured laps are all warm switches.
@@ -430,6 +469,7 @@ DEFAULT_PAGE = "Components"   # nav label of the page the demo opens on (ENV)
 # Which groups share a start state. Every group is in exactly one unit; startup.* is measured on its own (see runner).
 UNIT_GROUPS = [
     ("nav", ["nav.first", "nav.revisit", "nav.key"]),
+    ("docs", ["docs.first", "docs.revisit"]),
     ("floor", ["nav.floor"]),
     ("input", ["focus.next", "focus.prev", "hover.move", "click"]),
     ("scroll", ["scroll.step", "scroll.burst", "scroll.page"]),

@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.0.24] - 2026-11-06
 ### News 
 * **Markdown documents open fast.** The part of a file outside the first screen is rendered by a background process that leaves the file's snapshot; the pane paints the first screen at once and takes the rest from the snapshot when it is done (`TUI_MD_BACKGROUND=0` goes back to rendering it in slices in the app). The Docs page settles on its first visit in about 0.4 s instead of 1.6 s. The slices that remain (text that is not a file) append to the stored rows instead of copying them and repaint only every 4th time while the rows in view do not change; the inline memo is kept next to the snapshot (`*.memo`), snapshots carry a format version and are written whole or not at all.
 * **Pictures in Markdown cost what text costs.** A `graphics` render was never cached, so every visit, resize and page switch was a cold render with every picture built again (1.1 s for the README). It is now cached in memory (11 ms) and in the snapshot (24 ms) and paints the view first again. Image ids are a hash of `path|cols|rows`, the same in every session; a picture is built once per size; placeholder rows are measured without a per-character loop; converted PNGs and their sizes are found by path and age instead of `cksum` and `od` forks. The Docs page with pictures settles in about 0.6 s instead of 2.3 s.

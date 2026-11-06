@@ -15,10 +15,6 @@
   <b>Build terminal UIs in pure bash.</b><br/>
 </p>
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/home.gif" alt="Home" width="600"/>
-</p>
-
 > **New in DevEx Update 4:** a Markdown renderer for bash, with tables, highlighted code, followable links and images in kitty and Ghostty. [Guide](docs/guide/markdown.md) · [Changelog](CHANGELOG.md)
 
 <details open>
@@ -34,7 +30,6 @@
 1. [Ecosystem](#ecosystem)
 
 </details>
-
 <h2 id="overview"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/overview.svg" alt="Quick start" height="35"/></h2>
 
 **D.A.B.T** *(DinosAmazingBashTui)* is two things in one:

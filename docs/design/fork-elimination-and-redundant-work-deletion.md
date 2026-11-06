@@ -1,6 +1,8 @@
 # I Fired Sisyphus and Realized That Climbing a Mountain Is Exhausting, So I'm Blowing It Up: Fork Elimination, Wait Removal and Redundant-Work Deletion as a Latency Strategy in Pure-Bash Terminal Interfaces
 
-**Abstract.** A companion document dismissed Sisyphus by writing down
+
+## Abstract 
+Its companion document dismissed Sisyphus by writing down
 the route of his climb and replaying it, so that a page already
 constructed is never constructed again. That remedy removed the repeated
 ascent but left the ascent itself untouched, and a page switch in the

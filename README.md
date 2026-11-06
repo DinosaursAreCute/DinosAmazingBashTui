@@ -13,7 +13,6 @@
 
 <p align="center">
   <b>Build terminal UIs in pure bash.</b><br/>
-  XML pages, CSS-like themes and plain bash callbacks. No ncurses, no Python, no Node.
 </p>
 
 <p align="center">

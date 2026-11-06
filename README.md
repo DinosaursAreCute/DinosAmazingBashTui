@@ -36,7 +36,7 @@
 
 </details>
 
-## Overview
+<h2 id="overview"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/overview.svg" alt="Quick start" height="35"/></h2>
 
 **D.A.B.T** *(DinosAmazingBashTui)* is two things in one:
 
@@ -45,7 +45,8 @@
 
 All of it runs on Bash 5 and standard POSIX utilities.
 
-## Quick start
+<h2 id="quick-start"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/quick-start.svg" alt="Quick start" height="35"/></h2>
+
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/install.sh | bash

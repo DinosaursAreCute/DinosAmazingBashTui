@@ -66,8 +66,6 @@ One row: `Label  [ value ▾ ]`. Enter, space, Down or a click opens a picker (a
 ## Roadmap
 
 Planned, not built:
-
-- **Markdown preview.** A live preview beside a textarea. Highlighting while typing (`mode="markdown"`) and the read-only document view (`<markdown pane="ID" src="FILE"/>`) are built; the preview of the text being edited is not. It would reuse the same renderer as the document view.
 - **Soft wrap** and line numbers for the textarea.
 - **Find / replace** (`ctrl+f`) as a small overlay on the modal layer.
 - **Tab / indent** handling and multi-line indent for code-like text.

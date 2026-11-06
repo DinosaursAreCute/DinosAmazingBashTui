@@ -1625,12 +1625,14 @@ _tui._apply_style() {
 	fi
 }
 
-# _tui._fill_pane_bg ID ROW COL H W - appends to _TUI_FRAME; only called
+# _tui._fill_pane_bg ID ROW COL H W [ALWAYS] - appends to _TUI_FRAME; only called
 # from draw paths that build a shared frame (tui.render, _tui._draw_pane_buf).
+# A pane without a style is skipped (the screen under it is clear after an erase) unless ALWAYS is set:
+# a repaint over cells that something else drew must blank them.
 _tui._fill_pane_bg() {
 	local id="$1" r="$2" c="$3" h="$4" w="$5"
 	local key="${id}_normal"
-	[[ -z "${_TUI_STYLE_FG[$key]:-}${_TUI_STYLE_BG[$key]:-}${_TUI_STYLE_MOD[$key]:-}" ]] && return
+	[[ -z "${6:-}${_TUI_STYLE_FG[$key]:-}${_TUI_STYLE_BG[$key]:-}${_TUI_STYLE_MOD[$key]:-}" ]] && return
 	((h < 1 || w < 1)) && return # hidden (tui.fixed overflow)
 	local blank
 	printf -v blank '%*s' "$w" ""
@@ -1759,6 +1761,7 @@ _tui._draw_pane_border_buf() {
 	local title="${_TUI_P_TITLE[$id]:-}"
 
 	[[ "$border" == "none" ]] && return
+	[[ -n "${_TUI_P_LAYER[$id]:-}" ]] && ! _tui_layer.is_visible "${_TUI_P_LAYER[$id]}" && return # a hidden layer is not on screen
 	_tui._pane_too_small "$id" && return
 
 	_tui_canvas.glyphs "$border"

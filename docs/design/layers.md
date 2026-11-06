@@ -16,7 +16,7 @@ How floating windows, modals, popups and toasts fit the engine, and why.
 
 ## Repaint without erase
 
-A move, resize, show or hide repaints the page and the layers in one write and does not erase the screen. The page paints every cell above the footer row, so what a layer vacated is covered; the footer (which an erase would blank and redraw) stays put.
+A show, hide, zoom, minimize or reset repaints the whole page and the layers in one write and does not erase the screen; a move or resize repaints only the page under what the layer vacated (see "Damage rectangle"). The page paints every cell above the footer row, so what a layer vacated is covered; the footer (which an erase would blank and redraw) stays put.
 
 ## Detach and dock
 
@@ -32,6 +32,6 @@ There is one stack and no separate overlay registry. Pane layers (the markup tag
 
 `_tui._flush` appends the stack (pane layers and the non-ambient function layers) to any write that repaints the page under them, so a clock tick or an animation frame never shows the page over a layer or the palette, not even for one frame. Background painters (`tui.async.*`, lib/render/tui_async.sh) are processes that draw straight to the terminal; while a modal or a layer is open, and while a resize is applied, a "covered" flag tells them to draw nothing, so they never write over what is on top.
 
-## Not done
+## Damage rectangle
 
-There is no main-loop redraw of the stack any more: it rides on page writes (`_tui._flush`, the standalone `_tui._draw_pane` / `_tui._draw_widget`) and is drawn alone only when a function layer itself changes (`_tui_layer.draw_all`). A drag repaints the whole page; a damage rectangle would cut that cost.
+There is no main-loop redraw of the stack: it rides on page writes (`_tui._flush`, the standalone `_tui._draw_pane` / `_tui._draw_widget`) and is drawn alone only when a function layer itself changes (`_tui_layer.draw_all`). A layer that moves or shrinks (`tui.layer.move`, `tui.layer.size`, so a drag) repaints the page only inside the rectangle it covered before, shadow included (`_tui_layer.repaint_damage`): a leaf the rectangle touches is repainted whole with its widgets, scrollbar and output, and a container is only blanked inside the rectangle (its border ring redrawn when the rectangle reaches it), so its other children stay as they are. What the layer covers afterwards is drawn by the stack itself. Show, hide, zoom, minimize and reset still repaint the whole page.

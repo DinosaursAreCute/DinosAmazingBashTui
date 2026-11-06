@@ -423,12 +423,69 @@ _tui_layer.changed() {
 	_tui_layer.repaint
 }
 
-# _tui_layer.repaint - layout, then the page and its layers in one write. No erase: the page paints every cell above the
-# footer row, so what a layer vacated is covered by it, and the footer (which an erase would blank and redraw) stays put.
+# _tui_layer.repaint [ROW COL HEIGHT WIDTH] - layout, then the page and its layers in one write. No erase: the page paints
+# every cell above the footer row, so what a layer vacated is covered by it, and the footer (which an erase would blank and
+# redraw) stays put. With a rectangle (what the layer covered before it moved or shrank) only the page under it is repainted.
 _tui_layer.repaint() {
-	_tui._layout root
-	((_TUI_RUNNING)) && tui.render
+	((_TUI_RUNNING)) || { _tui._layout root; return 0; }
+	if (($#)); then _tui_layer.repaint_damage "$@"; else _tui._layout root; tui.render; fi
 	return 0
+}
+
+# _tui_layer.rect_of L -> _DM_R _DM_C _DM_H _DM_W: L's rectangle with its shadow (one column right, one row below)
+_tui_layer.rect_of() {
+	_DM_R=${_TUI_L_ROW[$1]} _DM_C=${_TUI_L_COL[$1]} _DM_H=${_TUI_L_H[$1]} _DM_W=${_TUI_L_W[$1]}
+	[[ -n "${_TUI_L_F[$1.shadow]:-}" ]] && ((_DM_H++, _DM_W++))
+	return 0
+}
+
+# _tui_layer.repaint_damage ROW COL HEIGHT WIDTH - the page repainted inside a damage rectangle, then the stack on top (the
+# flush appends it). tui.render's pass restricted to the panes the rectangle touches: a leaf is repainted whole with its
+# widgets, scrollbar and output; a container is only blanked inside the rectangle (its ring redrawn when the rectangle
+# reaches it), so its other children stay as they are. What the layer now covers is drawn by the stack itself.
+_tui_layer.repaint_damage() {
+	local r=$1 c=$2 h=$3 w=$4 pane wid ir ic ih iw pr pc fr fc fh fw
+	local -A sel=()
+	local -a leaves=()
+	_tui.epoch_bump hit
+	local saved="$_TUI_FRAME"
+	_TUI_FRAME=""
+	for pane in "${_TUI_P_ALL[@]}"; do
+		[[ -n "${_TUI_P_LAYER[$pane]+x}" ]] && continue # the stack's panes
+		pr=${_TUI_P_ROW[$pane]} pc=${_TUI_P_COL[$pane]} ih=${_TUI_P_H[$pane]} iw=${_TUI_P_W[$pane]}
+		((ih += pr, iw += pc, ir = r > pr ? r : pr, ic = c > pc ? c : pc)) # the rectangle inside the pane
+		((ih = (r + h < ih ? r + h : ih) - ir, iw = (c + w < iw ? c + w : iw) - ic))
+		((ih > 0 && iw > 0)) || continue
+		sel[$pane]=1
+		_tui._eff_border "$pane"
+		if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
+			leaves+=("$pane")
+			[[ "$_TB" == none ]] && _tui._fill_pane_bg "$pane" "$ir" "$ic" "$ih" "$iw" 1 # unstyled: nothing else blanks what the layer left
+			_tui._paint_pane_buf "$pane"
+		elif [[ "$_TB" == none ]]; then
+			_tui._fill_pane_bg "$pane" "$ir" "$ic" "$ih" "$iw" 1
+		else
+			((ir == pr || ic == pc || ir + ih == pr + _TUI_P_H[$pane] || ic + iw == pc + _TUI_P_W[$pane])) && _tui._draw_pane_border_buf "$pane"
+			fr=$((ir > pr + 1 ? ir : pr + 1)) fc=$((ic > pc + 1 ? ic : pc + 1))
+			fh=$((ir + ih < pr + _TUI_P_H[$pane] - 1 ? ir + ih : pr + _TUI_P_H[$pane] - 1))
+			fw=$((ic + iw < pc + _TUI_P_W[$pane] - 1 ? ic + iw : pc + _TUI_P_W[$pane] - 1))
+			_tui._fill_pane_bg "$pane" "$fr" "$fc" "$((fh - fr))" "$((fw - fc))" 1
+		fi
+	done
+	_tui_frame.junctions
+	_tui_hit.overlay
+	_TUI_WP_LAST="" _TUI_WP_REUSE=1
+	for wid in "${_TUI_W_ORDER[@]}"; do
+		[[ -n "${sel[${_TUI_W_PANE[$wid]:-_}]:-}" && -z "${_TUI_P_LAYER[${_TUI_W_PANE[$wid]}]+x}" ]] && _tui._draw_widget_buf "$wid"
+	done
+	_TUI_WP_REUSE=0
+	((${#leaves[@]})) && _tui_scroll.bars_buf "${leaves[@]}"
+	for pane in "${leaves[@]}"; do
+		[[ -n "${_TUI_PANE_CONTENT[$pane]:-}" ]] && _tui._render_output_buf "$pane"
+	done
+	local buf="$_TUI_FRAME"
+	_TUI_FRAME="$saved"
+	_tui._flush "$buf"
 }
 
 # tui.layer.raise ID - ID becomes the topmost layer
@@ -508,12 +565,14 @@ _tui_layer.leave_focus() {
 tui.layer.move() {
 	local id="$1"
 	_tui_layer.is_visible "$id" || return 1
+	_tui_layer.rect_of "$id"
+	local old="$_DM_R $_DM_C $_DM_H $_DM_W"
 	_tui_layer.clamp "$2" "$3" "${_TUI_L_H[$id]}" "${_TUI_L_W[$id]}"
 	_TUI_L_ROW[$id]=$_CL_ROW _TUI_L_COL[$id]=$_CL_COL
 	_TUI_L_F[$id.moved]=1
 	_tui_layer.apply_rect "$id"
 	_TUI_HZ_DIRTY=1
-	_tui_layer.repaint
+	_tui_layer.repaint $old
 	return 0
 }
 
@@ -525,13 +584,15 @@ tui.layer.size() {
 	((w < 8)) && w=8
 	((h > _TUI_P_H[root])) && h=${_TUI_P_H[root]}
 	((w > _TUI_P_W[root])) && w=${_TUI_P_W[root]}
+	_tui_layer.rect_of "$id"
+	local old="$_DM_R $_DM_C $_DM_H $_DM_W"
 	_TUI_L_H[$id]=$h _TUI_L_W[$id]=$w
 	_TUI_L_F[$id.moved]=1
 	_tui_layer.clamp "${_TUI_L_ROW[$id]}" "${_TUI_L_COL[$id]}" "$h" "$w"
 	_TUI_L_ROW[$id]=$_CL_ROW _TUI_L_COL[$id]=$_CL_COL
 	_tui_layer.apply_rect "$id"
 	_TUI_HZ_DIRTY=1
-	_tui_layer.repaint
+	_tui_layer.repaint $old
 	return 0
 }
 
@@ -903,6 +964,7 @@ _tui_layer.state_put() {
 	_tui_layer.sync
 	_TUI_P_ALL=() _TUI_P_LEAVES=()
 	_tui._collect_leaves root
+	_tui_layer.layout # the restored rectangle into the layer's panes: nothing lays the page out again before it is drawn
 	_TUI_HZ_DIRTY=1
 }
 

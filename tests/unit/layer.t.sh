@@ -428,6 +428,61 @@ ti_layer_a_page_repaint_under_a_layer_carries_the_layer_in_the_same_write() {
 	ok '[[ "$out" != *"Win"* ]]' # an overlay's own write is not given the layers a second time
 }
 
+ti_layer_move_repaints_only_the_panes_its_old_rectangle_touched() {
+	_ly_load '<tui>
+  <pane id="root" split="h">
+    <pane id="left" border="single"><button id="lbtn" text="LBTN"/></pane>
+    <pane id="right" border="single"><button id="rbtn" text="RBTN"/></pane>
+  </pane>
+  <window id="w1" title="Win" x="5" y="3" width="30" height="8" float="true">
+    <button id="w1_btn" text="inside"/>
+  </window>
+</tui>'
+	local out
+	_TUI_RUNNING=1
+	out="$(tui.layer.move w1 4 30 2>&1)" # the window leaves "left" and lands across both panes
+	_TUI_RUNNING=0
+	ok '[[ "$out" == *LBTN* ]]'                      # the vacated cells belong to left
+	ok '[[ "$out" != *RBTN* ]]'                      # right was not under the old rectangle
+	ok '[[ "$out" == *Win* && "$out" == *inside* ]]' # the window follows in the same write
+}
+
+ti_layer_move_leaves_the_siblings_of_a_bordered_container_alone() {
+	_ly_load '<tui>
+  <pane id="root" split="v" border="single">
+    <pane id="top" border="single"><button id="tbtn" text="TBTN"/></pane>
+    <pane id="bot" border="single"><button id="bbtn" text="BBTN"/></pane>
+  </pane>
+  <window id="w1" title="Win" x="5" y="3" width="10" height="4" float="true" shadow="true">
+    <button id="w1_btn" text="inside"/>
+  </window>
+</tui>'
+	local out
+	_TUI_RUNNING=1
+	out="$(tui.layer.move w1 4 30 2>&1)"
+	_TUI_RUNNING=0
+	ok '[[ "$out" == *TBTN* ]]' # the pane under the old rectangle is repainted
+	ok '[[ "$out" != *BBTN* ]]' # its sibling is not wiped and redrawn with it
+}
+
+ti_layer_hidden_window_border_is_not_redrawn_when_the_focus_leaves_it() {
+	_ly_load "$_LY_PAGE"
+	_TUI_FRAME=""
+	_tui._draw_pane_border_buf w1
+	ok '[[ -n "$_TUI_FRAME" ]]'
+	tui.layer.hide w1
+	_TUI_FRAME=""
+	_tui._draw_pane_border_buf w1
+	eq "" "$_TUI_FRAME" # a focus change redraws the old pane's ring: not one that is not on screen
+}
+
+ti_layer_restored_position_reaches_the_layers_panes_without_another_layout() {
+	_ly_load "$_LY_PAGE"
+	_tui_layer.state_put w1 "moved|10|20|8|30"
+	eq "10 20" "${_TUI_L_ROW[w1]} ${_TUI_L_COL[w1]}"
+	eq "10 20" "${_TUI_P_ROW[w1]} ${_TUI_P_COL[w1]}" # the panes are drawn from here, the header from _TUI_L_ROW
+}
+
 ti_layer_a_shell_page_replayed_on_another_screen_places_its_window_for_this_one() {
 	_sh_setup 2>/dev/null || true
 	local d="$_T_ROOT/ly_shell_${RANDOM}${RANDOM}"

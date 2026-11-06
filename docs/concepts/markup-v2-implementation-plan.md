@@ -49,7 +49,7 @@ Done and unit-tested (suite: 500 pass, 0 fail). Gates G1–G8, benches, golden f
 | 2D closed: factories | `lib/markup/tui_factory.sh`, state in `lib/state.sh` | Moved out of `lib/tui.sh` (-157 lines); a shared `make` helper replaces four copies of the id-and-track code. API unchanged. They stay imperative (they build engine state at runtime, not nodes). |
 | 3C: scrolling widgets | `lib/layout/tui_scroll.sh` | Content height, offset applied in `_tui._widget_pos` (part of its cache key), hit zones clipped to the content rect, scrollbar for widget panes (shared with `tui.output` panes), `scroll_into_view` on focus, `tui.scroll.to`, `pin="top"`, wheel routing (widget under the pointer, then its pane); a widget taller than the rest of the viewport is cut at the bottom edge. The Scrolling demo page (`scrolling.xml`) is the showcase: widget form + `tui.scroll.to` buttons + two `tui.output` viewports. |
 | Nested widgets: engine fix | `lib/markup/tui_build.sh` | Nested `textarea`, `password`, `select`, `progress`, `list` and `table` were silently dropped ("missing id or pane"); only label/button/input/checkbox worked nested. Fixed, with a regression test. |
-| Demo pages on nested widgets | `share/demo/*.xml` | 16 pages converted (see "Demo migration"). New page `scroll_form.xml`, nav entry "Scroll form". |
+| Demo pages on nested widgets | `share/demo/*.xml` | 16 pages converted (see "Demo migration"). The Scrolling page (`scrolling.xml`) carries the scroll forms. |
 | Tooling | `tools/page_state.sh` | Headless dump of the built engine state (panes, widgets, tab order). `diff` of two spellings of one page proves a markup rewrite changed nothing the engine sees. Reusable for `dabt migrate` (stage 7). |
 
 **Deviations from the stage 3 spec**
@@ -62,12 +62,12 @@ Done and unit-tested (suite: 500 pass, 0 fail). Gates G1–G8, benches, golden f
 - Not converted: `_templates.xml` (its widgets target panes that live in each page), `compose.xml` (no legacy widgets), `share/defaults/pages/*.xml` (not demo pages).
 
 **Owed by the user (not run by the implementer)**
-- Visual check (G7) of 3C: Tab through `scroll_form.xml`, wheel and pinned heading, scrollbar thumb, click after scrolling, the Scrolling demo's `tui.output` panes unchanged.
+- Visual check (G7) of 3C: Tab through the Scrolling page (`scrolling.xml`), wheel and pinned heading, scrollbar thumb, click after scrolling, the Scrolling demo's `tui.output` panes unchanged.
 - Known and left alone by request: `tests/unit/cache.t.sh` (replay re-reads the real terminal size) and two `updater.bats` tests fail only with a controlling tty, because `tui.update.cli` silences stderr for good via a bare `exec 3<… 2>/dev/null`.
 
 ## Progress (2026-10-04)
 
-Suite at the last verified run: 767 pass, 0 fail (before the shell work started). `tools/gen_api_docs.sh --check` and the validator on `workspace.xml` and `widgets.xml` were clean.
+Suite at the last verified run (2026-11-06): 1262 pass, 0 fail (767 on 2026-10-04, before the shell work started). `tools/gen_api_docs.sh --check` and the validator on `workspace.xml` and `widgets.xml` were clean.
 
 | What | Where | Notes |
 |---|---|---|
@@ -93,13 +93,7 @@ Suite at the last verified run: 767 pass, 0 fail (before the shell work started)
 
 **Layers (3B), done.** `lib/chrome/tui_layer.sh` plus seams in `tui.sh` (`_tui._paint_pane_buf`, the collect/layout hooks, render skips layer panes and widgets), `tui_hit.sh`, `tui_focus.sh`, `tui_input.sh`, `tui_store.sh`, `tui_shell.sh`, `tui_cache.sh`, `tui_modal.sh` (now the modal preset of the stack). Tests: `tests/unit/layer.t.sh`. Demo: `share/demo/layers.xml` (nav entry Layers), Workspace's Details pane is detachable. Design: a layer is a pane outside the split tree; its panes follow the page's in `_TUI_P_ALL`; it is drawn on top of the page, and `tui.render` sends page and layers in one write. A layer's zones are ranked above the page's by a stable reorder of every row's zone list. Rationale in `docs/design/layers.md`.
 - Closed: the overlay registry and the main-loop redraw are gone. Function layers (`tui.layer.fn_add FN [ambient]`: footer, job spinner, toasts, palette, dialogs, plugin overlays; `tui.overlay.add/remove` are aliases) share the stack with the pane layers; `tui.modal.*` is the modal preset (function layer + input capture + dismiss replay). The stack rides on page writes (`_tui._flush`, `_tui._draw_pane`, `_tui._draw_widget`) and is drawn alone only by `_tui_layer.draw_all`. The footer now rides the render write (one synchronized update instead of two), so the golden frames were re-recorded.
-- Deviations: modal layers hold focus and pointer but global key bindings still work; `dock_group` targets are explicit (`tui.layer.dock LAYER PANE`); a layer drag repaints the whole page (38 ms per step, no damage rectangle yet).
-
-**Owed by the user (not run by the implementer)**
-- Real terminal (G7): kitty and one other, on Home (animation), Layers, Workspace and the command palette over a running animation. Golden frames were re-recorded (2026-10-05; `workspace` is skipped: live host data); G3 benches pass against the baseline with 0 forks on every bench.
-- G3 benches: run 2026-10-05, `tools/bench/run.sh --compare tools/bench/baseline.txt` passes (the baseline has only the eight stage-0 benches; the v2 benches have no baseline yet: `tools/bench/run.sh` prints their numbers). `mouse_hit` probably measures an empty index (see the bench note).
-- G7 visual check in a real terminal: Workspace page (shared border of the fused logs, divider hover and drag, the collapse button arrows, `alt+r` mode), the scroll form, and no stray glyphs after a divider drag.
-- `bats tests/` already failed at HEAD (update banner, tty).
+- Deviations: modal layers hold focus and pointer but global key bindings still work; `dock_group` targets are explicit (`tui.layer.dock LAYER PANE`); a layer drag repaints the page inside the rectangle the layer covered before (`_tui_layer.repaint_damage`); show, hide, zoom and minimize still repaint the whole page.
 
 **Measured costs to improve** (from the new micro-benches): hover between two zones about 38 ms, collapse toggle about 45 ms, one resize step about 32 ms (about 52 ms with the full frame; render dominates: the junction pass about 18 ms, widgets about 13 ms), saving and restoring 30 inputs about 95 ms. Hit lookup is 0.15 ms.
 
@@ -285,7 +279,7 @@ Depends on 1. Four independent tracks: each owns its own module and they don't t
 - **Done when:** G4 frames are identical; hover redraw and focus move benches improve; bytes flushed per hover shrink measurably.
 
 ### 2C Hit index and focus (roadmap E base, H)
-- **Owner:** `lib/input/tui_hit.sh`, `lib/input/tui_focus.sh` (new). **Seam:** `_tui._hit_test`, `_tui._pane_at`, `tui.focus`, `_tui._focus_next`/`_prev`, the scrollbar branch of `tui.action.click`.
+- **Owner:** `lib/input/tui_hit.sh`, `lib/input/tui_focus.sh` (new). **Seam:** `_tui_hit.at`, `_tui_focus.step` / `_tui_focus.arrow`, `tui.focus`, the scrollbar branch of `tui.action.click`.
 - **Tasks:**
   - Per-row interval index rebuilt after layout.
   - Zone kinds: widget, hitbox, scrollbar (3 columns wide / 3 rows high), divider, handle, chevron, title.
@@ -350,7 +344,7 @@ Depends on 2. Independent tracks. The "Uses" line lists the stage 2 modules each
   - `scroll_into_view` on focus, `tui.scroll.to`, `sticky="top"`, wheel routed to the innermost pane that can still scroll.
 - **Deletes:** the output-only special cases in the scroll path.
 - **Done when:** a form taller than its pane scrolls with Tab; the bench shows paint cost bounded by the viewport, not by content size.
-- **Status:** done. Pinned rows use `pin="top"` instead of `sticky="top"` (`sticky` already names the input focus policy). Panes with `scroll="v"`, `"h"` or `"both"` hold widgets; content height comes from widgets, scroll offset follows wheel/keys (innermost widget first, then pane), a scrollbar is drawn in the right border column, Tab scrolls focused widgets into view (controlled by `scroll_into_view="true|false"`, default true). `tui.scroll.to TARGET [top|center|bottom]`; `pin="top"` (one pinned widget sticks at a time). Demo page `share/demo/scroll_form.xml`. The paint-cost bench is still to be run by hand.
+- **Status:** done. Pinned rows use `pin="top"` instead of `sticky="top"` (`sticky` already names the input focus policy). Panes with `scroll="v"`, `"h"` or `"both"` hold widgets; content height comes from widgets, scroll offset follows wheel/keys (innermost widget first, then pane), a scrollbar is drawn in the right border column, Tab scrolls focused widgets into view (controlled by `scroll_into_view="true|false"`, default true). `tui.scroll.to TARGET [top|center|bottom]`; `pin="top"` (one pinned widget sticks at a time). Demo page `share/demo/scrolling.xml`. The paint-cost bench is still to be run by hand.
 
 ### 3D Page state and shells (roadmap I)
 - **Uses:** 2C, 2D. **Owner:** `lib/state/tui_store.sh` (new).

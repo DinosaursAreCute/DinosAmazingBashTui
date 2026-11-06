@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### News
+* **Dragging or resizing a window repaints only what it uncovered.** The page is repainted inside the rectangle the layer covered before (shadow included), leaf by leaf, and the stack follows in the same write; the other panes are not drawn. One drag step of a small page: 11.5 ms before, 7.2 ms now.
 
 ## [0.0.24] - 2026-11-06
 ### News 

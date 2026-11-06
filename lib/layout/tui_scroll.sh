@@ -208,13 +208,13 @@ _tui_scroll.bar_v() {
 	done
 }
 
-# _tui_scroll.bars_buf - appends scrollbars for widget panes to _TUI_FRAME.
-# Loops through _TUI_P_LEAVES and draws vertical scrollbars for leaf panes
+# _tui_scroll.bars_buf [PANE...] - appends scrollbars for widget panes to _TUI_FRAME.
+# Loops through PANE... (default _TUI_P_LEAVES) and draws vertical scrollbars for leaf panes
 # that have scrolling enabled and content that overflows the viewport.
 # Called once after the widget drawing loop in tui.render.
 _tui_scroll.bars_buf() {
 	local pane
-	for pane in "${_TUI_P_LEAVES[@]}"; do
+	for pane in "${@:-${_TUI_P_LEAVES[@]}}"; do
 		# Skip if not scrollable or has output content
 		local scroll="${_TUI_P_SCROLL[$pane]:-none}"
 		[[ "$scroll" != "v" && "$scroll" != "both" ]] && continue

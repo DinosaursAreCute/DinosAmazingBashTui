@@ -54,7 +54,7 @@ git clone https://github.com/DinosaursAreCute/DinosAmazingBashTui.git
 cd DinosAmazingBashTui && bin/dabt demo
 ```
 
-<h2 id="tui-framework"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/a-tui-framework.svg" alt="tui framework" height="35"/></h2>
+<h2 id="a-tui-framework"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/a-tui-framework.svg" alt="tui framework" height="35"/></h2>
 
 DABT aims to bring a desktop-like experience to terminal applications.
 
@@ -122,7 +122,7 @@ tui.start "config/task_view.xml"
 
 </details>
 
-<h2 id="tui-framework"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/an-application-manager.svg" alt="tui framework" height="35"/></h2>
+<h2 id="an-application-manager"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/an-application-manager.svg" alt="an application manager" height="35"/></h2>
 
 The `dabt` command builds, publishes, installs and updates DABT apps.
 

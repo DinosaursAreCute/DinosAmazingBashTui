@@ -21,3 +21,4 @@ tools/debug/screenshots/
 tools/debug/screenshots/
 tools/export_txt.sh
 txt_export/
+README-*.md

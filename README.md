@@ -1,26 +1,8 @@
-## Table of Contents
-
-<details>
-
-   <summary>Contents</summary>
-
-1. [Overview](#overview)
-1. [Quick start](#quick-start)
-1. [A TUI framework](#a-tui-framework)
-1. [An application manager](#an-application-manager)
-1. [Screenshots](#screenshots)
-1. [Documentation](#documentation)
-1. [Requirements](#requirements)
-1. [Ecosystem](#ecosystem)
-
-</details>
-
 <p align="center">
-  <img alt="D.A.B.T - DinosAmazingBashTui" src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" width="640" height="400/>
-</p>
+  <img alt="D.A.B.T - DinosAmazingBashTui" src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" width="800" height="400"/>
 
-<p align="center">
-  <a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/stargazers"><img alt="stars" src="https://shieldcn.dev/github/DinosaursAreCute/DinosAmazingBashTui/stars.svg?variant=secondary&amp;theme=zinc&amp;font=jetbrains-mono&amp;color=d19abd" /></a>
+<br/>
+<a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/stargazers"><img alt="stars" src="https://shieldcn.dev/github/DinosaursAreCute/DinosAmazingBashTui/stars.svg?variant=secondary&amp;theme=zinc&amp;font=jetbrains-mono&amp;color=d19abd" /></a>
   <a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases"><img alt="downloads" src="https://shieldcn.dev/github/DinosaursAreCute/DinosAmazingBashTui/downloads.svg?color=a4e3e1" /></a>
   <a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/releases"><img alt="release" src="https://shieldcn.dev/github/DinosaursAreCute/DinosAmazingBashTui/release.svg?color=d1d68d" /></a>
   <a href="https://github.com/DinosaursAreCute/DinosAmazingBashTui/commits/main"><img alt="last commit" src="https://shieldcn.dev/github/DinosaursAreCute/DinosAmazingBashTui/last-commit.svg?color=d88b8b" /></a>
@@ -35,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/home.gif" alt="Home" width="760"/>
+  <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/gifs/home.gif" alt="Home" width="600"/>
 </p>
 
 > **New in DevEx Update 4:** a Markdown renderer for bash, with tables, highlighted code, followable links and images in kitty and Ghostty. [Guide](docs/guide/markdown.md) · [Changelog](CHANGELOG.md)

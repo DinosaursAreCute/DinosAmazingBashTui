@@ -315,6 +315,9 @@ def startup_view(rounds):
                 spans.append({"label": lab, "start": med(ss), "end": med(ee)})
         out[which] = {"ready_ms": med([t["ready_ms"] for t in tls]), "spans": spans,
                       "first_output_ms": med([t["first_output_ms"] for t in tls if t["first_output_ms"]]),
+                      "cache_complete_ms": med([t["cache_complete_ms"] for t in tls if t.get("cache_complete_ms")]) if any(t.get("cache_complete_ms") for t in tls) else None,
+                      "workers": {k: med([t["workers"][k] for t in tls if t.get("workers")]) for k in ("count", "max_ms", "sum_ms", "span_ms")}
+                                 if any(t.get("workers") for t in tls) else None,
                       "rss_kb": med([t["rss_kb"] for t in tls])}
     return out
 

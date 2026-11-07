@@ -6,7 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 ### News
+* **Cold start of the demo: 1.4 s instead of 2.8 s** (profiler, 5 rounds, idle machine; the run before this work read 4.3 s, but with some load on the machine). Page validation runs in parallel and in the background, only the first page is built behind the splash, the rest of the cache is built while the app runs; the start page appears after about 0.4 s. Warm start is unchanged (521 ms). Details in `docs/concepts/performance-progress.md`, section 15m.
 * **Dragging or resizing a window repaints only what it uncovered.** The page is repainted inside the rectangle the layer covered before (shadow included), leaf by leaf, and the stack follows in the same write; the other panes are not drawn. One drag step of a small page: 11.5 ms before, 7.2 ms now.
+
+### Added
+* `tui.log.level [NAME]` reads or sets the log level (`debug`, `info`, `warn`, `error`, `off`) while the app runs; `TUI_LOG_LEVEL` sets it at start.
+* Settings in `tui_configuration.sh` for the start-up work: `TUI_CACHE_LAZY` (`0` builds every page before the first frame, as before), `TUI_CACHE_LAZY_WORKERS`, `TUI_CACHE_LAZY_PREP`, `TUI_CACHE_LAZY_NICE`, `TUI_VALIDATE_JOBS` (`1` validates in the calling shell) and `TUI_VALIDATE_ASYNC` (`0` validates before building).
+* While the background cache build runs, a toast says so; another says when the cache is ready. Plugins get the hooks `cache_building` and `cache_complete`.
+* Profiler: every cold-start phase has a probe (shared prep, starting the background build, restoring page state, focus, the cache-build announcement, validation start and wait), stretches no probe covers are named ("unprobed after X"), a `page builds` line gives the workers, the slowest and the work in total, and `cache complete` (when the background build ends) is shown as information, not as part of the budget.
+
+### Changed
+* The first launch (and every launch after an update or a page edit) builds only the first page behind the splash. The other pages are built by background workers (at lower priority) while the app runs, the pages the first page's buttons link to first, in the order they appear. A page opened before its worker is done is built on the spot. The cache is written once they finish; a quit before that keeps the pages already built.
+* Page validation runs in parallel, one worker per core: 27 pages took 1550 ms, now 248 ms; the messages are the same and come in the same order. A launch that finds the pages unchanged still skips it.
+* Validation runs in a background process while the first page is built, and is joined before the cache is written or the app starts, so an invalid page still stops the start with the same messages. Cold start 1.70 s before, 1.45 s after (3 rounds, profiler).
+* Themes and shells are prepared for the first page behind the splash and for the other pages by the background pool, and each theme file is loaded once instead of once per page (a memoized load still cost about 3 ms). Cold start 1.79 s before, 1.70 s after (median of 3).
+* The app log writes `info` and above by default; it used to write every debug line (about 600 per 6 page builds, 83 ms of CPU). Building 6 pages: 2224 ms at `debug`, 2141 ms at `info`. Set `TUI_LOG_LEVEL=debug` for the build trace.
+* The logger moved from `tui.sh` into its own file, `lib/tui_log.sh`; its functions are unchanged.
+* The DABT/Textual comparison waits for DABT's "Page cache ready" notice at the end of the cold session, so its steps run on a complete cache.
+
+### Removed
+* The debug trace in the app log by default (page-build steps, style bakes): it is only written at `TUI_LOG_LEVEL=debug`.
+
+### Fixed
+* A headless cache build counted as a run of the app: `runs` and `last_run` in `app.meta` were changed once for every page the splash built. They only change when the app itself starts.
 
 ## [0.0.24] - 2026-11-06
 ### News 

@@ -178,6 +178,7 @@ tui.cache.theme_clear() {
 
 # Removes the stamp directory; called from _master_cleanup.
 tui.cache.cleanup() {
+	_tui_cache_lazy.stop
 	[[ -n "$_TUI_THEME_STAMP_DIR" && -d "$_TUI_THEME_STAMP_DIR" ]] && rm -rf "$_TUI_THEME_STAMP_DIR"
 	_TUI_THEME_STAMP_DIR=""
 }
@@ -752,6 +753,55 @@ tui.cache.decode() {
 
 _tui_cache_now_us() { printf '%s' "${EPOCHREALTIME//[^0-9]/}"; }
 
+# _tui_cache_warm_prelude PAGE... - what every page's build shares, done once in the parent so forked workers inherit it
+# through copy-on-write memory instead of redoing it per page: each page's <theme> (its own, else the framework default)
+# parsed into the stylesheet memo, and the shells built once (a worker replays them).
+_tui_cache_warm_prelude() {
+	tui.log.debug "tui.cache.warm: pre-parsing shared theme deps for $# page(s) in parent"
+	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css" >/dev/null 2>&1
+	# tui.load_theme costs about 3 ms even for a memoized file: once per distinct file, not once per page
+	local page theme seen=" ${TUI_DEFAULTS_DIR:-}/theme.css "
+	for page; do
+		if [[ "$page" == */* ]]; then theme="${page%/*}/theme.css"; else theme="./theme.css"; fi
+		[[ "$seen" == *" $theme "* ]] && continue
+		seen+="$theme "
+		[[ -r "$theme" ]] && tui.load_theme "$theme" >/dev/null 2>&1
+	done
+	_tui_shell.warm "$@"
+}
+
+# _tui_cache_warm_worker PAGE ROOT REPORT - one forked build of PAGE: headless, no side effects outside its own snapshot
+# ROOT/cache/<fname>.snap (written atomically via tmp + mv, so a crashed worker leaves no partial file and concurrent
+# app instances warming the same page race harmlessly). Stdin/stdout are /dev/null, so its tui.init cannot take the
+# terminal; it appends one "DONE page" or "FAILED page" line to REPORT (a fifo or a file) and exits.
+_tui_cache_warm_worker() {
+	local _tcw_page="$1" _tcw_root="$2" _tcw_cache_dir="$2/cache"
+	exec </dev/null
+	exec 6>>"$3"
+	exec 1>/dev/null 2>"$_tcw_root/worker.$BASHPID.stderr.log"
+	# a worker that dies without reporting (an error aborting the build) would leave the parent waiting forever
+	trap 'tui.log.error "cache worker $BASHPID: died while recording $_tcw_page without reporting, reporting FAILED"; printf "FAILED %s\n" "$_tcw_page" >&6' EXIT
+	tui.log.debug "cache worker $BASHPID: recording $_tcw_page"
+	_TUI_WARM_WORKER=1
+	tui.init
+	tui.reset_ui
+	if tui.cache.record "$_tcw_page"; then
+		local _tcw_fn _tcw_tmp
+		_tcw_fn="$(tui.cache.fname "$_tcw_page")"
+		_tcw_tmp="$_tcw_cache_dir/${_tcw_fn}.snap.tmp.$BASHPID"
+		tui.cache.encode "$_tcw_page" >"$_tcw_tmp"
+		mv -f "$_tcw_tmp" "$_tcw_cache_dir/${_tcw_fn}.snap"
+		tui.log.debug "cache worker $BASHPID: $_tcw_page recorded, snapshot at $_tcw_cache_dir/${_tcw_fn}.snap"
+		printf 'DONE %s\n' "$_tcw_page" >&6
+	else
+		tui.log.warn "cache worker $BASHPID: tui.cache.record failed for $_tcw_page"
+		printf 'FAILED %s\n' "$_tcw_page" >&6
+	fi
+	trap - EXIT
+	exec 6>&-
+	_master_cleanup 2>/dev/null
+}
+
 # tui.cache.warm_with_spinner PAGE... - pre-warms the cache for every given
 # page, showing a D.A.B.T banner + progress bar while it works. Same shape
 # as tools/legacy/bench_page_switch.sh's worker (proven there): an isolated
@@ -773,22 +823,7 @@ tui.cache.warm_with_spinner() {
 	mkdir -p "$_tcw_cache_dir"
 	mkfifo "$_tcw_fifo"
 
-	# Shared dependency, parsed once here in the parent: every page's <theme>
-	# (its own, falling back to the framework default) gets the same
-	# memoized parse (_tui.theme_load_file, tui_cache.sh's own stylesheet
-	# memo above) BEFORE any worker forks, so every worker inherits an
-	# already-populated _TUI_THEME_MEMO through fork copy-on-write memory
-	# instead of re-parsing the same CSS once per page.
-	tui.log.debug "tui.cache.warm_with_spinner: pre-parsing shared theme deps for ${#_tcw_pages[@]} page(s) in parent"
-	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css" >/dev/null 2>&1
-	local _tcw_dp _tcw_dtheme
-	for _tcw_dp in "${_tcw_pages[@]}"; do
-		if [[ "$_tcw_dp" == */* ]]; then _tcw_dtheme="${_tcw_dp%/*}/theme.css"; else _tcw_dtheme="./theme.css"; fi
-		[[ -r "$_tcw_dtheme" ]] && tui.load_theme "$_tcw_dtheme" >/dev/null 2>&1
-	done
-
-	# shells first: built once here, replayed by every worker (a splash-less moment of one shell build per app shell)
-	_tui_shell.warm "${_tcw_pages[@]}"
+	_tui_cache_warm_prelude "${_tcw_pages[@]}"
 
 	# One background subshell per stale page (a worker has no side effects
 	# outside its own snapshot file - build is headless and sources no
@@ -801,42 +836,9 @@ tui.cache.warm_with_spinner() {
 	((_tcw_max > ${#_tcw_pages[@]})) && _tcw_max=${#_tcw_pages[@]}
 	local _tcw_total=${#_tcw_pages[@]} _tcw_next=0 _tcw_running=0
 
-	# A worker's stdin/stdout are /dev/null - so its own tui.init can't put
-	# the real terminal in raw mode and its screen paints never hit it -
-	# and it reports one line down the shared fifo when its one page is
-	# done (or failed), then exits: its snapshot is written atomically
-	# (tmp.$BASHPID + mv), so a crashed worker leaves no partial .snap and
-	# concurrent app instances warming the same page race harmlessly.
-	_tui_cache_warm_worker() {
-		local _tcw_page="$1"
-		exec </dev/null
-		exec 6>"$_tcw_fifo"
-		exec 1>/dev/null 2>"$_tcw_root/worker.$BASHPID.stderr.log"
-		# a worker that dies without reporting (an error aborting the build) would leave the parent waiting forever
-		trap 'tui.log.error "cache worker $BASHPID: died while recording $_tcw_page without reporting, reporting FAILED"; printf "FAILED %s\n" "$_tcw_page" >&6' EXIT
-		tui.log.debug "cache worker $BASHPID: recording $_tcw_page"
-		tui.init
-		tui.reset_ui
-		if tui.cache.record "$_tcw_page"; then
-			local _tcw_fn _tcw_tmp
-			_tcw_fn="$(tui.cache.fname "$_tcw_page")"
-			_tcw_tmp="$_tcw_cache_dir/${_tcw_fn}.snap.tmp.$BASHPID"
-			tui.cache.encode "$_tcw_page" >"$_tcw_tmp"
-			mv -f "$_tcw_tmp" "$_tcw_cache_dir/${_tcw_fn}.snap"
-			tui.log.debug "cache worker $BASHPID: $_tcw_page recorded, snapshot at $_tcw_cache_dir/${_tcw_fn}.snap"
-			printf 'DONE %s\n' "$_tcw_page" >&6
-		else
-			tui.log.warn "cache worker $BASHPID: tui.cache.record failed for $_tcw_page"
-			printf 'FAILED %s\n' "$_tcw_page" >&6
-		fi
-		trap - EXIT
-		exec 6>&-
-		_master_cleanup 2>/dev/null
-	}
-
 	_tcw_launch_more() {
 		while ((_tcw_next < _tcw_total && _tcw_running < _tcw_max)); do
-			_tui_cache_warm_worker "${_tcw_pages[_tcw_next]}" &
+			_tui_cache_warm_worker "${_tcw_pages[_tcw_next]}" "$_tcw_root" "$_tcw_fifo" &
 			_tcw_pids+=($!)
 			((_tcw_running++))
 			((_tcw_next++))
@@ -978,6 +980,138 @@ tui.cache.warm_with_spinner() {
 	fi
 }
 
+# ── lazy warm-up: pages after the first are built while the app runs ──────
+
+declare -g _TUI_LAZY_ROOT="" _TUI_LAZY_PID="" _TUI_LAZY_OWNER="" _TUI_LAZY_TOAST="" _TUI_LAZY_QUIET=0
+declare -ga _TUI_LAZY_PENDING=()
+
+# _tui_cache_lazy.split FIRST STALE... -> _TUI_LAZY_FIRST (FIRST when it is among STALE, else empty) and _TUI_LAZY_LATER
+declare -ga _TUI_LAZY_FIRST=() _TUI_LAZY_LATER=()
+_tui_cache_lazy.split() {
+	local first="$1" p
+	shift
+	_TUI_LAZY_FIRST=() _TUI_LAZY_LATER=()
+	for p; do
+		if [[ "$p" == "$first" ]]; then _TUI_LAZY_FIRST+=("$p"); else _TUI_LAZY_LATER+=("$p"); fi
+	done
+}
+
+# _tui_cache_lazy.order FIRST - puts the pages FIRST links to (its buttons' and its shell's gotos, in the order they appear)
+# in front of the others in _TUI_LAZY_LATER: the next click is most likely one of them, and it should find its page built
+_tui_cache_lazy.order() {
+	local first="$1" dir="${1%/*}" gotos line page p
+	local -a seq=() ordered=()
+	local -A linked=() later=()
+	gotos="${_TUI_CACHE_GOTOS[$first]:-}"
+	[[ -n "${_TUI_CACHE_SHELL[$first]:-}" ]] && gotos+=$'\n'"${_TUI_CACHE_GOTOS[${_TUI_CACHE_SHELL[$first]}]:-}"
+	while IFS= read -r line; do
+		[[ "$line" == "_tui_cache_define_goto "* ]] || continue
+		eval "set -- ${line#_tui_cache_define_goto }" # the recorded calls are %q-quoted, and are eval'd on every replay too
+		page="${2:-}"
+		[[ -n "$page" ]] || continue
+		[[ "$page" == /* ]] || page="$dir/${page#./}"
+		[[ -n "${linked[$page]+x}" ]] && continue
+		linked[$page]=1
+		seq+=("$page")
+	done <<<"$gotos"
+	for p in "${_TUI_LAZY_LATER[@]}"; do later[$p]=1; done
+	for p in "${seq[@]}"; do [[ -n "${later[$p]+x}" ]] && ordered+=("$p") && unset "later[$p]"; done
+	for p in "${_TUI_LAZY_LATER[@]}"; do [[ -n "${later[$p]+x}" ]] && ordered+=("$p"); done
+	_TUI_LAZY_LATER=("${ordered[@]}")
+}
+
+# _tui_cache_lazy.start PAGE... - forks one pool driver that prepares PAGE... (themes and shells, TUI_CACHE_LAZY_PREP) and
+# builds them with TUI_CACHE_LAZY_WORKERS workers (0 = half the cores) at lower priority (TUI_CACHE_LAZY_NICE), and
+# registers the main loop's tick to collect the snapshots. Forked before the terminal
+# is taken over, like the splash's workers, so a worker's exit path never touches the running UI.
+_tui_cache_lazy.start() {
+	(($#)) || return 0
+	_tui_mkdtemp _TUI_LAZY_ROOT tui_cache_lazy || return 1
+	mkdir -p "$_TUI_LAZY_ROOT/cache"
+	_TUI_LAZY_PENDING=("$@")
+	_TUI_LAZY_OWNER="$BASHPID"
+	local root="$_TUI_LAZY_ROOT" max="${TUI_CACHE_LAZY_WORKERS:-0}"
+	((max > 0)) || max=$(($(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) / 2))
+	((max < 1)) && max=1
+	(
+		exec </dev/null >/dev/null 2>&1
+		trap - EXIT INT
+		((${TUI_CACHE_LAZY_NICE:-10} > 0)) && renice -n "${TUI_CACHE_LAZY_NICE:-10}" -p "$BASHPID" >/dev/null 2>&1 # workers inherit it: the app's own input wins the cores
+		((${TUI_CACHE_LAZY_PREP:-1})) && _tui_cache_warm_prelude "$@"                                              # the workers inherit it, as from the splash's parent
+		local -a pids=()
+		local running=0 page
+		trap 'kill "${pids[@]}" 2>/dev/null; exit 0' TERM
+		for page; do
+			((running >= max)) && {
+				wait -n
+				((running--))
+			}
+			_tui_cache_warm_worker "$page" "$root" "$root/report" &
+			pids+=($!)
+			((running++))
+		done
+		wait
+		: >"$root/DONE"
+	) &
+	_TUI_LAZY_PID=$!
+	tui.tick.add _tui_cache_lazy.poll
+}
+
+# _tui_cache_lazy.poll - the tick listener: decodes ONE finished snapshot per call (input stays responsive), keeping a
+# page the app already built on a visit; ends the warm-up once the pool is done and nothing more is coming.
+_tui_cache_lazy.poll() {
+	local i page snap
+	for i in "${!_TUI_LAZY_PENDING[@]}"; do
+		page="${_TUI_LAZY_PENDING[i]}"
+		snap="$_TUI_LAZY_ROOT/cache/${page//\//_}.snap"
+		[[ -f "$snap" ]] || continue
+		unset "_TUI_LAZY_PENDING[$i]"
+		[[ -n "${_TUI_CACHE_PAGE[$page]:-}" ]] || tui.cache.decode "$page" "$(<"$snap")"
+		return 0
+	done
+	[[ -f "$_TUI_LAZY_ROOT/DONE" ]] && _tui_cache_lazy.finish
+	return 0
+}
+
+# _tui_cache_lazy.announce - once the first page is up: a toast that stays while the pool builds (the app is usable, the
+# first visit of a page may be slower) and the cache_building hook
+_tui_cache_lazy.announce() {
+	[[ -n "$_TUI_LAZY_ROOT" ]] || return 0
+	tui.notify "Building the page cache in the background (${#_TUI_LAZY_PENDING[@]} pages)..." info 0
+	_TUI_LAZY_TOAST="$TUI_NOTIFY_ID"
+	tui.hook.fire cache_building
+}
+
+# _tui_cache_lazy.finish - every page that could be built is in memory: persist the cache and drop the pool's directory;
+# the toast turns into "ready" and the cache_complete hook fires (both skipped when the app is ending)
+_tui_cache_lazy.finish() {
+	tui.tick.remove _tui_cache_lazy.poll
+	tui.cache.dump_dir "$(tui.cache.disk_dir)"
+	rm -rf "$_TUI_LAZY_ROOT" 2>/dev/null
+	_TUI_LAZY_ROOT="" _TUI_LAZY_PID=""
+	_TUI_LAZY_PENDING=()
+	((_TUI_LAZY_QUIET)) && return 0
+	[[ -n "$_TUI_LAZY_TOAST" ]] && tui.notify.clear "$_TUI_LAZY_TOAST"
+	_TUI_LAZY_TOAST=""
+	tui.notify "Page cache ready" success
+	tui.hook.fire cache_complete
+}
+
+# _tui_cache_lazy.stop - the app ends while the pool still runs: stop it (the driver ends its workers), keep every page
+# already built (decoded and persisted like a finished pool's), and drop the directory; the rest are built again on the
+# next start. Only the process that started the pool acts: its workers inherit these variables and run the same exit path.
+_tui_cache_lazy.stop() {
+	[[ -n "$_TUI_LAZY_ROOT" && "$_TUI_LAZY_OWNER" == "$BASHPID" ]] || return 0
+	if [[ -n "$_TUI_LAZY_PID" ]]; then
+		kill "$_TUI_LAZY_PID" 2>/dev/null
+		wait "$_TUI_LAZY_PID" 2>/dev/null
+	fi
+	: >"$_TUI_LAZY_ROOT/DONE"
+	_TUI_LAZY_QUIET=1
+	while [[ -n "$_TUI_LAZY_ROOT" ]]; do _tui_cache_lazy.poll; done
+	_TUI_LAZY_QUIET=0
+}
+
 # tui.start_cached FIRST_PAGE - like tui.start, but first pre-warms the
 # cache for every config/*.xml sibling of FIRST_PAGE (every page a nav bar
 # in the same directory would ever link to), plus the shipped default pages
@@ -1008,8 +1142,9 @@ tui.start_cached() {
 		[[ -f "$f" && "${f##*/}" != _* ]] && pages+=("$f")
 	done
 
-	# every page is checked up front (all of them are reachable), before the terminal is taken over
-	_tui_validate.gate "${pages[@]}" || return 1
+	# every page is checked (all of them are reachable) before the terminal is taken over; the check runs in the background
+	# (TUI_VALIDATE_ASYNC) while the first page is prepared and built, and is joined before anything is persisted or started
+	_tui_validate.begin "${TUI_VALIDATE_ASYNC:-1}" "${pages[@]}"
 
 	# Load whatever's already on disk from a previous run - load_dir
 	# itself drops anything whose page (or an include it pulled in) has
@@ -1025,10 +1160,25 @@ tui.start_cached() {
 		tui.cache.valid "$p" || stale+=("$p")
 	done
 	_TUI_CACHE_MTIME_FRESH=0
-	if ((${#stale[@]} > 0)); then
+	if ((${#stale[@]} > 1 && TUI_CACHE_LAZY)); then
+		# only the first page is needed for the first frame: it is prepared and built behind the splash, the rest by the
+		# background pool (which prepares them too, unless TUI_CACHE_LAZY_PREP is off: then it is done here, for all)
+		_tui_path_canon "$file"
+		local first_file="$_CANON"
+		_tui_cache_lazy.split "$first_file" "${stale[@]}"
+		((TUI_CACHE_LAZY_PREP)) || _tui_cache_warm_prelude "${stale[@]}"
+		((${#_TUI_LAZY_FIRST[@]})) && tui.cache.warm_with_spinner "${_TUI_LAZY_FIRST[@]}"
+		_tui_validate.finish || return 1
+		# persisted at once: a quit before the pool is done still leaves the first page warm
+		((${#_TUI_LAZY_FIRST[@]})) && tui.cache.dump_dir "$disk_dir"
+		_tui_cache_lazy.order "$first_file" # the first page is built (or loaded) by now: its links are known
+		_tui_cache_lazy.start "${_TUI_LAZY_LATER[@]}"
+	elif ((${#stale[@]} > 0)); then
 		tui.cache.warm_with_spinner "${stale[@]}"
+		_tui_validate.finish || return 1
 		tui.cache.dump_dir "$disk_dir"
 	fi
+	_tui_validate.finish || return 1 # nothing to build: the check is joined here (a no-op when already done)
 	# every page is now cached and checked against its files: from here on the files are assumed unchanged
 	((TUI_CACHE_TRUST)) && _TUI_CACHE_TRUSTED=1
 
@@ -1040,5 +1190,6 @@ tui.start_cached() {
 	_tui_store.restore_page
 	_tui_store.enter_focus
 	_tui_validate.notify
+	_tui_cache_lazy.announce
 	tui.run
 }

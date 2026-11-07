@@ -9,9 +9,9 @@ Appends a line to the app's log file. stdout is the screen, so logs go to a file
 **Parameters**
 
 - `MSG`: the message.
-- `LEVEL`: free text shown in brackets. Default: `info`.
+- `LEVEL`: `debug`, `info`, `warn` or `error`; shown in brackets. Any other text counts as `info` for the filter and is shown as written. Default: `info`.
 
-**Output:** nothing on screen. The file gets `[HH:MM:SS] [LEVEL] MSG`.
+**Output:** nothing on screen. The file gets `[HH:MM:SS] [LEVEL] MSG`, unless `LEVEL` is below the log level ([`tui.log.level`](/api/core/tui.log.level.html), default `info`): then nothing is written.
 
 **Notes**
 
@@ -27,4 +27,4 @@ tui.log "export started: $file"
 tui.log.warn "config missing, using defaults"
 ```
 
-**See also:** [`tui.log.debug`](/api/core/tui.log.debug.html), [`tui.log.info`](/api/core/tui.log.info.html), [`tui.log.warn`](/api/core/tui.log.warn.html), [`tui.log.error`](/api/core/tui.log.error.html)
+**See also:** [`tui.log.level`](/api/core/tui.log.level.html), [`tui.log.debug`](/api/core/tui.log.debug.html), [`tui.log.info`](/api/core/tui.log.info.html), [`tui.log.warn`](/api/core/tui.log.warn.html), [`tui.log.error`](/api/core/tui.log.error.html)

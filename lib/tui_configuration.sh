@@ -46,6 +46,41 @@ declare -g TUI_MOUSE_DRAIN_PEEK_TIMEOUT="${TUI_MOUSE_DRAIN_PEEK_TIMEOUT:-0.001}"
 declare -gi TUI_MOUSE_DRAIN_MAX="${TUI_MOUSE_DRAIN_MAX:-200}"
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  PAGE CACHE CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+# 1=a start with several uncached pages builds only the first page behind the splash and the rest in background workers
+# while the app runs (a page opened before its worker is done is built on the spot), 0=build every page before the first frame
+declare -gi TUI_CACHE_LAZY="${TUI_CACHE_LAZY:-1}"
+
+# background workers of the lazy build; 0=half the cores, at least 1
+declare -gi TUI_CACHE_LAZY_WORKERS="${TUI_CACHE_LAZY_WORKERS:-12}"
+
+# 1=the background pool prepares the themes and shells of its pages itself, so the first page does not wait for them;
+# 0=they are prepared for every page before the first page is built
+declare -gi TUI_CACHE_LAZY_PREP="${TUI_CACHE_LAZY_PREP:-1}"
+
+# nice value of the background pool, so the app's own input wins the cores while it builds; 0=same priority as the app
+declare -gi TUI_CACHE_LAZY_NICE="${TUI_CACHE_LAZY_NICE:-10}"
+
+# parallel page validation (first launch, after an update or a page edit): workers to use; 0=one per core, 1=validate in
+# this shell, one page after the other
+declare -gi TUI_VALIDATE_JOBS="${TUI_VALIDATE_JOBS:-0}"
+
+# 1=the page validation of a start runs in the background while the first page is prepared and built, and is joined before
+# the cache is written or the app starts; 0=validate every page first, then build
+declare -gi TUI_VALIDATE_ASYNC="${TUI_VALIDATE_ASYNC:-1}"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LOGGING CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+# lowest level written to the app log: debug, info, warn, error or off. debug is for developing a page or the framework: it
+# logs every build step (about 12 ms per page build, thousands of lines on a first launch). Change it while running with
+# tui.log.level.
+declare -g TUI_LOG_LEVEL="${TUI_LOG_LEVEL:-info}"
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  BACKGROUND JOB & SPINNER CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 

@@ -221,6 +221,13 @@ def startup_gantt(rep, W):
             b = max(a + 1, int(sp["end"] / total * bw))
             row = " " * a + c("█" * (b - a), "cyan" if sp["end"] - sp["start"] < total * 0.4 else "orange")
             lines.append(f"  {pad(sp['label'], 24)} {pad(c(fmt_ms(sp['end'] - sp['start']), 'text'), 9, 'r')}  {row}")
+        w = s.get("workers")
+        if w:   # how the page builds spread over the cores: wall time against the slowest one and the total work
+            lines.append(f"  {pad('page builds', 24)} {pad(c(fmt_ms(w['span_ms']), 'text'), 9, 'r')}  "
+                         + c(f"{w['count']:.0f} workers, slowest {fmt_ms(w['max_ms'])}, {fmt_ms(w['sum_ms'])} of work in total", "dim"))
+        if s.get("cache_complete_ms"):   # information only: the app is usable from "ready" on, the budget counts that
+            lines.append(f"  {pad('cache complete', 24)} {pad(c(fmt_ms(s['cache_complete_ms']), 'text'), 9, 'r')}  "
+                         + c("in the background, after spawn; informational, not part of the budget", "dim"))
         lines.append("")
     return lines[:-1] if lines else lines
 

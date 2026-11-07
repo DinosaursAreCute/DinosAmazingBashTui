@@ -19,11 +19,38 @@ class NullUI:
     def set_tracer(self, tracer): pass
 
 
+CACHE_BUILD_TIMEOUT = 90.0   # s: the longest a start waits for the background cache build before the next start
+
+
 def _first(sess, kind, name, after=0.0):
     for e in sess.events:
         if e.kind == kind and e.name == name and e.t0 >= after:
             return e
     return None
+
+
+def unprobed_gaps(spans, end_ms, min_ms=10.0):
+    """(label, start, end) for every stretch of [0, end_ms] that no span covers and that is at least min_ms long, named
+    after the span it follows. Nested and overlapping spans are merged first, so only real holes count."""
+    gaps, edge, prev = [], 0.0, "spawn"
+    for label, s, e in sorted(spans, key=lambda sp: (sp[1], sp[2])):
+        if s - edge >= min_ms:
+            gaps.append((f"unprobed after {prev}", edge, s))
+        if e > edge:
+            edge, prev = e, label
+    if end_ms - edge >= min_ms:
+        gaps.append((f"unprobed after {prev}", edge, end_ms))
+    return gaps
+
+
+def worker_stats(events):
+    """The cache builds of one start (each forked worker is one probe event): how many, the slowest, all of them added up
+    and the wall time from the first start to the last end. None when the start built nothing."""
+    ws = [e for e in events if e.kind == "E" and e.name == "_tui_cache_warm_worker"]
+    if not ws:
+        return None
+    return {"count": len(ws), "max_ms": max(e.t1 - e.t0 for e in ws) * 1000, "sum_ms": sum(e.t1 - e.t0 for e in ws) * 1000,
+            "span_ms": (max(e.t1 for e in ws) - min(e.t0 for e in ws)) * 1000}
 
 
 def startup_timeline(sess):
@@ -35,9 +62,13 @@ def startup_timeline(sess):
     if boot:
         spans.append(("bash + script boot", 0.0, ms(boot.t0)))
     for label, name in (("load library", "libload"), ("validate pages", "_tui_validate.gate"),
-                        ("load cache", "tui.cache.load_dir"), ("build caches (splash)", "tui.cache.warm_with_spinner"),
-                        ("save cache", "tui.cache.dump_dir"), ("init terminal", "tui.init"),
-                        ("load first page", "tui.load_cached")):
+                        ("validate: start", "_tui_validate.begin"), ("validate: wait for result", "_tui_validate.finish"),
+                        ("load cache", "tui.cache.load_dir"), ("shared prep (themes, shells)", "_tui_cache_warm_prelude"),
+                        ("build caches (splash)", "tui.cache.warm_with_spinner"),
+                        ("save cache", "tui.cache.dump_dir"), ("start background build", "_tui_cache_lazy.start"),
+                        ("init terminal", "tui.init"), ("load first page", "tui.load_cached"),
+                        ("restore page state", "_tui_store.restore_page"), ("focus", "_tui_store.enter_focus"),
+                        ("announce cache build", "_tui_cache_lazy.announce")):
         e = _first(sess, "E", name)
         if e:
             spans.append((label, ms(e.t0), ms(e.t1)))
@@ -45,6 +76,8 @@ def startup_timeline(sess):
     rend = _first(sess, "E", "tui.render", run.t0 if run else 0.0)
     if rend:
         spans.append(("first frame", ms(rend.t0), ms(rend.t1)))
+        spans += unprobed_gaps(spans, ms(rend.t1))
+    spans.sort(key=lambda sp: (sp[1], sp[2]))
     return {
         "spans": spans,
         "first_output_ms": ms(sess.first_out) if sess.first_out else None,
@@ -81,6 +114,13 @@ def start_app(cfg, home, label, tracer=None, env=None):
               "cpu_ms": sess.cpu_seconds() * 1000}
     else:
         tl = startup_timeline(sess)
+    # A lazy cache build goes on after the start page is up. Ready (the budgeted number) is the start page; the build is
+    # waited for so the next start finds a complete cache, and its end is reported as information only.
+    if sess.alive and _first(sess, "E", "cache_building") and not _first(sess, "E", "cache_complete"):
+        sess.pump(CACHE_BUILD_TIMEOUT, until=lambda: not sess.alive or _first(sess, "E", "cache_complete") is not None)
+    done = _first(sess, "E", "cache_complete")
+    tl["cache_complete_ms"] = (done.t1 - sess.t_spawn) * 1000 if done else None
+    tl["workers"] = worker_stats(sess.worker_events)
     sess.pump(0.4)  # let the first frames flush before the next scenario
     if fwd:
         fwd(("label_end", int(now() * 1e6)))

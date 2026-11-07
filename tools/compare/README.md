@@ -28,11 +28,11 @@ Output: `reports/<timestamp>/{compare.txt,compare.json}` (git-ignored). `COMPARE
 ## What is measured
 
 Per step (page switch by menu click, button click, typing, list keys, resize, 2 s idle), medians over the rounds:
-- **content**: input written to the expected text first appearing in the output (first output byte for steps with no expected text)
+- **content**: input written to the expected text first appearing in the output (last output byte, i.e. the settled frame, for steps with no expected text)
 - **done**: last output byte before the screen went quiet
 - **bytes / writes**: output volume per step
 - **cpu**: CPU ms of the app's whole process tree during the step (`/proc`)
-- **startup.cold**: fresh HOME (DABT builds its page cache, Textual has nothing to build); **startup.warm**: second start with the same HOME
+- **startup.cold**: fresh HOME (DABT builds its page cache, Textual has nothing to build); **startup.warm**: second start with the same HOME (DABT builds its pages in the background after the first frame; the cold session waits for its "Page cache ready" notice before it ends, so every step runs on a complete cache)
 - **rss**: resident memory of the tree after the session
 
 ## Caveats

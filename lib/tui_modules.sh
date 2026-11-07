@@ -55,6 +55,8 @@ source "${SCRIPT_DIR}/apps/tui_install.sh"
 source "${SCRIPT_DIR}/tui_job.sh"
 # shellcheck source=layout/tui_layout.sh
 source "${SCRIPT_DIR}/layout/tui_layout.sh"
+# shellcheck source=tui_log.sh
+source "${SCRIPT_DIR}/tui_log.sh"
 # shellcheck source=core/tui_loop.sh
 source "${SCRIPT_DIR}/core/tui_loop.sh"
 # shellcheck source=markdown/tui_markdown.sh

@@ -933,6 +933,171 @@ Open points:
 - `held.scroll` 109 ms is the measurement artefact above; the lag metric needs to skip presses that paint nothing.
 - The `addons` and `generated` profiler scenarios still target the removed demo pages (now the Compose page) and measure nothing until rewritten.
 
+## 15k. Change 23: pages are validated in parallel
+
+### What changed
+
+`tui.validate.files` (`lib/markup/tui_validate.sh`) hands two or more pages to `_tui_validate.parallel`: one background worker per core (`TUI_VALIDATE_JOBS`, `1` = in the calling shell), each taking every N-th page and writing the findings and the files it read to one result file. The parent merges the files in page order, so the messages, counts and the `cache/validated` stamp equal a serial run; a page whose worker left no result is validated in the parent. Pages are independent (ids are per page), so no state is shared.
+
+### Measured
+
+Micro-measurement: `tui.validate.files` over the 27 pages of `share/demo` and `share/defaults` in a sandboxed `TUI_HOME`, same 28 errors and 28 messages at every setting (the demo pages are templates and fail the same way serially).
+
+| workers | time |
+|---|---|
+| 1 | 1550 ms |
+| 4 | 518 ms |
+| 12 | 248 ms |
+
+Startup run `20261106-231355` (`--scenario startup --deep`, 5 rounds, 150x45): cold start 2.84 s (first pixel 638 ms), of which `validate pages` 315 ms, `build caches (splash)` 2.15 s, `save cache` 20 ms; warm start 526 ms with `validate pages` 4.4 ms (the stamp skips the walk).
+
+### Caveats
+
+- There is no clean before/after pair for the cold start. The run before it (`20261106-225537`) ran while about 0.5 cores were busy with other work (cold start 4.27 s), so the `-34%` the report prints against it is not a measure of this change.
+- The 1.09 s of validation in section 17 is from `20260930`, with other pages and an older validator; `1.09 s → 315 ms` compares across five weeks. The micro-measurement above is the same-code, same-pages comparison.
+- Validation only runs when `cache/validated` is missing or stale (first launch, after an update, after a page edit); a warm start never pays it.
+
+### Verdict
+
+The validation phase is no longer the largest cold-start cost: the cache-building splash (2.15 s of 2.84 s) is. The next step for cold start is that phase (`_tui_parse.scan`, `_tui_build.attrv`, `_tui.theme_parse`) or a shipped cache, not more validation work.
+
+## 15l. Change 24: lazy cache build
+
+### What changed
+
+`tui.start_cached` (`lib/markup/tui_cache.sh`) with `TUI_CACHE_LAZY=1` (default, `lib/tui_configuration.sh`) builds only the first page behind the splash. The other stale pages go to a pool driver forked before the terminal is taken over: `TUI_CACHE_LAZY_WORKERS` workers (0 = half the cores) at `renice 10`, each writing one snapshot. The main loop's tick (`_tui_cache_lazy.poll`) decodes one finished snapshot per call, keeps a page the app built itself in the meantime, and persists the cache when the pool is done. A page opened before its snapshot exists takes the existing `tui.load_cached` miss path (an in-process build).
+
+Two defects surfaced on the way, both only visible with more than one worker: every worker's `tui.init` rewrote `app.meta` through the one temporary name `app.meta.tmp` (builds failed with `mv: cannot stat`) and counted as a run of the app. Each process now writes `app.meta.tmp.$BASHPID` and a headless worker skips the run record.
+
+### Measured
+
+Sandbox harness, 24 demo pages (not the profiler): time until the first page is cached, and until every page is built and persisted.
+
+| workers | first page ready | all pages persisted |
+|---|---|---|
+| 2 | 635 ms | 4.9 s |
+| 6 | 649 ms | 2.45 s |
+| 12 | 619 ms | 2.0 s |
+
+For comparison, the eager build of the same 24 pages took 1.95 s before the first frame (12 workers) and 9.1 s with one.
+
+Profiler, `--scenario startup --rounds 2 --no-trace` on this checkout (`startup.cold` / `startup.warm`):
+
+| | before | now |
+|---|---|---|
+| Cold start, ready (start page up; this is what the budget counts) | 2.84 s | 1.79 s |
+| `build caches (splash)` | 2.15 s | 0.63 s |
+| Cache complete (background; informational, not in the budget) | – | 3.62 s |
+| Warm start | 526 ms | 541 ms |
+
+The profiler marks both moments: `ready` (first frame) and the new `cache_complete` hook event, and a start waits for the build to finish before the next start, so the warm start finds a complete cache. A quit before the pool is done persists the pages built so far and the first page is persisted at once; before this, a launch that quit early left no cache and the next "warm" start rebuilt the landing page behind the splash (a 1.49 s warm start in one run).
+
+### What the new start-up probes show
+
+With a probe on every phase (`_tui_cache_warm_prelude`, `_tui_cache_lazy.start`, `_tui_store.restore_page`, ...) and the gaps named, a cold start of the demo (`startup`, 2 rounds, untraced, a noisy machine: 1.8 to 2.1 s ready) reads, in ms: library 108, validation 303, **shared prep (themes, shells) 443 to 504**, first page behind the splash 645, init 36, first page load 18, first frame 138, the rest under 50 each.
+
+- The shared prep is the largest serial piece after the splash: `_tui_cache_warm_prelude` parses every stale page's theme and builds every shell for all 24 pages before the first page is built, though the first page needs only its own. The pool's workers inherit that work through the fork, which is why it is done in the parent. Doing only the first page's prep in the foreground and the rest in the pool driver is the next candidate (not done).
+- Page builds: 24 workers, the slowest about 1 s, 13.6 s of work in total over a 3.1 s wall time: the pool is bound by the total CPU, not by one page.
+
+### Prep for the first page only (`TUI_CACHE_LAZY_PREP`)
+
+Measured first, because the guess was off: the prep for all 24 pages cost 376 ms and for the first page alone 291 ms in a harness, not the 443 ms the profiler shows for everything. The first page needs the one shell that 19 of the 24 demo pages share and its theme, so most of the prep cannot move. The part that could move was mostly repeated work: `tui.load_theme` costs about 2.9 ms per call even for a memoized file, and the prep called it once per page (24 calls) for two distinct files. Each theme file is now loaded once, and the later pages' prep runs in the pool driver (the pages' workers inherit it).
+
+Profiler, `--scenario startup --rounds 3 --no-trace`, cold start ready (start page up):
+
+| | `TUI_CACHE_LAZY_PREP=0` | `=1` |
+|---|---|---|
+| runs | 1.76, 2.35, 1.79 s | 1.78, 1.67, 1.70 s |
+| median | 1.79 s | 1.70 s |
+
+About 90 ms, which matches the 80 ms of the harness, but is inside the spread of the `=0` runs (one at 2.35 s). The remaining prep of the first page is about 380 ms (a shell build of about 230 ms and the theme parse of about 130 ms); it is serial, because the first page's build needs both. A shell the driver builds for a later page is not handed back to the app: the app builds it on the first visit of such a page (all later pages of the demo share the first page's shell, so none does).
+
+### Validation in the background (`TUI_VALIDATE_ASYNC`)
+
+`_tui_validate.begin` starts the check at the point where the serial `gate` ran, in a background process (which uses the validation workers); `_tui_validate.finish` waits for it right after the first page is built and before the cache is persisted or the lazy pool starts, so an invalid page never reaches the disk cache and still stops the start (`--ignore-invalid-xml` as before). `_tui_validate.gate` is `begin 0` plus `finish` for the other callers. The worker result files are shared with the parallel pool (`_tui_validate.save` and `merge`).
+
+Profiler, `--scenario startup --rounds 3 --no-trace`, cold start ready (start page up):
+
+| | `TUI_VALIDATE_ASYNC=0` | `=1` |
+|---|---|---|
+| runs | 1.67, 1.70, 1.71 s | 1.47, 1.45, 1.45 s |
+| median | 1.70 s | 1.45 s |
+| `validate: wait for result` | 316 ms | 6.9 ms |
+| `shared prep` | 373 ms | 451 ms |
+
+The check costs nothing on the critical path any more (the wait is 7 ms), but it competes for the cores with the first page's prep, which got about 80 ms slower, so the net is 250 ms, not the 316 ms of the old wait. A warm start does not start a check (the stamp holds).
+
+### Logging
+
+A timestamped xtrace of the 200 ms shell build put `tui.log` at about 13 ms (6.7%): there was no log level, so every `tui.log.debug` formatted a timestamp and opened, appended to and closed the day's log file. Stubbing `tui.log` out made 6 pages take 2.11 to 2.15 s instead of 2.19 to 2.25 s. The logger now lives in `lib/tui_log.sh` with a level (`TUI_LOG_LEVEL`, default `info`, `tui.log.level` at run time); a dropped line is one call and one comparison.
+
+Controlled A/B, 6 demo pages built one after the other, 5 interleaved runs each:
+
+| level | mean | log lines written |
+|---|---|---|
+| `debug` (the old behaviour) | 2224 ms | 599 |
+| `info` (the new default) | 2141 ms | 0 |
+
+About 83 ms (3.7%) of CPU, about 14 ms per page; on the first page's critical path that is roughly 25 ms. A profiler cold-start run could not show it: the machine was busy and the spread inside one setting (1.46 to 1.90 s) was larger than the effect, so there is no wall-clock cold-start number for this change.
+
+### A first click against the background build (`nav.form` in `tools/compare`)
+
+The DABT/Textual comparison read `nav.form` at 250 to 265 ms (19,449 bytes) in four runs after the lazy build, against 45 to 52 ms (15,095 bytes) before. It is the first page switch after start, and the harness clicks it while the pool still builds: a page whose snapshot is not there yet is built in the main shell (`tui.load_cached` miss), which costs about 200 ms and writes more. It depends on how busy the machine is: `compare.py --only dabt --rounds 3` gave 44.8 ms idle, and 360.6 ms with 12 busy loops running; with `TUI_CACHE_LAZY=0` 41.4 ms idle and 55.7 ms under the same load. The code of the slow and the fast runs was identical.
+
+Two changes: the pool builds the pages the first page links to first, in link order (compare app: `form data layout` instead of `data form layout`), and the harness's cold session waits for the "Page cache ready" notice before it ends, so the steps run on a complete cache (they ran in the second start, which began with a half-built cache). Under the same 12 busy loops `nav.form` is 67.8 ms with 13,258 bytes (a cached switch).
+
+A user who clicks a page before its worker is done still pays the on-the-spot build (a first launch only). Waiting for a worker that is already building that page, instead of building it again, would remove it; not done.
+
+### Not measured yet
+
+- A `--deep` startup run for this change: the table above is a 2-round, untraced run; the 1.79 s also contains validation (about 0.3 s), `tui.init` and the first frame.
+- The cost to the UI while the pool runs (input lag during the first seconds); `renice` is the only mitigation.
+
+## 15m. Start-up, before and after: deep run `20261107-012455` against `20261105-234102`
+
+Command: `tools/profiler/profile.sh --scenario startup --deep --compare tools/profiler/reports/20261105-234102`. Now: 5 rounds, deep, 150x45, tree dirty (changes 23 and 24 and what follows are not committed), idle machine (no busy loops, load average 0.6). Before: the last run taken before the start-up work, the `full` scenario, 2 rounds, `81bac6b`. Medians.
+
+| | before | now | change |
+|---|---|---|---|
+| Cold start, ready (start page up; what the budget counts) | 4297 ms | 1401 ms | -67% |
+| Cold start, first pixel | 2101 ms | 381 ms | -82% |
+| Warm start, ready | 517 ms | 521 ms | +1% |
+| Cache complete (background; informational, not in the budget) | (built before the first frame) | 3185 ms | |
+
+Cold start phases (ms):
+
+| phase | before | now |
+|---|---|---|
+| bash + script boot, load library | 111 | 112 |
+| validate pages (serial, before everything) | 1780 | 3.3 start + 6.6 wait |
+| shared prep (themes, shells), first page only | inside the splash | 431 (inside the splash span) |
+| build caches (splash): all 24 pages / the first page | 2151 | 990 |
+| save cache | 19 | 3.5 |
+| start background build | – | 4.3 |
+| init terminal, load first page | 44 | 47 |
+| first frame | 115 | 144 |
+| not covered by a probe | | 81 |
+
+The background build: 24 workers, the slowest 844 ms, 12.2 s of work in total, 1.9 s of wall time for the builds themselves; the whole pool is done 3.2 s after spawn, 1.8 s after the app is usable.
+
+How to read it:
+
+- **The baseline is not clean.** The report warns that it ran with about 0.7 cores busy, so its 4297 ms (and the 1780 ms of validation in it: a clean serial run measured 1.09 s on 2026-09-30) are inflated. The nearest clean figure for the same code with only the parallel validation in front of it is 2836 ms (run `20261106-231355`, 5 rounds). The honest saving of the lazy build and what came after it is therefore 2836 to 1401 ms, -51%; the -67% includes load noise in the baseline.
+- **Where the saving came from**, each measured on its own (details in 15k and 15l):
+
+| change | measured effect on the cold start |
+|---|---|
+| parallel validation (`TUI_VALIDATE_JOBS`) | 27 pages: 1550 ms to 248 ms |
+| lazy build, first page behind the splash (`TUI_CACHE_LAZY`) | 2.84 to 1.79 s |
+| prep of the first page only, each theme loaded once (`TUI_CACHE_LAZY_PREP`) | 1.79 to 1.70 s (median of 3; inside the spread of the old runs) |
+| validation in the background (`TUI_VALIDATE_ASYNC`) | 1.70 to 1.45 s (3 rounds each) |
+| log level `info` (`TUI_LOG_LEVEL`) | about 25 ms of CPU on the first page's path, 83 ms per 6 pages; no wall-clock figure |
+| build order by links; harness waits for the cache | not a start-up number: `nav.form` of the comparison under load, 361 to 68 ms |
+
+- **What is left on the cold path** (1401 ms): the library load (108 ms), the first page's prep and build behind the splash (990 ms: shell build about 200 ms, themes about 90 ms, the page's own build), the first frame (144 ms), init and first-page load (47 ms), and 81 ms no probe covers. The first page's prep is serial because its build needs both.
+- **Warm start did not move** (517 to 521 ms): library 108, load cache 91, first page 75, first frame 115. The cache load (all pages at once, 11 files each) is the next candidate there; it was not touched.
+- **Background cost**: the first seconds of a first launch run 6 workers at nice 10; a click on a page whose worker is not done yet builds that page in the foreground (about 200 ms). The profiler does not measure input lag during the build.
+
 ## 16. Standing against the budgets
 
 Budgets are the perceived-instant lines in `tools/profiler/scenarios/demo.py`. Baseline is the first deep run (`20260930-193435`); current is the latest deep run (`20260930-214915`). Theme switching and alt+2 are compared with their first measured values where they exist (the baseline alt+2 was a no-op).
@@ -968,7 +1133,7 @@ Order:
 
 1. **Remaining page code and framework work on heavy pages:** `docs` spends about 89 ms attributed in `tui.tabs.build`, `monitor` ~93 ms collecting system stats (inherent), `scrolling` 433 ms (output rendering of 300 lines), and `components` 276 ms. Change 11 already removed the duplicate render and the docs forks. Page script re-sourcing (`_tui_cache_source`, 16.4 ms inclusive), `tui.tick.add` (12 ms self with one listener, unexplained) and `pgrep` (6.5 ms) are next; `_tui.emit_goto` (8.6 ms) is the largest remaining draw-path function.
 2. **Page code:** read `on_docu_visit`, `on_monitor_visit` and the `components` render.
-3. **Cold start:** the page validation (1.08 s) and parse/build cost; a parallel build or a cheaper parse.
+3. **Cold start:** the page validation (1.08 s) and parse/build cost; a parallel build or a cheaper parse. (Done in changes 23 to 24: 4.3 s to 1.4 s, section 15m.)
 4. **Remaining forks:** `tui.theme.list` on palette open, `_tui._calc_bounds` awk.
 5. Dirty flags and one draw per tick stay demoted (the extra frames are cheap).
 

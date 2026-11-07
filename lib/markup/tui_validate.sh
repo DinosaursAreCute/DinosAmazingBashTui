@@ -337,13 +337,67 @@ tui.validate.page() {
 }
 
 # tui.validate.files PAGE... - clears earlier findings, validates every page; status 1 on any error
+# Pages are independent, so two or more run in parallel workers (TUI_VALIDATE_JOBS caps them, 0 = the cores, 1 = in this
+# shell); findings merge in page order, so the result is the same as a serial run.
 tui.validate.files() {
 	_TV_F_SEV=() _TV_F_LOC=() _TV_F_MSG=()
 	_TV_READ=()
 	TUI_V_ERRORS=0 TUI_V_WARNINGS=0
-	local f
-	for f; do tui.validate.page "$f"; done
+	local f jobs="${TUI_VALIDATE_JOBS:-0}"
+	[[ "$jobs" =~ ^[0-9]+$ ]] && ((jobs > 0)) || jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
+	((jobs > $#)) && jobs=$#
+	if ((jobs < 2)); then
+		for f; do tui.validate.page "$f"; done
+	else
+		_tui_validate.parallel "$jobs" "$@"
+	fi
 	((TUI_V_ERRORS == 0))
+}
+
+# _tui_validate.save FILE - the findings and files read so far as one result file, written atomically: every finding as
+# severity, location and message, an empty field, then the files read (all NUL separated)
+_tui_validate.save() {
+	local k
+	{
+		for k in "${!_TV_F_MSG[@]}"; do printf '%s\0%s\0%s\0' "${_TV_F_SEV[k]}" "${_TV_F_LOC[k]}" "${_TV_F_MSG[k]}"; done
+		printf '\0'
+		if ((${#_TV_READ[@]})); then printf '%s\0' "${!_TV_READ[@]}"; fi
+	} >"$1.tmp" && mv -f "$1.tmp" "$1"
+}
+
+# _tui_validate.merge FILE - adds what _tui_validate.save wrote to the findings and files read here
+_tui_validate.merge() {
+	local -a rec=()
+	local k
+	mapfile -d '' -t rec <"$1"
+	for ((k = 0; k < ${#rec[@]} && ${#rec[k]} > 0; k += 3)); do
+		if [[ "${rec[k]}" == error ]]; then tui.validate.error_at "${rec[k + 1]}" "${rec[k + 2]}"; else tui.validate.warn_at "${rec[k + 1]}" "${rec[k + 2]}"; fi
+	done
+	for ((k++; k < ${#rec[@]}; k++)); do _TV_READ[${rec[k]}]=1; done
+}
+
+# _tui_validate.parallel JOBS PAGE... - worker w takes pages w, w+JOBS, ...; each page's result goes to one file, merged
+# in page order. A page whose worker left no result is validated here.
+_tui_validate.parallel() {
+	local jobs="$1" dir i w
+	shift
+	local -a pages=("$@")
+	_tui_mkdtemp dir tui_validate || { for i in "${pages[@]}"; do tui.validate.page "$i"; done; return; }
+	for ((w = 0; w < jobs; w++)); do
+		(
+			exec </dev/null
+			for ((i = w; i < ${#pages[@]}; i += jobs)); do
+				_TV_F_SEV=() _TV_F_LOC=() _TV_F_MSG=() _TV_READ=()
+				tui.validate.page "${pages[i]}"
+				_tui_validate.save "$dir/$i"
+			done
+		) &
+	done
+	wait
+	for i in "${!pages[@]}"; do
+		if [[ -f "$dir/$i" ]]; then _tui_validate.merge "$dir/$i"; else tui.validate.page "${pages[i]}"; fi
+	done
+	rm -rf "$dir"
 }
 
 # tui.validate.messages -> _TV_LINES: one formatted sentence per finding, in file/line order of discovery
@@ -385,23 +439,55 @@ tui.validate.log() {
 	for i in "${!_TV_LINES[@]}"; do tui.log "${_TV_LINES[i]}" "${_TV_F_SEV[i]}"; done
 }
 
-# _tui_validate.gate PAGE... - used by tui.start/tui.start_cached before the terminal is taken over.
-# Errors abort the start unless TUI_IGNORE_INVALID_XML=1 (dabt --ignore-invalid-xml); then the page runs and
-# _tui_validate.notify shows a notification once the UI is up.
-declare -g _TV_NOTIFY=""
-_tui_validate.gate() {
+# _tui_validate.begin ASYNC PAGE... - starts the validation a start-up needs, before the terminal is taken over: nothing
+# when TUI_VALIDATE=0 or the last clean run still holds. With ASYNC=1 it runs in a background process while the caller
+# does other work; _tui_validate.finish then brings the findings back (without ASYNC, finish validates in its own process).
+declare -g _TV_NOTIFY="" _TV_PENDING=0 _TV_JOB_PID="" _TV_JOB_FILE=""
+declare -ga _TV_PAGES=()
+_tui_validate.begin() {
+	local async="$1" f l dir
+	shift
+	_TV_PENDING=0 _TV_JOB_PID="" _TV_JOB_FILE=""
 	[[ "${TUI_VALIDATE:-1}" == 0 ]] && return 0
-	local f l
-	local -a pages=()
+	_TV_PAGES=()
 	for f; do # <binds>/<cmds> files sit next to pages (a *.xml sweep finds them) but are not pages
 		l=""
 		[[ -r "$f" ]] && while IFS= read -r l; do [[ "$l" == *\<[a-zA-Z]* && "$l" != *\<!--* ]] && break; done <"$f"
-		[[ "$l" == *\<binds[\ \>]* || "$l" == *\<cmds[\ \>]* ]] || pages+=("$f")
+		[[ "$l" == *\<binds[\ \>]* || "$l" == *\<cmds[\ \>]* ]] || _TV_PAGES+=("$f")
 	done
-	set -- "${pages[@]}"
-	_tui_validate.fresh "$@" && return 0
-	tui.validate.files "$@"
-	((TUI_V_ERRORS)) || _tui_validate.stamp "$@"
+	_tui_validate.fresh "${_TV_PAGES[@]}" && return 0
+	_TV_PENDING=1
+	((async)) && _tui_mkdtemp dir tui_validate_job || return 0
+	_TV_JOB_FILE="$dir/result"
+	(
+		exec </dev/null >/dev/null 2>&1
+		trap - EXIT INT
+		tui.validate.files "${_TV_PAGES[@]}"
+		_tui_validate.save "$_TV_JOB_FILE"
+	) &
+	_TV_JOB_PID=$!
+}
+
+# _tui_validate.finish - the result of _tui_validate.begin (nothing to do when it started none). A clean run is stamped.
+# Errors abort the start unless TUI_IGNORE_INVALID_XML=1 (dabt --ignore-invalid-xml); then the page runs and
+# _tui_validate.notify shows a notification once the UI is up. rc 1: the start must stop.
+_tui_validate.finish() {
+	((_TV_PENDING)) || return 0
+	_TV_PENDING=0
+	if [[ -n "$_TV_JOB_PID" ]]; then
+		wait "$_TV_JOB_PID" 2>/dev/null
+		if [[ -f "$_TV_JOB_FILE" ]]; then
+			_TV_F_SEV=() _TV_F_LOC=() _TV_F_MSG=() _TV_READ=()
+			TUI_V_ERRORS=0 TUI_V_WARNINGS=0
+			_tui_validate.merge "$_TV_JOB_FILE"
+		else
+			_TV_JOB_PID="" # the process died without a result: validate here
+		fi
+		rm -rf "${_TV_JOB_FILE%/*}" 2>/dev/null
+	fi
+	[[ -n "$_TV_JOB_PID" ]] || tui.validate.files "${_TV_PAGES[@]}"
+	_TV_JOB_PID=""
+	((TUI_V_ERRORS)) || _tui_validate.stamp "${_TV_PAGES[@]}"
 	((TUI_V_ERRORS + TUI_V_WARNINGS)) || return 0
 	tui.validate.log
 	((TUI_V_ERRORS)) || return 0 # warnings are only logged
@@ -413,6 +499,9 @@ _tui_validate.gate() {
 	printf 'start aborted: fix the configuration above, or run with --ignore-invalid-xml to start anyway\n' >&2
 	return 1
 }
+
+# _tui_validate.gate PAGE... - validate before the terminal is taken over, in the calling process (tui.start, tui.load)
+_tui_validate.gate() { _tui_validate.begin 0 "$@" && _tui_validate.finish; }
 
 # A clean run is remembered in $TUI_HOME/cache/validated: the page list, then "mtime path" for every file it read
 # (pages, includes, the rules). The next start with the same pages and unchanged files skips the walk - one stat call.

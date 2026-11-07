@@ -71,36 +71,6 @@ declare -g _TUI_ON_INPUT_EVENT=""
 _tui._notify_input() { [[ -n "$_TUI_ON_INPUT_EVENT" ]] && "$_TUI_ON_INPUT_EVENT" "$1"; }
 
 # ═══════════════════════════════════════════════════════════════════════
-#  LOGGING
-# ═══════════════════════════════════════════════════════════════════════
-
-# tui.log MSG [LEVEL] - append to $TUI_LOG_DIR/<yyyy-mm-dd>_<TUI_APP_NAME>.log (stdout is the screen).
-# Fork-free once the dir exists; the file name follows the date, so a run past midnight rolls over.
-declare -g _TUI_LOG_DIR_OK=""
-tui.log.file() {
-	local d
-	printf -v d '%(%Y-%m-%d)T' -1
-	printf '%s\n' "$TUI_LOG_DIR/${d}_${TUI_APP_NAME}.log"
-}
-tui.log() {
-	local ts
-	printf -v ts '%(%Y-%m-%d %H:%M:%S)T' -1
-	if [[ "$_TUI_LOG_DIR_OK" != "$TUI_LOG_DIR" ]]; then
-		[[ -d "$TUI_LOG_DIR" ]] || mkdir -p "$TUI_LOG_DIR" 2>/dev/null
-		_TUI_LOG_DIR_OK="$TUI_LOG_DIR"
-	fi
-	printf '[%s] [%s] %s\n' "${ts#* }" "${2:-info}" "$1" 2>/dev/null >>"$TUI_LOG_DIR/${ts%% *}_${TUI_APP_NAME}.log" || return 0 # never fail a caller
-}
-# tui.log.debug MSG
-tui.log.debug() { tui.log "$1" "debug"; }
-# tui.log.info MSG
-tui.log.info() { tui.log "$1" "info"; }
-# tui.log.warn MSG
-tui.log.warn() { tui.log "$1" "warn"; }
-# tui.log.error MSG
-tui.log.error() { tui.log "$1" "error"; }
-
-# ═══════════════════════════════════════════════════════════════════════
 #  ERRORS: stderr never reaches the screen while the TUI runs
 # ═══════════════════════════════════════════════════════════════════════
 #   tui.errors.capture on|off     stderr goes to a file the tick loop reads (tui.init turns it on, tui.cleanup off)

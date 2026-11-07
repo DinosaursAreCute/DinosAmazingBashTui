@@ -48,7 +48,7 @@ An example is in [../../examples/plugins/hello.plugin.sh](https://github.com/Din
 
 ## Hooks
 
-`tui.hook.on EVENT FN` / `tui.hook.off` / `tui.hook.fire EVENT ARGS`. Events: `init` (tui.init done), `ready` (before the first frame), `page FILE` (after each page switch), `resize ROWS COLS`, `layout` (panes changed size: a divider drag, a collapse, a keyboard resize), `key NAME` (before bindings; `FN` returns 0 to **consume** the key), `quit`, `exit` (the terminal is being restored: give things back), `plugin_enabled NAME`, `plugin_disabled NAME`.
+`tui.hook.on EVENT FN` / `tui.hook.off` / `tui.hook.fire EVENT ARGS`. Events: `init` (tui.init done), `ready` (before the first frame), `page FILE` (after each page switch), `resize ROWS COLS`, `layout` (panes changed size: a divider drag, a collapse, a keyboard resize), `key NAME` (before bindings; `FN` returns 0 to **consume** the key), `quit`, `exit` (the terminal is being restored: give things back), `plugin_enabled NAME`, `plugin_disabled NAME`, `cache_building` (the first page is up and the rest of the page cache is built in the background, `TUI_CACHE_LAZY`), `cache_complete` (that build is done).
 
 ## Changing pages from a plugin: addons
 

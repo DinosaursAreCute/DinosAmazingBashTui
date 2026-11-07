@@ -113,7 +113,7 @@ _tui_home.meta_save() {
 	for k in $(printf '%s\n' "${!_TUI_META[@]}" | sort); do
 		case "$k" in name | title | description | dabt_version | app_dir | entry | first_run | last_run | runs) ;; *) out+="$k=${_TUI_META[$k]}"$'\n' ;; esac
 	done
-	printf '# DABT application metadata (written by tui.init; add your own keys with tui.app.meta_set)\n%s' "$out" >"$TUI_APP_CONF/app.meta.tmp" && mv -f "$TUI_APP_CONF/app.meta.tmp" "$TUI_APP_CONF/app.meta"
+	printf '# DABT application metadata (written by tui.init; add your own keys with tui.app.meta_set)\n%s' "$out" >"$TUI_APP_CONF/app.meta.tmp.$BASHPID" && mv -f "$TUI_APP_CONF/app.meta.tmp.$BASHPID" "$TUI_APP_CONF/app.meta"
 }
 tui.app.meta_get() {
 	[[ -n "${_TUI_META[$1]+x}" ]] || _tui_home.meta_load
@@ -125,8 +125,10 @@ tui.app.meta_set() {
 	_tui_home.meta_save
 }
 
-# called by tui.init: record that the application ran
+# called by tui.init: record that the application ran (a headless cache worker is not a run)
+declare -g _TUI_WARM_WORKER="${_TUI_WARM_WORKER:-}"
 _tui_home.touch() {
+	[[ -n "$_TUI_WARM_WORKER" ]] && return 0
 	local now
 	printf -v now '%(%Y-%m-%d %H:%M:%S)T' -1
 	_tui_home.meta_load

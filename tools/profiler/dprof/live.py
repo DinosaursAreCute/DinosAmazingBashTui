@@ -4,7 +4,9 @@ small in-place footer showing what is running right now, phase progress, ETA and
 Units that run side by side (--jobs N) report through the unit_* methods: each running unit is one row of
 the footer, a finished unit is printed as one block of its own steps, and what went wrong is repeated in
 full at the end. Without a terminal (or with --plain) there is no footer, only the finished-unit blocks."""
+import atexit
 import json
+import signal
 import sys
 import threading
 import time
@@ -15,6 +17,7 @@ from .scenarios import GROUP_INFO
 from .analyze import rate
 
 SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+SYNC_ON, SYNC_OFF = "\x1b[?2026h", "\x1b[?2026l"   # DEC synchronized output: erase and redraw of the footer reach the screen as one frame
 
 
 def mmss(sec):
@@ -94,8 +97,26 @@ class LiveUI:
         for ln in banner_lines:
             self._print(ln)
         if self.tty:
+            self._hide_cursor()
             self._th = threading.Thread(target=self._loop, daemon=True)
             self._th.start()
+
+    def _hide_cursor(self):
+        """Hidden while the footer redraws; shown again by finish, at interpreter exit, and on SIGTERM / SIGHUP (turned
+        into a normal exit so the exit hook runs). SIGKILL cannot be caught."""
+        self.out.write("\x1b[?25l")
+        self.out.flush()
+        atexit.register(self._show_cursor)
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            if signal.getsignal(sig) == signal.SIG_DFL:
+                signal.signal(sig, lambda n, f: sys.exit(128 + n))
+
+    def _show_cursor(self):
+        try:
+            self.out.write("\x1b[?25h")
+            self.out.flush()
+        except (OSError, ValueError):
+            pass
 
     def finish(self):
         self.event("finish", problems=[{"unit": u, "text": t} for u, t in self.problems])
@@ -103,11 +124,17 @@ class LiveUI:
         if self._th:
             self._th.join(1)
         with self.lock:
+            if self.tty:
+                self.out.write(SYNC_ON)
             self._clear_footer()
             if self.problems:
                 text = "\n".join(self._problem_lines())
                 self.out.write((text if self.tty else term.ANSI_RE.sub("", text)) + "\n")
-                self.out.flush()
+            if self.tty:
+                self.out.write(SYNC_OFF)
+            self.out.flush()
+        if self.tty:
+            self._show_cursor()
 
     def phase(self, key, detail="", steps=None):
         with self.lock:
@@ -272,9 +299,11 @@ class LiveUI:
 
     def _log(self, line):
         if self.tty:
+            self.out.write(SYNC_ON)
             self._clear_footer()
             self.out.write(line + "\n")
             self._draw_footer()
+            self.out.write(SYNC_OFF)
         else:
             self.out.write(term.ANSI_RE.sub("", line) + "\n")
         self.out.flush()
@@ -291,8 +320,12 @@ class LiveUI:
                     now = time.time()
                     self.trace_samples.append((now, self.tracer.lines))
                     self.trace_samples = [s for s in self.trace_samples if now - s[0] < 6]
+                if self.tty:
+                    self.out.write(SYNC_ON)
                 self._clear_footer()
                 self._draw_footer()
+                if self.tty:
+                    self.out.write(SYNC_OFF)
                 self.out.flush()
 
     def _draw_footer(self):

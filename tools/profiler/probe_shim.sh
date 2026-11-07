@@ -45,6 +45,10 @@ __prof_wrap() {
 
 __prof_on_ready() { printf 'E|ready|%s|%s|0|%s\n' "${EPOCHREALTIME//[!0-9]/}" "${EPOCHREALTIME//[!0-9]/}" "$BASHPID" >&8; }
 declare -F tui.hook.on >/dev/null && tui.hook.on ready __prof_on_ready
+# the lazy cache build (TUI_CACHE_LAZY): started with the first page up, complete when the background pool is done
+__prof_on_cache_building() { printf 'E|cache_building|%s|%s|0|%s\n' "${EPOCHREALTIME//[!0-9]/}" "${EPOCHREALTIME//[!0-9]/}" "$BASHPID" >&8; }
+__prof_on_cache_complete() { printf 'E|cache_complete|%s|%s|0|%s\n' "${EPOCHREALTIME//[!0-9]/}" "${EPOCHREALTIME//[!0-9]/}" "$BASHPID" >&8; }
+declare -F tui.hook.on >/dev/null && tui.hook.on cache_building __prof_on_cache_building && tui.hook.on cache_complete __prof_on_cache_complete
 
 for __prof_w in $PROF_WRAP; do __prof_wrap "${__prof_w%%:*}" "${__prof_w##*:}"; done
 unset __prof_w

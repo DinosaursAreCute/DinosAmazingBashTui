@@ -152,7 +152,7 @@ class Session:
             "step": name,
             "ok": ok,
             "feedback_ms": (ev[0][0] - t0) * 1000 if ev else None,
-            "content_ms": ((seen - t0) * 1000 if seen else None) if expect else ((ev[0][0] - t0) * 1000 if ev else None),
+            "content_ms": ((seen - t0) * 1000 if seen else None) if expect else ((ev[-1][0] - t0) * 1000 if ev else None),
             "done_ms": (ev[-1][0] - t0) * 1000 if ev else None,
             "bytes": sum(n for _, n in ev),
             "writes": len(ev),
@@ -239,6 +239,8 @@ def run_app(name, rounds, rows, cols):
             os.makedirs(cold_home)
             s, res = startup(name, cold_home, rows, cols)
             results.setdefault("startup.cold", []).append(res)
+            if name == "dabt":   # DABT builds the other pages in the background after the first frame: let it finish, or the
+                s.wait("Page cache ready", timeout=30)   # steps below would race it (a page not built yet is built on the click)
             s.close()
             s, res = startup(name, cold_home, rows, cols)  # same HOME: caches from the first run are warm
             results.setdefault("startup.warm", []).append(res)
@@ -291,7 +293,7 @@ def report(summary, apps):
             row += f"{fmt(cb / ca, 2) + 'x':>11}" if ca and cb else f"{'-':>11}"
         lines.append(row)
     lines.append("")
-    lines.append("times in ms, medians; content = input written -> expected text seen (first output byte if the step has none);")
+    lines.append("times in ms, medians; content = input written -> expected text seen (last output byte, i.e. settled, if the step has none);")
     lines.append("done = last output byte before the screen went quiet; cpu = ms of CPU used by the app's process tree during the step;")
     lines.append("content x = textual / dabt (above 1 = DABT is faster); rss row compares MB; (k/n) = rounds in which the text appeared.")
     return "\n".join(lines)

@@ -569,15 +569,16 @@ Read-only. Pane getters return `1` for an unknown pane.
 
 ## Logging and perf
 
-<!-- api: tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.file tui.perf.mean_render_ms tui.perf.report tui.perf.reset -->
+<!-- api: tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.level tui.log.file tui.perf.mean_render_ms tui.perf.report tui.perf.reset -->
 
 | Function | Summary |
 |---|---|
 | [`tui.log`](core/tui.log.md) | Appends a line to the app's log file. stdout is the screen, so logs go to a file. |
-| [`tui.log.debug`](core/tui.log.debug.md) | Same as `tui.log MSG debug`. See [`tui.log`](/api/core/tui.log.html). |
-| [`tui.log.info`](core/tui.log.info.md) | Same as `tui.log MSG info`. See [`tui.log`](/api/core/tui.log.html). |
-| [`tui.log.warn`](core/tui.log.warn.md) | Same as `tui.log MSG warn`. See [`tui.log`](/api/core/tui.log.html). |
-| [`tui.log.error`](core/tui.log.error.md) | Same as `tui.log MSG error`. See [`tui.log`](/api/core/tui.log.html). |
+| [`tui.log.debug`](core/tui.log.debug.md) | Same as `tui.log MSG debug`; dropped without any work when the log level is above `debug` ([`tui.log.level`](/api/core/tui.log.level.html)). See [`tui.log`](/api/core/tui.log.html). |
+| [`tui.log.info`](core/tui.log.info.md) | Same as `tui.log MSG info`; dropped without any work when the log level is above `info` ([`tui.log.level`](/api/core/tui.log.level.html)). See [`tui.log`](/api/core/tui.log.html). |
+| [`tui.log.warn`](core/tui.log.warn.md) | Same as `tui.log MSG warn`; dropped without any work when the log level is above `warn` ([`tui.log.level`](/api/core/tui.log.level.html)). See [`tui.log`](/api/core/tui.log.html). |
+| [`tui.log.error`](core/tui.log.error.md) | Same as `tui.log MSG error`; dropped without any work when the log level is above `error` ([`tui.log.level`](/api/core/tui.log.level.html)). See [`tui.log`](/api/core/tui.log.html). |
+| [`tui.log.level`](core/tui.log.level.md) | Prints the log level, or sets it. Lines below the level are not written. |
 | [`tui.log.file`](core/tui.log.file.md) | Prints the path [`tui.log`](/api/core/tui.log.html) writes to today. |
 | [`tui.perf.mean_render_ms`](core/tui.perf.mean_render_ms.md) | Prints the mean frame render time in milliseconds over the last `SECONDS`. |
 | [`tui.perf.report`](core/tui.perf.report.md) | Prints one line per tracked span (`span<TAB>name<TAB>mean_us<TAB>p95_us<TAB>count`) and one line per counter (`counter<TAB>name<TAB>total`). |
@@ -594,6 +595,8 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.log.warn.md %}
 
 {% include_relative core/tui.log.error.md %}
+
+{% include_relative core/tui.log.level.md %}
 
 {% include_relative core/tui.log.file.md %}
 

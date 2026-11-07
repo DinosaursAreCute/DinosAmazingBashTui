@@ -176,6 +176,13 @@ my_app/
 | `TUI_CONFIG_FILE` | `$TUI_APP_CONF/dabt.conf` | Persisted framework settings. |
 | `TUI_FOOTER_DEFAULT` | quit, command bar, back | Default `<footer/>` items. |
 | `TUI_INPUT_RETAIN_ON_SUBMIT` | `true` | Whether inputs keep focus after Enter (per input: `tui.input.retain`). |
+| `TUI_LOG_LEVEL` | `info` | Lowest level written to the app log: `debug`, `info`, `warn`, `error` or `off`. `debug` logs every page-build step (about 12 ms per page build); switch it on while developing. Change it while running with `tui.log.level`. |
+| `TUI_CACHE_LAZY` | `1` | With several uncached pages (first launch, after an update) only the first page is built behind the splash; the rest are built by background workers while the app runs. A page opened before its worker is done is built on the spot. `0` builds every page before the first frame. |
+| `TUI_CACHE_LAZY_WORKERS` | `0` | Workers of the lazy build; `0` is half the cores, at least 1. |
+| `TUI_CACHE_LAZY_PREP` | `1` | The background pool prepares the themes and shells of its own pages, so the first page does not wait for them. `0` prepares them for every page before the first page is built. |
+| `TUI_CACHE_LAZY_NICE` | `10` | Nice value of the background pool, so the app's input wins the cores while it builds. `0` keeps the app's priority. |
+| `TUI_VALIDATE_JOBS` | `0` | Workers for the parallel page validation (first launch, after an update or a page edit). `0` is one per core, `1` validates in the calling shell. |
+| `TUI_VALIDATE_ASYNC` | `1` | The page validation of a start runs in the background while the first page is prepared and built, and is joined before the cache is written or the app starts. `0` validates every page first, then builds. |
 | `TUI_CACHE_TRUST` | `1` | Source files (pages, includes, themes) are checked against the page cache once, at start-up, and assumed unchanged while the app runs; edits take effect on the next start. `0` keeps the check on every page switch, for developing a page with the app open. |
 | `TR_WIDTH` | terminal width | Renderers: force the width they lay out to (e.g. a pane's width). |
 | `TUI_MOUSE_DRAIN_PEEK_TIMEOUT` | small, **> 0** | Mouse-motion coalescing peek. Never set to 0 (`read -t 0` consumes nothing). |

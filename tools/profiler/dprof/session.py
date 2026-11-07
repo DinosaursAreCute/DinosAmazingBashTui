@@ -34,6 +34,10 @@ WRAP = [
     ("_tui_validate.gate", "w"), ("tui.cache.load_dir", "w"), ("tui.cache.warm_with_spinner", "w"),
     ("tui.cache.dump_dir", "w"), ("tui.init", "w"), ("tui.load_cached", "w"),
     ("_tui_validate.notify", "w"), ("tui.run", "s"),
+    # start-up phases between the big ones (span only: they are part of the start, not of a click)
+    ("_tui_cache_warm_prelude", "s"), ("_tui_cache_warm_worker", "s"), ("_tui_cache_lazy.start", "s"),
+    ("_tui_cache_lazy.announce", "s"), ("_tui_cache_lazy.finish", "s"), ("_tui_validate.begin", "s"), ("_tui_validate.finish", "s"),
+    ("_tui_store.restore_page", "s"), ("_tui_store.enter_focus", "s"),
     ("tui.cache.replay", "s"), ("_tui_cache_run_on_visit", "s"), ("_tui._draw_pane_buf", "n"),
     # tui.page.refresh (lib/markup/tui_refresh.sh) and background jobs (lib/tui_job.sh). _tui_job.tick runs on every loop
     # pass while a job is pending and is deliberately not probed. _tui_job.finish is a span only: a job lands when it is
@@ -130,6 +134,7 @@ class Session:
         self.app = app or os.path.join(REPO, scenarios.DEFAULTS["app"] or os.path.join("bin", "DABT_demo.sh"))
         self.forward = forward
         self.events = []          # every probe event, in arrival order
+        self.worker_events = []   # the cache-build workers' spans (forked processes: kept apart from the main shell's events)
         self.open_work = 0        # currently open work wrappers
         self.last_work_end = 0.0
         self.out_bytes = 0
@@ -321,6 +326,8 @@ class Session:
                     self.open_work = max(0, self.open_work - 1)
                     self.last_work_end = max(self.last_work_end, ev.t1)
                 if not main:
+                    if p[1] == "_tui_cache_warm_worker":   # forked builds are not the main shell's work, but their durations are the point
+                        self.worker_events.append(ev)
                     return
             else:
                 return

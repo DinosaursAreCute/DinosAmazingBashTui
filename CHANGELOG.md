@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.0.25] - 2026-11-07
 ### News
 * **Cold start of the demo: 1.4 s instead of 2.8 s** (profiler, 5 rounds, idle machine; the run before this work read 4.3 s, but with some load on the machine). Page validation runs in parallel and in the background, only the first page is built behind the splash, the rest of the cache is built while the app runs; the start page appears after about 0.4 s. Warm start is unchanged (521 ms). Details in `docs/concepts/performance-progress.md`, section 15m.
 * **Dragging or resizing a window repaints only what it uncovered.** The page is repainted inside the rectangle the layer covered before (shadow included), leaf by leaf, and the stack follows in the same write; the other panes are not drawn. One drag step of a small page: 11.5 ms before, 7.2 ms now.

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.26] - 2026-11-07
+
 ### News
 * **Scrolling a pane of widgets is about twice as fast: 147 ms instead of 72 ms per wheel tick** (profiler, scroll scenario, 2 rounds, 200x45; Page keys 96 ms to 41 ms, the list wheel 71 ms to 51 ms). A scroll step no longer places, draws or indexes the widgets that are outside the viewport.
 

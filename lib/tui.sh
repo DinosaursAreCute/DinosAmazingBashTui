@@ -1368,19 +1368,18 @@ _tui._widget_pos() {
 	# Content-addressed: the key holds every input the arithmetic below reads (pane rect and inset, the widget's
 	# placement and size attributes, both valigns), so a changed attribute is a different key and nothing needs
 	# invalidating. Equal keys recur across pages (the shared nav and header panes), not only across redraws.
-	# For leaf panes with vertical scroll, include the offset in the key so changes to it invalidate the cache.
-	local scroll_off="" stuck_id=""
+	# A leaf pane that scrolls vertically: the offset, the pin and the viewport clip are applied after the lookup
+	# (_tui._wp_scroll), so the key holds the unscrolled placement and a new offset is still a hit.
+	local _wp_sc=0
 	if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
 		local scroll="${_TUI_P_SCROLL[$pane]:-none}"
-		if [[ "$scroll" == "v" || "$scroll" == "both" ]]; then
-			scroll_off="|${_TUI_P_SOFF_V[$pane]:-0}"
-			stuck_id="|${_TUI_P_STUCK[$pane]:-}"
-		fi
+		[[ "$scroll" == "v" || "$scroll" == "both" ]] && _wp_sc=1
 	fi
-	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}$scroll_off$stuck_id"
+	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}"
 	if ((_TUI_CACHES)) && [[ -n "${_TUI_WPC[$_wk]+x}" ]]; then
 		set -- "$1" ${_TUI_WPC[$_wk]}
 		_WSR=$2 _WSC=$3 _WSW=$4 _WSH=$5 _WSW_AVAIL=$6
+		((_wp_sc)) && _tui._wp_scroll "$1" "$pane" "$pr" "$ph" "$wvp"
 		return
 	fi
 	content_top=$((pr + _IV + wvp))
@@ -1447,31 +1446,28 @@ _tui._widget_pos() {
 	if [[ -n "$maxw" ]] && ((_WSW > maxw)); then _WSW=$maxw; fi
 	if [[ -n "$minw" ]] && ((_WSW < minw)); then _WSW=$minw; fi
 	((_WSW < 1)) && _WSW=1
-	# For leaf panes with vertical scroll, subtract the offset from the calculated screen row
-	local first_viewport_row=""
-	if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" ]]; then
-		local scroll="${_TUI_P_SCROLL[$pane]:-none}"
-		if [[ "$scroll" == "v" || "$scroll" == "both" ]]; then
-			_WSR=$(((_WSR) - ${_TUI_P_SOFF_V[$pane]:-0}))
-			first_viewport_row=$((pr + _IV + wvp))
-		fi
+	# cache the unscrolled placement (a measured height can change with the widget's content, which the key does not cover)
+	if ((_TUI_CACHES)) && [[ -z "$_wt_measure" ]]; then
+		if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
+		_TUI_WPC[$_wk]="$_WSR $_WSC $_WSW $_WSH $_WSW_AVAIL"
+		_TUI_WPC_N+=1
 	fi
-	# Handle pinned widgets: if this widget is stuck, place it at the first viewport row;
-	# if another widget lands on that row, hide it by setting _WSR = -1
-	if [[ -n "$first_viewport_row" && "${_TUI_P_STUCK[$pane]:-}" == "$1" ]]; then
+	((_wp_sc)) && _tui._wp_scroll "$1" "$pane" "$pr" "$ph" "$wvp"
+}
+
+# _tui._wp_scroll WID PANE PANE_ROW PANE_H VPAD - the scroll part of _tui._widget_pos for a leaf pane that scrolls vertically:
+# moves _WSR up by the pane's offset, puts the pinned widget on the first viewport row (hiding another one that lands there
+# with _WSR=-1), and cuts a widget at the viewport's bottom edge. Reads _IV, _WSR, _WSH; sets _WSR, _WSH.
+_tui._wp_scroll() {
+	local first_viewport_row=$(($3 + _IV + $5)) stuck="${_TUI_P_STUCK[$2]:-}"
+	_WSR=$((_WSR - ${_TUI_P_SOFF_V[$2]:-0}))
+	if [[ "$stuck" == "$1" ]]; then
 		_WSR=$first_viewport_row
-	elif [[ -n "$first_viewport_row" && -n "${_TUI_P_STUCK[$pane]:-}" && $_WSR -eq $first_viewport_row ]]; then
+	elif [[ -n "$stuck" && $_WSR -eq $first_viewport_row ]]; then
 		_WSR=-1
 	fi
-	# a widget taller than what is left of the viewport is cut at its bottom edge, so it never paints over the border
-	if [[ -n "$first_viewport_row" ]]; then
-		local _vend=$((pr + ph - _IV))
-		((_WSR >= 0 && _WSR < _vend && _WSR + _WSH > _vend)) && _WSH=$((_vend - _WSR))
-	fi
-	[[ -n "$_wt_measure" ]] || ((! _TUI_CACHES)) && return # a measured height can change with the widget's content, which the key does not cover
-	if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
-	_TUI_WPC[$_wk]="$_WSR $_WSC $_WSW $_WSH $_WSW_AVAIL"
-	_TUI_WPC_N+=1
+	local _vend=$(($3 + $4 - _IV))
+	((_WSR >= 0 && _WSR < _vend && _WSR + _WSH > _vend)) && _WSH=$((_vend - _WSR))
 }
 
 tui.content_area() {
@@ -2257,9 +2253,23 @@ _tui._draw_pane_full_buf() {
 	_tui._draw_pane_buf "$pane"
 	_tui_frame.junctions
 	_tui_hit.overlay "$pane"
-	# Redraw all widgets in this pane
+	# Redraw all widgets in this pane. A top-aligned widget in a vertically scrolling leaf pane starts at row
+	# wvp + row - offset of the viewport, and _draw_widget_buf drops one that starts above or at/below it: those are skipped
+	# here, before their placement is computed. The pinned (stuck) widget and non-top valigns keep the full path.
+	local _vh=0 _soff=0 _wr
+	if [[ -z "${_TUI_P_CHILDREN[$pane]:-}" && "${_TUI_P_SCROLL[$pane]:-none}" == @(v|both) &&
+		"${_TUI_P_VALIGN[$pane]:-top}" == top ]]; then
+		_tui._inset "$pane"
+		_vh=$((${_TUI_P_H[$pane]:-0} - 2 * _IV))
+		_soff=${_TUI_P_SOFF_V[$pane]:-0}
+	fi
 	for wid in "${_TUI_W_ORDER[@]}"; do
-		[[ "${_TUI_W_PANE[$wid]:-}" == "$pane" ]] && _tui._draw_widget_buf "$wid"
+		[[ "${_TUI_W_PANE[$wid]:-}" == "$pane" ]] || continue
+		if ((_vh > 0)) && [[ "${_TUI_W_VALIGN[$wid]:-top}" == top && "${_TUI_P_STUCK[$pane]:-}" != "$wid" ]]; then
+			_wr=$((${_TUI_W_VPAD[$wid]:-0} + ${_TUI_W_ROW[$wid]} - _soff))
+			((_wr < 0 || _wr >= _vh)) && continue
+		fi
+		_tui._draw_widget_buf "$wid"
 	done
 	# Redraw scrollbar for this pane
 	local scroll="${_TUI_P_SCROLL[$pane]:-none}"

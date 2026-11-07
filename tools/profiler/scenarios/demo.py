@@ -11,6 +11,8 @@ A scenario file is what a profiler run is based on (`profile.sh --scenarios demo
     steps(rows, cols, quick, wanted) -> [Step]  the user session for the wanted groups (None = all). Steps that only
                  prepare (navigate, fill a field) carry group "setup" and are not measured
   optional
+    GROUP_PARENT {sub group: parent group}  the parent is a GROUP_INFO row without steps of its own: it reports one figure
+                 over every action of its sub groups (the overall figure), the sub groups are the breakdown under it
     APP          app script to profile, relative to the DABT checkout (--app overrides)
     ENV          extra environment for the app
     SIZE         terminal "COLSxROWS" the app runs in (--size overrides)
@@ -24,7 +26,7 @@ coordinate). The order follows a realistic visit: start, look around every page,
 palette, resize, sit idle, quit. The step helpers (Step, pointer, move, click, wheel, setup, palette_goto, fill) and
 the key constants come from dprof.scenarios.
 """
-from dprof.scenarios import ESC, Step, click, fill, move, palette_goto, pointer, setup, wheel
+from dprof.scenarios import ESC, Step, bar, click, fill, move, palette_goto, pointer, setup, wheel
 
 APP = "bin/DABT_demo.sh"
 ENV = {"DABT_DEMO_PAGE": "components"}   # the page the demo opens on (Home is the heaviest page and has no menu)
@@ -88,6 +90,16 @@ HELD = [
     ("held.page", "Held PgDn/PgUp (queued pane render)", ESC + b"[6~", ESC + b"[5~", None, ["Scrolling"]),
 ]
 
+SCROLL_BUDGET_MS = 100   # the overall row of every scroll feature
+SCROLL_GROUPS = {
+    "scroll.widgets": ["scroll.widgets.handle", "scroll.widgets.handle_burst", "scroll.widgets.track", "scroll.widgets.page"],
+    "scroll.text": ["scroll.text.handle", "scroll.text.handle_burst", "scroll.text.track", "scroll.text.page"],
+    "scroll.textboth": ["scroll.textboth.handle", "scroll.textboth.horizontal", "scroll.textboth.horizontal_burst"],
+    "scroll.list": ["scroll.list.tick", "scroll.list.burst"],
+}
+GROUP_PARENT = {child: parent for parent, kids in SCROLL_GROUPS.items() for child in kids}
+SCROLL_ALL = [g for parent, kids in SCROLL_GROUPS.items() for g in [parent, *kids]]
+
 GROUP_INFO = {
     # group: (title, kind, budget_ms)  budget = the perceived-instant line for that interaction
     "startup.cold": ("Cold start (empty cache)", "startup", 5000),
@@ -102,9 +114,25 @@ GROUP_INFO = {
     "focus.prev": ("Focus previous (Shift+Tab)", "input", 50),
     "hover.move": ("Mouse hover", "input", 30),
     "click": ("Mouse click", "input", 100),
-    "scroll.step": ("Wheel scroll, single", "input", 60),
-    "scroll.burst": ("Wheel scroll, burst", "input", 150),
-    "scroll.page": ("Page Down", "input", 100),
+    # Scrolling is four independent features on the Scrolling page; each has an overall row (the same budget for all) and its sub
+    # groups under it. The wheel goes onto the pane's scrollbar (its thumb = "handle", or the empty track), never onto a widget,
+    # so a list that takes the wheel itself is never counted as the pane scrolling.
+    **{f"scroll.{f}": (t, "input", SCROLL_BUDGET_MS) for f, t in (
+        ("widgets", "Scroll: widgets pane (all)"), ("text", "Scroll: text pane (all)"),
+        ("textboth", "Scroll: both-axes text (all)"), ("list", "Scroll: list widget (all)"))},
+    "scroll.widgets.handle": ("Widgets · handle", "input", 60),
+    "scroll.widgets.handle_burst": ("Widgets · handle burst", "input", 150),
+    "scroll.widgets.track": ("Widgets · track", "input", 60),
+    "scroll.widgets.page": ("Widgets · Page keys", "input", 100),
+    "scroll.text.handle": ("Text · handle", "input", 60),
+    "scroll.text.handle_burst": ("Text · handle burst", "input", 150),
+    "scroll.text.track": ("Text · track", "input", 60),
+    "scroll.text.page": ("Text · Page keys", "input", 100),
+    "scroll.textboth.handle": ("Both axes · v handle", "input", 60),
+    "scroll.textboth.horizontal": ("Both axes · horizontal", "input", 60),
+    "scroll.textboth.horizontal_burst": ("Both axes · h burst", "input", 150),
+    "scroll.list.tick": ("List · wheel", "input", 60),
+    "scroll.list.burst": ("List · burst", "input", 150),
     # a held key repeats at ~30/s (REPEAT_S). "done" = last repeat sent to the last frame painted: the lag the user sees
     # trailing behind their finger after releasing the key. A repeat interval plus a frame still reads as instant.
     **{group: (title, "held", HELD_BUDGET_MS) for group, title, *_ in HELD},
@@ -154,7 +182,7 @@ SCENARIOS = [
     ("docs", "Docs page only: first visit (the Markdown document rendered to the end) and revisit; the quick way to measure Markdown work", {"docs.first", "docs.revisit"}),
     ("floor", "Warm switches between the three lightest pages, repeated: what a page switch costs with no page code (read the \"Page-switch floor\" section of the trace)", {"nav.floor"}),
     ("input", "Focus, hover and click", {"focus.next", "focus.prev", "hover.move", "click"}),
-    ("scroll", "Wheel, burst and Page Down scrolling", {"scroll.step", "scroll.burst", "scroll.page"}),
+    ("scroll", "Scrolling, four features each with an overall figure and a breakdown: the widgets pane and the text panes (wheel on the handle and on the track, bursts, Page Down), the both-axes text pane (horizontal wheel), a list widget (wheel)", set(SCROLL_ALL)),
     ("held", "Held keys at the real repeat rate (~30/s): arrows on nav bar, list, table, inputs, scrolling; Tab. Measures key release to last frame", {h[0] for h in HELD}),
     ("palette", "Command palette open, typing, close", {"palette.open", "palette.type", "palette.close"}),
     ("theme", "Theme switching on the Settings page", {"theme.first", "theme.again"}),
@@ -294,26 +322,78 @@ def _state_steps(want, quick):
 
 
 def _scrollform_steps(want, quick):
-    """The form on the Scrolling page: a scroll='v' pane of 7 inputs, a select, 4 checkboxes, 5 inputs and a list."""
+    """The form on the Scrolling page: a scroll='v' pane of generated rows (every widget type, 4 x the terminal height), under a pinned title."""
     S = []
     add = S.append
     add(setup("Scrolling"))
     add(Step("setup", "scroll data loads", "idle", 0.5))
-    add(setup("First name:"))   # focus the first field
+    add(setup("Field 0:"))   # focus the first field
     if want("scrollform.tab"):
         for i in range(8 if quick else 18):
             add(Step("scrollform.tab", f"tab {i + 1}", "key", b"\t", quiet=0.08))
     if want("scrollform.wheel"):
         for i in range(2 if quick else 4):
-            add(Step("scrollform.wheel", f"up {i + 1}", "pointer", pointer("Last name:", "W", 4, 0), quiet=0.15, timeout=3.0))
+            add(Step("scrollform.wheel", f"up {i + 1}", "pointer", pointer("Generated rows", "W", 4, 3), quiet=0.15, timeout=3.0))
         for i in range(2 if quick else 4):
-            add(Step("scrollform.wheel", f"down {i + 1}", "pointer", pointer("Last name:", "w", 4, 0), quiet=0.15, timeout=3.0))
+            add(Step("scrollform.wheel", f"down {i + 1}", "pointer", pointer("Generated rows", "w", 4, 3), quiet=0.15, timeout=3.0))
     if want("scrollform.pgdn"):
         for i in range(3):
             add(Step("scrollform.pgdn", f"pgdn {i + 1}", "key", ESC + b"[6~", quiet=0.15))
     if want("scrollform.click"):
-        for label in ("Last name:", "Email:", "Phone:"):
+        add(Step("setup", "back to the top", "pointer", ("Generated rows", [("W", 4, 3)] * 60, 0.002), quiet=0.3, timeout=3.0))
+        for label in ("Field 0:", "Secret 0:", "Pick 0:"):
             add(Step("scrollform.click", label, "click_text", label, quiet=0.15, timeout=4.0))
+    return S
+
+
+def _scroll_steps(want, quick):
+    """The Scrolling page (share/demo/scrolling.xml): four features, each driven by its own sub groups. Wheel events go onto the
+    pane's scrollbar found on screen (bar): the thumb is the handle, the empty rest the track. Directions alternate so the pane
+    ends where it began and the thumb stays findable."""
+    S = []
+    add = S.append
+    n = 2 if quick else 4
+    FORM = "Generated rows"
+    # "~": the position remembered right after the page is up (the page's text leaves the output tail the profiler reads once
+    # other panes scroll)
+    TEXT, BOTH, LIST = "~tui.output (scroll='v')", "~tui.output (scroll='both')", "~Recent files"
+
+    def wheel_steps(group, needle, part, count=1, gap=0.03, label=""):
+        for code, word in (("w", "down"), ("W", "up")):
+            for i in range(n):
+                add(Step(group, f"{label}{word} {i + 1}", "bar", bar(needle, part, code, count, gap), quiet=0.2 if count == 1 else 0.3, timeout=3.0))
+
+    add(Step("setup", "forget bars", "forget"))
+    add(setup("Scrolling"))
+    add(Step("setup", "scroll data loads", "idle", 0.5))
+    add(Step("setup", "remember panes", "remember", [TEXT[1:], BOTH[1:], LIST[1:]]))
+    for feature, needle in (("widgets", FORM), ("text", TEXT)):
+        if want(f"scroll.{feature}.handle"):
+            wheel_steps(f"scroll.{feature}.handle", needle, "thumb")
+        if want(f"scroll.{feature}.handle_burst"):
+            wheel_steps(f"scroll.{feature}.handle_burst", needle, "thumb", 12, 0.002, "burst ")
+        if want(f"scroll.{feature}.track"):
+            wheel_steps(f"scroll.{feature}.track", needle, "track")
+        if want(f"scroll.{feature}.page"):
+            add(Step("setup", f"hover the {feature} pane", "pointer", pointer(needle, "m", 4, 3), quiet=0.1, timeout=2.0))
+            if feature == "widgets":
+                add(Step("setup", "focus the form", "click_text", FORM, quiet=0.15))   # Page keys go to the focused pane
+            for key, word in ((ESC + b"[6~", "down"), (ESC + b"[5~", "up")):
+                for i in range(2 if quick else 3):
+                    add(Step(f"scroll.{feature}.page", f"page {word} {i + 1}", "key", key, quiet=0.15))
+    if want("scroll.textboth.handle"):
+        wheel_steps("scroll.textboth.handle", BOTH, "thumb")
+    for group, count, gap, label in (("scroll.textboth.horizontal", 1, 0.03, ""), ("scroll.textboth.horizontal_burst", 12, 0.002, "burst ")):
+        if want(group):
+            for code, word in (("R", "right"), ("L", "left")):
+                for i in range(n):
+                    add(Step(group, f"{label}{word} {i + 1}", "pointer", (BOTH, [(code, 4, 3)] * count, gap), quiet=0.2 if count == 1 else 0.3, timeout=3.0))
+    # the list takes the wheel itself: the pointer sits on its rows (two below its label), well inside the 24 items' range
+    for group, count, gap, label in (("scroll.list.tick", 1, 0.03, ""), ("scroll.list.burst", 12, 0.002, "burst ")):
+        if want(group):
+            for code, word in (("w", "down"), ("W", "up")):
+                for i in range(n):
+                    add(Step(group, f"{label}{word} {i + 1}", "pointer", (LIST, [(code, 4, 2)] * count, gap), quiet=0.2 if count == 1 else 0.3, timeout=3.0))
     return S
 
 
@@ -374,17 +454,9 @@ def steps(rows, cols, quick=False, wanted=None):
                 x, y = int(cols * (0.4 + 0.1 * i)), 6 + 5 * i
                 add(Step("click", f"{x},{y}", "key", click(x, y), quiet=0.15))
             add(setup("Components"))   # a click may have moved us elsewhere
-    if want("scroll.step", "scroll.burst", "scroll.page"):
-        add(setup("Scrolling"))
-        for i in range(4 if quick else 8):
-            if want("scroll.step"):
-                add(Step("scroll.step", f"tick {i + 1}", "key", wheel(mx, my), quiet=0.2))
-        for i in range(2 if quick else 4):
-            if want("scroll.burst"):
-                add(Step("scroll.burst", f"burst {i + 1}", "key", wheel(mx, my, True, 12), quiet=0.3))
-        for i in range(3):
-            if want("scroll.page"):
-                add(Step("scroll.page", f"pgdn {i + 1}", "key", ESC + b"[6~", quiet=0.15))
+    scroll_wanted = [g for g in SCROLL_ALL if g not in SCROLL_GROUPS and want(g)]
+    if scroll_wanted:
+        S += _scroll_steps(want, quick)
     for group, _title, there, back, count, prep in HELD:
         if not want(group):
             continue
@@ -472,7 +544,7 @@ UNIT_GROUPS = [
     ("docs", ["docs.first", "docs.revisit"]),
     ("floor", ["nav.floor"]),
     ("input", ["focus.next", "focus.prev", "hover.move", "click"]),
-    ("scroll", ["scroll.step", "scroll.burst", "scroll.page"]),
+    ("scroll", [g for g in SCROLL_ALL if g not in SCROLL_GROUPS]),
 ] + [(h[0], [h[0]]) for h in HELD] + [
     ("palette", ["palette.open", "palette.type", "palette.close"]),
     ("theme", ["theme.first", "theme.again"]),

@@ -24,6 +24,7 @@ PAGE_KB = os.sysconf("SC_PAGE_SIZE") // 1024
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROFILER_DIR = os.path.dirname(HERE)
 REPO = os.path.dirname(os.path.dirname(PROFILER_DIR))
+WATCH = None   # a dprof.watch.Watch mirroring the app's output into a viewer window (profile.sh --watch), else None
 
 # name:kind - w/p/a = user-visible work (nesting depth), s = span only, f = one flushed frame
 WRAP = [
@@ -49,6 +50,9 @@ WRAP = [
 WORK_FNS = {n for n, k in WRAP if k in "wpa"}
 WRAPPED = {n for n, _ in WRAP}
 _TOKEN = re.compile(r"\x1b\[(\d+);(\d*)H|\x1b(?:\[[0-9;?<>=]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[78=>])|([^\x1b\r\n]+)")
+# a vertical scrollbar cell as the framework draws it (lib/layout/tui_scroll.sh): the thumb is a reverse-video space, the
+# track a dim box-drawing bar; the border's own cells are neither
+_BAR_CELL = re.compile(r"\x1b\[(\d+);(\d+)H(?:\x1b\[[0-9;]*m)*\x1b\[(7m \x1b\[0m|2m\u2502\x1b\[0m)")
 XTVERSION_REPLY = b"\x1bP>|xterm(388)\x1b\\"
 
 
@@ -72,7 +76,7 @@ def _click(x, y):
 
 
 # SGR mouse reports: move (no button), press, drag (left held), release, wheel down / up
-_MOUSE = {"m": (35, "M"), "p": (0, "M"), "d": (32, "M"), "r": (0, "m"), "w": (65, "M"), "W": (64, "M")}
+_MOUSE = {"m": (35, "M"), "p": (0, "M"), "d": (32, "M"), "r": (0, "m"), "w": (65, "M"), "W": (64, "M"), "L": (66, "M"), "R": (67, "M")}
 
 
 def _mouse(code, x, y):
@@ -129,6 +133,8 @@ class Session:
         self.extra_env = dict(env or {})   # per-unit environment, on top of the scenario file's
         self.probes = probes      # False while tracing: wrappers would hide the real file:line of what they wrap
         self.remembered = {}      # needle -> position, see where()
+        self.bar_cells = {}       # (col, row) -> "thumb" | "track": the scrollbar cells as last drawn (the raw tail forgets panes not redrawn lately)
+        self._bar_carry = ""      # the end of the previous read: an escape sequence may be split across two reads
         self.raw = bytearray()    # tail of the terminal output, for locate()
         self.trace_w = trace_w
         self.app = app or os.path.join(REPO, scenarios.DEFAULTS["app"] or os.path.join("bin", "DABT_demo.sh"))
@@ -196,6 +202,8 @@ class Session:
         ACTIVE.append(self)
         self.alive = True
         self.resize(self.rows, self.cols, signal_app=False)
+        if WATCH:
+            WATCH.size(self.rows, self.cols)
         return self
 
     def resize(self, rows, cols, signal_app=True):
@@ -203,6 +211,8 @@ class Session:
         fcntl.ioctl(self.pty, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
         if signal_app and self.alive:
             os.kill(self.pid, signal.SIGWINCH)
+            if WATCH:
+                WATCH.size(rows, cols)
 
     def send(self, data):
         try:
@@ -283,6 +293,10 @@ class Session:
         if not self.out_bytes:
             self.first_out = now()
         self.raw += d
+        txt = self._bar_carry + d.decode("utf-8", "replace")
+        for m in _BAR_CELL.finditer(txt):
+            self.bar_cells[(int(m.group(2)), int(m.group(1)))] = "thumb" if m.group(3).startswith("7") else "track"
+        self._bar_carry = txt[-40:]
         if len(self.raw) > 400000:
             del self.raw[:-200000]
         self.out_bytes += len(d)
@@ -290,6 +304,8 @@ class Session:
         self.out_times.append(self.last_out)
         if b"\x1b[>0q" in d:
             self.send(XTVERSION_REPLY)
+        if WATCH:   # last, after every timestamp is taken
+            WATCH.write(d)
 
     def _read_probe(self):
         try:
@@ -341,6 +357,33 @@ class Session:
         if not text.startswith("~"):
             return self.locate(text)
         return self.locate(text[1:]) or self.remembered.get(text[1:])
+
+    def scrollbar(self, text):
+        """The vertical scrollbar of the pane that shows `text`: {"col", "thumb": [rows], "track": [rows]}, or None.
+        Read from the cursor-addressed output (the latest state of every cell wins). Among the bars right of the text and
+        spanning its row (a title on the border above the bar counts), the nearest column is the pane's (stacked panes share a column but not rows)."""
+        pos = self.where(text)
+        if pos is None:
+            return None
+        cells = self.bar_cells
+        cols = {}
+        for (col, row), kind in cells.items():
+            cols.setdefault(col, []).append(row)
+        best = None
+        for col, rows in cols.items():
+            rows.sort()
+            run = [rows[0]]
+            for r in rows[1:] + [None]:   # contiguous runs: one per pane
+                if r is not None and r == run[-1] + 1:
+                    run.append(r)
+                    continue
+                if col >= pos[0] and run[0] - 1 <= pos[1] <= run[-1] and (best is None or (col, len(run)) < best[0]):
+                    best = ((col, len(run)), col, list(run))
+                run = [r] if r is not None else []
+        if best is None:
+            return None
+        _, col, run = best
+        return {"col": col, "thumb": [r for r in run if cells[(col, r)] == "thumb"], "track": [r for r in run if cells[(col, r)] == "track"]}
 
     def locate(self, text):
         """(col, row) of the last on-screen occurrence of `text`, read from the cursor-addressed output.
@@ -454,6 +497,10 @@ class Session:
         t_send = now()
         res = {"group": step.group, "detail": step.detail, "t_send": t_send}
         kind, payload = step.kind, step.payload
+        if kind == "forget":   # the scrollbar cells of the page being left: a page switch is about to redraw them
+            self.bar_cells.clear()
+            res.update(settle_ms=0.0, busy_ms=0.0, frames=0, bytes=0, ok=True)
+            return res
         if kind == "remember":
             for needle in payload:
                 pos = self.locate(needle)
@@ -493,6 +540,20 @@ class Session:
                     t_last = now()
                     self.send(_mouse(code, pos[0] + dx, pos[1] + dy))
                     self.pump(gap, until=lambda: not self.alive)
+            elif kind == "bar":
+                # wheel events on the scrollbar of the pane that shows `needle`: on its thumb (handle) or on the empty track
+                needle, part, code, count, gap = payload
+                bar = self.scrollbar(needle)
+                rows = bar and bar[part]
+                if not rows:
+                    res.update(ok=False, note=f"scrollbar {part} of the pane with '{needle}' not on screen")
+                    return res
+                # the middle of the thumb; on the track the cell farthest from the thumb (the track is only ever the rest)
+                row = rows[len(rows) // 2] if part == "thumb" else max(rows, key=lambda r: min((abs(r - t) for t in bar["thumb"]), default=0))
+                for _ in range(count):
+                    t_last = now()
+                    self.send(_mouse(code, bar["col"], row))
+                    self.pump(gap, until=lambda: not self.alive)
             elif kind == "repeat":
                 # a held key: one press per repeat interval; the pause keeps reading the app's output like a terminal
                 key, count, gap = payload
@@ -506,7 +567,7 @@ class Session:
             if self.probes:
                 done = lambda: (not self.alive) or (
                     self.open_work == 0 and len(self.events) > mark and self.last_work_end >= t_send - 0.001
-                    and now() - self.last_work_end >= step.quiet and (kind not in ("repeat", "pointer") or now() - self.last_out >= step.quiet))
+                    and now() - self.last_work_end >= step.quiet and (kind not in ("repeat", "pointer", "bar") or now() - self.last_out >= step.quiet))
                 ok = self.pump(step.timeout, until=done)
                 m = self.measure_since(mark, t_send) or {}
                 if kind == "repeat" and m:

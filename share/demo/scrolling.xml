@@ -1,6 +1,41 @@
 <tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="on_load_scroll_data">
   <script src="scroll_callbacks.sh"/>
 
+  <!-- One generated form row: the kind picks the widget (every widget type a form can hold). Distinct ids per branch:
+       the page is checked before the <if>s pick one. -->
+  <template name="gen_row" kind="input" n="0">
+    <if test="{{@kind}}==input">
+      <input id="in" label="Field {{@n}}:" label_width="12"/>
+    </if>
+    <if test="{{@kind}}==password">
+      <password id="pw" label="Secret {{@n}}:" label_width="12" placeholder="password"/>
+    </if>
+    <if test="{{@kind}}==check">
+      <checkbox id="ck" label="Option {{@n}}" class="check"/>
+    </if>
+    <if test="{{@kind}}==select">
+      <select id="sel" label="Pick {{@n}}:" items="one|two|three" value="two" action="noop"/>
+    </if>
+    <if test="{{@kind}}==progress">
+      <progress id="pg" label="Job {{@n}}:" value="40"/>
+    </if>
+    <if test="{{@kind}}==button">
+      <button id="bt" text="Button {{@n}}" action="noop"/>
+    </if>
+    <if test="{{@kind}}==text">
+      <textarea id="ta" rows="3" placeholder="notes {{@n}}"/>
+    </if>
+    <if test="{{@kind}}==list">
+      <list id="ls" rows="3" action="tui.action.noop" items="alpha|beta|gamma|delta|epsilon"/>
+    </if>
+    <if test="{{@kind}}==table">
+      <table id="tb" rows="4" action="noop" columns="File|Size|Kind" data="a.txt|1k|text;b.sh|2k|script;c.png|9k|image;d.md|3k|text"/>
+    </if>
+    <if test="{{@kind}}==label">
+      <label id="lb" text="Label {{@n}}: plain text" class="muted_label"/>
+    </if>
+  </template>
+
   <pane id="main" split="v">
     <pane id="header" height="clamp(3,3,3)" title="Scroll Demo" border="single" class="panel">
       <label id="lbl_inst" text="Wheel scrolls - Tab brings the focused field into view" align="center"/>
@@ -8,26 +43,14 @@
     <pane id="scroll_demos" split="h">
       <pane id="left" split="v" weight="55">
         <pane id="scroll_form" title="Widgets (scroll='v')" border="heavy" class="panel" scroll="v" hpad="1">
-          <label id="sf_title" pin="top" text="Member profile   (pinned: stays on the first row)" class="brand"/>
-          <input id="sf_in0" label="First name:" label_width="12"/>
-          <input id="sf_in1" label="Last name:" label_width="12"/>
-          <input id="sf_in2" label="Email:" label_width="12"/>
-          <input id="sf_in3" label="Phone:" label_width="12"/>
-          <input id="sf_in4" label="Company:" label_width="12"/>
-          <input id="sf_in5" label="Job title:" label_width="12"/>
-          <input id="sf_in6" label="Website:" label_width="12"/>
-          <select id="sf_role" label="Role:" items="viewer|editor|admin" value="editor" action="noop"/>
-          <checkbox id="sf_chk0" label="Newsletter" class="check"/>
-          <checkbox id="sf_chk1" label="Beta features" class="check"/>
-          <checkbox id="sf_chk2" label="Dark mode" class="check"/>
-          <checkbox id="sf_chk3" label="Two-factor login" class="check"/>
-          <input id="sf_ad0" label="Street:" label_width="12"/>
-          <input id="sf_ad1" label="City:" label_width="12"/>
-          <input id="sf_ad2" label="Postcode:" label_width="12"/>
-          <input id="sf_ad3" label="Country:" label_width="12"/>
-          <input id="sf_ad4" label="Notes:" label_width="12"/>
+          <label id="sf_gh" pin="top" text="Generated rows: every widget type (loop + template; the count follows the terminal height)" class="muted_label"/>
           <label id="sf_lh" text="Recent files (a list: the wheel scrolls it first, then the form)" class="muted_label"/>
-          <list id="sf_list" rows="6" action="tui.action.noop" items="report.md|budget.csv|notes.txt|todo.org|roadmap.md|changelog|readme|license|makefile|run.sh"/>
+          <list id="sf_list" rows="6" action="tui.action.noop" items="file_01.txt|file_02.txt|file_03.txt|file_04.txt|file_05.txt|file_06.txt|file_07.txt|file_08.txt|file_09.txt|file_10.txt|file_11.txt|file_12.txt|file_13.txt|file_14.txt|file_15.txt|file_16.txt|file_17.txt|file_18.txt|file_19.txt|file_20.txt|file_21.txt|file_22.txt|file_23.txt|file_24.txt"/>
+          <for id="gen_groups" count="6" index="g">
+            <for each="input password check select progress button text list table label" as="kind">
+              <use template="gen_row" id="g{{@g}}{{@kind}}" kind="{{@kind}}" n="{{@g}}"/>
+            </for>
+          </for>
         </pane>
       </pane>
       <pane id="right" split="v" weight="45">

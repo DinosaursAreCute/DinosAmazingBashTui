@@ -1,0 +1,8 @@
+/* theme.css - the "themed" comparison scenario: a plain dark background like Textual's default, nothing else.
+ * Loaded by the pages run.sh --themed generates; the checked-in pages never reference it. */
+.panel { fg: #e0e0e0; bg: #1e1e1e; }
+.panel:border { fg: #e0e0e0; }
+.panel:title { fg: #e0e0e0; }
+.panel:focus { fg: #e0e0e0; bg: #1e1e1e; }
+.panes { fg: #e0e0e0; bg: #1e1e1e; }
+.list { fg: #e0e0e0; bg: #1e1e1e; }

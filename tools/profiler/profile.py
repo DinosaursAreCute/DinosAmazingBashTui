@@ -32,6 +32,8 @@ def parse():
     p.add_argument("--rounds", type=int, help="untraced latency rounds (default 2)")
     p.add_argument("--size", default=None, help="terminal COLSxROWS the app runs in (default: the scenario file's, 150x45)")
     p.add_argument("--jobs", type=int, default=1, metavar="N", help="run N independent units side by side (default 1; faster, but they compete for the machine and the timings show it)")
+    p.add_argument("--watch", action="store_true", help="show the app under test live in a second window of the test size "
+                   "(Hyprland: floating, on another monitor when there is one); it costs a little time per frame, so do not compare timings of watched runs")
     p.add_argument("--no-trace", action="store_true", help="latency only: skip the xtrace attribution pass")
     p.add_argument("--trace", action="store_true", help="a sweep scenario runs latency only; this adds the xtrace attribution pass "
                    "(slow: it is 3x slower and a large rung produces a very large trace)")
@@ -143,6 +145,9 @@ def main():
         print(f"not a DABT checkout: {REPO}", file=sys.stderr)
         return 2
     atexit.register(kill_all)
+    if a.watch:
+        from dprof import session, watch
+        session.WATCH = watch.Watch(a.rows, a.cols)
 
     spec = a.scenario
     if spec is None:

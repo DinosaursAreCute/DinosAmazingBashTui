@@ -49,6 +49,12 @@ REVISIONS = [
     ("devex4", "DevEx Update 4", "20261105-234102", "The Markdown renderer, documents rendered by a background process, cached pictures, cheaper fused-pane frames and the select widget fix (full run, 2 rounds, traced).", True),
     # Start-up work (6-7 Nov): parallel and background validation, the lazy cache build, theme dedupe and the log level.
     ("startup", "Start-up work", "20261107-012148", "Cold start 4.3 s to 1.4 s: page validation in parallel and in the background, only the first page built behind the splash with the rest built by a background pool (links first), each theme loaded once, `info` log level by default (full run, deep, 5 rounds).", True),
+    # Scroll work (7 Nov): the widgets pane, scroll scenario, 2 rounds. scroll-base is the build before it.
+    ("scroll-base", "Scrolling, before", "20261107-163431", "Every wheel tick repaints and re-places every widget of the pane, off-screen ones included (scroll scenario, 2 rounds, traced).", True),
+    ("scroll1", "Scrolling 1: off-screen widgets", "20261107-165112", "The pane repaint skips widgets above or below the viewport before placing them; pinned widget kept (scroll scenario, untraced).", False),
+    ("scroll2", "Scrolling 2: placement cache", "20261107-170116", "The widget placement cache no longer keys on the scroll offset; the offset, pin and clip are applied after the lookup (scroll scenario, traced).", True),
+    ("scroll4", "Scrolling 3: hit zones", "20261107-170910", "The hit index skips widgets that cannot be hit above or below the viewport instead of placing and clipping all of them (scroll scenario, traced).", True),
+    ("scroll5", "Scrolling 4: pin and measure", "20261107-171651", "The pinned-widget search walks only the pins; the content measure drops per-widget locals and the regex (scroll scenario, traced).", True),
 ]
 
 

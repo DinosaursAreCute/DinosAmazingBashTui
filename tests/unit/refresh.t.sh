@@ -133,9 +133,18 @@ ti_nested_textarea_password_select_progress_list_table_are_built_like_the_four_b
 	tui.reset_ui
 	tui.load "$_T_ROOT/nested_wx.xml" 2>"$_T_ROOT/nested_wx.err"
 	eq "a t pw s pr li tb" "${_TUI_W_ORDER[*]}"
-	eq "0 1 2 3 4 5 6" "${_TUI_W_ROW[a]} ${_TUI_W_ROW[t]} ${_TUI_W_ROW[pw]} ${_TUI_W_ROW[s]} ${_TUI_W_ROW[pr]} ${_TUI_W_ROW[li]} ${_TUI_W_ROW[tb]}"
+	eq "0 1 4 5 6 7 13" "${_TUI_W_ROW[a]} ${_TUI_W_ROW[t]} ${_TUI_W_ROW[pw]} ${_TUI_W_ROW[s]} ${_TUI_W_ROW[pr]} ${_TUI_W_ROW[li]} ${_TUI_W_ROW[tb]}" # the text area (3 rows) and the list (6) claim a block when widgets follow; the table is last and fills the rest
 	eq "p p" "${_TUI_W_PANE[t]} ${_TUI_W_PANE[tb]}"
 	eq "" "$(cat "$_T_ROOT/nested_wx.err")" # no "missing id or pane" warning
+}
+
+ti_a_list_without_rows_claims_a_block_so_the_widgets_after_it_are_not_drawn_over_its_items() {
+	printf '<tui><pane id="p"><list id="l" items="a|b|c"/><label id="after" text="after"/><list id="l2" rows="2" items="a|b|c"/><label id="after2" text="after2"/><list id="last" items="a"/></pane></tui>' >"$_T_ROOT/list_rows.xml"
+	tui.reset_ui
+	tui.load "$_T_ROOT/list_rows.xml" 2>/dev/null
+	eq "0 6 7 9" "${_TUI_W_ROW[l]} ${_TUI_W_ROW[after]} ${_TUI_W_ROW[l2]} ${_TUI_W_ROW[after2]}" # default 6 rows; an explicit rows= is honoured and now moves the next widget too
+	eq "6 2" "${_TUI_W_ROWSPAN[l]} ${_TUI_W_ROWSPAN[l2]}"
+	eq "0" "${_TUI_W_ROWSPAN[last]:-0}" # the last widget keeps filling the pane
 }
 
 ti_refresh_hands_its_expanded_tree_to_the_cache_rebuild_which_equals_a_full_build_without_parsing() {

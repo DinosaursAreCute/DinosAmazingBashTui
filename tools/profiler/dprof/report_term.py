@@ -110,7 +110,7 @@ def scorecard(rep, W):
         worst = m["max"] if m else None
         fr = g.get("frames")
         by = g.get("bytes")
-        title = g["title"] + (c("  ✗ " + g["note"], "red") if g.get("note") else "")
+        title = ("  ↳ " if g.get("parent") else "") + g["title"] + (c("  ✗ " + g["note"], "red") if g.get("note") else "")   # a sub group sits under its parent's overall figure
         lines.append(
             f"{c(GLYPH[g['rating']], col)} {pad(title, 28)}{pad(c(str(g['n']), 'dim'), 4, 'r')} "
             f"{pad(c(fmt_ms(g['value']), col, bold=True), 10, 'r')} {pad(c(fmt_ms(worst), 'dim'), 10, 'r')}  "
@@ -175,7 +175,7 @@ def flows(rep, W):
                          f"{pad(c(LAYERS[b][0], LAYER_COLOR.get(b, 'dim'), bold=True), 14)} {bar(f['ms'] / mx, 26, LAYER_COLOR.get(b, 'cyan'))} {c(fmt_ms(f['ms']), 'text')}")
     lines.append("")
     lines.append(c("hot path per scenario (heaviest call chain)", "dim"))
-    for gid in ("nav.revisit", "nav.first", "hover.move", "focus.next", "click", "palette.open", "resize", "scroll.burst"):
+    for gid in ("nav.revisit", "nav.first", "hover.move", "focus.next", "click", "palette.open", "resize", "scroll.widgets.handle_burst"):
         p = rep["paths"].get(gid)
         if not p:
             continue
@@ -371,7 +371,7 @@ def slowest(rep, W, n=10):
     rows = []
     for g in rep["latency"]:
         for d in g.get("details", []):
-            if d.get("settle") is not None and g["id"] not in ("idle", "shutdown"):
+            if d.get("settle") is not None and g["id"] not in ("idle", "shutdown") and not g.get("overall"):
                 rows.append((d["settle"], g, d))
     rows.sort(key=lambda r: -r[0])
     lines = [pad(c("action", "dim"), 40) + pad(c("done", "dim"), 10, "r") + pad(c("busy", "dim"), 10, "r") + pad(c("frames", "dim"), 8, "r") + pad(c("bytes", "dim"), 10, "r")]

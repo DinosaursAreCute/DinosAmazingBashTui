@@ -29,8 +29,10 @@ declare -gA _TUI_BUILD_BORDER=() # pane id -> border, same reason
 declare -g _TUI_BUILD_ON_VISIT=""
 declare -gi _TUI_BUILD_AUTO_N=0
 declare -g _TUI_BUILD_CTX_PANE="" # nearest enclosing pane id, for nested-widget pane inference
-declare -gi _TUI_BUILD_CTX_ROW=0  # inferred row within that pane
-declare -g _TUI_BUILD_LAST_ID=""  # set by the pane handler: the id it built, read by its caller
+# rows a list/table (or text area) claims when it has no rows= and other widgets follow it in the pane
+declare -gi _TUI_BUILD_LIST_ROWS=6 _TUI_BUILD_TEXTAREA_ROWS=3
+declare -gi _TUI_BUILD_CTX_ROW=0 # inferred row within that pane
+declare -g _TUI_BUILD_LAST_ID="" # set by the pane handler: the id it built, read by its caller
 
 # _tui_build.attr NODE NAME -> stdout : one attribute's value, or empty.
 # Same shape as tui_markup.sh's old `_markup_attr "$line" NAME` so a case
@@ -284,8 +286,9 @@ _tui_build.pane_kids() {
 	local id="$1" node="$2" split="$3" rows="$4" cols="$5" fit="$6" roww="$7" colw="$8" sizew="$9" sizeh="${10}" meta="${11:-0}"
 	tui_node.children "$node"
 	local -a kids=("${_N_CHILDREN[@]}")
-	local k ctype pending="" row=0 # the first widget in a pane sits on its first line (rows count from 0, as in an explicit row="0")
-	for k in "${kids[@]}"; do
+	local k ctype pending="" row=0 span i # the first widget in a pane sits on its first line (rows count from 0, as in an explicit row="0")
+	for i in "${!kids[@]}"; do
+		k="${kids[i]}"
 		ctype="${_N_TYPE[$k]}"
 		case "$ctype" in
 			pane | row | col | spacer | divider | group | details | accordion | outlet)
@@ -320,8 +323,21 @@ _tui_build.pane_kids() {
 			*)
 				_TUI_BUILD_CTX_PANE="$id"
 				_TUI_BUILD_CTX_ROW=$row
+				span=1
+				case "$ctype" in
+					list | table | textarea)
+						if tui_node.attr_get "$k" rows; then
+							span=$((${_N_ATTR_V:-0})) # rows="0" is written on purpose: fill the pane
+						elif ((i < ${#kids[@]} - 1)); then
+							# no rows= and widgets after it: claim a fixed block, or they would be drawn over its items
+							[[ "$ctype" == textarea ]] && span=$_TUI_BUILD_TEXTAREA_ROWS || span=$_TUI_BUILD_LIST_ROWS
+							tui_node.attr_set "$k" rows "$span"
+						fi
+						;;
+				esac
 				_tui_build.dispatch "$k"
-				if ((meta)); then case "$ctype" in script | theme | bind | footer | tab) ;; *) ((row++)) ;; esac else ((row++)); fi
+				((span < 1)) && span=1
+				if ((meta)); then case "$ctype" in script | theme | bind | footer | tab) ;; *) ((row += span)) ;; esac else ((row += span)); fi
 				;;
 		esac
 	done

@@ -20,12 +20,68 @@ for name, _, groups in sc.SCENARIOS:
     reported = {s.group for s in steps}
     if not name.startswith("startup"):
         for g in groups:
-            if g not in reported:
+            if g not in reported and g not in sc.GROUP_PARENT.values():   # a parent has no steps: it sums its sub groups
                 bad.append(f"{name}: no step reports group {g}")
 print("\\n".join(bad))
 PY
 	)"
 	eq "" "$out"
+}
+
+ti_profiler_scroll_features_each_have_an_overall_group_and_the_same_budget() {
+	command -v python3 >/dev/null || return 0
+	local out
+	out="$(
+		cd "$REPO/tools/profiler" && python3 - <<'PY'
+from dprof import scenarios as sc
+sc.load()
+parents = sorted(set(sc.GROUP_PARENT.values()))
+bad = []
+if len(parents) != 4:
+    bad.append(f"expected 4 scroll features, got {parents}")
+if len({sc.GROUP_INFO[p][2] for p in parents}) != 1:
+    bad.append("the features' overall groups do not share one budget")
+for child, parent in sc.GROUP_PARENT.items():
+    if child.rsplit(".", 1)[0] != parent:
+        bad.append(f"{child} is under {parent}")
+    if not any(s.group == child for s in sc.steps(45, 150, False, {child})):
+        bad.append(f"no step for {child}")
+# the wheel goes to a scrollbar or to the pointer's own spot, never to a fixed screen position
+for s in sc.steps(45, 150, False, {g for g in sc.GROUP_INFO if g.startswith("scroll.")}):
+    if s.group.startswith("scroll.") and s.kind not in ("bar", "pointer", "key"):
+        bad.append(f"{s.group}: step kind {s.kind}")
+print("\n".join(bad))
+PY
+	)"
+	eq "" "$out"
+}
+
+ti_profiler_scrollbar_is_found_from_the_cells_the_app_drew_and_a_parent_sums_its_sub_groups() {
+	command -v python3 >/dev/null || return 0
+	local out
+	out="$(
+		cd "$REPO/tools/profiler" && python3 - <<'PY'
+from dprof import scenarios as sc
+from dprof.session import Session
+from dprof.analyze import latency_groups
+sc.load()
+s = Session.__new__(Session)
+s.bar_cells, s.remembered = {}, {}
+s.raw = bytearray("\x1b[3;5H title \x1b[0m".encode())
+for row in range(4, 10):   # a bar in column 40 from row 4 to 9, thumb on rows 5-6; a second pane's bar below it
+    s.bar_cells[(40, row)] = "thumb" if row in (5, 6) else "track"
+for row in range(12, 16):
+    s.bar_cells[(40, row)] = "track"
+bar = s.scrollbar("title")
+print(bar["col"], bar["thumb"], bar["track"])
+act = lambda g, v: {"group": g, "detail": "d", "settle_ms": v, "paint_ms": v, "ok": True}
+rounds = [{"startup": {}, "actions": [act("scroll.list.tick", 10.0), act("scroll.list.burst", 30.0)]}]
+g = {x["id"]: x for x in latency_groups(rounds)}
+print(g["scroll.list"]["n"], g["scroll.list"]["value"], g["scroll.list.tick"]["value"], g["scroll.list.tick"]["parent"], g["scroll.list"].get("overall"))
+PY
+	)"
+	eq "40 [5, 6] [4, 7, 8, 9]
+2 20.0 10.0 scroll.list True" "$out"
 }
 
 ti_profiler_compose_scenario_exists_and_probes_the_refresh() {
@@ -116,7 +172,7 @@ for u in sc.units(45, 150, False, None):
         bad.append(f"{u.name}: first step goes to the default page")
     if not u.steps or u.steps[-1].group == "setup":   # it starts on the default page and ends on a measured step
         bad.append(f"{u.name}: empty or ends on a setup step")
-missing = set(sc.GROUP_INFO) - set(seen) - {"startup.cold", "startup.warm"}
+missing = set(sc.GROUP_INFO) - set(seen) - {"startup.cold", "startup.warm"} - set(sc.GROUP_PARENT.values())
 bad += [f"no unit for {g}" for g in sorted(missing)]
 bad.append(",".join(u.name for u in sc.units(45, 150, True, {"palette.open", "compose.add"})))
 print("\n".join(bad))

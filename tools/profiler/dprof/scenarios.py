@@ -23,6 +23,7 @@ DOWN, UP, LEFT, RIGHT = ESC + b"[B", ESC + b"[A", ESC + b"[D", ESC + b"[C"
 REPEAT_S = 0.033        # key repeat of a held key: ~30 per second (X11 default 25/s, macOS/Windows ~30/s)
 
 GROUP_INFO = {}         # group: (title, kind, budget_ms)
+GROUP_PARENT = {}       # sub group -> its parent group: the parent reports one figure over all its sub groups' actions
 FOCUS_ROOTS = []        # functions the trace breaks down in full
 SCENARIOS = []          # (name, description, groups | None)
 UNIT_GROUPS = []        # (unit name, [groups])
@@ -65,6 +66,12 @@ def pointer(needle, code, dx=0, dy=0, gap=0.03):
     """Payload of a "pointer" step: one mouse event (code: m move, p press, d drag, r release, w/W wheel down/up) placed at
     (dx, dy) cells from the first character of NEEDLE on screen, which is found when the step runs."""
     return (needle, [(code, dx, dy)], gap)
+
+
+def bar(needle, part, code, count=1, gap=0.03):
+    """Payload of a "bar" step: COUNT wheel events (code w down / W up) on the vertical scrollbar of the pane that shows
+    NEEDLE, found when the step runs. part: "thumb" (the handle) or "track" (the empty rest of the bar)."""
+    return (needle, part, code, count, gap)
 
 
 def move(x, y):
@@ -196,6 +203,8 @@ def load(spec=None):
     global DEFAULT_PAGE, _steps, _prepare
     GROUP_INFO.clear()
     GROUP_INFO.update(mod.GROUP_INFO)
+    GROUP_PARENT.clear()
+    GROUP_PARENT.update(getattr(mod, "GROUP_PARENT", {}))
     FOCUS_ROOTS[:] = list(getattr(mod, "FOCUS_ROOTS", ()))
     SCENARIOS[:] = list(mod.SCENARIOS)
     UNIT_GROUPS[:] = list(mod.UNIT_GROUPS)
@@ -224,6 +233,12 @@ def check(mod):
     for g, v in info.items():
         if not (isinstance(v, tuple) and len(v) == 3):
             bad.append(f"GROUP_INFO[{g!r}] must be (title, kind, budget_ms)")
+    for child, parent in getattr(mod, "GROUP_PARENT", {}).items():
+        for g in (child, parent):
+            if g not in info:
+                bad.append(f"GROUP_PARENT: group {g} is not in GROUP_INFO")
+        if parent in getattr(mod, "GROUP_PARENT", {}):
+            bad.append(f"GROUP_PARENT: {parent} is a sub group itself (one level only)")
     names = [n for n, _, _ in mod.SCENARIOS]
     if len(set(names)) != len(names):
         bad.append("SCENARIOS has a duplicate name")

@@ -22,6 +22,7 @@ import shutil
 import signal
 import statistics
 import struct
+import subprocess
 import sys
 import tempfile
 import termios
@@ -33,9 +34,49 @@ QUIET = 0.15  # no output for this long = the frame is finished (neither app rep
 TIMEOUT = 8.0
 
 
+class Watch:
+    """Mirrors the apps' raw output into a terminal window of the test size, so the run can be watched.
+    The harness keeps owning the pty (its size is set with TIOCSWINSZ, which is what the app sees); the window only replays
+    the bytes through a FIFO. Mirroring adds a write per read, so timings of a watched run are not comparable."""
+
+    def __init__(self, rows, cols):
+        self.fd = None
+        d = tempfile.mkdtemp(prefix="compare-watch-")
+        self.fifo = os.path.join(d, "out")
+        os.mkfifo(self.fifo)
+        show = f"cat {self.fifo}"
+        for exe, args in (("kitty", ["--override", f"initial_window_width={cols}c", "--override", f"initial_window_height={rows}c"]),
+                          ("alacritty", ["-o", f"window.dimensions.columns={cols}", "-o", f"window.dimensions.lines={rows}"]),
+                          ("ghostty", [f"--window-width={cols}", f"--window-height={rows}"])):
+            if shutil.which(exe):
+                flag = "-e" if exe != "kitty" else ""
+                subprocess.Popen([exe, *args, *([flag] if flag else []), "sh", "-c", show], stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                break
+        else:
+            print(f"no known terminal emulator found; run in a {cols}x{rows} terminal:  cat {self.fifo}", file=sys.stderr)
+        self.fd = os.open(self.fifo, os.O_WRONLY)  # blocks until the viewer is reading
+        self.size(rows, cols)
+
+    def write(self, data):
+        if self.fd is not None:
+            try:
+                os.write(self.fd, data)
+            except OSError:  # viewer closed
+                self.fd = None
+
+    def size(self, rows, cols):
+        self.write(b"\x1bc" + f"\x1b[8;{rows};{cols}t".encode())  # reset + ask the window to resize (terminals may ignore it)
+
+
+WATCH = None
+
+
 def app_command(name):
     if name == "dabt":
         return ["bash", os.path.join(HERE, "dabt_app", "run.sh")]
+    if name == "dabt-themed":
+        return ["bash", os.path.join(HERE, "dabt_app", "run.sh"), "--themed"]
     venv = os.environ.get("COMPARE_VENV", os.path.expanduser("~/.cache/dabt-compare-venv"))
     return [os.path.join(venv, "bin", "python"), os.path.join(HERE, "textual_app", "app.py")]
 
@@ -83,6 +124,8 @@ class Session:
         os.makedirs(env["XDG_CONFIG_HOME"], exist_ok=True)
         cmd = app_command(name)
         self.t_spawn = time.perf_counter()
+        if WATCH:
+            WATCH.size(rows, cols)
         pid, fd = pty.fork()
         if pid == 0:
             fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
@@ -111,6 +154,8 @@ class Session:
         if data:
             self.events.append((time.perf_counter(), len(data)))
             self.buf += data
+            if WATCH:
+                WATCH.write(data)
 
     def mark(self):
         self.buf = bytearray()
@@ -142,6 +187,8 @@ class Session:
         t0 = time.perf_counter()
         if isinstance(data, tuple):  # resize
             fcntl.ioctl(self.fd, termios.TIOCSWINSZ, struct.pack("HHHH", data[0], data[1], 0, 0))
+            if WATCH:
+                WATCH.size(data[0], data[1])
         else:
             self.send(data)
         seen = self.wait(expect, TIMEOUT if expect else 1.5)
@@ -239,7 +286,7 @@ def run_app(name, rounds, rows, cols):
             os.makedirs(cold_home)
             s, res = startup(name, cold_home, rows, cols)
             results.setdefault("startup.cold", []).append(res)
-            if name == "dabt":   # DABT builds the other pages in the background after the first frame: let it finish, or the
+            if name.startswith("dabt"):   # DABT builds the other pages in the background after the first frame: let it finish, or the
                 s.wait("Page cache ready", timeout=30)   # steps below would race it (a page not built yet is built on the click)
             s.close()
             s, res = startup(name, cold_home, rows, cols)  # same HOME: caches from the first run are warm
@@ -303,10 +350,17 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rounds", type=int, default=5)
     ap.add_argument("--only", choices=("dabt", "textual"))
+    ap.add_argument("--scenario", choices=("minimal", "themed"), default="minimal",
+                    help="themed: the DABT side runs with a theme that paints a dark background (Textual always paints one)")
     ap.add_argument("--size", default="150x45")
+    ap.add_argument("--watch", action="store_true", help="mirror the run into a terminal window of the test size (timings are not comparable)")
     a = ap.parse_args()
     cols, rows = (int(x) for x in a.size.split("x"))
-    apps = [a.only] if a.only else ["dabt", "textual"]
+    dabt = "dabt-themed" if a.scenario == "themed" else "dabt"
+    if a.watch:
+        global WATCH
+        WATCH = Watch(rows, cols)
+    apps = [dabt if a.only == "dabt" else a.only] if a.only else [dabt, "textual"]
     for name in apps:
         if not os.path.exists(app_command(name)[0]) and name == "textual":
             sys.exit("textual venv missing: see tools/compare/README.md")

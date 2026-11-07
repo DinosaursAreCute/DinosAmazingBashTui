@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+* **Scrolling a pane of widgets is about twice as fast: 147 ms instead of 72 ms per wheel tick** (profiler, scroll scenario, 2 rounds, 200x45; Page keys 96 ms to 41 ms, the list wheel 71 ms to 51 ms). A scroll step no longer places, draws or indexes the widgets that are outside the viewport.
+
+### Changed
+* A scrolling pane's repaint skips the widgets above and below the viewport before computing their placement (the pinned widget is always drawn); the output is the same.
+* The widget placement cache no longer includes the scroll offset in its key: it holds the unscrolled placement and the offset, the pin and the clip at the viewport's bottom edge are applied after the lookup (`_tui._wp_scroll`), so a new offset is still a hit.
+* The hit index skips widgets that cannot be hit in a vertically scrolling pane: below the viewport (unless they have `hit_pad` or `hitbox`) and above it. Spatial focus moves still find them, they fall back to `_tui._widget_pos`.
+* `_tui_scroll.stuck` walks only the pinned widgets instead of every widget; `_tui_scroll.measure` drops its per-widget locals and regex.
+
 ## [0.0.25] - 2026-11-07
 ### News
 * **Cold start of the demo: 1.4 s instead of 2.8 s** (profiler, 5 rounds, idle machine; the run before this work read 4.3 s, but with some load on the machine). Page validation runs in parallel and in the background, only the first page is built behind the splash, the rest of the cache is built while the app runs; the start page appears after about 0.4 s. Warm start is unchanged (521 ms). Details in `docs/concepts/performance-progress.md`, section 15m.

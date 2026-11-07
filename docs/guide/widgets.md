@@ -18,7 +18,7 @@ Besides label, button, checkbox and input, DABT has a multi-line **textarea**, a
 </pane>
 ```
 
-A widget is written inside its pane and takes the next line; `row="N"` skips ahead (here to leave a gap above the select and the table).
+A widget is written inside its pane and takes the next line; `row="N"` skips ahead (here to leave a gap above the select and the table). A list, table or textarea without `rows=` that has widgets after it claims 6 rows (3 for a textarea), and the widgets after it start below; as the last widget in a pane it fills what is left, and `rows="0"` asks for that explicitly. A `rows=` of N moves the next widget down N lines.
 
 The same widgets exist as calls: `tui.textarea ID PANE ROW [PLACEHOLDER] [ROWS] [SUBMIT_FN]`, `tui.password`, `tui.select`, `tui.progress`, `tui.list`, `tui.table` (see the reference). Data is set at runtime: `tui.list.set files a b c`, `tui.table.set rows "File|Size" "a.txt|1k"`, `tui.progress.set job 40`.
 

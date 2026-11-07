@@ -54,6 +54,21 @@ The report names the machine, specs only: CPU model, threads and cores, max MHz 
 * **One run:** summary and scorecard, latency with every statistic, samples, per-step timelines, frame sources, panes and spans; startup phases; setup; machine and resources; functions, layers, call edges, layer flow, hot lines, processes; zoomable flame graph; calibration; findings; the raw JSON as a tree.
 * **Compare (2 or more runs):** latency, startup phases, functions, layers, setup and resources side by side with the change against the first run, distributions per group, and a context table that marks what differs between runs (including the machine).
 
+## Scenario for scrolling
+
+`--scenario scroll` profiles four independent features on the Scrolling demo page, each with an **overall row** (all four share one budget, 100 ms) and its **sub groups** indented under it, so there is one average per feature and a breakdown beneath it:
+
+| feature | sub groups |
+|---|---|
+| `scroll.widgets` (the `scroll='v'` pane of widgets) | `handle`, `handle_burst`, `track`, `page` |
+| `scroll.text` (a `tui.output` pane) | `handle`, `handle_burst`, `track`, `page` |
+| `scroll.textboth` (a `scroll='both'` pane) | `handle` (vertical), `horizontal`, `horizontal_burst` |
+| `scroll.list` (a list widget) | `tick`, `burst` |
+
+The wheel goes onto the pane's scrollbar (a `bar` step: the profiler finds the bar from the cells the app drew and aims at the middle of the thumb, or at the track cell farthest from it), never onto a widget, so a list that takes the wheel itself is not counted as the pane scrolling; the list has its own feature. The framework treats the whole bar strip alike, so `handle` and `track` should read the same; a difference would be a regression.
+
+Sub groups are a general scenario-file feature: `GROUP_PARENT = {sub group: parent}` in the scenario file (see the docstring of `scenarios/demo.py`). The parent is a `GROUP_INFO` row without steps of its own that reports one figure over all its sub groups' actions; its sub groups appear indented (`↳`) and are rated against their own budgets.
+
 ## Scenario for the Compose page
 
 `--scenario compose` profiles `tui.page.refresh` (`lib/markup/tui_refresh.sh`) on the **Compose** demo page (`share/demo/compose.xml`, `compose_callbacks.sh`; tabs Board, Conditionals, Addons; `alt+-`). The page is not in the nav's first ten pages, so the scenario opens it through the command palette (`ctrl+p`, then the first letters of its command). Every change on it is an addon file plus a refresh, so every group has the budget of a page switch: **100 ms**, click to the changed panes on screen (the page itself 150 ms).
@@ -131,6 +146,8 @@ A file that misses a required name or has inconsistent tables (a scenario naming
 Not yet in a file: the probed function list (`WRAP` in `dprof/session.py`; it is the framework's, not the app's), the layer rules of the call-graph tables (`FILE_LAYER` and `FUNC_RULES` in `dprof/analyze.py`) and the demo-specific `nav.key` hint in `dprof/insights.py` (shown only when that group exists).
 
 ## Sweeps and perflab
+
+`--watch` shows the app under test live in a second window of the test size (Hyprland: floating at the exact pixel size, on another monitor when there is one, so this terminal keeps the profiler output; other desktops: a plain terminal window of that size, or a `cat` command to run by hand). Replaying costs a little time per frame, so timings of a watched run are not comparable; use it without `--jobs`.
 
 `--scenarios perflab` profiles the framework itself, not the demo: the fixture app in `tools/perflab/` (frozen pages, one feature each) driven by `scenarios/perflab.py`. Every feature is pushed along the axis its own code iterates over: `tui.tick.add` listeners, `tui.every` jobs, `key` hook handlers, table rows, table columns, buttons, textarea lines, input characters, markdown paragraphs and tables, widgets per page (navigation), palette commands. An axis has a **ladder** of sizes (`3, 30, 300, 3000`); the first rung is normal use, the last the extreme, and every rung is a unit of its own (a fresh app on that feature page at that size).
 

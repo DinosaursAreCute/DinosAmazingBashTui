@@ -8,7 +8,7 @@ import re
 import math
 import statistics
 
-from .scenarios import FOCUS_ROOTS, GROUP_INFO, parse_group
+from .scenarios import FOCUS_ROOTS, GROUP_INFO, GROUP_PARENT, parse_group
 
 # layer -> (title, what it is)
 LAYERS = {
@@ -124,6 +124,8 @@ def latency_groups(rounds):
     for r in rounds:
         for a in r["actions"]:
             by.setdefault(a["group"], []).append(a)
+            if a["group"] in GROUP_PARENT:   # a parent reports one figure over every action of its sub groups
+                by.setdefault(GROUP_PARENT[a["group"]], []).append(a)
     groups = []
     order = list(GROUP_INFO)
     for gid in order:
@@ -146,6 +148,10 @@ def latency_groups(rounds):
             continue
         title, kind, budget = GROUP_INFO[gid]
         g = {"id": gid, "title": title, "kind": kind, "budget_ms": budget, "n": len(acts)}
+        if gid in GROUP_PARENT:
+            g["parent"] = GROUP_PARENT[gid]
+        elif gid in GROUP_PARENT.values():
+            g["overall"] = True   # its actions are its sub groups' actions: listed once, under them
         for m in ("paint_ms", "settle_ms", "busy_ms", "queue_ms", "cpu_ms", "frames", "bytes", "lag_med_ms", "lag_max_ms", "tail_ms", "frame_gap_ms"):
             g[m[:-3] if m.endswith("_ms") else m] = stats([a.get(m) for a in acts])
         g["samples"] = [a.get("settle_ms") for a in acts if a.get("settle_ms") is not None]

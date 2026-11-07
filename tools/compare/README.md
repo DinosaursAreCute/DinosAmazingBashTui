@@ -21,7 +21,11 @@ python3 -m venv ~/.cache/dabt-compare-venv && ~/.cache/dabt-compare-venv/bin/pip
 tools/compare/compare.py                 # 5 rounds, both apps, 150x45, ~3 min
 tools/compare/compare.py --rounds 2      # quick
 tools/compare/compare.py --only dabt
+tools/compare/compare.py --scenario themed   # DABT with a dark-background theme (Textual always paints one)
+tools/compare/compare.py --watch         # mirror the run into a 150x45 terminal window (kitty/alacritty/ghostty); timings not comparable
 ```
+
+`minimal` (default) runs DABT with no theme at all: the pages reference none and paint no background. `themed` runs a generated copy of the same pages (`run.sh --themed`: every pane gets `class="panel"`, every page loads `dabt_app/theme.css`), reported as `dabt-themed`.
 
 Output: `reports/<timestamp>/{compare.txt,compare.json}` (git-ignored). `COMPARE_VENV` overrides the venv path.
 

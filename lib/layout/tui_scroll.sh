@@ -14,22 +14,16 @@
 # it is a plain integer, else 1. Returns 0 when the pane has no widgets.
 # state:direct
 _tui_scroll.measure() {
-	local pane="$1"
-	local max_row=0
-	local w
+	local pane="$1" max_row=0 w row height end_row
 	for w in "${_TUI_W_ORDER[@]}"; do
 		[[ "${_TUI_W_PANE[$w]:-}" == "$pane" ]] || continue
-		local row="${_TUI_W_ROW[$w]:-0}"
-		local height="${_TUI_W_HEIGHT[$w]:-1}"
+		row="${_TUI_W_ROW[$w]:-0}"
+		height="${_TUI_W_HEIGHT[$w]:-1}"
 		# not a plain integer (a unit token): rows= if the widget has them (list, table, textarea), else 1
-		if ! [[ "$height" =~ ^[0-9]+$ ]]; then
-			height=1
-		fi
+		[[ -z "$height" || "$height" == *[!0-9]* ]] && height=1
 		((${_TUI_W_ROWSPAN[$w]:-0} > height)) && height=${_TUI_W_ROWSPAN[$w]}
-		local end_row=$((row + height))
-		if ((end_row > max_row)); then
-			max_row=$end_row
-		fi
+		end_row=$((row + height))
+		((end_row > max_row)) && max_row=$end_row
 	done
 	_ps.panes.set "$pane" content_h "$max_row"
 }
@@ -146,21 +140,28 @@ _tui_scroll.settle() {
 _tui_scroll.stuck() {
 	local pane="$1"
 	local offset="${_TUI_P_SOFF_V[$pane]:-0}"
-	local stuck_id="" stuck_row=-1
-	local w
-	for w in "${_TUI_W_ORDER[@]}"; do
-		[[ "${_TUI_W_PANE[$w]:-}" == "$pane" ]] || continue
-		[[ "${_TUI_W_PIN[$w]:-}" == "top" ]] || continue
-		local wrow="${_TUI_W_ROW[$w]:-0}"
-		# Only stick if row <= offset (scrolled past or at the edge)
-		if ((wrow <= offset)); then
-			# Keep the one with the largest row
-			if ((wrow > stuck_row)); then
-				stuck_id="$w"
-				stuck_row=$wrow
-			fi
+	local stuck_id="" stuck_row=-1 w wrow tie=0
+	# only the pinned widgets can stick: walk those, not every widget on the page
+	for w in "${!_TUI_W_PIN[@]}"; do
+		[[ "${_TUI_W_PANE[$w]:-}" == "$pane" && "${_TUI_W_PIN[$w]}" == top ]] || continue
+		wrow="${_TUI_W_ROW[$w]:-0}"
+		((wrow <= offset)) || continue # only stick once scrolled past or at the edge
+		if ((wrow > stuck_row)); then
+			stuck_id="$w"
+			stuck_row=$wrow
+			tie=0
+		elif ((wrow == stuck_row)); then
+			tie=1
 		fi
 	done
+	if ((tie)); then # two pins on the same row: the first in widget order wins
+		for w in "${_TUI_W_ORDER[@]}"; do
+			[[ "${_TUI_W_PANE[$w]:-}" == "$pane" && "${_TUI_W_PIN[$w]:-}" == top && "${_TUI_W_ROW[$w]:-0}" == "$stuck_row" ]] && {
+				stuck_id="$w"
+				break
+			}
+		done
+	fi
 	if [[ -n "$stuck_id" ]]; then
 		_ps.panes.set "$pane" stuck "$stuck_id"
 	else

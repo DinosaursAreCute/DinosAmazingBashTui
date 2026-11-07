@@ -154,8 +154,12 @@ _tui_hit.zones_extras() {
 # _tui_hit.zones_widgets - registers widget zones (exact rect, then padded hit areas).
 # state:direct
 _tui_hit.zones_widgets() {
-	local id p hp hb vp hw dy dx hh reuse=$_TUI_WP_REUSE
+	local id p hp hb vp hw dy dx hh reuse=$_TUI_WP_REUSE wr
 	local -a pads=()
+	# Per vertically scrolling leaf pane (set on its first widget): viewport top row, viewport rows, offset; -1 = not one.
+	# A top-aligned widget there starts at vpad + row - offset rows into the viewport; one with no extra hit area that starts
+	# at or past its end has no zone, and one that ends above its top is dropped after placement (the pinned widget moves).
+	local -A vtop=() vrows=() voff=()
 	_TUI_WP_LAST="" _TUI_WP_REUSE=1 # widgets of one pane share its inset
 	for id in "${_TUI_W_ORDER[@]}"; do
 		p="${_TUI_W_PANE[$id]:-}"
@@ -163,8 +167,20 @@ _tui_hit.zones_widgets() {
 		[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && continue # in a collapsed pane
 		hp="${_TUI_W_HITPAD[$id]:-}" hb="${_TUI_W_HITBOX[$id]:-}"
 		[[ "${_TUI_W_TYPE[$id]}" == label && -z "$hp" && -z "$hb" ]] && continue
+		if [[ -z "${vtop[$p]+x}" ]]; then
+			vtop[$p]=-1
+			if [[ -z "${_TUI_P_CHILDREN[$p]:-}" && "${_TUI_P_SCROLL[$p]:-none}" == @(v|both) && "${_TUI_P_VALIGN[$p]:-top}" == top ]]; then
+				_tui._inset "$p"
+				vtop[$p]=$((${_TUI_P_ROW[$p]} + _IV)) vrows[$p]=$((${_TUI_P_H[$p]} - 2 * _IV)) voff[$p]=${_TUI_P_SOFF_V[$p]:-0}
+			fi
+		fi
+		if ((${vtop[$p]} >= 0)) && [[ -z "$hp$hb" && "${_TUI_W_VALIGN[$id]:-top}" == top && "${_TUI_P_STUCK[$p]:-}" != "$id" ]]; then
+			wr=$((${_TUI_W_VPAD[$id]:-0} + ${_TUI_W_ROW[$id]} - ${voff[$p]}))
+			((wr >= ${vrows[$p]})) && continue # below the viewport: no zone (the focus lookup falls back to _widget_pos)
+		fi
 		_tui._widget_pos "$id"
 		_TUI_HZ_WR[$id]=$_WSR _TUI_HZ_WC[$id]=$_WSC _TUI_HZ_WW[$id]=$_WSW
+		((${vtop[$p]} >= 0 && _WSR + _WSH <= ${vtop[$p]})) && [[ -z "$hp$hb" ]] && continue # above the viewport
 		_tui_hit.clip_content "$_WSR" "$_WSC" "$_WSH" "$_WSW" "$p"
 		_tui_hit.add widget "$id" "" "$_HR" "$_HC" "$_HH" "$_HW"
 		if [[ -n "$hb" ]]; then

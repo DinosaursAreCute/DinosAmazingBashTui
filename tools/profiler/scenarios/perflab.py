@@ -92,7 +92,7 @@ BUTTONS_PAGE = HEAD + '''  <pane id="root" title="perflab buttons" border="singl
 %s  </pane>
 </tui>
 '''
-NAV_PAGE = HEAD + '''  <pane id="root" title="perflab nav" border="single" scroll="v">
+NAV_PAGE = HEAD + '''  <pane id="root" title="perflab nav" height="clamp(3,3,3)" border="single" scroll="v">
     <label id="lbl_ready" text="PERFLAB nav ready"/>
     <button id="btn_back" text="[ Back ]" action="perflab_back"/>
 %s  </pane>
@@ -102,7 +102,7 @@ MARKDOWN_PAGE = HEAD + '''  <pane id="root" split="v" border="none">
     <pane id="hdr" height="3" title="perflab markdown" border="single">
       <label id="lbl_page" text="PERFLAB markdown page"/>
     </pane>
-    <pane id="md" border="single" scroll="v"/>
+    <pane id="md" border="single" height="30" scroll="v"/>
   </pane>
   <markdown pane="md" src="%s"/>
 </tui>

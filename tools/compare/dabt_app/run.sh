@@ -9,10 +9,15 @@ APP="$HERE"
 if [[ ${1:-} == --themed ]]; then
 	APP="$HOME/themed_app"
 	mkdir -p "$APP"
-	cp "$HERE/theme.css" "$HERE/callbacks.sh" "$APP/"
+	# A file is only rewritten when its content changed: a rewrite bumps the mtime, which invalidates the page cache
+	# (it validates by mtime), so the "warm" start would rebuild every page.
+	for f in theme.css callbacks.sh; do
+		cmp -s "$HERE/$f" "$APP/$f" || cp "$HERE/$f" "$APP/$f"
+	done
 	for f in "$HERE"/*.xml; do
-		sed -e 's|<pane |<pane class="panel" |' -e 's|\(<script src="callbacks.sh"/>\)|\1\n  <theme src="theme.css"/>|' \
-			-e 's|xsi:noNamespaceSchemaLocation="[^"]*"||' "$f" >"$APP/${f##*/}"
+		new=$(sed -e 's|<pane |<pane class="panel" |' -e 's|\(<script src="callbacks.sh"/>\)|\1\n  <theme src="theme.css"/>|' \
+			-e 's|xsi:noNamespaceSchemaLocation="[^"]*"||' "$f")
+		[[ -f $APP/${f##*/} && $new == "$(<"$APP/${f##*/}")" ]] || printf '%s\n' "$new" >"$APP/${f##*/}"
 	done
 fi
 # shellcheck source=../../../lib/tui.sh

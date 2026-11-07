@@ -47,6 +47,8 @@ REVISIONS = [
     ("devex4-nav", "DevEx Update 4, page switches", "20261105-230830", "Markdown renderer with documents rendered by a background process and cached pictures; the ten-page switch by click and by key (nav run, 2 rounds, traced).", True),
     ("devex4-floor", "DevEx Update 4, page-switch floor", "20261105-233707", "The page-switch floor on the same build (quick run, traced).", True),
     ("devex4", "DevEx Update 4", "20261105-234102", "The Markdown renderer, documents rendered by a background process, cached pictures, cheaper fused-pane frames and the select widget fix (full run, 2 rounds, traced).", True),
+    # Start-up work (6-7 Nov): parallel and background validation, the lazy cache build, theme dedupe and the log level.
+    ("startup", "Start-up work", "20261107-012148", "Cold start 4.3 s to 1.4 s: page validation in parallel and in the background, only the first page built behind the splash with the rest built by a background pool (links first), each theme loaded once, `info` log level by default (full run, deep, 5 rounds).", True),
 ]
 
 

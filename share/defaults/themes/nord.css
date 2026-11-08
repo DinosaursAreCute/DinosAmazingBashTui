@@ -197,3 +197,6 @@
   bg: #4c566a;
   mods: bold;
 }
+
+/* progress bar glyphs */
+@import "../glyphs/thin.css";

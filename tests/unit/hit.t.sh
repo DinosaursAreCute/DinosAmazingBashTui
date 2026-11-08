@@ -297,3 +297,80 @@ t_hit_scrolled_out_widget_above_viewport_not_hittable() {
 		eq ":" "$_R" # No widget hit, just pane
 	}
 }
+
+# ── pointer capture: tui.mouse.capture ──
+
+_cap_log=""
+_cap_fn() { _cap_log+="$1:$2:$3,$4 "; }
+
+t_capture_routes_drag_and_release_off_the_widget() {
+	_cap_log=""
+	tui.mouse.capture thumb _cap_fn
+	_tui_input.mouse_event 32 M 50 20 # drag, far from anywhere
+	_tui_input.mouse_event 0 m 51 21  # release
+	eq "drag:thumb:50,20 release:thumb:51,21 " "$_cap_log"
+	eq "" "$_TUI_CAPTURE_FN"
+}
+
+t_capture_ends_on_a_new_press() {
+	_cap_log=""
+	tui.mouse.capture thumb _cap_fn
+	_tui_input.mouse_event 0 M 2 2 # lost release: next press clears it
+	eq "" "$_TUI_CAPTURE_FN"
+}
+
+t_button_fires_on_release_over_it_only() {
+	_hit_pane
+	local n=0
+	_cap_act() { ((n++)); }
+	tui.button b1 p 0 "Go" _cap_act
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC
+	_tui_hit.rebuild
+	_tui._handle_mouse "[<0;$c;${r}M"
+	eq 0 "$n" # press: nothing yet
+	_tui._handle_mouse "[<0;$c;${r}m"
+	eq 1 "$n" # release on it
+	_tui._handle_mouse "[<0;$c;${r}M"
+	_tui._handle_mouse "[<0;60;20m"
+	eq 1 "$n" # released elsewhere: cancelled
+}
+
+t_button_release_drops_focus_and_hover() {
+	_hit_pane
+	tui.button b1 p 0 "Go" :
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC
+	_tui_hit.rebuild
+	_tui._handle_mouse "[<0;$c;${r}M"
+	eq b1 "$_TUI_FOCUS_ID"
+	eq b1 "$_TUI_HOVERED_WIDGET"
+	_tui._handle_mouse "[<0;$c;${r}m"
+	eq "" "$_TUI_FOCUS_ID"
+	eq "" "$_TUI_HOVERED_WIDGET"
+}
+
+t_button_action_runs_with_focus_already_dropped() {
+	_hit_pane
+	local seen=x
+	_seen_act() { seen="$_TUI_FOCUS_ID|$_TUI_HOVERED_WIDGET"; }
+	tui.button b1 p 0 "Go" _seen_act
+	_tui._widget_pos b1
+	local r=$_WSR c=$_WSC
+	_tui_hit.rebuild
+	_tui._handle_mouse "[<0;$c;${r}M"
+	_tui._handle_mouse "[<0;$c;${r}m"
+	eq "|" "$seen"
+}
+
+t_nav_button_to_the_current_page_does_nothing() {
+	local calls=0 saved
+	saved="$(declare -f tui.goto)"
+	tui.goto() { ((calls++)); }
+	_TUI_MARKUP_FILE=/x/a.xml _TUI_MARKUP_DIR=/x
+	_tui_markup.nav a.xml
+	eq 0 "$calls"
+	_tui_markup.nav b.xml
+	eq 1 "$calls"
+	eval "$saved"
+}

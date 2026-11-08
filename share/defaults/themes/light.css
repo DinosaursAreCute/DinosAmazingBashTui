@@ -1,6 +1,11 @@
 /* themes/light.css - overlay: same classes as ../theme.css with a different palette.
  * Selected on the Settings page (tui.theme.set) and applied app-wide. */
 
+
+/* progress bar glyphs */
+@import "../glyphs/thin.css";
+
+
 .danger_button {
   fg: white;
   bg: #b00020;
@@ -307,3 +312,4 @@
   bg: #8b5cf6;
   mods: bold;
 }
+

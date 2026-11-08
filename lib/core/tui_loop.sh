@@ -63,6 +63,7 @@ tui.run() {
 			_tui_async.cover_changed # painters go on
 		fi
 
+		_TUI_SYNC_DEPTH=0 # no update spans two loop iterations: a leaked start must not leave later writes unsynchronized
 		local char=""
 		local got_char=0
 		local poll_timeout="$TUI_INPUT_IDLE_TIMEOUT"
@@ -77,7 +78,7 @@ tui.run() {
 		fi
 		# A queued pane render (tui.output, scroll batching) is flushed once the input goes quiet; waiting the
 		# full poll timeout for that made every scroll step and page load ~50 ms slower than its work.
-		((${#_TUI_PENDING_OUTPUT[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
+		((${#_TUI_PENDING_OUTPUT[@]} || ${#_WX_CHG_PENDING[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
 		((_TUI_PASSTHROUGH)) && poll_timeout="$TUI_INPUT_IDLE_TIMEOUT" # frozen: nothing to tick
 
 		_tui._next_byte char "$poll_timeout" && got_char=1
@@ -127,6 +128,11 @@ tui.run() {
 		# happen, so this block is scroll-only.
 		if ((_TUI_RENDER_TIMEOUT > 0)); then
 			((_TUI_RENDER_TIMEOUT--))
+		fi
+
+		# debounced on_change callbacks (tui.on_change --debounce): when the keys stop, or after TUI_CHANGE_DEBOUNCE_MAX events
+		if ((${#_WX_CHG_PENDING[@]} && (got_char == 0 || ++_WX_CHG_AGE >= TUI_CHANGE_DEBOUNCE_MAX))); then
+			_tui_wx.flush_changes
 		fi
 
 		if ((_TUI_RENDER_TIMEOUT == 0)) || ((got_char == 0)); then

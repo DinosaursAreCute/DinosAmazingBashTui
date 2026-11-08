@@ -63,7 +63,7 @@ tui.validate.enum tui keep_state "true|false"
 tui.validate.enum pane keep_size "true|false"
 tui.validate.enum details keep_size "true|false"
 for _tv_b in input password textarea checkbox select list table progress; do tui.validate.enum "$_tv_b" keep_value "true|false"; done
-tui.validate.enum textarea mode "markdown|plain"
+tui.validate.enum textarea mode "markdown|syntax|plain"
 tui.validate.enum '*' persist "session|disk|layout"
 tui.validate.enum '*' keep_focus "true|false"
 unset _tv_b

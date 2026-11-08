@@ -1,0 +1,180 @@
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • the app's CPUs are 6% busy before the run starts.                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ compare-v2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ scenario   workbench — Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form                                        │
+│ app        DABT  DABT 0.0.26   keys: legacy ESC                                                                                                    │
+│ app        Textual  Textual 8.2.8 / Python 3.14.8   keys: kitty CSI-u                                                                              │
+│ run        1 rounds (+0 warm-up) · 150x45 · 49.4s · 2026-11-08 15:20:24                                                                            │
+│ machine    AMD Ryzen 5 2600 Six-Core Processor · 12 CPUs · kernel 7.2.9-2-cachyos · governor n/a · load 1.12 1.33 1.31                             │
+│ isolation  app on CPUs [0, 1, 2, 3, 4, 6, 7, 8, 9, 10] · harness on [5, 11] · python 3.14.8 · bash 5.3.20(1)-release · repo 30a211c+dirty          │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚠ the app's CPUs are 6% busy before the run starts.
+⚠ only 1 measured rounds: confidence intervals are rough below ~8.
+╭─ summary ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ DABT is 2.41× faster than Textual on interaction latency, measured to the last visible change (geometric mean over 42 steps).  DABT better in 0,   │
+│ Textual better in 0, no clear difference in 42.                                                                                                    │
+│ warm startup:  unclear (1.94×, CI spans 1)                                                                                                         │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+startup  (spawn → first correct frame)                                                                                                    
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT                    
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+startup.cold        DABT                        508.0   ██████████████     508.0    2655    23.3 kB        6   baseline                   
+                    Textual                     425.6   ███████████▊       425.6     464    27.7 kB        2   unclear (0.84×, CI spans 1)
+                                                                                                                                          
+startup.warm        DABT                        223.4   ███████▎           223.4     210    22.0 kB        3   baseline                   
+                    Textual                     432.8   ██████████████     432.8     463    27.7 kB        2   unclear (1.94×, CI spans 1)
+interaction  (input → expected screen)                                                                                                     
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT                     
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+jobs.run            DABT                       2169.5   ██████████████    2169.5     220    45.7 kB       46   baseline                    
+                    Textual                    2037.4   █████████████▏    2037.4     139    24.2 kB       22   unclear (0.94×, CI spans 1) 
+                                                                                                                                           
+jobs.reset          DABT                         14.2   ██████████████      14.2      15       3675        4   baseline                    
+                    Textual                       7.9   ███████▊             7.9       8       1365        1   unclear (0.55×, CI spans 1) 
+                                                                                                                                           
+nav.tasks           DABT                        145.9   █████▉             145.9     156    47.4 kB        2   baseline                    
+                    Textual                     347.1   ██████████████     180.6     381   141.2 kB        5   unclear (2.38×, CI spans 1) 
+                                                                                                                                           
+table.down          DABT                         34.8   ██████████████      11.1      36       6301        5   baseline                    
+                    Textual                      30.9   ████████████▌       30.9      14       3238        2   unclear (0.89×, CI spans 1) 
+                                                                                                                                           
+table.down_held     DABT                         49.6   ██████████████      25.9     348    61.5 kB       50   baseline                    
+                    Textual                      20.6   █████▉              20.6     125    34.4 kB       11   unclear (0.42×, CI spans 1) 
+                                                                                                                                           
+table.pagedown      DABT                         36.2   ████████             5.3      36       6303        5   baseline                    
+                    Textual                      63.5   ██████████████      63.5      46    14.3 kB        2   unclear (1.76×, CI spans 1) 
+                                                                                                                                           
+table.top           DABT                         34.9   ███████▎            10.9      36       6301        5   baseline                    
+                    Textual                      67.2   ██████████████      67.2      39    14.3 kB        2   unclear (1.93×, CI spans 1) 
+                                                                                                                                           
+focus.filter        DABT                         27.4   ██████▉             27.4      28       4243        1   baseline                    
+                    Textual                      55.8   ██████████████      55.8     173    45.9 kB        1   unclear (2.03×, CI spans 1) 
+                                                                                                                                           
+filter.char         DABT                         36.1   ██████████████      36.1      37       7264        1   baseline                    
+                    Textual                      11.1   ████▎               11.1      44    11.1 kB        1   unclear (0.31×, CI spans 1) 
+                                                                                                                                           
+focus.table2        DABT                         17.8   ████▉               17.8      19       3900        1   baseline                    
+                    Textual                      51.3   ██████████████      51.3     116    36.5 kB        1   unclear (2.89×, CI spans 1) 
+                                                                                                                                           
+dialog.open         DABT                          3.5   ▎                    3.5       5       1349        1   baseline                    
+                    Textual                     232.5   ██████████████      41.3     166   201.9 kB        3   unclear (65.74×, CI spans 1)
+                                                                                                                                           
+dialog.confirm      DABT                         60.4   ██████▊             60.4      62    36.7 kB        8   baseline                    
+                    Textual                     124.9   ██████████████     124.9     104    80.4 kB        3   unclear (2.07×, CI spans 1) 
+                                                                                                                                           
+focus.filter2       DABT                         17.8   ████▋               17.8      19       4298        1   baseline                    
+                    Textual                      53.9   ██████████████      53.9     117    36.3 kB        1   unclear (3.03×, CI spans 1) 
+                                                                                                                                           
+filter.clear        DABT                         42.2   ██████▍             30.3      43      10238        5   baseline                    
+                    Textual                      93.5   ██████████████      64.9      75    24.9 kB        3   unclear (2.22×, CI spans 1) 
+                                                                                                                                           
+nav.notes           DABT                        227.3   █████████▏         193.6     244   115.1 kB        3   baseline                    
+                    Textual                     347.5   ██████████████     226.8     368   135.5 kB        4   unclear (1.53×, CI spans 1) 
+                                                                                                                                           
+editor.word         DABT                         70.1   ██████▋             59.1     326    51.5 kB        9   baseline                    
+                    Textual                     148.0   ██████████████     148.0     462    21.3 kB        3   unclear (2.11×, CI spans 1) 
+                                                                                                                                           
+nav.logs            DABT                        113.3   ████▊              113.3     123    45.9 kB        2   baseline                    
+                    Textual                     334.2   ██████████████     176.3     344   120.1 kB        3   unclear (2.95×, CI spans 1) 
+                                                                                                                                           
+list.pagedown       DABT                         15.1   ██████▎              7.1      15       6308        2   baseline                    
+                    Textual                      33.8   ██████████████      33.8      17    11.6 kB        2   unclear (2.23×, CI spans 1) 
+                                                                                                                                           
+list.end            DABT                         14.2   █████▍              14.2      15       6310        3   baseline                    
+                    Textual                      37.3   ██████████████      37.3      23    11.6 kB        2   unclear (2.62×, CI spans 1) 
+                                                                                                                                           
+list.append         DABT                         12.2   ▉                   12.2      14       6311        2   baseline                    
+                    Textual                     201.2   ██████████████      19.3      30    14.6 kB        2   unclear (16.48×, CI spans 1)
+                                                                                                                                           
+list.home           DABT                         13.8   █████▏              13.8      14       6307        2   baseline                    
+                    Textual                      37.6   ██████████████      37.6      18    11.5 kB        2   unclear (2.72×, CI spans 1) 
+                                                                                                                                           
+list.wheel          DABT                         11.2   ██████████████      11.2      78    32.5 kB        9   baseline                    
+                    Textual                       9.5   ███████████▉         9.5      48    46.1 kB        5   unclear (0.85×, CI spans 1) 
+                                                                                                                                           
+resize.small        DABT                        163.7   ██████████████     163.7      69    40.6 kB        2   baseline                    
+                    Textual                      49.9   ████▎               49.9     225    20.1 kB        1   unclear (0.30×, CI spans 1) 
+                                                                                                                                           
+resize.back         DABT                         90.1   ██████████▌         90.1      22    25.0 kB        1   baseline                    
+                    Textual                     119.9   ██████████████     119.9     118   118.2 kB        3   unclear (1.33×, CI spans 1) 
+                                                                                                                                           
+nav.settings        DABT                         99.8   ██████▏             99.8     108    40.5 kB        2   baseline                    
+                    Textual                     230.3   ██████████████     133.3     226    92.1 kB        3   unclear (2.31×, CI spans 1) 
+                                                                                                                                           
+form.type           DABT                          2.8   ████████▍            2.8      11       1122        3   baseline                    
+                    Textual                       4.6   ██████████████       4.6      15        780        3   unclear (1.66×, CI spans 1) 
+                                                                                                                                           
+form.apply          DABT                          4.1   █▌                   4.1       5        778        2   baseline                    
+                    Textual                      37.3   ██████████████      37.3      17       1234        2   unclear (9.08×, CI spans 1) 
+                                                                                                                                           
+nav.admin           DABT                         78.0   ████▎               78.0      89    33.5 kB        2   baseline                    
+                    Textual                     257.1   ██████████████     149.4     289    90.5 kB        4   unclear (3.29×, CI spans 1) 
+                                                                                                                                           
+tab.appearance      DABT                          5.9   ▎                    5.9       7       1320        2   baseline                    
+                    Textual                     300.7   ██████████████      13.8      68    10.9 kB       13   unclear (51.12×, CI spans 1)
+                                                                                                                                           
+tab.general         DABT                          5.9   ▎                    5.9       7       1493        2   baseline                    
+                    Textual                     288.9   ██████████████      12.0      65    11.2 kB       14   unclear (48.76×, CI spans 1)
+                                                                                                                                           
+collapse.close      DABT                         22.9   ██████████████      22.9      24    12.4 kB        1   baseline                    
+                    Textual                      12.6   ███████▊            12.6      17    22.5 kB        1   unclear (0.55×, CI spans 1) 
+                                                                                                                                           
+collapse.open       DABT                         24.3   ██████████████      24.3      25    21.1 kB        1   baseline                    
+                    Textual                      17.5   ██████████▏         17.5      22    22.3 kB        1   unclear (0.72×, CI spans 1) 
+                                                                                                                                           
+theme.light         DABT                        151.9   ██████████████     151.9     153    23.1 kB        1   baseline                    
+                    Textual                     129.3   ███████████▉       129.3     142    68.8 kB        1   unclear (0.85×, CI spans 1) 
+                                                                                                                                           
+theme.dark          DABT                         46.7   █████▏              46.7      48    22.6 kB        1   baseline                    
+                    Textual                     127.4   ██████████████     127.4     140    65.0 kB        1   unclear (2.73×, CI spans 1) 
+                                                                                                                                           
+palette.open        DABT                         21.5   █▊                  21.5      23       3275        1   baseline                    
+                    Textual                     172.1   ██████████████     110.5     217    78.9 kB        2   unclear (8.00×, CI spans 1) 
+                                                                                                                                           
+palette.type        DABT                         26.0   ███████████▎        26.0      95    12.8 kB        4   baseline                    
+                    Textual                      32.2   ██████████████       5.8      46    26.6 kB        7   unclear (1.24×, CI spans 1) 
+                                                                                                                                           
+palette.run         DABT                         87.8   ██▊                 87.8      86    52.7 kB        2   baseline                    
+                    Textual                     446.8   ██████████████     446.8     439    41.8 kB        1   unclear (5.09×, CI spans 1) 
+                                                                                                                                           
+revisit.overview    DABT                         85.0   █████               85.0      95    41.3 kB        2   baseline                    
+                    Textual                     236.2   ██████████████     137.3     231    91.7 kB        3   unclear (2.78×, CI spans 1) 
+                                                                                                                                           
+revisit.tasks       DABT                        132.0   ████▊              132.0     143    47.4 kB        2   baseline                    
+                    Textual                     386.9   ██████████████     189.7     393   136.8 kB        5   unclear (2.93×, CI spans 1) 
+                                                                                                                                           
+revisit.notes       DABT                        127.1   ████▌              127.1     144    68.4 kB        2   baseline                    
+                    Textual                     393.5   ██████████████     253.5     396   133.6 kB        4   unclear (3.10×, CI spans 1) 
+                                                                                                                                           
+revisit.settings    DABT                         80.6   ████▉               80.6      91    35.8 kB        2   baseline                    
+                    Textual                     231.6   ██████████████     139.5     233    97.7 kB        3   unclear (2.87×, CI spans 1) 
+                                                                                                                                           
+revisit.admin       DABT                         73.5   ██▉                 73.5      85    33.4 kB        2   baseline                    
+                    Textual                     363.8   ██████████████     242.8     364    88.1 kB        3   unclear (4.95×, CI spans 1) 
+idle  (app sits still)                                                           
+step      app       idle CPU   wakeups   idle bytes   vs DABT (idle CPU)         
+─────────────────────────────────────────────────────────────────────────────────
+idle.3s   DABT          1.14       2.0         7058   baseline                   
+          Textual       0.05       0.0            0   unclear (0.04×, CI spans 1)
+memory                                                                              
+step     app           PSS       RSS   procs   threads   vs DABT (PSS)              
+────────────────────────────────────────────────────────────────────────────────────
+memory   DABT      18.9 MB   22.4 MB       1         1   baseline                   
+         Textual   74.5 MB   84.1 MB       1         4   unclear (3.94×, CI spans 1)
+how to read:  done = ms from the input to the LAST visible change of the screen; it is the number compared. ready = when the expected text first 
+showed.
+              paints = visible screen changes; CPU = app process tree incl. reaped children; written = bytes the app sent to the terminal.
+statistics:   one value per round (median of that round's samples); [lo–hi] = bootstrap 95% CI of the median across rounds; "vs" ratios
+              are medians of other/base with a bootstrap CI. "≈ same" = gap below the noise floor or < 5%; "unclear" = CI spans 1.
+flags:        ~ noisy (CV > 25%)   ° outlier rounds present (kept, never dropped)   k/n ok = rounds where the expected text appeared   stale! = 
+expectation was already true before the input
+method:       fresh process + HOME per round, warm-up rounds discarded, apps interleaved in shuffled order, pinned CPUs, output stamped when read and
+              replayed offline into a terminal emulator (synchronized updates honoured), terminal answers capability queries like a modern terminal.
+keys:         input arrives at human speed. Modified keys (alt+x, ctrl+x) are sent as a terminal would send them to that app: kitty CSI-u when the app
+              asked for the kitty keyboard protocol, the legacy ESC prefix otherwise (see the keys line in the header for what each app got).
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • the app's CPUs are 6% busy before the run starts.                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

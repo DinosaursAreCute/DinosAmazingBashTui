@@ -1,0 +1,2 @@
+/* glyphs/thin.css - shared glyph preset: @import "../glyphs/thin.css"; from a theme. A thin line bar: same glyph for both parts, so they sit on one baseline; colour tells them apart. */
+.progress { fill: "━"; empty: "━"; }

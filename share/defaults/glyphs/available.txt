@@ -1,0 +1,19 @@
+# available.txt - the glyphs the Settings page offers (Settings > Glyphs > custom design), one list per group.
+#
+#   @group slot slot ...     the slots (type.key) that share the list below it
+#   glyph glyph ...          the glyphs, one cell each, separated by spaces; "none" blanks a bracket, "space" is a blank cell
+#
+# Every slot of a group offers the same glyphs, so a checked and an unchecked mark are chosen from one list. Add your own
+# glyphs here: it is the only place that lists them.
+
+@bar progress.fill progress.empty scrollbar.thumb scrollbar.track panebar.vthumb panebar.vtrack panebar.hthumb panebar.htrack
+█ ▓ ▒ ░ ▌ ▐ ▮ ▯ ■ □ ▪ ▫ ● ○ ◆ ◇ · : # = - _ ━ ─ ┃ │ ┆ | space
+
+@mark checkbox.on checkbox.off
+x X ✔ ✓ ✗ ✕ ● ○ ■ □ ◆ ◇ * + - _ · space
+
+@bracket checkbox.left checkbox.right select.left select.right
+[ ] ( ) < > { } ⟨ ⟩ | none
+
+@arrow select.arrow
+▾ ▼ ▿ ▽ ↓ v ⌄ >

@@ -3,7 +3,7 @@
 
   <pane id="main" split="v" border="none">
     <pane id="body" split="h" weight="76" border="none">
-      <pane id="form" weight="40" title="Appearance &amp; behavior" border="single" class="panel" hpad="1">
+      <pane id="form" weight="40" title="Appearance &amp; behavior" border="single" class="panel" hpad="1" scroll="v">
         <label id="lbl_theme_hd" text="Theme  (applies to every page)" class="brand"/>
         <button id="btn_th_default" text="Default" action="on_theme_pick" class="nav_link" align="fill"/>
         <button id="btn_th_ocean" text="Ocean" action="on_theme_pick" class="nav_link" align="fill"/>
@@ -12,16 +12,23 @@
         <button id="btn_th_light" text="Light" action="on_theme_pick" class="nav_link" align="fill"/>
 
         <label id="lbl_prev_hd" text="Preview pane" class="brand" row="7"/>
-        <button id="btn_border" text="Border" action="on_border_cycle" class="info_button" align="fill" row="8"/>
-        <button id="btn_font" text="Font" action="on_font_cycle" class="info_button" align="fill" row="9"/>
-        <input id="inp_hpad" label="hpad:" label_width="7" placeholder="0-9" submit="on_pad_apply" row="10"/>
-        <input id="inp_vpad" label="vpad:" label_width="7" placeholder="0-9" submit="on_pad_apply" row="11"/>
+        <select id="sel_border" row="8" label="Border:" items="single|double|heavy|none" value="single" action="on_border_pick"/>
+        <select id="sel_font" row="9" label="Font:" items="box3|seg3|block5|blk3|half2" value="box3" action="on_font_pick"/>
+        <select id="sel_hpad" row="10" label="hpad:" items="0|1|2|3|4|5|6|7|8|9" value="1" action="on_pad_pick"/>
+        <select id="sel_vpad" row="11" label="vpad:" items="0|1|2|3|4|5|6|7|8|9" value="1" action="on_pad_pick"/>
         <input id="inp_text" label="text:" label_width="7" placeholder="banner text" submit="on_text_apply" row="12"/>
 
-        <label id="lbl_beh_hd" text="Behavior" class="brand" row="14"/>
-        <checkbox id="chk_clock" label="Show live clock" checked="true" action="on_clock_toggle" class="check" row="15"/>
-        <checkbox id="chk_notify" label="Notifications" checked="true" action="on_notify_toggle" class="check" row="16"/>
-        <button id="btn_reset" text="[ Reset to defaults ]" action="on_reset" class="danger_button" align="fill" row="18"/>
+        <label id="lbl_prg_hd" text="Progress bar design" class="brand" row="14"/>
+        <progress id="prg_demo" label="Sample" value="60" row="15"/>
+        <select id="sel_pvar" row="16" label="Variant:" items="default|thin|dots|squares|ascii" value="default" action="on_variant_pick"/>
+        <select id="sel_pfill" row="17" label="Fill:" items="█|▓|■|●|#|=|━" value="█" action="on_glyph_pick"/>
+        <select id="sel_pempty" row="18" label="Empty:" items="░|▒|·|□|○|-|─|━" value="░" action="on_glyph_pick"/>
+        <button id="btn_gallery" text="[ Glyph gallery ]" action="on_gallery" class="info_button" align="fill" row="19"/>
+
+        <label id="lbl_beh_hd" text="Behavior" class="brand" row="21"/>
+        <checkbox id="chk_clock" label="Show live clock" checked="true" action="on_clock_toggle" class="check" row="22"/>
+        <checkbox id="chk_notify" label="Notifications" checked="true" action="on_notify_toggle" class="check" row="23"/>
+        <button id="btn_reset" text="[ Reset to defaults ]" action="on_reset" class="danger_button" align="fill" row="25"/>
       </pane>
       <pane id="right" split="v" weight="60" border="none">
         <pane id="preview"       weight="68" title="Live preview" border="single" class="panel" hpad="1" vpad="1"/>

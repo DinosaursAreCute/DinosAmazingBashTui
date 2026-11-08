@@ -308,3 +308,6 @@
   bg: #f97316;
   mods: bold;
 }
+
+/* progress bar glyphs */
+.progress { fill: "▇"; empty: "▁"; }

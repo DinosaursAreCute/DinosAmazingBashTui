@@ -88,6 +88,12 @@ _tui_build.dispatch() {
 	local fn="${_TUI_REGISTERED##* }" # last registration wins, same rule as every other registry kind
 	"$fn" "$node"
 	case "$type" in label | input | button | checkbox | password | textarea | list | table | select | progress)
+		local _bv_id _bv
+		_tui_build.attrv "$node" variant _bv
+		if [[ -n "$_bv" ]]; then
+			_tui_build.attrv "$node" id _bv_id
+			tui.variant "$_bv_id" "$_bv"
+		fi
 		_tui_build.focus_attrs "$node"
 		_tui_build.store_attrs "$node" widget
 		;;
@@ -208,7 +214,7 @@ _tui_build.tag.pane() {
 
 	local split weight title border align valign minw minh maxw maxh class scroll strictfit scroll_into_view
 	local rows cols fit roww colw sizew sizeh hpad vpad gap fuse divider dclass tpos talign
-	local ccol cdef ccoll ckeep cto ctog ckey cclass ldet ldg lleave londet londock lpers
+	local ccol cdef ccoll ckeep cto ctog ckey cclass ldet ldg lleave londet londock lpers pvariant
 	_tui_build.attrv "$node" split split
 	_tui_build.attrv "$node" weight weight
 	_tui_build.attrv "$node" title title
@@ -221,6 +227,7 @@ _tui_build.tag.pane() {
 	_tui_build.attrv "$node" max_height maxh
 	_tui_build.attrv "$node" class class
 	_tui_build.attrv "$node" scroll scroll
+	_tui_build.attrv "$node" variant pvariant
 	_tui_build.attrv "$node" scroll_into_view scroll_into_view
 	_tui_build.attrv "$node" strict_fit strictfit
 	_tui_build.attrv "$node" rows rows
@@ -271,6 +278,7 @@ _tui_build.tag.pane() {
 	_tui_build.store_attrs "$node" pane "$id"
 	_tui_cache_class "$id" "$class"
 	tui.pane_scroll "$id" "$scroll"
+	[[ -n "$pvariant" ]] && tui.variant "$id" "$pvariant"
 	tui.pane_scroll_into_view "$id" "$scroll_into_view"
 	[[ -n "$strictfit" ]] && tui.pane_strict_fit "$id" "$strictfit"
 

@@ -1,6 +1,9 @@
 /* themes/forest.css - overlay: same classes as ../theme.css with a different palette.
  * Selected on the Settings page (tui.theme.set) and applied app-wide. */
 
+/* progress bar glyphs */
+@import "../glyphs/dots.css";
+
 .danger_button {
   fg: white;
   bg: #b00020;
@@ -307,3 +310,5 @@
   bg: #84cc16;
   mods: bold;
 }
+
+

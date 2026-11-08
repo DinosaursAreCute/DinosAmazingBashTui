@@ -18,7 +18,7 @@
 #   tui.table.count ID
 #   tui.select.set ID ITEM...        tui.select.index ID -> index of the value (-1 none)      tui.select.pick ID INDEX
 #   tui.progress.set ID VALUE [MAX]
-#   tui.on_change ID FN              list/table: selection moved; select: value changed; text: edited   (FN ID)
+#   tui.on_change ID FN [--debounce]            list/table: selection moved; select: value changed; text: edited   (FN ID)
 #   ACTION_FN ID runs on Enter / double-click (list, table), when a new value is picked (select).
 #
 # Keys: list/table  up down pgup pgdn home end (at the first/last row up/down fall through so focus can leave), Enter.
@@ -111,9 +111,29 @@ _tui_wx.redraw() {
 	((_TUI_RUNNING)) && _tui._draw_widget "$1"
 	return 0
 }
+# _tui_wx.changed ID - the widget's on_change callback; a --debounce one is only queued while the loop runs, so a held key
+# moves and redraws the widget on every step but runs the callback (and the repaints it causes) once the keys stop
+declare -gA _WX_CHG_PENDING=()
+declare -gi _WX_CHG_AGE=0
 _tui_wx.changed() {
 	local fn="${_TUI_W_CHANGE[$1]:-}"
-	[[ -n "$fn" ]] && "$fn" "$1"
+	[[ -n "$fn" ]] || return 0
+	if ((_TUI_RUNNING)) && [[ -n "${_TUI_W_CHANGE_DEBOUNCE[$1]:-}" ]]; then
+		_WX_CHG_PENDING[$1]=1
+		return 0
+	fi
+	"$fn" "$1"
+}
+
+# _tui_wx.flush_changes - runs the queued on_change callbacks, one per widget
+_tui_wx.flush_changes() {
+	local id fn
+	_WX_CHG_AGE=0
+	for id in "${!_WX_CHG_PENDING[@]}"; do
+		unset '_WX_CHG_PENDING[$id]'
+		fn="${_TUI_W_CHANGE[$id]:-}"
+		[[ -n "$fn" ]] && "$fn" "$id"
+	done
 	return 0
 }
 
@@ -282,8 +302,9 @@ _tui_wx.multirow() {
 }
 
 # _tui_wx.move ID up|down|... : list / table selection; keeps it in view. rc 1 when nothing moved
+# _tui_wx.move ID KEY [COUNT] - up / down / pgup / pgdn move COUNT rows (pages) in one step: one change, one redraw
 _tui_wx.move() {
-	local id="$1" k="$2" sel=${_WXSEL[$1]:--1} n h old
+	local id="$1" k="$2" c="${3:-1}" sel=${_WXSEL[$1]:--1} n h old
 	_tui._widget_pos "$id"
 	h=$_WSH
 	_WXH[$id]=$h
@@ -294,14 +315,20 @@ _tui_wx.move() {
 	[[ "${_TUI_W_TYPE[$id]}" == table ]] && ((h--))
 	((h < 1)) && h=1
 	case "$k" in
-		up) ((sel > 0)) && ((sel--)) || { ((sel < 0)) && sel=0; } ;;
-		down) ((sel < n - 1)) && ((sel++)) ;;
+		up)
+			((sel -= c))
+			((sel < 0)) && sel=0
+			;;
+		down)
+			((sel += c))
+			((sel >= n)) && sel=$((n - 1))
+			;;
 		pgup)
-			((sel -= h - 1))
+			((sel -= (h - 1) * c))
 			((sel < 0)) && sel=0
 			;;
 		pgdn)
-			((sel += h - 1))
+			((sel += (h - 1) * c))
 			((sel >= n)) && sel=$((n - 1))
 			;;
 		home) sel=0 ;;
@@ -360,7 +387,7 @@ _tui_wx.key() {
 	case "$type" in
 		input | password | textarea) _tui_text.key "$id" "$name" ;;
 		list | table)
-			_tui_wx.move "$id" "$name"
+			_tui_wx.move "$id" "$name" "${TUI_EVENT_COUNT:-1}"
 			_tui_wx.redraw "$id"
 			;;
 		select) _tui_wx.select_open "$id" ;;
@@ -520,10 +547,43 @@ _tui_wx.draw_select() {
 	_tui.emit_style "$sk" "$pk"
 	((focused)) && _tui.emit_sgr 7 || { [[ -z "${_TUI_STYLE_FG[$sk]:-}" ]] && _tui.emit_sgr 2; }
 	local fw=$((sw - lw))
-	line="[ ${v} ▾ ]"
+	local sv _V sl sa
+	_tui.variant_v "$id" select
+	sv="$_V"
+	_tui.glyph_v select left "$sv"
+	sl="$TUI_GLYPH"
+	_tui.glyph_v select arrow "$sv"
+	sa="$TUI_GLYPH"
+	_tui.glyph_v select right "$sv"
+	line="${sl} ${v} ${sa} ${TUI_GLYPH}"
 	_tui_text.padc "$line" "$fw"
 	_tui.emit "$_PADC"
 	_tui.emit_reset
+}
+
+# _tui_wx.bar_sgr CLASS VARIANT PANE_BG FALLBACK_SGR -> _BSGR : the class's style, each field overridden by the
+# `CLASS.VARIANT` rule when that sets it; the background comes from the pane when neither sets one (a glyph cell must
+# not punch the terminal's default background into a themed pane).
+_tui_wx.bar_sgr() {
+	tui.class.style "$1"
+	local fg="$TUI_FG" bg="$TUI_BG" mods="$TUI_MODS" vk="$1.$2"
+	if [[ -n "$2" ]]; then
+		fg="${_TUI_CLASS_FG[$vk]:-$fg}" bg="${_TUI_CLASS_BG[$vk]:-$bg}" mods="${_TUI_CLASS_MOD[$vk]:-$mods}"
+	fi
+	if [[ -n "$fg$bg$mods" ]] && _tui._sgr_from "$fg" "${bg:-$3}" "$mods"; then
+		_BSGR="$_SGR"
+	else
+		_tui._sgr_from "" "$3" ""
+		_BSGR="$4$_SGR"
+	fi
+}
+
+# _tui_wx.scroll_cell ID IS_THUMB - emits one cell of a list / table / textarea scroll indicator (the widget's variant picks the glyphs)
+_tui_wx.scroll_cell() {
+	local _V
+	_tui.variant_v "$1" scrollbar
+	if (($2)); then _tui.glyph_v scrollbar thumb "$_V"; else _tui.glyph_v scrollbar track "$_V"; fi
+	_tui.emit "$TUI_GLYPH"
 }
 
 # state:direct
@@ -541,14 +601,23 @@ _tui_wx.draw_progress() {
 	bw=$((sw - lw - 5))
 	((bw < 3)) && bw=3
 	fill=$((bw * pct / 100))
-	tui.class.sgr progress_fill
-	local f="${TUI_SGR:-$'\e[0;32m'}"
-	tui.class.sgr progress
-	local e="${TUI_SGR:-$'\e[2;37m'}"
+	local pbg="${_TUI_STYLE_BG[$pk]:-}" pv _V _BSGR f e
+	_tui.variant_v "$id" progress
+	pv="$_V"
+	_tui_wx.bar_sgr progress_fill "$pv" "$pbg" $'\e[0;32m'
+	f="$_BSGR"
+	_tui_wx.bar_sgr progress "$pv" "$pbg" $'\e[2;37m'
+	e="$_BSGR"
+	_tui._style_v "$pk"
 	local fs es
 	printf -v fs '%*s' "$fill" ''
 	printf -v es '%*s' "$((bw - fill))" ''
-	_tui.emit_printf '%s%s%s%s%s %3d%%' "$f" "${fs// /█}" "$e" "${es// /░}" $'\e[0m' "$pct"
+	local gf ge
+	_tui.glyph_v progress fill "$pv"
+	gf="$TUI_GLYPH"
+	_tui.glyph_v progress empty "$pv"
+	ge="$TUI_GLYPH"
+	_tui.emit_printf '%s%s%s%s%s %3d%%%s' "$f" "${fs// /"$gf"}" "$e" "${es// /"$ge"}" $'\e[0m'"$_SGR" "$pct" $'\e[0m'
 }
 
 # list / table rows
@@ -655,7 +724,7 @@ _tui_wx.draw_rows() {
 		if ((sw > fw)); then # scroll indicator
 			local thumb=$((top * (rows - 1) / (n - rows > 0 ? n - rows : 1)))
 			_tui.emit_goto $((sr + rowi + i)) $((sc + fw))
-			((i == thumb)) && _tui.emit '▐' || _tui.emit ' '
+			((i == thumb)) && _tui_wx.scroll_cell "$id" 1 || _tui_wx.scroll_cell "$id" 0
 		fi
 	done
 	_tui.emit_reset
@@ -681,6 +750,9 @@ _tui_wx.reset() {
 	_WXHH=()
 	_WXH=()
 	_TUI_W_CHANGE=()
+	_TUI_W_CHANGE_DEBOUNCE=()
+	_WX_CHG_PENDING=()
+	_WX_CHG_AGE=0
 	_TXC=()
 	_TXA=()
 	_TXS=()
@@ -703,7 +775,7 @@ _tui_wx.reset() {
 }
 _tui_wx.forget() {
 	local id="$1"
-	unset '_TUI_W_ROWSPAN[$id]' '_WXSEL[$id]' '_WXTOP[$id]' '_WXCOLS[$id]' '_WXH[$id]' '_TUI_W_CHANGE[$id]' \
+	unset '_TUI_W_ROWSPAN[$id]' '_WXSEL[$id]' '_WXTOP[$id]' '_WXCOLS[$id]' '_WXH[$id]' '_TUI_W_CHANGE[$id]' '_TUI_W_CHANGE_DEBOUNCE[$id]' '_WX_CHG_PENDING[$id]' \
 		'_TXC[$id]' '_TXA[$id]' '_TXS[$id]' '_TXT[$id]' '_TXW[$id]' '_TXH[$id]' '_TXUN[$id]' '_TXRN[$id]' '_TXLK[$id]' '_TXLP[$id]'
 	local k
 	for k in "${!_WXAL[@]}" "${!_WXHH[@]}"; do [[ $k == "$id:"* ]] && unset '_WXAL[$k]' '_WXHW[$k]' '_WXHH[$k]'; done

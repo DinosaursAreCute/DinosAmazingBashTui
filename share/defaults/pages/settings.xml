@@ -10,25 +10,39 @@
   <pane id="root" split="h" border="none">
     <pane id="side" weight="20" title="Settings" border="single" class="sidebar" collapsible="true" collapse_to="rail" default="expanded" resizable="x" handle="edge" keep_collapsed="true" keep_size="true"/>
     <pane id="main" split="v" weight="80" border="none">
-      <pane id="search" weight="14" title="Search all settings   / focuses" border="single" class="panel" hpad="1">
+      <pane id="search" weight="15" height="5" title="Search all settings   / focuses" border="single" class="panel" hpad="1">
         <input id="inp_search" placeholder="type to filter while you type" on_change="dset_search" submit="dset_search_enter"/>
       </pane>
       <pane id="body" split="h" weight="86" border="none">
         <pane id="items" weight="54" title="Appearance" border="single" class="panel">
           <list id="lst_items" rows="0" action="dset_activate" on_change="dset_moved"/>
         </pane>
-        <pane id="desc" weight="46" title="Details" border="single" class="panel" hpad="1" scroll="v" resizable="x" handle="divider"/>
+        <pane id="right" split="v" weight="46" border="none">
+          <pane id="desc" weight="40" title="Details" border="single" class="panel" hpad="1" scroll="v" resizable="x" handle="divider"/>
+          <!-- every element the Glyphs settings edit, drawn live with the current choices (inert: they are only to look at) -->
+          <pane id="preview" weight="34" title="Preview" border="single" class="panel" hpad="1" scroll="v">
+            <progress id="pv_bar1" label="Progress" value="60" row="0" focusable="false"/>
+            <progress id="pv_bar2" label="Low" value="25" row="1" focusable="false"/>
+            <checkbox id="pv_chk_on" label="Checked" checked="true" class="check" row="2" focusable="false"/>
+            <checkbox id="pv_chk_off" label="Unchecked" checked="false" class="check" row="3" focusable="false"/>
+            <select id="pv_sel" label="Select:" items="one|two|three" value="two" row="4" focusable="false"/>
+            <list id="pv_list" rows="3" items="first|second|third|fourth|fifth|sixth|seventh" row="5" focusable="false"/>
+          </pane>
+          <!-- a pane that scrolls both ways, so its vertical and horizontal scrollbars show -->
+          <pane id="pv_pane" weight="26" title="Pane scrollbars" border="single" class="panel" hpad="1" scroll="both"/>
+        </pane>
       </pane>
     </pane>
   </pane>
 
   <button id="cat_appearance"    pane="side" row="0" text="  Appearance"    action="dset_cat" class="nav_link" align="left" collapsed_text="AP"/>
-  <button id="cat_input"         pane="side" row="1" text="  Input"         action="dset_cat" class="nav_link" align="left" collapsed_text="IN"/>
-  <button id="cat_keybinds"      pane="side" row="2" text="  Keybinds"      action="dset_cat" class="nav_link" align="left" collapsed_text="KE"/>
-  <button id="cat_notifications" pane="side" row="3" text="  Notifications" action="dset_cat" class="nav_link" align="left" collapsed_text="NO"/>
-  <button id="cat_markdown"      pane="side" row="4" text="  Markdown"      action="dset_cat" class="nav_link" align="left" collapsed_text="MD"/>
-  <button id="cat_plugins"       pane="side" row="5" text="  Plugins"       action="dset_cat" class="nav_link" align="left" collapsed_text="PL"/>
-  <button id="btn_back"          pane="side" row="7" text="  Back"          action="tui.action.back" class="info_button" align="left" collapsed_text="BA"/>
+  <button id="cat_glyphs"        pane="side" row="1" text="  Glyphs"        action="dset_cat" class="nav_link" align="left" collapsed_text="GL"/>
+  <button id="cat_input"         pane="side" row="2" text="  Input"         action="dset_cat" class="nav_link" align="left" collapsed_text="IN"/>
+  <button id="cat_keybinds"      pane="side" row="3" text="  Keybinds"      action="dset_cat" class="nav_link" align="left" collapsed_text="KE"/>
+  <button id="cat_notifications" pane="side" row="4" text="  Notifications" action="dset_cat" class="nav_link" align="left" collapsed_text="NO"/>
+  <button id="cat_markdown"      pane="side" row="5" text="  Markdown"      action="dset_cat" class="nav_link" align="left" collapsed_text="MD"/>
+  <button id="cat_plugins"       pane="side" row="6" text="  Plugins"       action="dset_cat" class="nav_link" align="left" collapsed_text="PL"/>
+  <button id="btn_back"          pane="side" row="8" text="  Back"          action="tui.action.back" class="info_button" align="left" collapsed_text="BA"/>
 
   <!-- the per-element Markdown style: a color list, a hex field and the text attributes; every change applies at once -->
   <modal id="dlg_md_style" title="Customize style" split="h" x="center" y="center" width="60" height="17" open="false" class="panel" hpad="1" vpad="1">
@@ -47,6 +61,20 @@
       <checkbox id="ms_bgmode" row="6" label="Edit the background" checked="false" action="dset_ms_target" class="check"/>
       <button id="ms_reset" row="8" text="[ Reset element ]" action="dset_ms_reset" class="danger_button" align="fill"/>
       <button id="ms_close" row="9" text="[ Close ]" action="dset_ms_close" class="info_button" align="fill"/>
+    </pane>
+  </modal>
+  <!-- the custom design of a widget type: its parts on the left, the glyphs on offer for the chosen part on the right; every pick applies at once -->
+  <modal id="dlg_gl_custom" title="Custom design" split="h" x="center" y="center" width="54" height="15" open="false" class="panel" hpad="1" vpad="1">
+    <pane id="gc_left" weight="55" border="none">
+      <label id="gc_title" text="" class="brand"/>
+      <list  id="gc_parts" row="1" rows="5" on_change="dset_gl_part" action="dset_gl_part"/>
+      <label id="gc_sample" text="" row="7" class="brand"/>
+      <button id="gc_reset" row="8" text="[ Back to the theme ]" action="dset_gl_reset" class="danger_button" align="fill"/>
+      <button id="gc_close" row="9" text="[ Close ]" action="dset_gl_close" class="info_button" align="fill"/>
+    </pane>
+    <pane id="gc_right" weight="45" border="none">
+      <label id="gc_choice_hd" text="Glyph" class="brand"/>
+      <list  id="gc_choices" row="1" rows="10" on_change="dset_gl_choice" action="dset_gl_choice"/>
     </pane>
   </modal>
 </tui>

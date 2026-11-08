@@ -245,18 +245,55 @@ _tui_hit.at() {
 	[[ -n "$_HIT_KIND" ]]
 }
 
-# _tui_hit.scrollbar_jump PANE v|h COL ROW - scroll PANE so the pointer's position on the bar becomes the offset
-# state:direct
-_tui_hit.scrollbar_jump() {
-	local p="$1" total
-	_SC_OLD=${_TUI_P_SOFF_V[$p]:-0}
+# _tui_hit.scrollbar_geometry PANE v|h - the geometry of PANE's bar into _SB_*:
+# _SB_START _SB_LEN _SB_TOTAL _SB_THUMB _SB_TRAVEL _SB_OFF. rc 1 when nothing scrolls.
+_tui_hit.scrollbar_geometry() {
+	local p="$1"
 	if [[ "$2" == v ]]; then
-		if _tui_scroll.is_output "$p"; then total=${_TUI_P_LINES[$p]:-1}; else total=${_TUI_P_CONTENT_H[$p]:-1}; fi # tui.output lines, or the widgets' rows
-		_ps.panes.set "$p" soff_v "$((($4 - _TUI_P_ROW[$p]) * total / _TUI_P_H[$p]))"
+		_SB_START=${_TUI_P_ROW[$p]} _SB_LEN=${_TUI_P_H[$p]} _SB_OFF=${_TUI_P_SOFF_V[$p]:-0}
+		if _tui_scroll.is_output "$p"; then _SB_TOTAL=${_TUI_P_LINES[$p]:-1}; else _SB_TOTAL=${_TUI_P_CONTENT_H[$p]:-1}; fi # tui.output lines, or the widgets' rows
 	else
-		_ps.panes.set "$p" soff_h "$((($3 - _TUI_P_COL[$p]) * ${_TUI_P_MAX_W[$p]:-1} / _TUI_P_W[$p]))"
+		_SB_START=${_TUI_P_COL[$p]} _SB_LEN=${_TUI_P_W[$p]} _SB_OFF=${_TUI_P_SOFF_H[$p]:-0} _SB_TOTAL=${_TUI_P_MAX_W[$p]:-1}
 	fi
-	_tui_scroll.apply "$p"
+	((_SB_TOTAL > _SB_LEN)) || return 1
+	_SB_THUMB=$((_SB_LEN * _SB_LEN / _SB_TOTAL))
+	((_SB_THUMB < 1)) && _SB_THUMB=1
+	_SB_TRAVEL=$((_SB_LEN - _SB_THUMB))
+}
+
+# _tui_hit.scrollbar_to PANE v|h OFFSET - scroll PANE to OFFSET (clamped to the content)
+_tui_hit.scrollbar_to() {
+	local max=$((_SB_TOTAL - _SB_LEN)) off="$3"
+	((off < 0)) && off=0
+	((off > max)) && off=$max
+	_SC_OLD=${_TUI_P_SOFF_V[$1]:-0}
+	_ps.panes.set "$1" "soff_$2" "$off"
+	_tui_scroll.apply "$1"
+}
+
+# _tui_hit.scrollbar_grab PANE v|h COL ROW - a press on the bar. On the thumb it only takes hold; on the track the thumb first
+# moves to centre on the pointer. _TUI_SB_POS / _TUI_SB_OFF remember the pointer cell and offset the drag is measured from.
+# state:direct
+_tui_hit.scrollbar_grab() {
+	local pos=$4 start
+	[[ "$2" == v ]] || pos=$3
+	_tui_hit.scrollbar_geometry "$1" "$2" || return 0
+	start=$((_SB_START + _SB_OFF * _SB_TRAVEL / (_SB_TOTAL - _SB_LEN)))
+	if ((pos < start || pos >= start + _SB_THUMB)); then
+		((_SB_TRAVEL > 0)) && _tui_hit.scrollbar_to "$1" "$2" $(((pos - _SB_THUMB / 2 - _SB_START) * (_SB_TOTAL - _SB_LEN) / _SB_TRAVEL))
+	fi
+	[[ "$2" == v ]] && _SB_OFF=${_TUI_P_SOFF_V[$1]:-0} || _SB_OFF=${_TUI_P_SOFF_H[$1]:-0}
+	_TUI_SB_POS=$pos _TUI_SB_OFF=$_SB_OFF
+}
+
+# _tui_hit.scrollbar_drag PANE v|h COL ROW - the held thumb moves by as many cells as the pointer has since the grab,
+# wherever the pointer is
+# state:direct
+_tui_hit.scrollbar_drag() {
+	local pos=$4
+	[[ "$2" == v ]] || pos=$3
+	_tui_hit.scrollbar_geometry "$1" "$2" && ((_SB_TRAVEL > 0)) || return 0
+	_tui_hit.scrollbar_to "$1" "$2" $((_TUI_SB_OFF + (pos - _TUI_SB_POS) * (_SB_TOTAL - _SB_LEN) / _SB_TRAVEL))
 }
 
 # tui.hit.set ID hit_pad|hitbox VALUE - widen the area that counts as a hit on widget ID

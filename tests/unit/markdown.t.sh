@@ -42,6 +42,14 @@ t_md_heading_hides_marker_and_keeps_text() {
 	eq "Title" "$_F"
 }
 
+t_md_heading_with_no_text_gets_a_valid_anchor() {
+	_md_flat "# #" 40 2>&1
+	TUI_MD_ANCHORS=()
+	_tui_md.slug "!!"; eq section "$_SLUG"
+	TUI_MD_ANCHORS[section]=1
+	_tui_md.slug ""; eq section-1 "$_SLUG"
+}
+
 t_md_heading_levels_use_their_own_class() {
 	tui.md.render "# a" 40
 	eq "${_TUI_MD_SGR[h1]}a${R}" "${TUI_MD_ROWS[0]}"
@@ -2597,4 +2605,22 @@ t_md_config_apply_reads_fetch() {
 	tui.md.config_apply
 	eq 1 "$TUI_MD_IMAGE_FETCH"
 	unset '_TUI_CFG[md.fetch]'
+}
+
+t_md_syntax_lines_style_only_the_delimiters_in_their_class_color() {
+	_tui_md.syntax_lines "" "# Title" "**bold** [l](http://x)"
+	local h=${_TUI_MD_SGR[h1]} r=$'\e[0m'
+	eq "${h}# ${r}Title${r}" "${TUI_MD_ROWS[0]}"
+	[[ "${TUI_MD_ROWS[1]}" == "${_TUI_MD_SGR[strong]}**${r}bold${r}"* ]] || eq "strong-colored ** then plain bold" "${TUI_MD_ROWS[1]}"
+	tui.md.style_lines "" "# Title"                    # the styled mode is unaffected afterwards
+	[[ "${TUI_MD_ROWS[0]}" == *"${_TUI_MD_SGR[h1]}Title"* ]] || eq "heading look" "lost"
+}
+
+t_md_heading_spans_keep_the_heading_colors() {
+	_TUI_MD_SGR[h1]=$'\e[30;48;5;216m' _TUI_MD_SGR[em]=$'\e[3;38;5;1;48;2;1;2;3m'
+	_tui_md.rebuild 2>/dev/null
+	_tui_md.uncolor $'\e[1;4;38;2;1;2;3;94;48;5;9m'; eq $'\e[1;4m' "$_UC"
+	tui.md.render "# a *b* c" 40
+	[[ "${TUI_MD_ROWS[0]}" == *$'\e[3m'b* ]] || eq "italic only" "${TUI_MD_ROWS[0]@Q}"
+	[[ "${TUI_MD_ROWS[0]}" != *48\;2\;1\;2\;3* ]] || eq "no em background" "${TUI_MD_ROWS[0]@Q}"
 }

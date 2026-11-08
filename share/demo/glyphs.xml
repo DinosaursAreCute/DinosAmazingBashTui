@@ -1,0 +1,33 @@
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd">
+  <!-- every built-in widget design side by side (share/defaults/glyphs/variants.css); switch the theme from Settings to see them restyle -->
+  <pane id="gallery" split="h" border="none">
+    <pane id="g_left" split="v" weight="50" border="none">
+      <pane id="g_prog" weight="55" title="Progress bars  (variant=)" border="single" class="panel" hpad="1" scroll="v">
+        <progress id="gp_default" label="default" value="70" row="0"/>
+        <progress id="gp_thin" label="thin" value="70" variant="thin" row="1"/>
+        <progress id="gp_dots" label="dots" value="70" variant="dots" row="2"/>
+        <progress id="gp_squares" label="squares" value="70" variant="squares" row="3"/>
+        <progress id="gp_ascii" label="ascii" value="70" variant="ascii" row="4"/>
+      </pane>
+      <pane id="g_chk" weight="45" title="Checkboxes" border="single" class="panel" hpad="1">
+        <checkbox id="gc_default" label="default" checked="true" class="check" row="0"/>
+        <checkbox id="gc_round" label="round" checked="true" variant="round" class="check" row="1"/>
+        <checkbox id="gc_plain" label="plain" checked="true" variant="plain" class="check" row="2"/>
+        <checkbox id="gc_plain_off" label="plain, off" checked="false" variant="plain" class="check" row="3"/>
+      </pane>
+    </pane>
+    <pane id="g_right" split="v" weight="50" border="none">
+      <pane id="g_sel" weight="40" title="Selects" border="single" class="panel" hpad="1">
+        <select id="gs_default" label="default:" items="one|two|three" value="two" row="0"/>
+        <select id="gs_plain" label="plain:" items="one|two|three" value="two" variant="plain" row="1"/>
+        <select id="gs_angle" label="angle:" items="one|two|three" value="two" variant="angle" row="2"/>
+      </pane>
+      <pane id="g_list" weight="60" title="List scroll indicators" border="single" class="panel" hpad="1">
+        <list id="gl_default" rows="4" items="a1|a2|a3|a4|a5|a6|a7|a8|a9|a10"/>
+        <list id="gl_thin" rows="4" variant="thin" items="b1|b2|b3|b4|b5|b6|b7|b8|b9|b10"/>
+        <list id="gl_block" rows="4" variant="block" items="c1|c2|c3|c4|c5|c6|c7|c8|c9|c10"/>
+        <list id="gl_dot" rows="4" variant="dot" items="d1|d2|d3|d4|d5|d6|d7|d8|d9|d10"/>
+      </pane>
+    </pane>
+  </pane>
+</tui>

@@ -1,5 +1,8 @@
 /* DABT default theme - used by the pages that ship with the framework (share/defaults/pages). Same class names as an
  * app theme, so a theme overlay (tui.theme.set) restyles these pages too. Copied from the demo theme; edit freely. */
+
+/* widget designs (variant="NAME"): the glyph rules below this line override them */
+@import "glyphs/variants.css";
 /* theme.css - CSS-like stylesheet for tui.sh, loaded via <theme src="theme.css"/>.
  * fg/bg: a colors.sh name (e.g. red) or a #RRGGBB hex value.
  * mods: space-separated style.* modifiers (e.g. bold underline).

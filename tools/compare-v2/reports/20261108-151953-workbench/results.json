@@ -1,0 +1,2109 @@
+{
+ "meta": {
+  "scenario": "workbench",
+  "title": "Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form",
+  "rows": 45,
+  "cols": 150,
+  "rounds": 1,
+  "warmup": 0,
+  "apps": [
+   {
+    "name": "wb-dabt",
+    "label": "DABT",
+    "color": "cyan",
+    "version": "DABT 0.0.26",
+    "keyboard": "legacy ESC"
+   },
+   {
+    "name": "wb-textual",
+    "label": "Textual",
+    "color": "magenta",
+    "version": "Textual 8.2.8 / Python 3.14.8",
+    "keyboard": "kitty CSI-u"
+   }
+  ],
+  "skew": [
+   "the app's CPUs are 17% busy before the run starts.",
+   "--watch mirrors every output chunk into a viewer window: timings of this run are NOT comparable."
+  ],
+  "keyboard_mode": "auto",
+  "keep_awake": true,
+  "quiet_ms": 150,
+  "seed": 1,
+  "watched": true,
+  "started": "2026-11-08 15:19:03",
+  "duration_s": 50.3,
+  "env": {
+   "cpu": "AMD Ryzen 5 2600 Six-Core Processor",
+   "logical_cpus": 12,
+   "kernel": "7.2.9-2-cachyos",
+   "python": "3.14.8",
+   "governor": "n/a",
+   "boost": "n/a",
+   "loadavg": [
+    "1.38",
+    "1.39",
+    "1.32"
+   ],
+   "mem_gb": 31.3,
+   "bash": "5.3.20(1)-release",
+   "git": "30a211c+dirty",
+   "term": "xterm-256color",
+   "pinned_app": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "pinned_harness": [
+    5,
+    11
+   ],
+   "busy_pct": 16.9
+  },
+  "warnings": [
+   "the app's CPUs are 17% busy before the run starts.",
+   "only 1 measured rounds: confidence intervals are rough below ~8.",
+   "--watch mirrors every output chunk into a viewer window: timings of this run are NOT comparable."
+  ],
+  "errors": []
+ },
+ "steps": [
+  {
+   "name": "startup.cold",
+   "kind": "latency"
+  },
+  {
+   "name": "startup.warm",
+   "kind": "latency"
+  },
+  {
+   "name": "jobs.run",
+   "kind": "latency"
+  },
+  {
+   "name": "jobs.reset",
+   "kind": "latency"
+  },
+  {
+   "name": "nav.tasks",
+   "kind": "latency"
+  },
+  {
+   "name": "table.down",
+   "kind": "latency"
+  },
+  {
+   "name": "table.down_held",
+   "kind": "latency"
+  },
+  {
+   "name": "table.pagedown",
+   "kind": "latency"
+  },
+  {
+   "name": "table.top",
+   "kind": "latency"
+  },
+  {
+   "name": "focus.filter",
+   "kind": "latency"
+  },
+  {
+   "name": "filter.char",
+   "kind": "latency"
+  },
+  {
+   "name": "focus.table2",
+   "kind": "latency"
+  },
+  {
+   "name": "dialog.open",
+   "kind": "latency"
+  },
+  {
+   "name": "dialog.confirm",
+   "kind": "latency"
+  },
+  {
+   "name": "focus.filter2",
+   "kind": "latency"
+  },
+  {
+   "name": "filter.clear",
+   "kind": "latency"
+  },
+  {
+   "name": "nav.notes",
+   "kind": "latency"
+  },
+  {
+   "name": "editor.word",
+   "kind": "latency"
+  },
+  {
+   "name": "nav.logs",
+   "kind": "latency"
+  },
+  {
+   "name": "list.pagedown",
+   "kind": "latency"
+  },
+  {
+   "name": "list.end",
+   "kind": "latency"
+  },
+  {
+   "name": "list.append",
+   "kind": "latency"
+  },
+  {
+   "name": "list.home",
+   "kind": "latency"
+  },
+  {
+   "name": "list.wheel",
+   "kind": "latency"
+  },
+  {
+   "name": "resize.small",
+   "kind": "latency"
+  },
+  {
+   "name": "resize.back",
+   "kind": "latency"
+  },
+  {
+   "name": "nav.settings",
+   "kind": "latency"
+  },
+  {
+   "name": "form.type",
+   "kind": "latency"
+  },
+  {
+   "name": "form.apply",
+   "kind": "latency"
+  },
+  {
+   "name": "nav.admin",
+   "kind": "latency"
+  },
+  {
+   "name": "tab.appearance",
+   "kind": "latency"
+  },
+  {
+   "name": "tab.general",
+   "kind": "latency"
+  },
+  {
+   "name": "collapse.close",
+   "kind": "latency"
+  },
+  {
+   "name": "collapse.open",
+   "kind": "latency"
+  },
+  {
+   "name": "theme.light",
+   "kind": "latency"
+  },
+  {
+   "name": "theme.dark",
+   "kind": "latency"
+  },
+  {
+   "name": "palette.open",
+   "kind": "latency"
+  },
+  {
+   "name": "palette.type",
+   "kind": "latency"
+  },
+  {
+   "name": "palette.run",
+   "kind": "latency"
+  },
+  {
+   "name": "revisit.overview",
+   "kind": "latency"
+  },
+  {
+   "name": "revisit.tasks",
+   "kind": "latency"
+  },
+  {
+   "name": "revisit.notes",
+   "kind": "latency"
+  },
+  {
+   "name": "revisit.settings",
+   "kind": "latency"
+  },
+  {
+   "name": "revisit.admin",
+   "kind": "latency"
+  },
+  {
+   "name": "idle.3s",
+   "kind": "idle"
+  },
+  {
+   "name": "memory",
+   "kind": "memory"
+  }
+ ],
+ "data": {
+  "wb-dabt": {
+   "startup.cold": [
+    {
+     "name": "startup.cold",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 1: Overview'",
+     "first_byte_ms": 230.12354,
+     "first_paint_ms": 230.12354,
+     "ready_ms": 528.334753,
+     "settled_ms": 528.334753,
+     "paints": 6,
+     "writes": 17,
+     "bytes": 23816,
+     "cpu_ms": 2811.081719,
+     "keyboard": "legacy ESC",
+     "round": 0
+    }
+   ],
+   "startup.warm": [
+    {
+     "name": "startup.warm",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 1: Overview'",
+     "first_byte_ms": 155.169953,
+     "first_paint_ms": 155.169953,
+     "ready_ms": 227.701762,
+     "settled_ms": 227.701762,
+     "paints": 3,
+     "writes": 6,
+     "bytes": 22543,
+     "cpu_ms": 223.381019,
+     "round": 0
+    }
+   ],
+   "jobs.run": [
+    {
+     "name": "jobs.run",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Jobs: done' & 'All jobs finished'",
+     "first_byte_ms": 2.98085,
+     "first_paint_ms": 9.131891,
+     "ready_ms": 2188.144156,
+     "settled_ms": 2188.144156,
+     "paints": 46,
+     "writes": 85,
+     "bytes": 46757,
+     "cpu_ms": 239.269252,
+     "round": 0
+    }
+   ],
+   "jobs.reset": [
+    {
+     "name": "jobs.reset",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Jobs: idle'",
+     "first_byte_ms": 4.661936,
+     "first_paint_ms": 4.661936,
+     "ready_ms": 14.884691,
+     "settled_ms": 14.884691,
+     "paints": 4,
+     "writes": 4,
+     "bytes": 3675,
+     "cpu_ms": 16.178415,
+     "round": 0
+    }
+   ],
+   "nav.tasks": [
+    {
+     "name": "nav.tasks",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 200/200'",
+     "first_byte_ms": 10.090915,
+     "first_paint_ms": 37.562329,
+     "ready_ms": 149.078982,
+     "settled_ms": 149.078982,
+     "paints": 2,
+     "writes": 20,
+     "bytes": 48490,
+     "cpu_ms": 160.371125,
+     "round": 0
+    }
+   ],
+   "table.down": [
+    {
+     "name": "table.down",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Selected: T-0002' & 'Title: Ship parser 2' & 'Status: blocked'",
+     "first_byte_ms": 4.453945,
+     "first_paint_ms": 4.453945,
+     "ready_ms": 11.77454,
+     "settled_ms": 37.603389,
+     "paints": 5,
+     "writes": 5,
+     "bytes": 6301,
+     "cpu_ms": 38.985679,
+     "round": 0
+    }
+   ],
+   "table.down_held": [
+    {
+     "name": "table.down_held",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Selected: T-0012' & 'Title: Fix login 12' & 'Status: open'",
+     "first_byte_ms": 1.307514,
+     "first_paint_ms": 1.307514,
+     "ready_ms": 41.989123,
+     "settled_ms": 66.148697,
+     "paints": 50,
+     "writes": 50,
+     "bytes": 62996,
+     "cpu_ms": 364.29699,
+     "round": 0
+    }
+   ],
+   "table.pagedown": [
+    {
+     "name": "table.pagedown",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Selected: T-00(1[3-9]|[2-9]\\d)/",
+     "first_byte_ms": 5.63689,
+     "first_paint_ms": 5.63689,
+     "ready_ms": 5.63689,
+     "settled_ms": 36.890657,
+     "paints": 5,
+     "writes": 5,
+     "bytes": 6303,
+     "cpu_ms": 37.184533,
+     "round": 0
+    }
+   ],
+   "table.top": [
+    {
+     "name": "table.top",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Selected: T-0001' & 'Title: Review parser 1' & 'Status: done'",
+     "first_byte_ms": 3.674242,
+     "first_paint_ms": 3.674242,
+     "ready_ms": 10.429255,
+     "settled_ms": 36.140973,
+     "paints": 5,
+     "writes": 5,
+     "bytes": 6301,
+     "cpu_ms": 37.283748,
+     "round": 0
+    }
+   ],
+   "focus.filter": [
+    {
+     "name": "focus.filter",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 28.245076,
+     "first_paint_ms": 28.307396,
+     "ready_ms": 28.307396,
+     "settled_ms": 28.307396,
+     "paints": 1,
+     "writes": 2,
+     "bytes": 4243,
+     "cpu_ms": 29.336478,
+     "round": 0
+    }
+   ],
+   "filter.char": [
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 91/200' & /Filter:\\s*c(?![a-z])/",
+     "first_byte_ms": 26.28743,
+     "first_paint_ms": 26.28743,
+     "ready_ms": 44.486273,
+     "settled_ms": 44.486273,
+     "paints": 7,
+     "writes": 7,
+     "bytes": 7591,
+     "cpu_ms": 45.747271,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*ca(?![a-z])/",
+     "first_byte_ms": 19.796668,
+     "first_paint_ms": 19.796668,
+     "ready_ms": 38.750503,
+     "settled_ms": 38.750503,
+     "paints": 7,
+     "writes": 7,
+     "bytes": 7264,
+     "cpu_ms": 40.011534,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*cac(?![a-z])/",
+     "first_byte_ms": 18.447864,
+     "first_paint_ms": 35.802513,
+     "ready_ms": 35.802513,
+     "settled_ms": 35.802513,
+     "paints": 1,
+     "writes": 7,
+     "bytes": 7264,
+     "cpu_ms": 37.102177,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*cach(?![a-z])/",
+     "first_byte_ms": 19.954738,
+     "first_paint_ms": 38.602082,
+     "ready_ms": 38.602082,
+     "settled_ms": 38.602082,
+     "paints": 1,
+     "writes": 7,
+     "bytes": 7264,
+     "cpu_ms": 39.91182,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*cache(?![a-z])/",
+     "first_byte_ms": 18.945435,
+     "first_paint_ms": 37.359279,
+     "ready_ms": 37.359279,
+     "settled_ms": 37.359279,
+     "paints": 1,
+     "writes": 7,
+     "bytes": 7264,
+     "cpu_ms": 38.399264,
+     "round": 0
+    }
+   ],
+   "focus.table2": [
+    {
+     "name": "focus.table2",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 17.939931,
+     "first_paint_ms": 17.939931,
+     "ready_ms": 17.939931,
+     "settled_ms": 17.939931,
+     "paints": 1,
+     "writes": 1,
+     "bytes": 3900,
+     "cpu_ms": 19.244433,
+     "round": 0
+    }
+   ],
+   "dialog.open": [
+    {
+     "name": "dialog.open",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Delete T-0006?'",
+     "first_byte_ms": 3.541062,
+     "first_paint_ms": 3.541062,
+     "ready_ms": 3.541062,
+     "settled_ms": 3.541062,
+     "paints": 1,
+     "writes": 1,
+     "bytes": 1349,
+     "cpu_ms": 4.971871,
+     "round": 0
+    }
+   ],
+   "dialog.confirm": [
+    {
+     "name": "dialog.confirm",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Deleted T-0006' & 'Rows: 35/199'",
+     "first_byte_ms": 0.637912,
+     "first_paint_ms": 31.8374,
+     "ready_ms": 62.110104,
+     "settled_ms": 62.110104,
+     "paints": 8,
+     "writes": 15,
+     "bytes": 37536,
+     "cpu_ms": 63.520736,
+     "round": 0
+    }
+   ],
+   "focus.filter2": [
+    {
+     "name": "focus.filter2",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 19.202496,
+     "first_paint_ms": 19.286456,
+     "ready_ms": 19.286456,
+     "settled_ms": 19.286456,
+     "paints": 1,
+     "writes": 2,
+     "bytes": 4298,
+     "cpu_ms": 20.595934,
+     "round": 0
+    }
+   ],
+   "filter.clear": [
+    {
+     "name": "filter.clear",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 199/199'",
+     "first_byte_ms": 29.19026,
+     "first_paint_ms": 29.19026,
+     "ready_ms": 32.859982,
+     "settled_ms": 248.518122,
+     "paints": 6,
+     "writes": 17,
+     "bytes": 40719,
+     "cpu_ms": 98.600366,
+     "round": 0
+    }
+   ],
+   "nav.notes": [
+    {
+     "name": "nav.notes",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Version 2\\.4 brings a faster renderer/",
+     "first_byte_ms": 12.381443,
+     "first_paint_ms": 41.513873,
+     "ready_ms": 200.148576,
+     "settled_ms": 200.148576,
+     "paints": 2,
+     "writes": 11,
+     "bytes": 72954,
+     "cpu_ms": 217.035512,
+     "round": 0
+    }
+   ],
+   "editor.word": [
+    {
+     "name": "editor.word",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Words: 96' & 'alpha' in editor and preview",
+     "first_byte_ms": 4.813656,
+     "first_paint_ms": 4.813656,
+     "ready_ms": 69.376408,
+     "settled_ms": 69.376408,
+     "paints": 10,
+     "writes": 23,
+     "bytes": 63614,
+     "cpu_ms": 332.469265,
+     "round": 0
+    },
+    {
+     "name": "editor.word",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Words: 97' & 'beta' in editor and preview",
+     "first_byte_ms": 5.68022,
+     "first_paint_ms": 5.68022,
+     "ready_ms": 72.237068,
+     "settled_ms": 72.237068,
+     "paints": 8,
+     "writes": 19,
+     "bytes": 47574,
+     "cpu_ms": 278.611081,
+     "round": 0
+    },
+    {
+     "name": "editor.word",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Words: 98' & 'gamma' in editor and preview",
+     "first_byte_ms": 6.498512,
+     "first_paint_ms": 6.498512,
+     "ready_ms": 64.374621,
+     "settled_ms": 64.374621,
+     "paints": 9,
+     "writes": 20,
+     "bytes": 52737,
+     "cpu_ms": 336.954907,
+     "round": 0
+    }
+   ],
+   "nav.logs": [
+    {
+     "name": "nav.logs",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Lines: 2000'",
+     "first_byte_ms": 4.634875,
+     "first_paint_ms": 45.211575,
+     "ready_ms": 115.746797,
+     "settled_ms": 115.746797,
+     "paints": 2,
+     "writes": 13,
+     "bytes": 46986,
+     "cpu_ms": 125.501141,
+     "round": 0
+    }
+   ],
+   "list.pagedown": [
+    {
+     "name": "list.pagedown",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Line: ([2-9]|\\d\\d+)\\b/",
+     "first_byte_ms": 7.303165,
+     "first_paint_ms": 7.303165,
+     "ready_ms": 7.303165,
+     "settled_ms": 15.870474,
+     "paints": 3,
+     "writes": 3,
+     "bytes": 6308,
+     "cpu_ms": 15.336815,
+     "round": 0
+    }
+   ],
+   "list.end": [
+    {
+     "name": "list.end",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Line: 2000' & 'event number 2000'",
+     "first_byte_ms": 6.879214,
+     "first_paint_ms": 6.879214,
+     "ready_ms": 15.488143,
+     "settled_ms": 15.488143,
+     "paints": 3,
+     "writes": 3,
+     "bytes": 6310,
+     "cpu_ms": 15.676885,
+     "round": 0
+    }
+   ],
+   "list.append": [
+    {
+     "name": "list.append",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Lines: 2200'",
+     "first_byte_ms": 9.759324,
+     "first_paint_ms": 9.759324,
+     "ready_ms": 12.230152,
+     "settled_ms": 12.230152,
+     "paints": 2,
+     "writes": 2,
+     "bytes": 6311,
+     "cpu_ms": 13.718852,
+     "round": 0
+    }
+   ],
+   "list.home": [
+    {
+     "name": "list.home",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Line: 1\\b/ & /svc-1 event number 1(?!\\d)/",
+     "first_byte_ms": 6.192831,
+     "first_paint_ms": 6.192831,
+     "ready_ms": 16.494077,
+     "settled_ms": 16.494077,
+     "paints": 2,
+     "writes": 2,
+     "bytes": 6307,
+     "cpu_ms": 16.680013,
+     "round": 0
+    }
+   ],
+   "list.wheel": [
+    {
+     "name": "list.wheel",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 12.310012,
+     "first_paint_ms": 12.310012,
+     "ready_ms": 12.366922,
+     "settled_ms": 12.366922,
+     "paints": 9,
+     "writes": 11,
+     "bytes": 33251,
+     "cpu_ms": 82.258481,
+     "round": 0
+    }
+   ],
+   "resize.small": [
+    {
+     "name": "resize.small",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 71.474654,
+     "first_paint_ms": 100.093283,
+     "ready_ms": 166.073519,
+     "settled_ms": 166.073519,
+     "paints": 2,
+     "writes": 7,
+     "bytes": 41599,
+     "cpu_ms": 60.167979,
+     "round": 0
+    }
+   ],
+   "resize.back": [
+    {
+     "name": "resize.back",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 72.297178,
+     "first_paint_ms": 89.352087,
+     "ready_ms": 89.352087,
+     "settled_ms": 89.352087,
+     "paints": 1,
+     "writes": 3,
+     "bytes": 25641,
+     "cpu_ms": 22.487723,
+     "round": 0
+    }
+   ],
+   "nav.settings": [
+    {
+     "name": "nav.settings",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 5: Settings'",
+     "first_byte_ms": 29.055969,
+     "first_paint_ms": 62.065332,
+     "ready_ms": 101.283547,
+     "settled_ms": 101.283547,
+     "paints": 2,
+     "writes": 9,
+     "bytes": 41507,
+     "cpu_ms": 110.9422,
+     "round": 0
+    }
+   ],
+   "form.type": [
+    {
+     "name": "form.type",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Name:\\s*Ada/",
+     "first_byte_ms": 3.11001,
+     "first_paint_ms": 3.11001,
+     "ready_ms": 3.11001,
+     "settled_ms": 3.11001,
+     "paints": 3,
+     "writes": 3,
+     "bytes": 1122,
+     "cpu_ms": 11.445142,
+     "round": 0
+    }
+   ],
+   "form.apply": [
+    {
+     "name": "form.apply",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Saved: name=Ada level=info flags=100' & 'Settings saved'",
+     "first_byte_ms": 2.98175,
+     "first_paint_ms": 2.98175,
+     "ready_ms": 4.375864,
+     "settled_ms": 4.375864,
+     "paints": 2,
+     "writes": 2,
+     "bytes": 778,
+     "cpu_ms": 5.767533,
+     "round": 0
+    }
+   ],
+   "nav.admin": [
+    {
+     "name": "nav.admin",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 6: Admin'",
+     "first_byte_ms": 4.737316,
+     "first_paint_ms": 31.799508,
+     "ready_ms": 79.502732,
+     "settled_ms": 79.502732,
+     "paints": 2,
+     "writes": 10,
+     "bytes": 34327,
+     "cpu_ms": 90.973801,
+     "round": 0
+    }
+   ],
+   "tab.appearance": [
+    {
+     "name": "tab.appearance",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Tab: Appearance'",
+     "first_byte_ms": 4.052853,
+     "first_paint_ms": 4.052853,
+     "ready_ms": 6.099681,
+     "settled_ms": 6.099681,
+     "paints": 2,
+     "writes": 2,
+     "bytes": 1320,
+     "cpu_ms": 7.544461,
+     "round": 0
+    }
+   ],
+   "tab.general": [
+    {
+     "name": "tab.general",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Tab: General'",
+     "first_byte_ms": 4.525716,
+     "first_paint_ms": 4.525716,
+     "ready_ms": 6.049441,
+     "settled_ms": 6.049441,
+     "paints": 2,
+     "writes": 2,
+     "bytes": 1493,
+     "cpu_ms": 7.607043,
+     "round": 0
+    }
+   ],
+   "collapse.close": [
+    {
+     "name": "collapse.close",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "not 'Network: 3 interfaces up'",
+     "first_byte_ms": 7.535326,
+     "first_paint_ms": 24.948896,
+     "ready_ms": 24.948896,
+     "settled_ms": 24.948896,
+     "paints": 1,
+     "writes": 4,
+     "bytes": 12671,
+     "cpu_ms": 25.898295,
+     "round": 0
+    }
+   ],
+   "collapse.open": [
+    {
+     "name": "collapse.open",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Network: 3 interfaces up'",
+     "first_byte_ms": 9.098401,
+     "first_paint_ms": 26.836192,
+     "ready_ms": 26.836192,
+     "settled_ms": 26.836192,
+     "paints": 1,
+     "writes": 7,
+     "bytes": 21624,
+     "cpu_ms": 27.613383,
+     "round": 0
+    }
+   ],
+   "theme.light": [
+    {
+     "name": "theme.light",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Theme: light'",
+     "first_byte_ms": 97.849955,
+     "first_paint_ms": 153.802087,
+     "ready_ms": 153.802087,
+     "settled_ms": 153.802087,
+     "paints": 1,
+     "writes": 7,
+     "bytes": 23604,
+     "cpu_ms": 154.430758,
+     "round": 0
+    }
+   ],
+   "theme.dark": [
+    {
+     "name": "theme.dark",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Theme: dark'",
+     "first_byte_ms": 6.816103,
+     "first_paint_ms": 53.290413,
+     "ready_ms": 53.290413,
+     "settled_ms": 53.290413,
+     "paints": 1,
+     "writes": 6,
+     "bytes": 23095,
+     "cpu_ms": 54.854864,
+     "round": 0
+    }
+   ],
+   "palette.open": [
+    {
+     "name": "palette.open",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "('Command palette' | 'Search for commands')",
+     "first_byte_ms": 22.525316,
+     "first_paint_ms": 22.525316,
+     "ready_ms": 22.525316,
+     "settled_ms": 22.525316,
+     "paints": 1,
+     "writes": 1,
+     "bytes": 3275,
+     "cpu_ms": 23.970888,
+     "round": 0
+    }
+   ],
+   "palette.type": [
+    {
+     "name": "palette.type",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'logs'",
+     "first_byte_ms": 28.749298,
+     "first_paint_ms": 28.749298,
+     "ready_ms": 28.749298,
+     "settled_ms": 28.749298,
+     "paints": 4,
+     "writes": 4,
+     "bytes": 13100,
+     "cpu_ms": 99.657245,
+     "round": 0
+    }
+   ],
+   "palette.run": [
+    {
+     "name": "palette.run",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Lines: 2200'",
+     "first_byte_ms": 0.525802,
+     "first_paint_ms": 20.5194,
+     "ready_ms": 90.113349,
+     "settled_ms": 90.113349,
+     "paints": 2,
+     "writes": 15,
+     "bytes": 54010,
+     "cpu_ms": 91.504164,
+     "round": 0
+    }
+   ],
+   "revisit.overview": [
+    {
+     "name": "revisit.overview",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 1: Overview'",
+     "first_byte_ms": 8.431099,
+     "first_paint_ms": 41.898974,
+     "ready_ms": 87.148849,
+     "settled_ms": 87.148849,
+     "paints": 2,
+     "writes": 13,
+     "bytes": 42318,
+     "cpu_ms": 97.810109,
+     "round": 0
+    }
+   ],
+   "revisit.tasks": [
+    {
+     "name": "revisit.tasks",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 199/199'",
+     "first_byte_ms": 5.352899,
+     "first_paint_ms": 32.246031,
+     "ready_ms": 135.655625,
+     "settled_ms": 135.655625,
+     "paints": 2,
+     "writes": 19,
+     "bytes": 48496,
+     "cpu_ms": 147.040596,
+     "round": 0
+    }
+   ],
+   "revisit.notes": [
+    {
+     "name": "revisit.notes",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Version 2\\.4 brings a faster renderer/",
+     "first_byte_ms": 5.142368,
+     "first_paint_ms": 54.847588,
+     "ready_ms": 128.145969,
+     "settled_ms": 128.145969,
+     "paints": 2,
+     "writes": 15,
+     "bytes": 70073,
+     "cpu_ms": 146.724759,
+     "round": 0
+    }
+   ],
+   "revisit.settings": [
+    {
+     "name": "revisit.settings",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 5: Settings'",
+     "first_byte_ms": 5.028297,
+     "first_paint_ms": 46.395549,
+     "ready_ms": 83.881838,
+     "settled_ms": 83.881838,
+     "paints": 2,
+     "writes": 7,
+     "bytes": 36622,
+     "cpu_ms": 94.525188,
+     "round": 0
+    }
+   ],
+   "revisit.admin": [
+    {
+     "name": "revisit.admin",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 6: Admin'",
+     "first_byte_ms": 4.866076,
+     "first_paint_ms": 32.773222,
+     "ready_ms": 76.405572,
+     "settled_ms": 76.405572,
+     "paints": 2,
+     "writes": 10,
+     "bytes": 34212,
+     "cpu_ms": 88.217314,
+     "round": 0
+    }
+   ],
+   "idle.3s": [
+    {
+     "name": "idle.3s",
+     "kind": "idle",
+     "ok": true,
+     "cpu_pct": 1.3070480453779456,
+     "wakeups_s": 1.3287397550984212,
+     "bytes_s": 7056.60465438894,
+     "round": 0
+    }
+   ],
+   "memory": [
+    {
+     "name": "memory",
+     "kind": "memory",
+     "ok": true,
+     "rss_kb": 22832,
+     "pss_kb": 19105,
+     "procs": 1,
+     "threads": 1,
+     "round": 0
+    }
+   ]
+  },
+  "wb-textual": {
+   "startup.cold": [
+    {
+     "name": "startup.cold",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 1: Overview'",
+     "first_byte_ms": 294.925481,
+     "first_paint_ms": 294.925481,
+     "ready_ms": 454.279298,
+     "settled_ms": 454.279298,
+     "paints": 2,
+     "writes": 11,
+     "bytes": 28316,
+     "cpu_ms": 484.365435,
+     "keyboard": "kitty CSI-u",
+     "round": 0
+    }
+   ],
+   "startup.warm": [
+    {
+     "name": "startup.warm",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 1: Overview'",
+     "first_byte_ms": 287.862986,
+     "first_paint_ms": 287.862986,
+     "ready_ms": 447.342043,
+     "settled_ms": 447.342043,
+     "paints": 2,
+     "writes": 13,
+     "bytes": 28316,
+     "cpu_ms": 487.643442,
+     "round": 0
+    }
+   ],
+   "jobs.run": [
+    {
+     "name": "jobs.run",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Jobs: done' & 'All jobs finished'",
+     "first_byte_ms": 3.599592,
+     "first_paint_ms": 3.599592,
+     "ready_ms": 2034.242064,
+     "settled_ms": 2034.242064,
+     "paints": 22,
+     "writes": 23,
+     "bytes": 24790,
+     "cpu_ms": 141.894573,
+     "round": 0
+    }
+   ],
+   "jobs.reset": [
+    {
+     "name": "jobs.reset",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Jobs: idle'",
+     "first_byte_ms": 7.926848,
+     "first_paint_ms": 7.926848,
+     "ready_ms": 7.926848,
+     "settled_ms": 7.926848,
+     "paints": 1,
+     "writes": 1,
+     "bytes": 1365,
+     "cpu_ms": 7.995872,
+     "round": 0
+    }
+   ],
+   "nav.tasks": [
+    {
+     "name": "nav.tasks",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 200/200'",
+     "first_byte_ms": 17.49053,
+     "first_paint_ms": 27.331944,
+     "ready_ms": 186.035828,
+     "settled_ms": 354.915277,
+     "paints": 5,
+     "writes": 26,
+     "bytes": 144538,
+     "cpu_ms": 385.155679,
+     "round": 0
+    }
+   ],
+   "table.down": [
+    {
+     "name": "table.down",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Selected: T-0002' & 'Title: Ship parser 2' & 'Status: blocked'",
+     "first_byte_ms": 5.78303,
+     "first_paint_ms": 5.78303,
+     "ready_ms": 29.05758,
+     "settled_ms": 29.05758,
+     "paints": 2,
+     "writes": 3,
+     "bytes": 3238,
+     "cpu_ms": 14.551834,
+     "round": 0
+    }
+   ],
+   "table.down_held": [
+    {
+     "name": "table.down_held",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Selected: T-0012' & 'Title: Fix login 12' & 'Status: open'",
+     "first_byte_ms": 20.67743,
+     "first_paint_ms": 20.67743,
+     "ready_ms": 20.67743,
+     "settled_ms": 20.67743,
+     "paints": 11,
+     "writes": 28,
+     "bytes": 35259,
+     "cpu_ms": 131.907433,
+     "round": 0
+    }
+   ],
+   "table.pagedown": [
+    {
+     "name": "table.pagedown",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Selected: T-00(1[3-9]|[2-9]\\d)/",
+     "first_byte_ms": 35.519221,
+     "first_paint_ms": 35.757242,
+     "ready_ms": 64.606801,
+     "settled_ms": 64.606801,
+     "paints": 2,
+     "writes": 6,
+     "bytes": 14679,
+     "cpu_ms": 43.478757,
+     "round": 0
+    }
+   ],
+   "table.top": [
+    {
+     "name": "table.top",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Selected: T-0001' & 'Title: Review parser 1' & 'Status: done'",
+     "first_byte_ms": 29.238501,
+     "first_paint_ms": 29.510912,
+     "ready_ms": 52.46216,
+     "settled_ms": 52.46216,
+     "paints": 2,
+     "writes": 7,
+     "bytes": 14679,
+     "cpu_ms": 38.043892,
+     "round": 0
+    }
+   ],
+   "focus.filter": [
+    {
+     "name": "focus.filter",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 50.592063,
+     "first_paint_ms": 56.204662,
+     "ready_ms": 56.204662,
+     "settled_ms": 56.204662,
+     "paints": 1,
+     "writes": 18,
+     "bytes": 46967,
+     "cpu_ms": 169.571942,
+     "round": 0
+    }
+   ],
+   "filter.char": [
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 91/200' & /Filter:\\s*c(?![a-z])/",
+     "first_byte_ms": 15.553633,
+     "first_paint_ms": 15.553633,
+     "ready_ms": 70.00344,
+     "settled_ms": 70.00344,
+     "paints": 2,
+     "writes": 4,
+     "bytes": 15025,
+     "cpu_ms": 55.425924,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*ca(?![a-z])/",
+     "first_byte_ms": 11.599839,
+     "first_paint_ms": 11.599839,
+     "ready_ms": 67.26677,
+     "settled_ms": 104.828899,
+     "paints": 3,
+     "writes": 6,
+     "bytes": 23436,
+     "cpu_ms": 51.892762,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*cac(?![a-z])/",
+     "first_byte_ms": 9.719513,
+     "first_paint_ms": 9.719513,
+     "ready_ms": 9.719513,
+     "settled_ms": 9.719513,
+     "paints": 1,
+     "writes": 4,
+     "bytes": 11342,
+     "cpu_ms": 44.364764,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*cach(?![a-z])/",
+     "first_byte_ms": 9.606052,
+     "first_paint_ms": 9.606052,
+     "ready_ms": 9.606052,
+     "settled_ms": 9.606052,
+     "paints": 1,
+     "writes": 4,
+     "bytes": 11342,
+     "cpu_ms": 41.78289,
+     "round": 0
+    },
+    {
+     "name": "filter.char",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 36/200' & /Filter:\\s*cache(?![a-z])/",
+     "first_byte_ms": 10.017324,
+     "first_paint_ms": 10.017324,
+     "ready_ms": 10.017324,
+     "settled_ms": 10.017324,
+     "paints": 1,
+     "writes": 4,
+     "bytes": 11342,
+     "cpu_ms": 42.024413,
+     "round": 0
+    }
+   ],
+   "focus.table2": [
+    {
+     "name": "focus.table2",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 46.468299,
+     "first_paint_ms": 51.862457,
+     "ready_ms": 51.862457,
+     "settled_ms": 51.862457,
+     "paints": 1,
+     "writes": 10,
+     "bytes": 37383,
+     "cpu_ms": 116.094164,
+     "round": 0
+    }
+   ],
+   "dialog.open": [
+    {
+     "name": "dialog.open",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Delete T-0006?'",
+     "first_byte_ms": 14.032467,
+     "first_paint_ms": 41.896123,
+     "ready_ms": 41.896123,
+     "settled_ms": 250.534089,
+     "paints": 4,
+     "writes": 52,
+     "bytes": 206669,
+     "cpu_ms": 165.864782,
+     "round": 0
+    }
+   ],
+   "dialog.confirm": [
+    {
+     "name": "dialog.confirm",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Deleted T-0006' & 'Rows: 35/199'",
+     "first_byte_ms": 48.560196,
+     "first_paint_ms": 53.964735,
+     "ready_ms": 127.906849,
+     "settled_ms": 127.906849,
+     "paints": 2,
+     "writes": 19,
+     "bytes": 82263,
+     "cpu_ms": 104.539919,
+     "round": 0
+    }
+   ],
+   "focus.filter2": [
+    {
+     "name": "focus.filter2",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 49.045828,
+     "first_paint_ms": 54.515747,
+     "ready_ms": 54.515747,
+     "settled_ms": 54.515747,
+     "paints": 1,
+     "writes": 12,
+     "bytes": 37204,
+     "cpu_ms": 116.709936,
+     "round": 0
+    }
+   ],
+   "filter.clear": [
+    {
+     "name": "filter.clear",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 199/199'",
+     "first_byte_ms": 10.089464,
+     "first_paint_ms": 10.089464,
+     "ready_ms": 63.751628,
+     "settled_ms": 92.731977,
+     "paints": 3,
+     "writes": 10,
+     "bytes": 25528,
+     "cpu_ms": 74.807947,
+     "round": 0
+    }
+   ],
+   "nav.notes": [
+    {
+     "name": "nav.notes",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Version 2\\.4 brings a faster renderer/",
+     "first_byte_ms": 20.122129,
+     "first_paint_ms": 25.578948,
+     "ready_ms": 209.63015,
+     "settled_ms": 335.086709,
+     "paints": 4,
+     "writes": 43,
+     "bytes": 138717,
+     "cpu_ms": 358.892379,
+     "round": 0
+    }
+   ],
+   "editor.word": [
+    {
+     "name": "editor.word",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Words: 96' & 'alpha' in editor and preview",
+     "first_byte_ms": 165.996289,
+     "first_paint_ms": 168.601008,
+     "ready_ms": 168.601008,
+     "settled_ms": 168.601008,
+     "paints": 3,
+     "writes": 11,
+     "bytes": 22121,
+     "cpu_ms": 480.166412,
+     "round": 0
+    },
+    {
+     "name": "editor.word",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Words: 97' & 'beta' in editor and preview",
+     "first_byte_ms": 149.045161,
+     "first_paint_ms": 153.487066,
+     "ready_ms": 153.487066,
+     "settled_ms": 153.487066,
+     "paints": 4,
+     "writes": 14,
+     "bytes": 31574,
+     "cpu_ms": 408.432745,
+     "round": 0
+    },
+    {
+     "name": "editor.word",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Words: 98' & 'gamma' in editor and preview",
+     "first_byte_ms": 144.239105,
+     "first_paint_ms": 149.882924,
+     "ready_ms": 149.882924,
+     "settled_ms": 149.882924,
+     "paints": 3,
+     "writes": 10,
+     "bytes": 21823,
+     "cpu_ms": 464.1652,
+     "round": 0
+    }
+   ],
+   "nav.logs": [
+    {
+     "name": "nav.logs",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Lines: 2000'",
+     "first_byte_ms": 32.06332,
+     "first_paint_ms": 37.455328,
+     "ready_ms": 167.062773,
+     "settled_ms": 326.100258,
+     "paints": 5,
+     "writes": 32,
+     "bytes": 126042,
+     "cpu_ms": 363.520343,
+     "round": 0
+    }
+   ],
+   "list.pagedown": [
+    {
+     "name": "list.pagedown",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Line: ([2-9]|\\d\\d+)\\b/",
+     "first_byte_ms": 10.154835,
+     "first_paint_ms": 10.276636,
+     "ready_ms": 45.022385,
+     "settled_ms": 45.022385,
+     "paints": 2,
+     "writes": 5,
+     "bytes": 11929,
+     "cpu_ms": 19.436074,
+     "round": 0
+    }
+   ],
+   "list.end": [
+    {
+     "name": "list.end",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Line: 2000' & 'event number 2000'",
+     "first_byte_ms": 16.972398,
+     "first_paint_ms": 17.093738,
+     "ready_ms": 51.292745,
+     "settled_ms": 51.292745,
+     "paints": 2,
+     "writes": 5,
+     "bytes": 11927,
+     "cpu_ms": 23.732417,
+     "round": 0
+    }
+   ],
+   "list.append": [
+    {
+     "name": "list.append",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Lines: 2200'",
+     "first_byte_ms": 18.670364,
+     "first_paint_ms": 18.844534,
+     "ready_ms": 18.844534,
+     "settled_ms": 167.883655,
+     "paints": 2,
+     "writes": 7,
+     "bytes": 14983,
+     "cpu_ms": 29.431936,
+     "round": 0
+    }
+   ],
+   "list.home": [
+    {
+     "name": "list.home",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Line: 1\\b/ & /svc-1 event number 1(?!\\d)/",
+     "first_byte_ms": 10.398476,
+     "first_paint_ms": 10.588327,
+     "ready_ms": 36.954767,
+     "settled_ms": 36.954767,
+     "paints": 2,
+     "writes": 6,
+     "bytes": 11756,
+     "cpu_ms": 17.273834,
+     "round": 0
+    }
+   ],
+   "list.wheel": [
+    {
+     "name": "list.wheel",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 8.691599,
+     "first_paint_ms": 8.857279,
+     "ready_ms": 8.857279,
+     "settled_ms": 8.857279,
+     "paints": 5,
+     "writes": 12,
+     "bytes": 47242,
+     "cpu_ms": 45.099067,
+     "round": 0
+    }
+   ],
+   "resize.small": [
+    {
+     "name": "resize.small",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 180.74747,
+     "first_paint_ms": 185.857327,
+     "ready_ms": 185.857327,
+     "settled_ms": 185.857327,
+     "paints": 1,
+     "writes": 22,
+     "bytes": 85631,
+     "cpu_ms": 246.568705,
+     "round": 0
+    }
+   ],
+   "resize.back": [
+    {
+     "name": "resize.back",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": null,
+     "first_byte_ms": 41.00568,
+     "first_paint_ms": 46.314038,
+     "ready_ms": 105.582751,
+     "settled_ms": 105.582751,
+     "paints": 2,
+     "writes": 27,
+     "bytes": 102541,
+     "cpu_ms": 110.839186,
+     "round": 0
+    }
+   ],
+   "nav.settings": [
+    {
+     "name": "nav.settings",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 5: Settings'",
+     "first_byte_ms": 31.348547,
+     "first_paint_ms": 36.751446,
+     "ready_ms": 134.429131,
+     "settled_ms": 225.859244,
+     "paints": 3,
+     "writes": 24,
+     "bytes": 94286,
+     "cpu_ms": 222.134192,
+     "round": 0
+    }
+   ],
+   "form.type": [
+    {
+     "name": "form.type",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Name:\\s*Ada/",
+     "first_byte_ms": 4.600135,
+     "first_paint_ms": 4.600135,
+     "ready_ms": 4.600135,
+     "settled_ms": 4.600135,
+     "paints": 3,
+     "writes": 3,
+     "bytes": 780,
+     "cpu_ms": 15.310313,
+     "round": 0
+    }
+   ],
+   "form.apply": [
+    {
+     "name": "form.apply",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Saved: name=Ada level=info flags=100' & 'Settings saved'",
+     "first_byte_ms": 7.843697,
+     "first_paint_ms": 7.843697,
+     "ready_ms": 36.708176,
+     "settled_ms": 36.708176,
+     "paints": 2,
+     "writes": 3,
+     "bytes": 1234,
+     "cpu_ms": 17.686342,
+     "round": 0
+    }
+   ],
+   "nav.admin": [
+    {
+     "name": "nav.admin",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 6: Admin'",
+     "first_byte_ms": 20.570911,
+     "first_paint_ms": 25.972339,
+     "ready_ms": 150.055315,
+     "settled_ms": 254.591783,
+     "paints": 4,
+     "writes": 25,
+     "bytes": 92673,
+     "cpu_ms": 285.874734,
+     "round": 0
+    }
+   ],
+   "tab.appearance": [
+    {
+     "name": "tab.appearance",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Tab: Appearance'",
+     "first_byte_ms": 12.868174,
+     "first_paint_ms": 12.868174,
+     "ready_ms": 12.868174,
+     "settled_ms": 295.587433,
+     "paints": 13,
+     "writes": 21,
+     "bytes": 11747,
+     "cpu_ms": 67.415634,
+     "round": 0
+    }
+   ],
+   "tab.general": [
+    {
+     "name": "tab.general",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Tab: General'",
+     "first_byte_ms": 11.617509,
+     "first_paint_ms": 11.617509,
+     "ready_ms": 11.617509,
+     "settled_ms": 288.857279,
+     "paints": 13,
+     "writes": 20,
+     "bytes": 11502,
+     "cpu_ms": 62.160687,
+     "round": 0
+    }
+   ],
+   "collapse.close": [
+    {
+     "name": "collapse.close",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "not 'Network: 3 interfaces up'",
+     "first_byte_ms": 15.795964,
+     "first_paint_ms": 15.962625,
+     "ready_ms": 15.962625,
+     "settled_ms": 15.962625,
+     "paints": 1,
+     "writes": 5,
+     "bytes": 23076,
+     "cpu_ms": 20.308826,
+     "round": 0
+    }
+   ],
+   "collapse.open": [
+    {
+     "name": "collapse.open",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Network: 3 interfaces up'",
+     "first_byte_ms": 13.651737,
+     "first_paint_ms": 13.876248,
+     "ready_ms": 13.876248,
+     "settled_ms": 13.876248,
+     "paints": 1,
+     "writes": 7,
+     "bytes": 22846,
+     "cpu_ms": 18.438174,
+     "round": 0
+    }
+   ],
+   "theme.light": [
+    {
+     "name": "theme.light",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Theme: light'",
+     "first_byte_ms": 125.166929,
+     "first_paint_ms": 125.57352,
+     "ready_ms": 125.57352,
+     "settled_ms": 125.57352,
+     "paints": 1,
+     "writes": 12,
+     "bytes": 70492,
+     "cpu_ms": 141.049852,
+     "round": 0
+    }
+   ],
+   "theme.dark": [
+    {
+     "name": "theme.dark",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Theme: dark'",
+     "first_byte_ms": 131.812721,
+     "first_paint_ms": 132.118942,
+     "ready_ms": 132.118942,
+     "settled_ms": 132.118942,
+     "paints": 1,
+     "writes": 10,
+     "bytes": 66595,
+     "cpu_ms": 144.649771,
+     "round": 0
+    }
+   ],
+   "palette.open": [
+    {
+     "name": "palette.open",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "('Command palette' | 'Search for commands')",
+     "first_byte_ms": 59.296114,
+     "first_paint_ms": 110.483409,
+     "ready_ms": 110.483409,
+     "settled_ms": 173.199534,
+     "paints": 2,
+     "writes": 17,
+     "bytes": 80765,
+     "cpu_ms": 213.928874,
+     "round": 0
+    }
+   ],
+   "palette.type": [
+    {
+     "name": "palette.type",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'logs'",
+     "first_byte_ms": 5.76565,
+     "first_paint_ms": 5.76565,
+     "ready_ms": 5.76565,
+     "settled_ms": 13.032985,
+     "paints": 8,
+     "writes": 10,
+     "bytes": 27241,
+     "cpu_ms": 46.829859,
+     "round": 0
+    }
+   ],
+   "palette.run": [
+    {
+     "name": "palette.run",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Lines: 2200'",
+     "first_byte_ms": 66.123806,
+     "first_paint_ms": 463.154177,
+     "ready_ms": 463.154177,
+     "settled_ms": 463.154177,
+     "paints": 1,
+     "writes": 15,
+     "bytes": 42767,
+     "cpu_ms": 454.639543,
+     "round": 0
+    }
+   ],
+   "revisit.overview": [
+    {
+     "name": "revisit.overview",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 1: Overview'",
+     "first_byte_ms": 32.719782,
+     "first_paint_ms": 38.05124,
+     "ready_ms": 123.199982,
+     "settled_ms": 234.668824,
+     "paints": 3,
+     "writes": 27,
+     "bytes": 93878,
+     "cpu_ms": 231.092514,
+     "round": 0
+    }
+   ],
+   "revisit.tasks": [
+    {
+     "name": "revisit.tasks",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Rows: 199/199'",
+     "first_byte_ms": 18.841405,
+     "first_paint_ms": 23.953103,
+     "ready_ms": 195.18113,
+     "settled_ms": 394.542033,
+     "paints": 5,
+     "writes": 39,
+     "bytes": 140078,
+     "cpu_ms": 401.968865,
+     "round": 0
+    }
+   ],
+   "revisit.notes": [
+    {
+     "name": "revisit.notes",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "/Version 2\\.4 brings a faster renderer/",
+     "first_byte_ms": 55.64315,
+     "first_paint_ms": 61.31909,
+     "ready_ms": 234.931775,
+     "settled_ms": 368.656993,
+     "paints": 4,
+     "writes": 39,
+     "bytes": 136780,
+     "cpu_ms": 370.761672,
+     "round": 0
+    }
+   ],
+   "revisit.settings": [
+    {
+     "name": "revisit.settings",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 5: Settings'",
+     "first_byte_ms": 28.544418,
+     "first_paint_ms": 33.951157,
+     "ready_ms": 134.363741,
+     "settled_ms": 343.777999,
+     "paints": 3,
+     "writes": 29,
+     "bytes": 100012,
+     "cpu_ms": 344.548094,
+     "round": 0
+    }
+   ],
+   "revisit.admin": [
+    {
+     "name": "revisit.admin",
+     "kind": "latency",
+     "ok": true,
+     "stale": false,
+     "expect": "'Page 6: Admin'",
+     "first_byte_ms": 19.576547,
+     "first_paint_ms": 24.681625,
+     "ready_ms": 140.554852,
+     "settled_ms": 260.299012,
+     "paints": 3,
+     "writes": 27,
+     "bytes": 90164,
+     "cpu_ms": 259.263571,
+     "round": 0
+    }
+   ],
+   "idle.3s": [
+    {
+     "name": "idle.3s",
+     "kind": "idle",
+     "ok": true,
+     "cpu_pct": 0.042494640479355375,
+     "wakeups_s": 0.0,
+     "bytes_s": 0.0,
+     "round": 0
+    }
+   ],
+   "memory": [
+    {
+     "name": "memory",
+     "kind": "memory",
+     "ok": true,
+     "rss_kb": 87652,
+     "pss_kb": 77747,
+     "procs": 1,
+     "threads": 4,
+     "round": 0
+    }
+   ]
+  }
+ },
+ "snapshots": {
+  "wb-dabt": {
+   "jobs.run": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Overview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502   Overview              \u2502\u2502  Page 1: Overview                                                                                                       \u2502\n\u2502   Tasks                 \u2502\u2502                                                                                                                         \u2502\n\u2502   Notes                 \u2502\u2502  Build:  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 100%  \u2502\n\u2502   Logs                  \u2502\u2502  Test:   \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 100%  \u2502\n\u2502   Settings              \u2502\u2502  Deploy: \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588 100%  \u2502\n\u2502   Admin                 \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502  Jobs: done                                                                                                             \u2502\n\u2502   Quit                  \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502  [ Start jobs ]                                                                                                         \u2502\n\u2502                         \u2502\u2502  [ Reset ]                                                                                                              \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                            \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                         \u2502\u2502                                                                            \u2502 \u2714 All jobs finished                        \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n ctrl+q  Quit   ctrl+p  Command bar",
+   "focus.table2": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Tasks \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Detail \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502   Overview              \u2502\u2502  Page 2: Tasks                                                              \u2502\u2502  Selected: T-0006                        \u2502\n\u2502   Tasks                 \u2502\u2502                                                                             \u2502\u2502                                          \u2502\n\u2502   Notes                 \u2502\u2502  Filter: cache                                                              \u2502\u2502  Title: Fix cache 6                      \u2502\n\u2502   Logs                  \u2502\u2502  Status:                                                                    \u2502\u2502  Owner: ada                              \u2502\n\u2502   Settings              \u2502\u2502  Rows: 36/200                                                               \u2502\u2502  Status: open                            \u2502\n\u2502   Admin                 \u2502\u2502  ID      Title             Owner  Status                                    \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0006  Fix cache 6       ada    open                                      \u2502\u2502  [ ] Flagged                             \u2502\n\u2502   Quit                  \u2502\u2502  T-0007  Review cache 7    bob    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0008  Ship cache 8      cy     blocked                                   \u2502\u2502  [ Delete ]                              \u2502\n\u2502                         \u2502\u2502  T-0009  Plan cache 9      dee    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0010  Test cache 10     eli    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0011  Draft cache 11    fay    blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0042  Fix cache 42      ada    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0043  Review cache 43   bob    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0044  Ship cache 44     cy     blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0045  Plan cache 45     dee    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0046  Test cache 46     eli    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0047  Draft cache 47    fay    blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0078  Fix cache 78      ada    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0079  Review cache 79   bob    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0080  Ship cache 80     cy     blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0081  Plan cache 81     dee    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0082  Test cache 82     eli    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0083  Draft cache 83    fay    blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0114  Fix cache 114     ada    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0115  Review cache 115  bob    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0116  Ship cache 116    cy     blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0117  Plan cache 117    dee    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0118  Test cache 118    eli    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0119  Draft cache 119   fay    blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0150  Fix cache 150     ada    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0151  Review cache 151  bob    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0152  Ship cache 152    cy     blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0153  Plan cache 153    dee    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0154  Test cache 154    eli    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0155  Draft cache 155   fay    blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0186  Fix cache 186     ada    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0187  Review cache 187  bob    done                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0188  Ship cache 188    cy     blocked                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0189  Plan cache 189    dee    open                                      \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0190  Test cache 190    eli    done                                     \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                         \u2502\u2502  T-0191  Draft cache 191   fay    blocked                                  \u2502 \u2714 All jobs finished                        \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n ctrl+q  Quit   ctrl+p  Command bar   alt+backspace  Back",
+   "editor.word": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Editor \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Preview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502   Overview              \u2502\u2502  Page 3: Notes                                            \u2502\u2502  alpha beta gamma # Release notes\n\u2502   Tasks                 \u2502\u2502  Words: 98                                                \u2502\u2502\n\u2502   Notes                 \u2502\u2502  alpha beta gamma # Release notes                         \u2502\u2502  Version 2.4 brings a faster renderer and a few fixes.\n\u2502   Logs                  \u2502\u2502                                                           \u2502\u2502\n\u2502   Settings              \u2502\u2502  Version **2.4** brings a faster *renderer* and a few fi  \u2502\u2502  \u2577 \u2577 \u2576\u252c\u2574 \u256d\u2500\u2500 \u2577 \u2577 \u2577   \u2576\u252c\u2574 \u256d\u2500\u2500 \u2577 \u2577 \u2576\u252c\u2574 \u256d\u2500\u2500\n\u2502   Admin                 \u2502\u2502                                                           \u2502\u2502  \u251c\u2500\u2524  \u2502  \u2502 \u2510 \u251c\u2500\u2524 \u2502    \u2502  \u2502 \u2510 \u251c\u2500\u2524  \u2502  \u2570\u2500\u256e\n\u2502                         \u2502\u2502  ## Highlights                                            \u2502\u2502  \u2575 \u2575 \u2576\u2534\u2574 \u2570\u2500\u256f \u2575 \u2575 \u2570\u2500\u2500 \u2576\u2534\u2574 \u2570\u2500\u256f \u2575 \u2575  \u2575  \u2500\u2500\u256f\n\u2502   Quit                  \u2502\u2502                                                           \u2502\u2502\n\u2502                         \u2502\u2502  - Smarter caching of rendered pages                      \u2502\u2502  \u2022 Smarter caching of rendered pages\n\u2502                         \u2502\u2502  - `--watch` shows the app live                           \u2502\u2502  \u2022 --watch shows the app live\n\u2502                         \u2502\u2502  - Fewer repaints while typing                            \u2502\u2502  \u2022 Fewer repaints while typing\n\u2502                         \u2502\u2502                                                           \u2502\u2502\n\u2502                         \u2502\u2502  ## Install                                               \u2502\u2502  \u2576\u252c\u2574 \u256d\u256e\u2577 \u256d\u2500\u2500 \u2576\u252c\u2574 \u256d\u2500\u256e \u2577   \u2577\n\u2502                         \u2502\u2502                                                           \u2502\u2502   \u2502  \u2502\u2570\u2524 \u2570\u2500\u256e  \u2502  \u251c\u2500\u2524 \u2502   \u2502\n\u2502                         \u2502\u2502  ```bash                                                  \u2502\u2502  \u2576\u2534\u2574 \u2575 \u2575 \u2500\u2500\u256f  \u2575  \u2575 \u2575 \u2570\u2500\u2500 \u2570\u2500\u2500\n\u2502                         \u2502\u2502  curl -fsSL https://example.org/install.sh | bash         \u2502\u2502\n\u2502                         \u2502\u2502  tool --version                                           \u2502\u2502  curl -fsSL https://example.org/install.sh | bash\n\u2502                         \u2502\u2502  ```                                                      \u2502\u2502  tool --version\n\u2502                         \u2502\u2502                                                           \u2502\u2502\n\u2502                         \u2502\u2502  ## Status                                                \u2502\u2502  \u256d\u2500\u2500 \u2576\u252c\u2574 \u256d\u2500\u256e \u2576\u252c\u2574 \u2577 \u2577 \u256d\u2500\u2500\n\u2502                         \u2502\u2502                                                           \u2502\u2502  \u2570\u2500\u256e  \u2502  \u251c\u2500\u2524  \u2502  \u2502 \u2502 \u2570\u2500\u256e\n\u2502                         \u2502\u2502  | Area | State |                                         \u2502\u2502  \u2500\u2500\u256f  \u2575  \u2575 \u2575  \u2575  \u2570\u2500\u256f \u2500\u2500\u256f\n\u2502                         \u2502\u2502  |------|-------|                                         \u2502\u2502\n\u2502                         \u2502\u2502  | Render | done |                                        \u2502\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                         \u2502\u2502  | Input | done |                                         \u2502\u2502  \u2502 Area   \u2502 State       \u2502\n\u2502                         \u2502\u2502  | Docs | in progress |                                   \u2502\u2502  \u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502                         \u2502\u2502                                                           \u2502\u2502  \u2502 Render \u2502 done        \u2502\n\u2502                         \u2502\u2502  > Tip: press **alt+2** to open the task list.            \u2502\u2502  \u2502 Input  \u2502 done        \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502  \u2502 Docs   \u2502 in progress \u2502\n\u2502                         \u2502\u2502  ### Checklist                                            \u2502\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u2502                         \u2502\u2502                                                           \u2502\u2502\n\u2502                         \u2502\u2502  1. Read the notes                                        \u2502\u2502  \u2502 Tip: press alt+2 to open the task list.\n\u2502                         \u2502\u2502  2. Try the new build                                     \u2502\u2502\n\u2502                         \u2502\u2502  3. Report problems                                       \u2502\u2502  Checklist\n\u2502                         \u2502\u2502                                                           \u2502\u2502\n\u2502                         \u2502\u2502  Visit [the docs](https://example.org/docs) for more.     \u2502\u2502  1. Read the notes\n\u2502                         \u2502\u2502                                                           \u2502\u2502  2. Try the new build                                      \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502  3. Report problems                                        \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502  Visit the docs (https://example.org/docs) for more.       \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502               \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                         \u2502\u2502                                                           \u2502\u2502               \u2502 \u2714 Deleted T-0006                           \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n ctrl+q  Quit   ctrl+p  Command bar   alt+backspace  Back",
+   "resize.back": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Logs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502   Overview              \u2502\u2502  Page 4: Logs                                                                                                           \u2502\n\u2502   Tasks                 \u2502\u2502                                                                                                                         \u2502\n\u2502   Notes                 \u2502\u2502  Lines: 2200                                                                                                            \u2502\n\u2502   Logs                  \u2502\u2502  Line: 1                                                                                                                \u2502\n\u2502   Settings              \u2502\u2502  [ Append 200 ]                                                                                                         \u2502\n\u2502   Admin                 \u2502\u2502   12:00:16 INFO svc-7 event number 16                                                                                \u2590  \u2502\n\u2502                         \u2502\u2502   12:00:17 INFO svc-8 event number 17                                                                                   \u2502\n\u2502   Quit                  \u2502\u2502   12:00:18 INFO svc-0 event number 18                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:19 INFO svc-1 event number 19                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:20 INFO svc-2 event number 20                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:21 WARN svc-3 event number 21                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:22 INFO svc-4 event number 22                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:23 INFO svc-5 event number 23                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:24 INFO svc-6 event number 24                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:25 INFO svc-7 event number 25                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:26 INFO svc-8 event number 26                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:27 INFO svc-0 event number 27                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:28 WARN svc-1 event number 28                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:29 INFO svc-2 event number 29                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:30 INFO svc-3 event number 30                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:31 INFO svc-4 event number 31                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:32 INFO svc-5 event number 32                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:33 INFO svc-6 event number 33                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:34 INFO svc-7 event number 34                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:35 WARN svc-8 event number 35                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:36 INFO svc-0 event number 36                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:37 INFO svc-1 event number 37                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:38 INFO svc-2 event number 38                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:39 INFO svc-3 event number 39                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:40 INFO svc-4 event number 40                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:41 INFO svc-5 event number 41                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:42 WARN svc-6 event number 42                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:43 INFO svc-7 event number 43                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:44 INFO svc-8 event number 44                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:45 INFO svc-0 event number 45                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:46 INFO svc-1 event number 46                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:47 INFO svc-2 event number 47                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:48 INFO svc-3 event number 48                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:49 WARN svc-4 event number 49                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:50 INFO svc-5 event number 50                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:51 INFO svc-6 event number 51                                                                                   \u2502\n\u2502                         \u2502\u2502   12:00:52 INFO svc-7 event number 52                                                                                   \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n ctrl+q  Quit   ctrl+p  Command bar   alt+backspace  Back",
+   "theme.light": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510                           General                                                     Appearance\n\u2502   Overview              \u2502\u250c\u2500 Admin \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502   Tasks                 \u2502\u2502  Page 6: Admin                                                                                                          \u2502\n\u2502   Notes                 \u2502\u2502  Tab: General                                                                                                           \u2502\n\u2502   Logs                  \u2502\u2502  Theme: light                                                                                                           \u2502\n\u2502   Settings              \u2502\u2502                                                                                                                         \u2502\n\u2502   Admin                 \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u2502   Quit                  \u2502\u250c\u2500 Network \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                         \u2502\u2502  Network: 3 interfaces up                                                                                               \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u25b2 \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                         \u2502\u25bc  Storage                                                                   \u2502 \u2714 Settings saved                           \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u25b2  Security                                                                  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n ctrl+q  Quit   ctrl+p  Command bar   alt+backspace  Back"
+  },
+  "wb-textual": {
+   "jobs.run": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Overview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502    Overview             \u2502\u2502 Page 1: Overview                                                                                                        \u2502\n\u2502    Tasks                \u2502\u2502                                                                                                                         \u2502\n\u2502    Notes                \u2502\u2502 Build:  \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 \u2502\n\u2502    Logs                 \u2502\u2502 Test:   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 \u2502\n\u2502    Settings             \u2502\u2502 Deploy: \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 \u2502\n\u2502    Admin                \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502 Jobs: done                                                                                                              \u2502\n\u2502    Quit                 \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                            \u258c                                                            \u2502\n\u2502                         \u2502\u2502                                                            \u258c All jobs finished                                          \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u258c                                                           \u2500\u2518\n alt+1 Overview  alt+2 Tasks  alt+3 Notes  alt+4 Logs  alt+5 Settings  alt+6 Admin  alt+s Start jobs  alt+r Reset                         \u258f^p palette",
+   "focus.table2": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Tasks \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Detail \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502    Overview             \u2502\u2502 Page 2: Tasks                                                               \u2502\u2502 Selected: T-0006                         \u2502\n\u2502    Tasks                \u2502\u2502                                                                             \u2502\u2502                                          \u2502\n\u2502    Notes                \u2502\u2502 Filter: cache                                                               \u2502\u2502 Title: Fix cache 6                       \u2502\n\u2502    Logs                 \u2502\u2502 Status: all                    \u25bc                                            \u2502\u2502 Owner: ada                               \u2502\n\u2502    Settings             \u2502\u2502 Rows: 36/200                                                                \u2502\u2502 Status: open                             \u2502\n\u2502    Admin                \u2502\u2502  ID      Title              Owner  Status                                   \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0006  Fix cache 6        ada    open                                     \u2502\u2502 \u2590X\u258c Flagged                              \u2502\n\u2502    Quit                 \u2502\u2502  T-0007  Review cache 7     bob    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0008  Ship cache 8       cy     blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0009  Plan cache 9       dee    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0010  Test cache 10      eli    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0011  Draft cache 11     fay    blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0042  Fix cache 42       ada    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0043  Review cache 43    bob    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0044  Ship cache 44      cy     blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0045  Plan cache 45      dee    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0046  Test cache 46      eli    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0047  Draft cache 47     fay    blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0078  Fix cache 78       ada    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0079  Review cache 79    bob    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0080  Ship cache 80      cy     blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0081  Plan cache 81      dee    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0082  Test cache 82      eli    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0083  Draft cache 83     fay    blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0114  Fix cache 114      ada    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0115  Review cache 115   bob    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0116  Ship cache 116     cy     blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0117  Plan cache 117     dee    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0118  Test cache 118     eli    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0119  Draft cache 119    fay    blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0150  Fix cache 150      ada    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0151  Review cache 151   bob    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0152  Ship cache 152     cy     blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0153  Plan cache 153     dee    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0154  Test cache 154     eli    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0155  Draft cache 155    fay    blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0186  Fix cache 186      ada    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0187  Review cache 187   bob    done                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0188  Ship cache 188     cy     blocked                                  \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0189  Plan cache 189     dee    open                                     \u2502\u2502                                          \u2502\n\u2502                         \u2502\u2502  T-0190  Test cache 190     eli    done                    \u258c                                                            \u2502\n\u2502                         \u2502\u2502  T-0191  Draft cache 191    fay    blocked                 \u258c All jobs finished                                          \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u258c                                                           \u2500\u2518\n alt+1 Overview  alt+2 Tasks  alt+3 Notes  alt+4 Logs  alt+5 Settings  alt+6 Admin  alt+i Filter  alt+t Table  alt+d Delete               \u258f^p palette",
+   "editor.word": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Editor \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Preview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502    Overview             \u2502\u2502 Page 3: Notes                                             \u2502\u2502 alpha beta gamma # Release notes                           \u2502\n\u2502    Tasks                \u2502\u2502 Words: 98                                                 \u2502\u2502                                                            \u2502\n\u2502    Notes                \u2502\u2502 alpha beta gamma # Release notes                          \u2502\u2502 Version 2.4 brings a faster renderer and a few fixes.      \u2502\n\u2502    Logs                 \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502    Settings             \u2502\u2502 Version **2.4** brings a faster *renderer* and a few      \u2502\u2502                                                            \u2502\n\u2502    Admin                \u2502\u2502 fixes.                                                    \u2502\u2502 Highlights                                                 \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502    Quit                 \u2502\u2502 ## Highlights                                             \u2502\u2502 \u2022 Smarter caching of rendered pages                        \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 - Smarter caching of rendered pages                       \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 - `--watch` shows the app live                            \u2502\u2502 Install                                                    \u2502\n\u2502                         \u2502\u2502 - Fewer repaints while typing                             \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 ## Install                                                \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 ```bash                                                   \u2502\u2502 Status                                                     \u2502\n\u2502                         \u2502\u2502 curl -fsSL https://example.org/install.sh | bash          \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 tool --version                                            \u2502\u2502 \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510 \u2502\n\u2502                         \u2502\u2502 ```                                                       \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502 \u258c Tip: press alt+2 to open the task list.                  \u2502\n\u2502                         \u2502\u2502 ## Status                                                 \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502 Checklist                                                  \u2502\n\u2502                         \u2502\u2502 | Area | State |                                          \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 |------|-------|                                          \u2502\u2502  1. Read the notes                                         \u2502\n\u2502                         \u2502\u2502 | Render | done |                                         \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 | Input | done |                                          \u2502\u2502 Visit the docs for more.                                   \u2502\n\u2502                         \u2502\u2502 | Docs | in progress |                                    \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 > Tip: press **alt+2** to open the task list.             \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 ### Checklist                                             \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 1. Read the notes                                         \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 2. Try the new build                                      \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 3. Report problems                                        \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502 Visit [the docs](https://example.org/docs) for more.      \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u2502                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u258c                                                            \u2502\n\u2502                         \u2502\u2502                                                           \u2502\u258c Deleted T-0006                                             \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u258c                                                           \u2500\u2518\n alt+1 Overview  alt+2 Tasks  alt+3 Notes  alt+4 Logs  alt+5 Settings  alt+6 Admin  alt+e Editor                                          \u258f^p palette",
+   "resize.back": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Logs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502    Overview             \u2502\u2502 Page 4: Logs                                                                                                            \u2502\n\u2502    Tasks                \u2502\u2502                                                                                                                         \u2502\n\u2502    Notes                \u2502\u2502 Lines: 2200                                                                                                             \u2502\n\u2502    Logs                 \u2502\u2502 Line: 1                                                                                                                 \u2502\n\u2502    Settings             \u2502\u2502  [ Append 200 ]                                                                                                         \u2502\n\u2502    Admin                \u2502\u2502 12:00:11 INFO svc-2 event number 11                                                                                  \u2587\u2587 \u2502\n\u2502                         \u2502\u2502 12:00:12 INFO svc-3 event number 12                                                                                  \u2587\u2587 \u2502\n\u2502    Quit                 \u2502\u2502 12:00:13 INFO svc-4 event number 13                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:14 WARN svc-5 event number 14                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:15 INFO svc-6 event number 15                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:16 INFO svc-7 event number 16                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:17 INFO svc-8 event number 17                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:18 INFO svc-0 event number 18                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:19 INFO svc-1 event number 19                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:20 INFO svc-2 event number 20                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:21 WARN svc-3 event number 21                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:22 INFO svc-4 event number 22                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:23 INFO svc-5 event number 23                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:24 INFO svc-6 event number 24                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:25 INFO svc-7 event number 25                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:26 INFO svc-8 event number 26                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:27 INFO svc-0 event number 27                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:28 WARN svc-1 event number 28                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:29 INFO svc-2 event number 29                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:30 INFO svc-3 event number 30                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:31 INFO svc-4 event number 31                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:32 INFO svc-5 event number 32                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:33 INFO svc-6 event number 33                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:34 INFO svc-7 event number 34                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:35 WARN svc-8 event number 35                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:36 INFO svc-0 event number 36                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:37 INFO svc-1 event number 37                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:38 INFO svc-2 event number 38                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:39 INFO svc-3 event number 39                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:40 INFO svc-4 event number 40                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:41 INFO svc-5 event number 41                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:42 WARN svc-6 event number 42                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:43 INFO svc-7 event number 43                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:44 INFO svc-8 event number 44                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:45 INFO svc-0 event number 45                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:46 INFO svc-1 event number 46                                                                                     \u2502\n\u2502                         \u2502\u2502 12:00:47 INFO svc-2 event number 47                                                                                     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n alt+1 Overview  alt+2 Tasks  alt+3 Notes  alt+4 Logs  alt+5 Settings  alt+6 Admin  alt+a Append  alt+l List                              \u258f^p palette",
+   "theme.light": "\u250c\u2500 Menu \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u250c\u2500 Admin \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502    Overview             \u2502\u2502 Page 6: Admin                                                                                                           \u2502\n\u2502    Tasks                \u2502\u2502  General  Appearance                                                                                                    \u2502\n\u2502    Notes                \u2502\u2502 \u2578\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u257a\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 \u2502\n\u2502    Logs                 \u2502\u2502 Tab: General                                                                                                            \u2502\n\u2502    Settings             \u2502\u2502 Theme: light                                                                                                            \u2502\n\u2502    Admin                \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502    Quit                 \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2502                                                                                                                         \u2502\n\u2502                         \u2502\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u2502                         \u2502\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\n\u2502                         \u2502  \u25bc Network\n\u2502                         \u2502\n\u2502                         \u2502    Network: 3 interfaces up\n\u2502                         \u2502\n\u2502                         \u2502\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\n\u2502                         \u2502  \u25b6 Storage\n\u2502                         \u2502\n\u2502                         \u2502\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u2594\u258c                                                           \u2594\u2594\n\u2502                         \u2502  \u25b6 Security                                                 \u258c Settings saved\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518                                                             \u258c\n alt+1 Overview  alt+2 Tasks  alt+3 Notes  alt+4 Logs  alt+5 Settings  alt+6 Admin  alt+g General  alt+v Appearance  alt+z Network  alt+m \u258f^p palette"
+  }
+ }
+}

@@ -18,6 +18,15 @@
 #   .classname:selected { ... }   a button's look while tui.select marked it selected (a current tab or
 #                               nav entry); focus and hover still win, fields left out fall back to normal.
 #
+#   .type.variant { ... }      a named design of a widget type (markup: variant="NAME"); inherits the base
+#                               `.type` rule, so it only states what differs.
+#   @import "other.css";       applies other.css here (path relative to this file); rules after it override it.
+#   .type { fill: "█"; }       glyph properties: a quoted single-cell glyph per slot of _TUI_G_DEFAULT.
+#
+#   .classname { cursor: pointer; }   mouse pointer shape while over a widget of the class (CSS names: pointer, text, not-allowed, grab, ...;
+#                               `.cls:hover { cursor: x; }` while hovered, `.cls:focus` while the focused widget is hovered (hover wins).
+#                               `default` leaves it alone). Widgets without one get a type default (tui_mouse.sh).
+#
 # fg/bg accept a colors.sh name (e.g. "red") or a "#RRGGBB" hex value.
 # mods is a space-separated list of style.* modifiers (e.g. "bold underline").
 #
@@ -25,11 +34,133 @@
 # tui.class ID CLASS    applies a class's rules to a pane or widget id.
 # tui.style ID:STATE FG BG MODS   sets style directly, bypassing classes.
 #   STATE is one of: normal (default), focus, border, title, hover, checked, unchecked, selected.
+# tui.glyph.set TYPE KEY GLYPH [VARIANT]   sets one slot at run time.
+# tui.glyph.get TYPE KEY [VARIANT]   resolves a glyph slot into TUI_GLYPH: variant, then base, then built-in default.
 # requires:
 
 declare -gA _TUI_STYLE_FG=() _TUI_STYLE_BG=() _TUI_STYLE_MOD=()
 declare -gA _TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=()
+declare -gA _TUI_CLASS_CUR=() _TUI_STYLE_CUR=() # `cursor:` shape name: per class, and baked per "id_state" by tui.class
 declare -g _TUI_THEME_OVERLAY=""
+
+# Glyph slots. _TUI_G_DEFAULT is the built-in look ("type.key"); _TUI_G holds what themes set ("type.key" or
+# "type.variant.key"). A slot missing from _TUI_G_DEFAULT is not themeable.
+declare -gA _TUI_G_DEFAULT=(
+	[progress.fill]="█" [progress.empty]="░"
+	[checkbox.left]="[" [checkbox.on]="x" [checkbox.off]=" " [checkbox.right]="]"
+	[select.left]="[" [select.arrow]="▾" [select.right]="]"
+	[scrollbar.thumb]="▐" [scrollbar.track]=" "
+	[panebar.vthumb]=" " [panebar.vtrack]="│" [panebar.hthumb]=" " [panebar.htrack]="─"
+)
+declare -gA _TUI_G_EMPTY_OK=([checkbox.left]=1 [checkbox.right]=1 [select.left]=1 [select.right]=1) # slots a theme may blank
+declare -gA _TUI_G=()
+declare -gA _TUI_G_USER=()   # "type.key" -> the user's own base glyph (Settings page); beats the theme's base, not a variant
+declare -gA _TUI_V_DEFAULT=() # type -> the variant widgets of that type use when they name none
+declare -ga TUI_VARIANTS=() TUI_GLYPHS=()
+declare -g TUI_GLYPH=""
+declare -gi _TUI_G_GEN=0 # bumped on every change of _TUI_G: part of the key of cached rows that hold glyphs
+
+# _tui.variant_v ID TYPE -> _V : the widget's own variant, else the default for its type
+_tui.variant_v() { _V="${_TUI_W_VARIANT[$1]:-${_TUI_V_DEFAULT[$2]:-}}"; }
+
+# _tui.glyph_v TYPE KEY VARIANT -> TUI_GLYPH : the design's slot, else the theme's base, else the built-in default.
+# The design "custom" is the user's own (tui.glyph.user); any other name is a theme variant. Array reads only.
+_tui.glyph_v() {
+	if [[ "$3" == custom && -n "${_TUI_G_USER[$1.$2]+x}" ]]; then
+		TUI_GLYPH="${_TUI_G_USER[$1.$2]}"
+	elif [[ -n "$3" && "$3" != custom && -n "${_TUI_G[$1.$3.$2]+x}" ]]; then
+		TUI_GLYPH="${_TUI_G[$1.$3.$2]}"
+	else
+		TUI_GLYPH="${_TUI_G[$1.$2]-${_TUI_G_DEFAULT[$1.$2]-}}"
+	fi
+}
+
+# tui.glyph.available TYPE KEY -> TUI_GLYPHS : the glyphs the Settings page offers for a slot, read once from
+# $TUI_DEFAULTS_DIR/glyphs/available.txt ("@group slot ..." line, then the glyph lines of that group); empty when the
+# slot has no entry. Words: "none" (a blank bracket), "space" (a blank cell).
+declare -gA _TUI_G_AVAIL=()
+declare -gi _TUI_G_AVAIL_LOADED=0
+tui.glyph.available() {
+	if ((!_TUI_G_AVAIL_LOADED)); then
+		_TUI_G_AVAIL_LOADED=1
+		local file="${TUI_DEFAULTS_DIR:-}/glyphs/available.txt" line slots="" list="" s
+		if [[ -r "$file" ]]; then
+			while IFS= read -r line || [[ -n "$line" ]]; do
+				[[ -z "$line" || "$line" == \#* ]] && continue
+				if [[ "$line" == @* ]]; then
+					for s in $slots; do _TUI_G_AVAIL[$s]="$list"; done
+					slots="${line#@* }" list=""
+				else
+					list+="${list:+ }$line"
+				fi
+			done <"$file"
+			for s in $slots; do _TUI_G_AVAIL[$s]="$list"; done
+		fi
+	fi
+	TUI_GLYPHS=()
+	[[ -n "${_TUI_G_AVAIL[$1.$2]:-}" ]] && read -ra TUI_GLYPHS <<<"${_TUI_G_AVAIL[$1.$2]}"
+	return 0
+}
+
+# tui.glyph.user TYPE KEY [GLYPH] - one part of the user's own design, "custom" (see tui.variant.default). A missing
+# GLYPH removes the part; an empty one blanks it for the bracket slots (_TUI_G_EMPTY_OK) and removes it elsewhere.
+# Kept across theme changes. rc 1 for an unknown slot or an unusable glyph.
+tui.glyph.user() {
+	local slot="$1.$2"
+	[[ -n "${_TUI_G_DEFAULT[$slot]+x}" ]] || return 1
+	if (($# < 3)) || [[ -z "$3" && -z "${_TUI_G_EMPTY_OK[$slot]+x}" ]]; then
+		unset '_TUI_G_USER[$slot]'
+	else
+		_tui.glyph_ok "$3" "$slot" || return 1
+		_TUI_G_USER[$slot]="$3"
+	fi
+	_TUI_G_GEN+=1
+}
+
+# tui.variant.default TYPE [NAME] - the design widgets of TYPE use when they name no variant; empty NAME clears it.
+tui.variant.default() {
+	if [[ -n "${2:-}" ]]; then _TUI_V_DEFAULT[$1]="$2"; else unset '_TUI_V_DEFAULT[$1]'; fi
+	_TUI_G_GEN+=1
+}
+
+# tui.variant.list TYPE -> TUI_VARIANTS : the variant names the loaded theme defines for TYPE, sorted
+tui.variant.list() {
+	local slot name
+	local -A seen=()
+	TUI_VARIANTS=()
+	for slot in "${!_TUI_G[@]}"; do
+		[[ "$slot" == "$1".*.* ]] || continue
+		name="${slot#"$1".}"
+		name="${name%.*}"
+		seen[$name]=1
+	done
+	((${#seen[@]})) || return 0
+	TUI_VARIANTS=($(printf '%s\n' "${!seen[@]}" | LC_ALL=C sort))
+}
+
+# tui.glyph.get TYPE KEY [VARIANT] -> TUI_GLYPH
+tui.glyph.get() { _tui.glyph_v "$1" "$2" "${3:-}"; }
+
+# tui.glyph.set TYPE KEY GLYPH [VARIANT] - sets a slot at run time; rc 1 for an unknown slot or an unusable glyph.
+# A theme reload clears it (themes own _TUI_G), so an app re-applies its choice when its page is shown.
+tui.glyph.set() {
+	local type="$1" key="$2" variant="${4:-}"
+	[[ -n "${_TUI_G_DEFAULT[$type.$key]+x}" ]] && _tui.glyph_ok "$3" "$type.$key" || return 1
+	_TUI_G[$type${variant:+.$variant}.$key]="$3"
+	_TUI_G_GEN+=1
+}
+
+# _tui.glyph_ok GLYPH SLOT - true for a glyph without control characters that is one terminal cell wide; empty only
+# for the slots in _TUI_G_EMPTY_OK (the width is only measurable under a UTF-8 locale; ${#} counts bytes otherwise).
+_tui.glyph_ok() {
+	[[ -z "$1" && -n "${_TUI_G_EMPTY_OK[${2:-}]+x}" ]] && return 0
+	[[ -n "$1" && "$1" != *[[:cntrl:]]* ]] || return 1
+	local u=$'\xc3\xa9'
+	((${#u} == 1)) || return 0
+	declare -F _tui_md.cells >/dev/null || return 0
+	_tui_md.cells "$1"
+	((_VL == 1))
+}
 
 # tui.style ID FG BG MODS [STATE]  - low-level setter behind tui.class.
 tui.style() {
@@ -47,7 +178,7 @@ tui.style() {
 _tui.style_clear() {
 	local state
 	for state in normal focus border title hover checked unchecked selected; do
-		unset '_TUI_STYLE_FG[${1}_$state]' '_TUI_STYLE_BG[${1}_$state]' '_TUI_STYLE_MOD[${1}_$state]'
+		unset '_TUI_STYLE_FG[${1}_$state]' '_TUI_STYLE_BG[${1}_$state]' '_TUI_STYLE_MOD[${1}_$state]' '_TUI_STYLE_CUR[${1}_$state]'
 	done
 	_tui.epoch_bump style
 }
@@ -59,8 +190,8 @@ _tui.style_clear() {
 #     _tui.theme_commit         copies _TP_* into _TUI_CLASS_* (later files override earlier ones)
 #     _tui.theme_load_file FILE parse + commit + collision check. tui_cache.sh REDEFINES this with a
 #                               memoized version (parsed once per file, re-applied from memory).
-declare -gA _TP_FG=() _TP_BG=() _TP_MOD=() _TP_SEEN=()
-declare -ga _TP_ORDER=()
+declare -gA _TP_FG=() _TP_BG=() _TP_MOD=() _TP_CUR=() _TP_SEEN=() _TP_G=()
+declare -ga _TP_ORDER=() _TP_DEPS=() # _TP_DEPS: the files the parsed stylesheet imported
 
 # Records one declaration of the rule being parsed.
 _tui.theme_decl() { # CLASS KEY VALUE
@@ -75,28 +206,73 @@ _tui.theme_decl() { # CLASS KEY VALUE
 		fg) _TP_FG[$cls]="$val" ;;
 		bg) _TP_BG[$cls]="$val" ;;
 		mods) _TP_MOD[$cls]="$val" ;;
+		cursor) _TP_CUR[$cls]="$val" ;;
+		*) _tui.theme_glyph_decl "$cls" "$key" "$val" ;;
 	esac
 }
 
+# _tui.theme_glyph_decl CLASS KEY VALUE - stages a glyph property ("type.variant.key" slot) of the rule being parsed;
+# anything that is not a quoted, themeable, one-cell glyph is dropped with a warning.
+_tui.theme_glyph_decl() {
+	local cls="$1" key="$2" val="$3" type="${1%%.*}"
+	if [[ -z "${_TUI_G_DEFAULT[$type.$key]+x}" || "$val" != \"*\" ]]; then
+		tui.log.warn "theme: ignoring '$key: $val' in .$cls (unknown glyph slot or value not quoted)"
+		return 0
+	fi
+	val="${val#\"}"
+	val="${val%\"}"
+	if ! _tui.glyph_ok "$val" "$type.$key"; then
+		tui.log.warn "theme: ignoring '$key' in .$cls: glyph must be one visible cell"
+		return 0
+	fi
+	_TP_G[$cls.$key]="$val"
+}
+
+# _tui.theme_parse FILE - parses FILE (and what it imports) into the _TP_* staging tables.
 _tui.theme_parse() {
-	local file="$1" line cur="" body decl
 	_TP_FG=()
 	_TP_BG=()
 	_TP_MOD=()
+	_TP_CUR=()
 	_TP_SEEN=()
+	_TP_G=()
 	_TP_ORDER=()
-	local open_re='^\.([A-Za-z0-9_-]+(:[a-z]+)?)[[:space:]]*\{$'
-	local one_re='^\.([A-Za-z0-9_-]+(:[a-z]+)?)[[:space:]]*\{(.*)\}$' # .name { fg: x; bg: y; }
+	_TP_DEPS=()
+	_tui.theme_parse_into "$1" 0
+}
+
+# _tui.theme_parse_into FILE DEPTH - adds FILE's rules to the staging tables. An `@import "x.css";` is parsed in place,
+# so everything after it overrides what it brought; x.css is relative to FILE's directory. A missing file, or one
+# nested deeper than 8 levels (an import cycle), is skipped with a warning.
+_tui.theme_parse_into() {
+	local file="$1" depth="$2" line cur="" body decl dir="${1%/*}" imp
+	[[ "$file" == */* ]] || dir="."
+	((depth > 8)) && {
+		tui.log.warn "theme: @import nested too deep at $file (cycle?)"
+		return 0
+	}
+	local open_re='^\.([A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)?(:[a-z]+)?)[[:space:]]*\{$'
+	local one_re='^\.([A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)?(:[a-z]+)?)[[:space:]]*\{(.*)\}$' # .name { fg: x; bg: y; }
 	local decl_re='^([a-z]+)[[:space:]]*:[[:space:]]*([^;]+);?$'
+	local import_re='^@import[[:space:]]+(url\()?"([^"]+)"\)?[[:space:]]*;?$'
 	while IFS= read -r line || [[ -n "$line" ]]; do
 		line="${line#"${line%%[![:space:]]*}"}"
 		line="${line%"${line##*[![:space:]]}"}" # trim, no fork
 		[[ -z "$line" || "$line" == /\** ]] && continue
-		if [[ "$line" =~ $open_re ]]; then
+		if [[ "$line" =~ $import_re ]]; then
+			imp="${BASH_REMATCH[2]}"
+			[[ "$imp" == /* ]] || imp="$dir/$imp"
+			if [[ -r "$imp" ]]; then
+				_TP_DEPS+=("$imp")
+				_tui.theme_parse_into "$imp" $((depth + 1))
+			else
+				tui.log.warn "theme: @import '$imp' in $file cannot be read"
+			fi
+		elif [[ "$line" =~ $open_re ]]; then
 			cur="${BASH_REMATCH[1]/:/_}"
 		elif [[ "$line" =~ $one_re ]]; then
 			cur="${BASH_REMATCH[1]/:/_}"
-			body="${BASH_REMATCH[3]}"
+			body="${BASH_REMATCH[4]}"
 			while [[ -n "$body" ]]; do
 				decl="${body%%;*}"
 				[[ "$body" == *";"* ]] && body="${body#*;}" || body=""
@@ -113,12 +289,15 @@ _tui.theme_parse() {
 }
 
 _tui.theme_commit() {
-	local cls
+	local cls slot
 	tui.log.debug "_tui.theme_commit: committing ${#_TP_ORDER[@]} class(es) into _TUI_CLASS_*"
+	for slot in "${!_TP_G[@]}"; do _TUI_G[$slot]="${_TP_G[$slot]}"; done
+	_TUI_G_GEN+=1
 	for cls in "${_TP_ORDER[@]}"; do
 		[[ -n "${_TP_FG[$cls]:-}" ]] && _TUI_CLASS_FG[$cls]="${_TP_FG[$cls]}"
 		[[ -n "${_TP_BG[$cls]:-}" ]] && _TUI_CLASS_BG[$cls]="${_TP_BG[$cls]}"
 		[[ -n "${_TP_MOD[$cls]:-}" ]] && _TUI_CLASS_MOD[$cls]="${_TP_MOD[$cls]}"
+		[[ -n "${_TP_CUR[$cls]:-}" ]] && _TUI_CLASS_CUR[$cls]="${_TP_CUR[$cls]}"
 	done
 }
 
@@ -126,7 +305,8 @@ _tui.theme_commit() {
 # ones), so a class or property the new theme leaves out would keep the previous theme's colour; a theme switch
 # resets first and rebuilds from the framework default.
 _tui.theme_reset() {
-	_TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=()
+	_TUI_CLASS_FG=() _TUI_CLASS_BG=() _TUI_CLASS_MOD=() _TUI_CLASS_CUR=() _TUI_G=()
+	_TUI_G_GEN+=1
 	_TUI_THEME_COLLISIONS=()
 	[[ -r "${TUI_DEFAULTS_DIR:-}/theme.css" ]] && tui.load_theme "$TUI_DEFAULTS_DIR/theme.css"
 	return 0
@@ -248,5 +428,6 @@ tui.class() {
 		if [[ -n "${_TUI_CLASS_FG[$suffix]:-}${_TUI_CLASS_BG[$suffix]:-}${_TUI_CLASS_MOD[$suffix]:-}" ]]; then
 			tui.style "$id" "${_TUI_CLASS_FG[$suffix]:-}" "${_TUI_CLASS_BG[$suffix]:-}" "${_TUI_CLASS_MOD[$suffix]:-}" "$state"
 		fi
+		[[ -n "${_TUI_CLASS_CUR[$suffix]:-}" ]] && _TUI_STYLE_CUR[${id}_$state]="${_TUI_CLASS_CUR[$suffix]}"
 	done
 }

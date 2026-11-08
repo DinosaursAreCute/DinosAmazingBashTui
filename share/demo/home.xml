@@ -13,6 +13,7 @@
       <button id="btn_t_monitor" text="Monitor     CPU, memory, load and disk straight from /proc" page="monitor.xml" class="nav_link" align="left"/>
       <button id="btn_t_terminal" text="Terminal    a real bash session running inside a pane" page="terminal.xml" class="nav_link" align="left"/>
       <button id="btn_t_scrolling" text="Scrolling   wheel, drag and vim keys; scrolling widget forms" page="scrolling.xml" class="nav_link" align="left"/>
+      <button id="btn_t_markdown" text="Markdown    the design write-ups, one tab per file" page="markdown.xml" class="nav_link" align="left"/>
       <button id="btn_t_case" text="Case Study  a benchmark page built from the same parts" page="case_study.xml" class="nav_link" align="left"/>
       <button id="btn_t_docs" text="Docs        the design write-ups, one tab per file" page="docu.xml" class="nav_link" align="left"/>
       <button id="btn_t_layout" text="Layout      alignment, min/max sizing, padding, borders" page="features.xml" class="nav_link" align="left"/>

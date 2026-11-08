@@ -21,18 +21,19 @@
   <button id="btn_monitor"       pane="nav" row="3"  text="  Monitor"    page="monitor.xml"    class="nav_link" align="left" collapsed_text="MO"/>
   <button id="btn_terminal"      pane="nav" row="4"  text="  Terminal"   page="terminal.xml"   class="nav_link" align="left" collapsed_text="TE"/>
   <button id="btn_scrolling"     pane="nav" row="5"  text="  Scrolling"  page="scrolling.xml"  class="nav_link" align="left" collapsed_text="SC"/>
+  <button id="btn_markdown"      pane="nav" row="12" text="  Markdown"   page="markdown.xml"   class="nav_link" align="left" collapsed_text="MD"/>
   <button id="btn_case"          pane="nav" row="6"  text="  Case Study" page="case_study.xml" class="nav_link" align="left" collapsed_text="CA"/>
   <button id="btn_documentation" pane="nav" row="7"  text="  Docs"       page="docu.xml"       class="nav_link" align="left" collapsed_text="DO"/>
   <button id="btn_features"      pane="nav" row="8"  text="  Layout"     page="features.xml"   class="nav_link" align="left" collapsed_text="LA"/>
   <button id="btn_workspace"     pane="nav" row="9" text="  Workspace"  page="workspace.xml"  class="nav_link" align="left"  collapsed_text="WO"/>
   <button id="btn_widgets"       pane="nav" row="10" text="  Widgets"    page="widgets.xml"    class="nav_link" align="left" collapsed_text="WI"/>
   <button id="btn_layers"        pane="nav" row="11" text="  Layers"     page="layers.xml"     class="nav_link" align="left" collapsed_text="LY"/>
-  <label  id="divider_debug"     pane="nav" row="12" text="--- Debugging Tools---"  class="nav_divider" align="left"/>
-  <button id="btn_keys"          pane="nav" row="13" text="     Keys"       page="keys.xml"       class="nav_link" align="left" collapsed_text="KE"/>
-  <button id="btn_debug"         pane="nav" row="14" text="     Debug"      page="debug.xml"      class="nav_link" align="left" collapsed_text="DE"/>
-  <button id="btn_compose"       pane="nav" row="15" text="     Compose"    page="compose.xml"   class="nav_link" align="left" collapsed_text="CO"/>
-  <button id="btn_lab"           pane="nav" row="16" text="     Feature lab" page="debug_lab.xml" class="nav_link" align="left" collapsed_text="FL"/>
-  <button id="btn_quit"          pane="nav" row="17" text="     Quit"       action="tui.action.quit"      class="danger_button" align="left" collapsed_text="QU"/>
+  <label  id="divider_debug"     pane="nav" row="13" text="--- Debugging Tools---"  class="nav_divider" align="left"/>
+  <button id="btn_keys"          pane="nav" row="14" text="     Keys"       page="keys.xml"       class="nav_link" align="left" collapsed_text="KE"/>
+  <button id="btn_debug"         pane="nav" row="15" text="     Debug"      page="debug.xml"      class="nav_link" align="left" collapsed_text="DE"/>
+  <button id="btn_compose"       pane="nav" row="16" text="     Compose"    page="compose.xml"   class="nav_link" align="left" collapsed_text="CO"/>
+  <button id="btn_lab"           pane="nav" row="17" text="     Feature lab" page="debug_lab.xml" class="nav_link" align="left" collapsed_text="FL"/>
+  <button id="btn_quit"          pane="nav" row="18" text="     Quit"       action="tui.action.quit"      class="danger_button" align="left" collapsed_text="QU"/>
   <!-- q / ctrl+q quit, tab/arrows/f6, scrolling and paste come from share/defaults/keybinds.xml.
        App-specific: jump to a page with alt+1..9, focus the menu with alt+n. -->
   <bind key="alt+n" action="tui.action.focus_pane nav"                 desc="Focus the menu"/>

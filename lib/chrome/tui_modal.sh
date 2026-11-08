@@ -6,15 +6,17 @@
 # A MODAL is a layer that owns the input: while one is open every key goes to its handler and the
 # mouse goes to its mouse handler (or is ignored) - bindings, focus, scrolling and the pointer are
 # suspended. Only the terminal-control chord (ctrl+alt+p) and quit-on-SIGINT still work.
-#   tui.modal.open NAME KEYFN DRAWFN [MOUSEFN]
+#   tui.modal.open NAME KEYFN DRAWFN [MOUSEFN [POINTERFN]]
 #       KEYFN   NAME_OF_KEY     canonical key name ("a", "enter", "ctrl+p", "up"...); "paste" with TUI_EVENT_PASTE
 #       DRAWFN                  draws the modal
 #       MOUSEFN EVENT X Y       EVENT = mouse:left, wheel:up, ...  (absolute 1-based cell)
+#       POINTERFN X Y           sets _PS to the mouse pointer shape over the cell ("default" when it leaves _PS alone)
+#   tui.modal.count_keys "KEY ..."   the keys KEYFN handles with a count (TUI_EVENT_COUNT): held keys arrive merged
 #   tui.modal.close             remove it and repaint the screen
 #   tui.modal.active [NAME]     rc 0 while a modal (or that one) is open
 #   tui.modal.redraw            draw now (call after your state changes)
 # requires: tui_layer
-declare -g _TUI_MODAL="" _TUI_MODAL_KEYFN="" _TUI_MODAL_DRAWFN="" _TUI_MODAL_MOUSEFN=""
+declare -g _TUI_MODAL="" _TUI_MODAL_KEYFN="" _TUI_MODAL_DRAWFN="" _TUI_MODAL_MOUSEFN="" _TUI_MODAL_POINTERFN="" _TUI_MODAL_COUNT_KEYS=""
 
 declare -gi _TUI_FLUSH_GEN=0
 # Last full-render frame (saved by tui.render). tui.modal.dismiss replays it instead of re-composing the page
@@ -24,6 +26,9 @@ declare -g _TUI_BASE_FRAME=""
 declare -gi _TUI_BASE_GEN=-1 _TUI_OVL_FLUSHES=0 _TUI_BASE_EPOCH=-1 _TUI_BASE_ROWS=0 _TUI_BASE_COLS=0
 declare -gi _TUI_OVL_FLUSHING=0
 declare -gi _TUI_DISMISS_REPLAY="${TUI_DISMISS_REPLAY:-1}"
+# tui.modal.count_keys "KEY ..." - the keys the open modal's KEYFN handles with a count: a held key arrives as one call with
+# TUI_EVENT_COUNT = the number of presses merged, and KEYFN moves by that many. Cleared when the modal closes.
+tui.modal.count_keys() { _TUI_MODAL_COUNT_KEYS=" $1 "; }
 tui.modal.active() { [[ -n "$_TUI_MODAL" && (-z "${1:-}" || "$_TUI_MODAL" == "$1") ]]; }
 tui.modal.redraw() {
 	[[ -n "$_TUI_MODAL_DRAWFN" ]] && _tui_layer.draw_all
@@ -36,6 +41,8 @@ tui.modal.open() {
 	_TUI_MODAL_KEYFN="$2"
 	_TUI_MODAL_DRAWFN="$3"
 	_TUI_MODAL_MOUSEFN="${4:-}"
+	_TUI_MODAL_POINTERFN="${5:-}"
+	_TUI_MODAL_COUNT_KEYS=""
 	tui.layer.fn_add "$3"
 	_tui_async.cover_changed
 	((_TUI_RUNNING)) && _tui_layer.draw_all
@@ -49,6 +56,8 @@ tui.modal.close() {
 	_TUI_MODAL_KEYFN=""
 	_TUI_MODAL_DRAWFN=""
 	_TUI_MODAL_MOUSEFN=""
+	_TUI_MODAL_POINTERFN=""
+	_TUI_MODAL_COUNT_KEYS=""
 	_tui_async.cover_changed
 	tui.relayout # one synchronized full repaint: the overlay is gone, everything under it is back
 }
@@ -106,6 +115,7 @@ _tui_modal.reset() {
 	_TUI_MODAL_KEYFN=""
 	_TUI_MODAL_DRAWFN=""
 	_TUI_MODAL_MOUSEFN=""
+	_TUI_MODAL_COUNT_KEYS=""
 	_tui_async.cover_changed
 }
 

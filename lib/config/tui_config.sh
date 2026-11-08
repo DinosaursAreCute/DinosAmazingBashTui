@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # tui_config.sh - small persistent key/value store for FRAMEWORK settings (the default Settings page uses it).
 #   tui.config.get KEY [DEFAULT]      tui.config.set KEY VALUE (saved at once)      tui.config.unset KEY
-#   tui.config.load | tui.config.save | tui.config.apply
+#   tui.config.load | tui.config.save | tui.config.apply     tui.config.stage KEY [VALUE] | tui.config.flush (batched writes)
 # File: $TUI_APP_CONF/dabt.conf = ~/.config/DABT/apps/<app>/dabt.conf  (key=value lines; see tui_home.sh). tui.init applies:
-#   theme=/path/to/overlay.css      defaults.off="scroll quit"      input.retain=1|0      input.coalesce=1|0
-# Apps can keep their own keys here too - anything is stored; only those four mean something to the framework.
+#   theme=/path/to/overlay.css      defaults.off="scroll quit"      input.retain=1|0      input.coalesce=1|0      pointer.shape=1|0
+#   glyph.TYPE.KEY=GLYPH            variant.TYPE=NAME    (the Glyphs page: tui.glyph.user / tui.variant.default)
+# Apps can keep their own keys here too - anything is stored; only these mean something to the framework.
 # requires: tui_configuration tui_home
 declare -gA _TUI_CFG=()
 declare -g  TUI_CONFIG_FILE="${TUI_CONFIG_FILE:-$TUI_APP_CONF/dabt.conf}"
@@ -17,6 +18,11 @@ tui.config.get() {
 	else printf '%s' "${_TUI_CFG[$1]-${2:-}}"; fi
 }
 tui.config.set()   { _TUI_CFG[$1]="$2"; tui.config.save; }
+# tui.config.stage KEY [VALUE] changes the setting in memory only (a missing VALUE removes it); tui.config.flush writes
+# the file once, if anything was staged. For controls that change a setting many times a second.
+declare -gi _TUI_CFG_DIRTY=0
+tui.config.stage() { if (( $# > 1 )); then _TUI_CFG[$1]="$2"; else unset '_TUI_CFG[$1]'; fi; _TUI_CFG_DIRTY=1; }
+tui.config.flush() { (( _TUI_CFG_DIRTY )) || return 0; _TUI_CFG_DIRTY=0; tui.config.save; }
 tui.config.keys()  { printf '%s\n' "${!_TUI_CFG[@]}" | sort; }
 tui.config.unset() { unset '_TUI_CFG[$1]'; tui.config.save; }
 
@@ -41,7 +47,7 @@ tui.config.save() {
 }
 
 tui.config.apply() {
-    local g
+    local g t
     if [[ -n "${_TUI_CFG[theme]:-}" && -r "${_TUI_CFG[theme]}" ]]; then
         tui.log.debug "tui.config.apply: restoring persisted theme overlay -> ${_TUI_CFG[theme]}"
         _TUI_THEME_OVERLAY="${_TUI_CFG[theme]}"
@@ -52,10 +58,17 @@ tui.config.apply() {
     [[ -n "${_TUI_CFG[notify.position]:-}" ]] && tui.notify.position "${_TUI_CFG[notify.position]}" 2>/dev/null
     [[ -n "${_TUI_CFG[notify.seconds]:-}" ]]  && tui.notify.seconds "${_TUI_CFG[notify.seconds]}"
     declare -F tui.md.config_apply >/dev/null && tui.md.config_apply
+    for g in "${!_TUI_CFG[@]}"; do # glyph.TYPE.KEY = a base glyph, variant.TYPE = the default design of a widget type
+        case "$g" in
+            glyph.*.*) t="${g#glyph.}"; tui.glyph.user "${t%%.*}" "${t#*.}" "${_TUI_CFG[$g]}" 2>/dev/null ;;
+            variant.*) tui.variant.default "${g#variant.}" "${_TUI_CFG[$g]}" ;;
+        esac
+    done
     # DABT draws # and ## headings in block letters unless the user turned that off (Settings > Markdown)
     [[ -z "${_TUI_CFG[md.fonts]:-}" ]] && TUI_MD_FONTS=1
     [[ -n "${_TUI_CFG[input.retain]:-}" ]]   && TUI_INPUT_RETAIN_ON_SUBMIT="${_TUI_CFG[input.retain]}"
     [[ -n "${_TUI_CFG[input.coalesce]:-}" ]] && TUI_INPUT_COALESCE="${_TUI_CFG[input.coalesce]}"
+    [[ -n "${_TUI_CFG[pointer.shape]:-}" ]]  && TUI_POINTER_SHAPE="${_TUI_CFG[pointer.shape]}"
     return 0
 }
 

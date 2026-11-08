@@ -323,7 +323,7 @@ _master_cleanup() {
 	tui.async.stop_all 2>/dev/null # background painters end with the app
 	tui.cleanup 2>/dev/null
 	# Hard reset terminal state (ANSI resets + stty cooked mode)
-	printf "\e[0m\e[?25h\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1049l\r\n"
+	printf "\e]22;\e\\\e[0m\e[?25h\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1049l\r\n"
 	# tui.cleanup restored the saved settings; sane is only the fallback when none were saved
 	[[ -n "$_TUI_OLD_STTY" ]] || stty sane 2>/dev/null
 }
@@ -1099,6 +1099,8 @@ tui.on_action() { _TUI_W_ACTION[$1]="$2"; }
 tui.on_submit() { _TUI_W_SUBMIT[$1]="$2"; }
 tui.align() { [[ -n "$2" ]] && _TUI_W_ALIGN[$1]="$2"; }
 tui.valign() { [[ -n "$2" ]] && _TUI_W_VALIGN[$1]="$2"; }
+# tui.variant ID [NAME] - picks the design (.type.NAME glyphs) a widget draws with; empty NAME goes back to the base look.
+tui.variant() { if [[ -n "${2:-}" ]]; then _TUI_W_VARIANT[$1]="$2"; else unset '_TUI_W_VARIANT[$1]'; fi; }
 tui.minsize() {
 	[[ -n "$2" ]] && _TUI_W_MINW[$1]="$2"
 	[[ -n "$3" ]] && _TUI_W_MINH[$1]="$3"
@@ -1455,6 +1457,23 @@ _tui._widget_pos() {
 	((_wp_sc)) && _tui._wp_scroll "$1" "$pane" "$pr" "$ph" "$wvp"
 }
 
+# _tui._wp_offscreen WID PANE - rc 0 for a top-aligned widget of a vertically scrolling leaf pane whose first row lies above or
+# below the viewport: the clip in _tui._draw_widget_buf would drop it, so it is rejected before its placement is computed
+# (a page with many widgets in one scrolling pane otherwise pays that placement for every widget on every full render).
+# The pinned widget and non-top valigns keep the full path.
+_tui._wp_offscreen() {
+	[[ -z "${_TUI_P_CHILDREN[$2]:-}" && "${_TUI_P_SCROLL[$2]:-none}" == @(v|both) && "${_TUI_P_VALIGN[$2]:-top}" == top &&
+		"${_TUI_W_VALIGN[$1]:-top}" == top && "${_TUI_P_STUCK[$2]:-}" != "$1" ]] || return 1
+	if ((_TUI_WP_REUSE)) && [[ "$_TUI_WP_LAST" == "$2" ]]; then
+		_IV=$_TUI_WP_IV
+	else
+		_tui._inset "$2"
+		((_TUI_WP_REUSE)) && { _TUI_WP_LAST="$2" _TUI_WP_IV=$_IV _TUI_WP_IH=$_IH; }
+	fi
+	local viewport_h=$((${_TUI_P_H[$2]:-0} - 2 * _IV)) row=$((${_TUI_W_VPAD[$1]:-0} + ${_TUI_W_ROW[$1]:-0} - ${_TUI_P_SOFF_V[$2]:-0}))
+	((viewport_h > 0 && (row < 0 || row >= viewport_h)))
+}
+
 # _tui._wp_scroll WID PANE PANE_ROW PANE_H VPAD - the scroll part of _tui._widget_pos for a leaf pane that scrolls vertically:
 # moves _WSR up by the pane's offset, puts the pinned widget on the first viewport row (hiding another one that lands there
 # with _WSR=-1), and cuts a widget at the viewport's bottom edge. Reads _IV, _WSR, _WSH; sets _WSR, _WSH.
@@ -1775,6 +1794,21 @@ _tui._draw_pane_border_buf() {
 			_TUI_FRAME+="$_SC_BAR"
 		fi
 	fi
+	# tui.output panes: their bars measure lines/width, not widget content, and the border has just overwritten them too
+	if [[ "$scroll" != none ]] && _tui_scroll.is_output "$id"; then
+		local lines_n=${_TUI_P_LINES[$id]:-0} max_w=${_TUI_P_MAX_W[$id]:-0} _SC_BAR sty
+		_tui._content_rect "$id"
+		_tui._style_v "${id}_normal"
+		sty="$_SGR"
+		if [[ "$scroll" == "v" || "$scroll" == "both" ]] && ((lines_n > _CR_H)); then
+			_tui_scroll.bar_v "$id" "$lines_n" "${_TUI_P_SOFF_V[$id]:-0}" "$sty"
+			_TUI_FRAME+="$_SC_BAR"
+		fi
+		if [[ "$scroll" == "h" || "$scroll" == "both" ]] && ((max_w > _CR_W)); then
+			_tui_scroll.bar_h "$id" "$max_w" "${_TUI_P_SOFF_H[$id]:-0}" "$sty"
+			_TUI_FRAME+="$_SC_BAR"
+		fi
+	fi
 }
 
 # _tui._draw_widget ID - draws one widget, standalone (see _tui._draw_pane
@@ -1784,14 +1818,13 @@ _tui._draw_pane_border_buf() {
 # _tui._draw_widget_buf directly so every widget folds into one shared
 # buffer and one flush.
 _tui._draw_widget() {
-	local _dw_saved="$_TUI_FRAME"
+	# no row diff here: splitting the frame costs more bash time than the unchanged rows save (a list or pane repaint changes most rows)
+	local _dw_saved="$_TUI_FRAME" buf
 	_TUI_FRAME=""
 	_tui._draw_widget_buf "$1"
-	_tui_modal.base_fold "$_TUI_FRAME" # painted outside _tui._flush
-	((_TUI_FLUSH_GEN++))
-	((_TUI_L_N || _TUI_FL_TOP || ${#_TUI_P_DETACHABLE[@]})) && _tui_layer.cover
-	printf '%s' "$_TUI_FRAME"
+	buf="$_TUI_FRAME"
 	_TUI_FRAME="$_dw_saved"
+	[[ -n "$buf" ]] && _tui._flush "$buf" # one synchronized write, layers covered
 }
 
 # state:direct
@@ -1808,6 +1841,7 @@ _tui._draw_widget_buf() {
 	local _wpane="${_TUI_W_PANE[$id]}"
 	((${_TUI_P_H[$_wpane]:-0} < 1)) && return    # hidden / not on this page
 	[[ -n "${_TUI_W_HIDDEN[$id]:-}" ]] && return # in a collapsed pane (tui_collapse.sh)
+	_tui._wp_offscreen "$id" "$_wpane" && return
 	_tui._pane_too_small "$_wpane" && return
 
 	_tui._widget_pos "$id"
@@ -1829,7 +1863,7 @@ _tui._draw_widget_buf() {
 				_rc_sk="${id}_normal"
 				if ((focused)); then _rc_sk="${id}_focus"; elif ((hovered)); then _rc_sk="${id}_hover"; elif [[ -n "${_TUI_W_SELECTED[$id]:-}" && "$type" == button ]]; then _rc_sk="${id}_selected"; fi
 				_rc_pk="${_TUI_W_PANE[$id]}_normal"
-				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_SELECTED[$id]:-}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}|${_TUI_STYLE_FG[$_rc_sk]:-}|${_TUI_STYLE_BG[$_rc_sk]:-}|${_TUI_STYLE_MOD[$_rc_sk]:-}|${_TUI_STYLE_FG[$_rc_pk]:-}|${_TUI_STYLE_BG[$_rc_pk]:-}|${_TUI_STYLE_MOD[$_rc_pk]:-}"
+				_rc_key="w|$type|$sr|$sc|$sw|$_WSW_AVAIL|${_TUI_W_MINW[$id]:-0}|$focused|$hovered|${_TUI_W_ALIGN[$id]:-${_TUI_P_ALIGN[${_TUI_W_PANE[$id]}]:-}}|${_TUI_W_SELECTED[$id]:-}|${_TUI_W_VALUE[$id]:-}|${_TUI_W_LABEL[$id]:-}|${_TUI_W_VARIANT[$id]:-}|${_TUI_V_DEFAULT[checkbox]:-}|$_TUI_G_GEN|${_TUI_STYLE_FG[$_rc_sk]:-}|${_TUI_STYLE_BG[$_rc_sk]:-}|${_TUI_STYLE_MOD[$_rc_sk]:-}|${_TUI_STYLE_FG[$_rc_pk]:-}|${_TUI_STYLE_BG[$_rc_pk]:-}|${_TUI_STYLE_MOD[$_rc_pk]:-}"
 				if [[ "$type" == button ]]; then # the :selected look and the normal style it falls back to
 					_rc_key+="|${_TUI_STYLE_FG[${id}_normal]:-}|${_TUI_STYLE_BG[${id}_normal]:-}|${_TUI_STYLE_MOD[${id}_normal]:-}"
 				fi
@@ -1855,11 +1889,14 @@ _tui._draw_widget_buf() {
 		return
 	fi
 
-	_tui.emit_goto "$sr" "$sc"
-	# a registered type is cleared in its pane's style: unstyled, the cells would show the terminal's own background
-	[[ -n "${_TUI_WT_DRAW[$type]-}" ]] && _tui.emit_style "${_TUI_W_PANE[$id]}_normal"
-	_tui.emit_printf '%*s' "$sw" ""
-	[[ -n "${_TUI_WT_DRAW[$type]-}" ]] && _tui.emit_reset
+	# list / table rewrite every cell of their first row themselves (_tui_wx.draw_rows): a pre-blank would only double the bytes
+	if [[ "$type" != @(list|table) ]]; then
+		_tui.emit_goto "$sr" "$sc"
+		# a registered type is cleared in its pane's style: unstyled, the cells would show the terminal's own background
+		[[ -n "${_TUI_WT_DRAW[$type]-}" ]] && _tui.emit_style "${_TUI_W_PANE[$id]}_normal"
+		_tui.emit_printf '%*s' "$sw" ""
+		[[ -n "${_TUI_WT_DRAW[$type]-}" ]] && _tui.emit_reset
+	fi
 	_tui.emit_goto "$sr" "$sc"
 
 	local pane_id="${_TUI_W_PANE[$id]}"
@@ -1917,8 +1954,15 @@ _tui._draw_widget_buf() {
 			local calign
 			_tui._widget_align_v "$id"
 			calign="$_R"
-			local mark="[ ]"
-			[[ "${_TUI_W_VALUE[$id]}" == "1" ]] && mark="[x]"
+			local mark gv _V
+			_tui.variant_v "$id" checkbox
+			gv="$_V"
+			_tui.glyph_v checkbox left "$gv"
+			mark="$TUI_GLYPH"
+			if [[ "${_TUI_W_VALUE[$id]}" == "1" ]]; then _tui.glyph_v checkbox on "$gv"; else _tui.glyph_v checkbox off "$gv"; fi
+			mark+="$TUI_GLYPH"
+			_tui.glyph_v checkbox right "$gv"
+			mark+="$TUI_GLYPH"
 			local lbl
 			_tui._resolve_text_v "${_TUI_W_LABEL[$id]}"
 			lbl="${mark} $_R"
@@ -2726,19 +2770,9 @@ _tui._render_output_buf() {
 	fi
 
 	if [[ "$scroll" == "h" || "$scroll" == "both" ]] && ((max_w > ct_w)); then
-		local track_y=$((pr + ph - 1))
-		local thumb_w=$((ct_w * ct_w / max_w))
-		((thumb_w < 1)) && thumb_w=1
-		local thumb_x=$((ct_col + (h_off * (ct_w - thumb_w) / (max_w - ct_w))))
-
-		for ((i = 0; i < ct_w; i++)); do
-			if ((ct_col + i >= thumb_x && ct_col + i < thumb_x + thumb_w)); then
-				printf -v seg '\033[%d;%dH%s\033[7m \033[0m' "$track_y" $((ct_col + i)) "$sty"
-			else
-				printf -v seg '\033[%d;%dH%s\033[2m─\033[0m' "$track_y" $((ct_col + i)) "$sty"
-			fi
-			frame_buf+="$seg"
-		done
+		local _SC_BAR
+		_tui_scroll.bar_h "$pane" "$max_w" "$h_off" "$sty"
+		frame_buf+="$_SC_BAR"
 	fi
 
 	_tui.emit "$frame_buf"

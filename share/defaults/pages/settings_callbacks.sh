@@ -5,8 +5,8 @@
 # while the search field holds text, every setting whose category, title or description contains all the words typed. Enter or a
 # double-click changes the row under the cursor: a toggle flips, a choice opens a picker, an action runs.
 
-declare -ga DSET_CATS=(appearance input keybinds notifications markdown plugins)
-declare -gA DSET_CAT_LABEL=([appearance]="Appearance" [input]="Input" [keybinds]="Keybinds" [notifications]="Notifications" [markdown]="Markdown" [plugins]="Plugins")
+declare -ga DSET_CATS=(appearance glyphs input keybinds notifications markdown plugins)
+declare -gA DSET_CAT_LABEL=([appearance]="Appearance" [glyphs]="Glyphs" [input]="Input" [keybinds]="Keybinds" [notifications]="Notifications" [markdown]="Markdown" [plugins]="Plugins")
 declare -g DSET_CUR # category on show; kept across the reload a theme change causes (no initial value: the page is re-sourced)
 : "${DSET_CUR:=appearance}"
 declare -g DSET_QUERY=""
@@ -15,6 +15,11 @@ declare -gA DSET_THEME_FILE=()                               # theme name -> css
 declare -g DSET_KEEP_SEL=0                                   # list row to select after the reload a theme change causes
 declare -ga DSET_VIS=()                                      # indexes into S_* of the rows on show
 declare -g DSET_PICK="" DSET_FILLING=0
+# the parts of each widget design; the glyphs on offer come from tui.glyph.available (glyphs/available.txt: "none" blanks a bracket, "space" is a blank cell)
+declare -gA DSET_GL_PARTS=([progress]="fill empty" [checkbox]="left on off right" [select]="left arrow right" [scrollbar]="thumb track" [panebar]="vthumb vtrack hthumb htrack")
+declare -gA DSET_GL_LABEL=([progress.fill]="Filled part" [progress.empty]="Empty part" [checkbox.left]="Left bracket" [checkbox.on]="Checked mark" [checkbox.off]="Unchecked mark" [checkbox.right]="Right bracket" [select.left]="Left bracket" [select.arrow]="Arrow" [select.right]="Right bracket" [scrollbar.thumb]="Thumb" [scrollbar.track]="Track" [panebar.vthumb]="Vertical thumb" [panebar.vtrack]="Vertical track" [panebar.hthumb]="Horizontal thumb" [panebar.htrack]="Horizontal track")
+declare -g DSET_GL_TYPE=progress DSET_GL_KEY=fill DSET_GL_FILLING=0
+declare -gA DSET_DESIGN_TITLE=([progress]="Progress bar design" [checkbox]="Checkbox design" [select]="Select design" [scrollbar]="Scroll indicator design" [panebar]="Pane scrollbar design")
 
 # ── the settings ─────────────────────────────────────────────────────────
 
@@ -74,8 +79,17 @@ _dset_build() {
 		DSET_THEME_FILE[$n]=$f
 	done < <(tui.theme.list)
 
+	local t
+	local noun
+	for t in progress checkbox select scrollbar panebar; do
+		noun=${DSET_DESIGN_TITLE[$t]% design}
+		noun=${noun,,}
+		_dset_add glyphs "gd.$t" "${DSET_DESIGN_TITLE[$t]}" choice "The look of every $noun that names no design of its own. Pick one of the theme's designs, or **custom ...** to edit its parts yourself: you start from the design that is on now, and only the custom design uses your glyphs, so what you see is always what is in force. Pages and apps can still pick a design per widget."
+	done
+
 	_dset_add input retain "Keep focus in an input after Enter" toggle "After Enter the input keeps focus so you can type the next line."
 	_dset_add input coalesce "Merge fast repeated scroll events" toggle "Fast wheel or key repeats are merged into one scroll step per frame."
+	_dset_add input pointer "Change the mouse pointer over widgets" toggle "Buttons and lists show a hand and text fields an I-beam. Themes can set `cursor:` per class. Needs a terminal with pointer shapes (kitty, foot, Ghostty, xterm); others ignore it."
 	_dset_add input confirmq "Ask before quitting" toggle "Shows a confirmation before the app quits."
 	_dset_add input tsfree "Free terminal shortcuts while DABT runs" toggle "Needs the *Terminal shortcuts* plugin: hands ctrl+c, ctrl+z and friends back to the terminal's own bindings while DABT runs."
 
@@ -129,8 +143,10 @@ _dset_value() {
 		theme.*)
 			[[ -n "${_TUI_THEME_OVERLAY:-}" && "${_TUI_THEME_OVERLAY##*/}" == "${DSET_THEME_FILE[${k#theme.}]##*/}" ]] && _DSET_V="●" || _DSET_V=" "
 			;;
+		gd.*) _DSET_V="${_TUI_V_DEFAULT[${k#gd.}]:-default}" ;;
 		retain) _dset_onoff "$TUI_INPUT_RETAIN_ON_SUBMIT" ;;
 		coalesce) _dset_onoff "$TUI_INPUT_COALESCE" ;;
+		pointer) _dset_onoff "$TUI_POINTER_SHAPE" ;;
 		confirmq) _dset_onoff "$(tui.config.get confirm.quit 0)" ;;
 		tsfree) _dset_onoff "$(tui.config.get plugin.terminal_shortcuts.auto_free 0)" ;;
 		chord.suspend) _DSET_V="$TUI_KEYS_SUSPEND_KEY" ;;
@@ -169,6 +185,10 @@ _dset_choices() {
 	local k=$1 name f cur i
 	_DSET_CH=()
 	case "$k" in
+		gd.*)
+			tui.variant.list "${k#gd.}"
+			_DSET_CH=(default "${TUI_VARIANTS[@]}" "custom ...")
+			;;
 		npos) _DSET_CH=(bottom-right bottom-center bottom-left top-right top-center top-left) ;;
 		nsec) _DSET_CH=("3 s" "5 s" "8 s" "12 s" "until dismissed") ;;
 		md.profile) _DSET_CH=("DABT default" "Theme default") ;;
@@ -180,6 +200,7 @@ _dset_choices() {
 		md.link) _DSET_CH=(inline hidden) ;;
 	esac
 	_dset_value "$k"
+	[[ "$k" == gd.* && "$_DSET_V" == custom ]] && _DSET_V="custom ..."
 	_DSET_SEL=0
 	for i in "${!_DSET_CH[@]}"; do [[ "${_DSET_CH[i]}" == "$_DSET_V" ]] && _DSET_SEL=$i; done
 }
@@ -188,6 +209,16 @@ _dset_choices() {
 _dset_apply() {
 	local k=$1 v=$2
 	case "$k" in
+		gd.*)
+			if [[ "$v" == "custom ..." ]]; then
+				_dset_gl_start "${k#gd.}"
+				return 0
+			fi
+			[[ "$v" == default ]] && v=""
+			tui.variant.default "${k#gd.}" "$v"
+			if [[ -n "$v" ]]; then tui.config.set "variant.${k#gd.}" "$v"; else tui.config.unset "variant.${k#gd.}"; fi
+			tui.redraw
+			;;
 		npos)
 			tui.notify.position "$v"
 			tui.config.set notify.position "$v"
@@ -247,6 +278,19 @@ _dset_toggle() { # KEY
 			on=$_DSET_N
 			TUI_INPUT_COALESCE=$on
 			tui.config.set input.coalesce "$on"
+			;;
+		pointer)
+			_dset_flip "$TUI_POINTER_SHAPE"
+			on=$_DSET_N
+			TUI_POINTER_SHAPE=$on
+			((on)) || _tui._pointer_reset
+			tui.config.set pointer.shape "$on"
+			;;
+		pointer)
+			_dset_flip "$TUI_POINTER_SHAPE"
+			on=$_DSET_N
+			TUI_POINTER_SHAPE=$on
+			tui.config.set pointer.shape "$on"
 			;;
 		confirmq)
 			_dset_flip "$(tui.config.get confirm.quit 0)"
@@ -414,9 +458,20 @@ dset_visit() {
 	_dset_build
 	tui.bind / dset_focus_search --page --desc "Search settings"
 	tui.update inp_search ""
+	_dset_preview_pane
 	_dset_show "$DSET_KEEP_SEL"
 	DSET_KEEP_SEL=0
 	tui.focus lst_items
+}
+
+# _dset_preview_pane - the text of the scrolling sample pane: taller and wider than the pane, so both scrollbars show
+_dset_preview_pane() {
+	local i row text=""
+	for i in {1..16}; do
+		printf -v row 'Line %02d - a sample line that is wider than the pane, so the horizontal scrollbar has something to scroll.' "$i"
+		text+="$row"$'\n'
+	done
+	tui.output pv_pane "${text%$'\n'}"
 }
 
 dset_focus_search() { tui.focus inp_search; }
@@ -593,3 +648,181 @@ dset_ms_reset() {
 }
 
 dset_ms_close() { tui.layer.close dlg_md_style; }
+
+# ── the custom design editor (modal) ─────────────────────────────────────
+# Predefined designs come from the theme; "custom" is the user's own: the parts here are kept per slot in
+# tui.glyph.user and only shown while the type's design is custom. Opening the editor starts from the design on now.
+
+# _dset_gl_word GLYPH -> _DSET_W : how a glyph is written in the lists ("none" for blank, "space" for a blank cell)
+_dset_gl_word() {
+	case "$1" in
+		"") _DSET_W=none ;;
+		" ") _DSET_W=space ;;
+		*) _DSET_W=$1 ;;
+	esac
+}
+
+# _dset_gl_start TYPE - switches TYPE to the custom design (copying the design on now into the parts not yet set) and opens the editor
+_dset_gl_start() {
+	local type=$1 key cur
+	DSET_GL_TYPE=$type
+	cur=${_TUI_V_DEFAULT[$type]:-}
+	if [[ "$cur" != custom ]]; then
+		for key in ${DSET_GL_PARTS[$type]}; do
+			[[ -n "${_TUI_G_USER[$type.$key]+x}" ]] && continue
+			tui.glyph.get "$type" "$key" "$cur"
+			tui.glyph.user "$type" "$key" "$TUI_GLYPH"
+			tui.config.set "glyph.$type.$key" "$TUI_GLYPH"
+		done
+	fi
+	tui.variant.default "$type" custom
+	tui.config.set "variant.$type" custom
+	tui.update gc_title "${DSET_DESIGN_TITLE[$type]%% design}: custom"
+	_dset_gl_sample "$type"
+	tui.update gc_sample "$_DSET_SAMPLE"
+	DSET_GL_KEY=${DSET_GL_PARTS[$type]%% *}
+	_dset_gl_fill_parts 0
+	_dset_gl_fill_choices
+	tui.redraw
+	tui.layer.show dlg_gl_custom
+	tui.focus gc_parts
+}
+
+# _dset_gl_fill_parts SELECT - the part list: "Filled part   █" per part
+_dset_gl_fill_parts() {
+	local type=$DSET_GL_TYPE key row
+	local -a rows=()
+	for key in ${DSET_GL_PARTS[$type]}; do
+		tui.glyph.get "$type" "$key" custom
+		_dset_gl_word "$TUI_GLYPH"
+		printf -v row '%-16s %s' "${DSET_GL_LABEL[$type.$key]}" "$_DSET_W"
+		rows+=("$row")
+	done
+	DSET_GL_FILLING=1
+	tui.list.set gc_parts "${rows[@]}"
+	tui.list.select gc_parts "$1"
+	DSET_GL_FILLING=0
+}
+
+# _dset_gl_fill_choices - the glyphs on offer for the part on show, the one in force selected
+_dset_gl_fill_choices() {
+	local i
+	tui.glyph.available "$DSET_GL_TYPE" "$DSET_GL_KEY"
+	local -a g=("${TUI_GLYPHS[@]}")
+	tui.glyph.get "$DSET_GL_TYPE" "$DSET_GL_KEY" custom
+	_dset_gl_word "$TUI_GLYPH"
+	DSET_GL_FILLING=1
+	tui.list.set gc_choices "${g[@]}"
+	for i in "${!g[@]}"; do [[ "${g[i]}" == "$_DSET_W" ]] && tui.list.select gc_choices "$i"; done
+	DSET_GL_FILLING=0
+}
+
+dset_gl_part() { # a part was chosen on the left
+	((DSET_GL_FILLING)) && return 0
+	local i parts
+	tui.list.selected gc_parts i
+	((i >= 0)) || return 0
+	read -ra parts <<<"${DSET_GL_PARTS[$DSET_GL_TYPE]}"
+	DSET_GL_KEY=${parts[i]}
+	_dset_gl_fill_choices
+}
+
+# _dset_gl_sample TYPE -> _DSET_SAMPLE : a line of text that shows the type's custom design in use
+_dset_gl_sample() {
+	local type=$1 f e l o r a bar i
+	case $type in
+		progress)
+			tui.glyph.get progress fill custom
+			f=$TUI_GLYPH
+			tui.glyph.get progress empty custom
+			e=$TUI_GLYPH
+			bar=""
+			for ((i = 0; i < 12; i++)); do ((i < 7)) && bar+=$f || bar+=$e; done
+			_DSET_SAMPLE="$bar  60%"
+			;;
+		checkbox)
+			tui.glyph.get checkbox left custom
+			l=$TUI_GLYPH
+			tui.glyph.get checkbox right custom
+			r=$TUI_GLYPH
+			tui.glyph.get checkbox on custom
+			o=$TUI_GLYPH
+			tui.glyph.get checkbox off custom
+			_DSET_SAMPLE="$l$o$r on   $l$TUI_GLYPH$r off"
+			;;
+		select)
+			tui.glyph.get select left custom
+			l=$TUI_GLYPH
+			tui.glyph.get select arrow custom
+			a=$TUI_GLYPH
+			tui.glyph.get select right custom
+			_DSET_SAMPLE="$l two $a $TUI_GLYPH"
+			;;
+		scrollbar)
+			tui.glyph.get scrollbar thumb custom
+			f=$TUI_GLYPH
+			tui.glyph.get scrollbar track custom
+			_DSET_SAMPLE="$f $f $TUI_GLYPH $TUI_GLYPH"
+			;;
+		panebar)
+			tui.glyph.get panebar vthumb custom
+			f=$TUI_GLYPH
+			tui.glyph.get panebar vtrack custom
+			e=$TUI_GLYPH
+			tui.glyph.get panebar hthumb custom
+			l=$TUI_GLYPH
+			tui.glyph.get panebar htrack custom
+			_DSET_SAMPLE="v: $f$f$e$e  h: $l$l$TUI_GLYPH$TUI_GLYPH"
+			;;
+	esac
+}
+
+dset_gl_choice() { # a glyph was chosen on the right: applied at once, the rest waits until the stepping stops
+	((DSET_GL_FILLING)) && return 0
+	local i g
+	local -a all
+	tui.list.selected gc_choices i
+	((i >= 0)) || return 0
+	tui.glyph.available "$DSET_GL_TYPE" "$DSET_GL_KEY"
+	all=("${TUI_GLYPHS[@]}")
+	g=${all[i]}
+	[[ "$g" == none ]] && g=""
+	[[ "$g" == space ]] && g=" "
+	tui.glyph.user "$DSET_GL_TYPE" "$DSET_GL_KEY" "$g" || return 0
+	tui.config.stage "glyph.$DSET_GL_TYPE.$DSET_GL_KEY" "$g"
+	_dset_gl_sample "$DSET_GL_TYPE"
+	tui.update gc_sample "$_DSET_SAMPLE"
+	tui.after 0.4 dset_gl_settle dset_gl_settle # every step re-arms it: it runs once, 0.4 s after the last one
+}
+
+# dset_gl_settle - the work a held arrow must not repeat: the config file, the parts list and the page behind the window.
+# A step costs one label update (~10 ms): every widget redraw under a layer repaints the layer stack.
+dset_gl_settle() {
+	local sel part idx=0
+	local -a parts
+	tui.config.flush
+	read -ra parts <<<"${DSET_GL_PARTS[$DSET_GL_TYPE]}"
+	for part in "${!parts[@]}"; do [[ "${parts[part]}" == "$DSET_GL_KEY" ]] && idx=$part; done
+	_dset_gl_fill_parts "$idx"
+	tui.redraw
+	tui.list.selected lst_items sel
+	_dset_show "$sel"
+}
+
+dset_gl_reset() { # back to the theme's look: every custom part removed
+	local key sel
+	for key in ${DSET_GL_PARTS[$DSET_GL_TYPE]}; do
+		tui.glyph.user "$DSET_GL_TYPE" "$key"
+		tui.config.unset "glyph.$DSET_GL_TYPE.$key"
+	done
+	_dset_gl_fill_parts 0
+	DSET_GL_KEY=${DSET_GL_PARTS[$DSET_GL_TYPE]%% *}
+	_dset_gl_fill_choices
+	_dset_gl_sample "$DSET_GL_TYPE"
+	tui.update gc_sample "$_DSET_SAMPLE"
+	tui.redraw
+	tui.list.selected lst_items sel
+	_dset_show "$sel"
+}
+
+dset_gl_close() { tui.layer.close dlg_gl_custom; }

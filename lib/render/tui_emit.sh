@@ -70,6 +70,10 @@ _tui._write_chunks() {
 _tui.write() {
 	local c
 	((_TUI_OUT_FD == 1 && ${#_TUI_ASYNC_PID[@]})) && printf '%s' "$((++_TUI_WRITE_GEN))" >"$_TUI_ASYNC_DIR/gen" # before the write: painters give way
+	if ((_TUI_SYNC_DEPTH)); then                                                                                # inside a caller's synchronized update: its end marker presents the whole frame
+		printf '%s' "$1" >&"$_TUI_OUT_FD"
+		return 0
+	fi
 	if ((${#1} <= 1000)) || { ((_TUI_OUT_FD == 1 && ${#_TUI_ASYNC_PID[@]} == 0)); }; then
 		printf '\e[?2026h%s\e[?2026l' "$1" >&"$_TUI_OUT_FD"
 		return 0

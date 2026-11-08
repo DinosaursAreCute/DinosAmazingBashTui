@@ -58,6 +58,7 @@ declare -gA _TUI_W_SUBMIT=()
 declare -gA _TUI_W_PH=()
 declare -gA _TUI_W_ALIGN=()
 declare -gA _TUI_W_VALIGN=()
+declare -gA _TUI_W_VARIANT=() # widget id -> design name: picks the .type.variant glyphs (and, for a progress bar, colours)
 declare -gA _TUI_W_MINW=() _TUI_W_MAXW=() _TUI_W_MINH=() _TUI_W_MAXH=()
 declare -gA _TUI_W_EXPAND=()                 # id -> "x"/"y"/"both": which dims _tui._widget_pos fills to the pane's content area (2A)
 declare -gA _TUI_W_WIDTH=() _TUI_W_HEIGHT=() # id -> 2A unit-token size spec (cells, %, fr, auto, fill, clamp(...))
@@ -112,6 +113,7 @@ declare -gA _TUI_PANE_RAW_FN=()    # pane id -> the function that brings _TUI_PA
 declare -gA _TUI_PANE_CONTENT=()   # pane id -> 1 when it holds tui.output content (MUST be associative: pane ids are names)
 declare -gA _TUI_PENDING_OUTPUT=() # pane id -> content awaiting re-render
 declare -g _TUI_RENDER_TIMEOUT=-1
+declare -gi _TUI_SYNC_DEPTH=0   # open mode.sync_start calls: a write inside one must not end the update itself (_tui.write)
 declare -gi _TUI_DEFER_RENDER=0 # 1 while tui.goto loads a page: tui.goto renders once afterwards, so tui.render calls made by on_visit code are skipped
 
 # ═══════════════════════════════════════════════════════════════════════

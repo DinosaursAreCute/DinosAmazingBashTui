@@ -130,7 +130,8 @@ _tui_cache_restore() {
 # Freshness is fork-free too: after a parse we `: > STAMP` (a builtin redirect = touch), and a file
 # is stale when it is newer than its stamp (`[[ FILE -nt STAMP ]]` - no stat, no subshell). While the cache is not
 # yet trusted (see _TUI_CACHE_TRUSTED), editing theme.css takes effect on the next page visit, like the page cache.
-declare -gA _TUI_THEME_MEMO=() _TUI_THEME_STAMP=() # file -> "class<US>fg<US>bg<US>mods\n..." / stamp path
+declare -gA _TUI_THEME_MEMO=() _TUI_THEME_STAMP=() # file -> "class<US>fg<US>bg<US>mods<US>cursor\n..." (+ "@slot<US>glyph" lines) / stamp path
+declare -gA _TUI_THEME_DEPS=()                     # file -> the files it @imports, newline-separated: editing one makes the memo stale
 declare -g _TUI_THEME_STAMP_DIR="" _TUI_THEME_STAMP_N=0
 
 _tui_cache_theme_stamp() { # FILE -> sets _TS to a fresh stamp path (creates the dir lazily, once)
@@ -143,19 +144,34 @@ _tui_cache_theme_stamp() { # FILE -> sets _TS to a fresh stamp path (creates the
 	_TUI_THEME_STAMP[$1]="$_TS"
 }
 
+# _tui_cache_theme_fresh FILE - rc 0 while neither FILE nor anything it imports is newer than the memo's stamp
+_tui_cache_theme_fresh() {
+	local stamp="${_TUI_THEME_STAMP[$1]}" dep
+	[[ ! "$1" -nt "$stamp" ]] || return 1
+	while IFS= read -r dep; do
+		[[ -z "$dep" || ! "$dep" -nt "$stamp" ]] || return 1
+	done <<<"${_TUI_THEME_DEPS[$1]:-}"
+}
+
 _tui.theme_load_file() {
-	local file="$1" cls fg bg mods out=""
-	if ((_TUI_CACHES)) && [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || [[ ! "$file" -nt "${_TUI_THEME_STAMP[$file]}" ]]; }; then
+	local file="$1" cls fg bg mods cur out="" slot dep deps=""
+	if ((_TUI_CACHES)) && [[ -n "${_TUI_THEME_MEMO[$file]+x}" ]] && { ((_TUI_CACHE_TRUSTED)) || _tui_cache_theme_fresh "$file"; }; then
 		tui.log.debug "_tui.theme_load_file: memo HIT for $file, re-applying from memory"
 		# fd 7, not stdin: tui.load_theme runs mid-build (from a <theme> tag
 		# handler); keep fd 0 free for the tty the same way tui.cache.replay's
 		# fd-9 goto/on_visit loop does.
-		while IFS=$'\x1f' read -r -u 7 cls fg bg mods; do # hit: re-apply, nothing is parsed
+		while IFS=$'\x1f' read -r -u 7 cls fg bg mods cur; do # hit: re-apply, nothing is parsed
 			[[ -z "$cls" ]] && continue
+			[[ "$cls" == @* ]] && {
+				_TUI_G[${cls#@}]="$fg"
+				continue
+			} # glyph record: the glyph rides in the fg field
 			[[ -n "$fg" ]] && _TUI_CLASS_FG[$cls]="$fg"
 			[[ -n "$bg" ]] && _TUI_CLASS_BG[$cls]="$bg"
 			[[ -n "$mods" ]] && _TUI_CLASS_MOD[$cls]="$mods"
+			[[ -n "$cur" ]] && _TUI_CLASS_CUR[$cls]="$cur"
 		done 7<<<"${_TUI_THEME_MEMO[$file]}"
+		_TUI_G_GEN+=1
 		return 0
 	fi
 
@@ -163,9 +179,12 @@ _tui.theme_load_file() {
 	_tui.theme_parse "$file" || return 1
 	_tui.theme_commit
 	for cls in "${_TP_ORDER[@]}"; do
-		out+="$cls"$'\x1f'"${_TP_FG[$cls]:-}"$'\x1f'"${_TP_BG[$cls]:-}"$'\x1f'"${_TP_MOD[$cls]:-}"$'\n'
+		out+="$cls"$'\x1f'"${_TP_FG[$cls]:-}"$'\x1f'"${_TP_BG[$cls]:-}"$'\x1f'"${_TP_MOD[$cls]:-}"$'\x1f'"${_TP_CUR[$cls]:-}"$'\n'
 	done
+	for slot in "${!_TP_G[@]}"; do out+="@$slot"$'\x1f'"${_TP_G[$slot]}"$'\x1f\x1f\x1f\n'; done
 	_TUI_THEME_MEMO[$file]="$out"
+	for dep in "${_TP_DEPS[@]}"; do deps+="$dep"$'\n'; done
+	_TUI_THEME_DEPS[$file]="$deps"
 	_tui_cache_theme_stamp "$file"
 	_tui.theme_check "$file"
 }
@@ -174,6 +193,7 @@ _tui.theme_load_file() {
 tui.cache.theme_clear() {
 	_TUI_THEME_MEMO=()
 	_TUI_THEME_STAMP=()
+	_TUI_THEME_DEPS=()
 }
 
 # Removes the stamp directory; called from _master_cleanup.
@@ -270,7 +290,7 @@ _tui_cache_define_goto() {
 	title="${title%"${title##*[![:space:]]}"}"
 	[[ -n "$page" ]] && _TUI_PAGES[$page]="$title" # page registry (tui.get.pages): palette / help / goto binds
 	local def
-	printf -v def '%s() { tui.goto %q; }' "$fn" "$page" # printf -v: no command-substitution fork per nav button
+	printf -v def '%s() { _tui_markup.nav %q; }' "$fn" "$page" # printf -v: no command-substitution fork per nav button
 	eval "$def"
 	local rec
 	printf -v rec '_tui_cache_define_goto %q %q %q' "$fn" "$page" "$title"

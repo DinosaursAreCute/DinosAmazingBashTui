@@ -1,0 +1,2 @@
+/* glyphs/ascii.css - shared glyph preset: @import "../glyphs/ascii.css"; from a theme. Plain ASCII, for terminals without box-drawing glyphs. */
+.progress { fill: "#"; empty: "-"; }

@@ -1,0 +1,2 @@
+/* glyphs/dots.css - shared glyph preset: @import "../glyphs/dots.css"; from a theme. Filled dots over faint dots. */
+.progress { fill: "●"; empty: "·"; }

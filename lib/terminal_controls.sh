@@ -316,13 +316,21 @@ mode.blink_cursor_on() { echo -ne "\e[?12h"; }  # Blinking cursor
 mode.blink_cursor_off() { echo -ne "\e[?12l"; } # Steady cursor
 mode.focus_on() { echo -ne "\e[?1004h"; }       # Report focus in/out events
 mode.focus_off() { echo -ne "\e[?1004l"; }      # Stop reporting focus
-mode.sync_start() { echo -ne "\e[?2026h"; }     # Begin synchronized update
-mode.sync_end() { echo -ne "\e[?2026l"; }       # End synchronized update
-mode.alt_screen() { echo -ne "\e[?1049h"; }     # Alt screen buffer (saves cursor)
-mode.main_screen() { echo -ne "\e[?1049l"; }    # Main screen buffer (restores cursor)
-mode.alt_simple() { echo -ne "\e[?47h"; }       # Alt buffer without save/restore
-mode.main_simple() { echo -ne "\e[?47l"; }      # Main buffer without save/restore
-mode.bracketed_on() { echo -ne "\e[?2004h"; }   # Bracketed paste mode
+# Nested updates: while one is open (_TUI_SYNC_DEPTH > 0) _tui.write adds no markers of its own, because the first inner
+# "end" would release the screen before the outer update is complete.
+mode.sync_start() {
+	((++_TUI_SYNC_DEPTH))
+	echo -ne "\e[?2026h"
+} # Begin synchronized update
+mode.sync_end() {
+	((_TUI_SYNC_DEPTH > 0)) && ((_TUI_SYNC_DEPTH--))
+	echo -ne "\e[?2026l"
+}                                             # End synchronized update
+mode.alt_screen() { echo -ne "\e[?1049h"; }   # Alt screen buffer (saves cursor)
+mode.main_screen() { echo -ne "\e[?1049l"; }  # Main screen buffer (restores cursor)
+mode.alt_simple() { echo -ne "\e[?47h"; }     # Alt buffer without save/restore
+mode.main_simple() { echo -ne "\e[?47l"; }    # Main buffer without save/restore
+mode.bracketed_on() { echo -ne "\e[?2004h"; } # Bracketed paste mode
 mode.bracketed_off() { echo -ne "\e[?2004l"; }
 
 # ─────────────────────────────────────────────

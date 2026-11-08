@@ -222,7 +222,8 @@ _tui_dialog.open() {
 	_tui_dialog.styles
 	_DLG_ERR=""
 	_DLG_TOP=0
-	tui.modal.open dialog _tui_dialog.key _tui_dialog.draw _tui_dialog.mouse
+	tui.modal.open dialog _tui_dialog.key _tui_dialog.draw _tui_dialog.mouse _tui_dialog.pointer
+	[[ "$_DLG_KIND" == @(choose|view) ]] && tui.modal.count_keys "up down pgup pgdn j k" # a held key arrives as one event with a count
 }
 
 # finish: close (repaints the screen), then run the callback
@@ -377,10 +378,10 @@ _tui_dialog.key() {
 					_tui_dialog.finish cancel "$_DLG_ON_CANCEL"
 					return
 					;;
-				up | k) ((_DLG_TOP > 0)) && ((_DLG_TOP--)) ;;
-				down | j) ((_DLG_TOP++)) ;;
-				pgup) ((_DLG_TOP -= _DLG_ROWS)) ;;
-				pgdn | space) ((_DLG_TOP += _DLG_ROWS)) ;;
+				up | k) ((_DLG_TOP -= ${TUI_EVENT_COUNT:-1})) ;;
+				down | j) ((_DLG_TOP += ${TUI_EVENT_COUNT:-1})) ;;
+				pgup) ((_DLG_TOP -= _DLG_ROWS * ${TUI_EVENT_COUNT:-1})) ;;
+				pgdn | space) ((_DLG_TOP += _DLG_ROWS * ${TUI_EVENT_COUNT:-1})) ;;
 				home) _DLG_TOP=0 ;;
 				end) _DLG_TOP=$n ;;
 			esac
@@ -399,14 +400,20 @@ _tui_dialog.key() {
 					_tui_dialog.finish choose "$_DLG_ON_SUBMIT" "$_DLG_SEL" "${_DLG_ITEMS[_DLG_SEL]}"
 					return
 					;;
-				up | k | ctrl+p) ((_DLG_SEL > 0)) && ((_DLG_SEL--)) ;;
-				down | j | ctrl+n) ((_DLG_SEL < n - 1)) && ((_DLG_SEL++)) ;;
+				up | k | ctrl+p)
+					((_DLG_SEL -= ${TUI_EVENT_COUNT:-1}))
+					((_DLG_SEL < 0)) && _DLG_SEL=0
+					;;
+				down | j | ctrl+n)
+					((_DLG_SEL += ${TUI_EVENT_COUNT:-1}))
+					((_DLG_SEL >= n)) && _DLG_SEL=$((n - 1))
+					;;
 				pgup)
-					((_DLG_SEL -= _DLG_ROWS))
+					((_DLG_SEL -= _DLG_ROWS * ${TUI_EVENT_COUNT:-1}))
 					((_DLG_SEL < 0)) && _DLG_SEL=0
 					;;
 				pgdn)
-					((_DLG_SEL += _DLG_ROWS))
+					((_DLG_SEL += _DLG_ROWS * ${TUI_EVENT_COUNT:-1}))
 					((_DLG_SEL >= n)) && _DLG_SEL=$((n - 1))
 					;;
 				home) _DLG_SEL=0 ;;
@@ -419,6 +426,19 @@ _tui_dialog.key() {
 			;;
 	esac
 	tui.modal.redraw
+}
+
+# _tui_dialog.pointer X Y - _PS: 'pointer' over a button or a list row of the open dialog.
+_tui_dialog.pointer() {
+	local i
+	_PS=default
+	case "$_DLG_KIND" in
+		choose) (($1 >= _DLG_X && $1 < _DLG_X + _DLG_W && $2 >= _DLG_LROW && $2 < _DLG_LROW + _DLG_ROWS)) && _PS=pointer ;;
+		confirm | message | prompt)
+			(($2 == _DLG_BROW)) || return 0
+			for ((i = 0; i < ${#_DLG_BTN[@]}; i++)); do (($1 >= _DLG_BLO[i] && $1 <= _DLG_BHI[i])) && _PS=pointer; done
+			;;
+	esac
 }
 
 # ── mouse: EVENT X Y ─────────────────────────────────────────────────────
@@ -500,12 +520,17 @@ _tui_dialog.draw_view() {
 	hz="${bar// /─}"
 	title=" $_DLG_TITLE "
 	out+="${_DLG_SGR_BOX}"$'\e['"${y};${x}H┌─${_DLG_SGR_TITLE}${title}${_DLG_SGR_BOX}${hz:0:$((inner - ${#title} - 1))}┐"
-	local thumb=-1
+	local thumb=-1 edge_thumb edge_track _V
 	((n > rows)) && thumb=$((_DLG_TOP * (rows - 1) / (n - rows)))
+	_V="${_TUI_V_DEFAULT[scrollbar]:-}"
+	_tui.glyph_v scrollbar thumb "$_V"
+	edge_thumb="$TUI_GLYPH"
+	_tui.glyph_v scrollbar track "$_V"
+	edge_track="$TUI_GLYPH"
 	for ((i = 0; i < rows; i++)); do
 		_tui_dialog.pad " ${_DLG_ITEMS[_DLG_TOP + i]:-}" "$((inner - 1))"
-		local edge=" "
-		((i == thumb)) && edge="▐"
+		local edge="$edge_track"
+		((i == thumb)) && edge="$edge_thumb"
 		out+=$'\e['"$((y + 1 + i));${x}H${_DLG_SGR_BOX}│${_PADS}${edge}│"
 	done
 	_tui_dialog.pad " ↑↓ scroll   esc close   ${_DLG_TOP}-$((_DLG_TOP + rows)) of $n" "$inner"

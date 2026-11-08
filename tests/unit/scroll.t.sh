@@ -963,7 +963,64 @@ t_scrollbar_drag_on_a_widget_pane_scrolls_by_widget_rows_and_dirties_the_hit_ind
 	unset "_TUI_PANE_CONTENT[p]" "_TUI_P_LINES[p]"
 	_TUI_P_CONTENT_H[p]=30
 	_TUI_RUNNING=0 _TUI_HZ_DIRTY=0
-	_tui_hit.scrollbar_jump p v 20 6                        # 6th row of the pane
+	_tui_hit.scrollbar_grab p v 20 6                        # 6th row of the pane: the track, so the thumb centres there
 	ok '((_TUI_P_SOFF_V[p] > 0 && _TUI_P_SOFF_V[p] <= 20))' # moved, and not past the end (30 - 10)
 	eq 1 "$_TUI_HZ_DIRTY"
+}
+
+t_scrollbar_grab_on_the_thumb_does_not_jump_and_drag_moves_by_pointer_delta() {
+	_scroll_pane_setup p 10 20 v
+	_TUI_P_CHILDREN[p]=""
+	_TUI_W_ORDER=(w)
+	_TUI_W_PANE[w]=p _TUI_W_ROW[w]=29 _TUI_W_HEIGHT[w]=1
+	unset "_TUI_PANE_CONTENT[p]" "_TUI_P_LINES[p]"
+	_TUI_P_CONTENT_H[p]=30
+	_TUI_RUNNING=0
+	_tui_hit.scrollbar_grab p v 20 1 # thumb (3 rows) at the top
+	eq 0 "${_TUI_P_SOFF_V[p]:-0}"
+	_tui_hit.scrollbar_drag p v 5 3  # 2 rows down, pointer far off the bar column
+	eq 5 "${_TUI_P_SOFF_V[p]}"       # 2 * (30-10) / (10-3), truncated
+	_tui_hit.scrollbar_drag p v 5 50 # far past the bottom: clamped
+	eq 20 "${_TUI_P_SOFF_V[p]}"
+	_tui_hit.scrollbar_drag p v 5 1
+	eq 0 "${_TUI_P_SOFF_V[p]}"
+}
+
+# ── widgets scrolled out of view are rejected before their placement is computed ──
+
+_scroll_offscreen_fixture() { # a 10-row pane with labels at rows 0, 5 and 19; the content is taller than the viewport
+	_scroll_pane_setup p 10 80 v
+	_TUI_W_ORDER=(w1 w2 w3)
+	local w row
+	for w in w1:0 w2:5 w3:19; do
+		row=${w#*:}
+		w=${w%:*}
+		_TUI_W_TYPE[$w]=label _TUI_W_PANE[$w]=p _TUI_W_ROW[$w]=$row _TUI_W_VALUE[$w]=x
+	done
+	_TUI_P_SOFF_V[p]=0
+	_TUI_WP_REUSE=0
+}
+
+t_scroll_offscreen_widget_is_rejected_without_a_placement() {
+	_scroll_offscreen_fixture
+	_tui._wp_offscreen w3 p # row 19 of a 10-row viewport (inset 0)
+	eq 0 "$?"
+	_tui._wp_offscreen w2 p # row 5 is in view
+	eq 1 "$?"
+}
+
+t_scroll_offscreen_follows_the_scroll_offset() {
+	_scroll_offscreen_fixture
+	_TUI_P_SOFF_V[p]=10
+	_tui._wp_offscreen w1 p # row 0 is now above the viewport
+	eq 0 "$?"
+	_tui._wp_offscreen w3 p # row 19 - 10 = 9: the last viewport row
+	eq 1 "$?"
+}
+
+t_scroll_offscreen_never_rejects_in_a_pane_that_does_not_scroll() {
+	_scroll_offscreen_fixture
+	_TUI_P_SCROLL[p]=none
+	_tui._wp_offscreen w3 p
+	eq 1 "$?"
 }

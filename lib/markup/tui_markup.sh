@@ -242,6 +242,7 @@ tui.reset_ui() {
 	_TUI_W_PH=()
 	_TUI_W_ALIGN=()
 	_TUI_W_VALIGN=()
+	_TUI_W_VARIANT=()
 	_TUI_W_MINW=()
 	_TUI_W_MAXW=()
 	_TUI_W_LABEL_ALIGN=()
@@ -312,6 +313,15 @@ _tui_path_canon() {
 		esac
 	done
 	_CANON="/${out[*]}"
+}
+
+# _tui_markup.nav FILE - a nav button's goto: does nothing when FILE is the page already shown (no reload, no history entry).
+_tui_markup.nav() {
+	local resolved="$1"
+	[[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR:-.}/$resolved"
+	_tui_path_canon "$resolved"
+	[[ "$_CANON" == "${_TUI_MARKUP_FILE:-}" ]] && return 0
+	tui.goto "$1"
 }
 
 declare -ga _TUI_PAGE_HISTORY=()

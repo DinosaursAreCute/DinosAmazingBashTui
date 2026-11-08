@@ -5,6 +5,10 @@
  *   ^ a hint for apps that draw a banner (block5 seg3 box3 blk3 half2, or "plain"); DABT itself ignores it.
  * Selected on the Settings page or from the command palette (Themes). */
 
+/* progress bar glyphs */
+@import "../glyphs/thin.css";
+
+
 .panel { fg: #f8f8f2; bg: #282a36; }
 .panel:border { fg: #6272a4; }
 .panel:title { fg: #ff79c6; mods: bold; }
@@ -221,3 +225,4 @@
 .md_hl_comment { fg: #6272a4; mods: italic; }
 .md_hl_number { fg: #bd93f9; }
 .md_hl_var { fg: #8be9fd; }
+

@@ -48,6 +48,7 @@ declare -g  TUI_EVENT_TYPE="" TUI_EVENT_KEY="" TUI_EVENT_X=0 TUI_EVENT_Y=0
 declare -g  TUI_EVENT_PANE="" TUI_EVENT_WIDGET="" TUI_EVENT_BUTTON="" TUI_EVENT_RAWBTN=0
 declare -g  TUI_EVENT_ZONE="" TUI_EVENT_ZONE_ID="" TUI_EVENT_ZONE_ARG=""   # mouse events: the zone under the pointer (tui_hit.sh)
 declare -g  _KEY=""
+declare -g  _TUI_CAPTURE_FN="" _TUI_CAPTURE_ID="" _TUI_SB_ORIENT=v _TUI_SB_POS=0 _TUI_SB_OFF=0   # pointer capture: tui.mouse.capture
 declare -g  TUI_EVENT_COUNT=1 _TUI_REPEAT=1        # >1: that many identical scroll events were merged into this one
 declare -g  _TUI_KEYS_SUSPENDED=0 _TUI_SUSPEND_NAME="ctrl+alt+k"
 declare -g  _TUI_PASSTHROUGH=0 _TUI_PT_NAME="ctrl+alt+p"
@@ -235,12 +236,13 @@ _tui_input.is_typing() {
 # Two binding tables: CODE binds (tui.bind from app code / markup <bind>: never persisted) and USER binds
 # (tui.bind --user: made by the person using the app; saved/loaded/discarded as a set, see the persistence
 # section at the end of this file). A user bind beats a code bind on the same key.
+declare -gA _TUI_BIND_COUNT=() # bind id -> 1: the command takes a repeat count (tui.bind --count)
 declare -gA _TUI_UBIND=() _TUI_UBIND_PASS=() _TUI_UBIND_ALWAYS=() _TUI_UBIND_DESC=()
 declare -g  _TUI_UBIND_BASESTR=""                     # serialized user binds as last saved/loaded (dirty check)
 
 tui.bind() {
     (( _TUI_BIND_GEN++ ))
-    local spec="$1" cmd="$2" pane="" pass="" always="" page="" desc="" user=""
+    local spec="$1" cmd="$2" pane="" pass="" always="" page="" desc="" user="" count=""
     [[ -z "$spec" || -z "$cmd" ]] && { echo "tui.bind: usage: tui.bind KEY COMMAND [flags]" >&2; return 1; }
     shift 2
     while (( $# )); do
@@ -250,12 +252,14 @@ tui.bind() {
             --always) always=1 ;;
             --page)   page=1 ;;
             --user)   user=1 ;;
+            --count)  count=1 ;;   # the command reads TUI_EVENT_COUNT: a held key reaches it as one call with the number of presses
             --desc)   desc="$2"; shift ;;
         esac
         shift
     done
     _tui_input.norm "$spec"
     local id="${pane:+pane:$pane}|${_KEY}"
+    [[ -n "$count" ]] && _TUI_BIND_COUNT[$id]=1 || unset '_TUI_BIND_COUNT[$id]'
     [[ -n "$user" ]] || _tui_plugin.own bind "$spec${pane:+ --pane $pane}"
     if [[ -n "$user" ]]; then
         _TUI_UBIND[$id]="$cmd"
@@ -285,7 +289,7 @@ tui.unbind() {
     if [[ -n "$user" ]]; then
         unset '_TUI_UBIND[$id]' '_TUI_UBIND_PASS[$id]' '_TUI_UBIND_ALWAYS[$id]' '_TUI_UBIND_DESC[$id]'
     else
-        unset '_TUI_BIND[$id]' '_TUI_BIND_PASS[$id]' '_TUI_BIND_ALWAYS[$id]' '_TUI_BIND_PAGE[$id]' '_TUI_BIND_DESC[$id]'
+        unset '_TUI_BIND[$id]' '_TUI_BIND_PASS[$id]' '_TUI_BIND_ALWAYS[$id]' '_TUI_BIND_PAGE[$id]' '_TUI_BIND_DESC[$id]' '_TUI_BIND_COUNT[$id]'
     fi
 }
 
@@ -293,7 +297,7 @@ tui.unbind() {
 tui.bind.reset() {
     (( _TUI_BIND_GEN++ ))
     if [[ "$1" == --user ]]; then _TUI_UBIND=(); _TUI_UBIND_PASS=(); _TUI_UBIND_ALWAYS=(); _TUI_UBIND_DESC=(); return 0; fi
-    _TUI_BIND=(); _TUI_BIND_PASS=(); _TUI_BIND_ALWAYS=(); _TUI_BIND_PAGE=(); _TUI_BIND_DESC=()
+    _TUI_BIND=(); _TUI_BIND_PASS=(); _TUI_BIND_ALWAYS=(); _TUI_BIND_PAGE=(); _TUI_BIND_DESC=(); _TUI_BIND_COUNT=()
 }
 
 # _tui_input.clear_page [KEEP] - drops the bindings made with --page (markup <bind>); KEEP names an assoc whose keys survive (a shell's own binds).
@@ -410,6 +414,11 @@ _tui_input.run() {
 # your bind, code bind; then the built-in default. A binding stops the chain unless it was bound with
 # --pass. rc 0 = something ran.
 declare -g TUI_LAST_BIND_ERROR=""
+# A modal layer (tui_layer.sh) owns the keyboard while it is open: _TUI_KEYS_OWNED=1 turns the page's bindings (user, pane
+# and page) and every default outside _TUI_L_KEY_GROUPS off, so only focus movement, activation and the focused widget work.
+declare -gi _TUI_KEYS_OWNED=0
+declare -g _TUI_L_KEY_GROUPS=" focus click paste "
+
 _tui_input.dispatch() {
     _tui_perf.begin dispatch
     local name="$1" id i handled=1 typing=0
@@ -425,15 +434,18 @@ _tui_input.dispatch() {
         case "${ck[i]}" in
             D)
                 _tui_input.default_active "$name" || continue        # no default, or its group is switched off
+                (( _TUI_KEYS_OWNED )) && [[ "$_TUI_L_KEY_GROUPS" != *" ${_TUI_BIND_DEF_GROUP[$name]} "* ]] && continue
                 (( typing )) && [[ -z "${_TUI_BIND_DEF_ALWAYS[$name]:-}" ]] && continue
                 _tui_input.run "${_TUI_BIND_DEF[$name]}"; handled=0
                 break ;;
             U)
+                (( _TUI_KEYS_OWNED )) && continue
                 [[ -n "${_TUI_UBIND[$id]:-}" ]] || continue
                 (( typing )) && [[ -z "${_TUI_UBIND_ALWAYS[$id]:-}" ]] && continue
                 _tui_input.run "${_TUI_UBIND[$id]}"; handled=0
                 [[ -n "${_TUI_UBIND_PASS[$id]:-}" ]] || break ;;
             C)
+                (( _TUI_KEYS_OWNED )) && continue
                 [[ -n "${_TUI_BIND[$id]:-}" ]] || continue
                 (( typing )) && [[ -z "${_TUI_BIND_ALWAYS[$id]:-}" ]] && continue
                 _tui_input.run "${_TUI_BIND[$id]}"; handled=0
@@ -480,7 +492,9 @@ _tui_input.key_event() {
         return 1
     fi
     local rc=0
+    [[ -n "$_TUI_L_TRAP" ]] && _TUI_KEYS_OWNED=1
     _tui_input.dispatch "$name" || rc=$?
+    _TUI_KEYS_OWNED=0
     (( rc )) && _tui_input.feed_text "$name" && return 0
     return $rc
 }
@@ -504,6 +518,7 @@ _tui_input.mouse_event() {
     TUI_EVENT_COUNT=$_TUI_REPEAT; _TUI_REPEAT=1
     if [[ -n "$_TUI_ON_KEY_EVENT" ]]; then "$_TUI_ON_KEY_EVENT" "${name:-move}" "$TUI_EVENT_COUNT"; fi
     [[ -z "$name" ]] && return 1
+    [[ -n "$_TUI_CAPTURE_FN" ]] && _tui_input.captured "$name" "$3" "$4" && return 0
     # A modal owns the pointer too: its handler gets the event, everything else is ignored.
     if [[ -n "$_TUI_MODAL" ]]; then [[ -n "$_TUI_MODAL_MOUSEFN" ]] && "$_TUI_MODAL_MOUSEFN" "$name" "$3" "$4"; return 0; fi
     [[ "$name" == mouse:left ]] && ((_TUI_L_N)) && _tui_layer.outside && return 0      # a press outside the modal / popup layer (tui_layer.sh)
@@ -511,6 +526,23 @@ _tui_input.mouse_event() {
     [[ "$_HIT_ARG" == cv-* ]] && _tui_collapse.mouse "$name" && return 0                                  # chevron zones (tui_collapse.sh)
     [[ "$_HIT_ARG" == rz-* || -n "$_TUI_RZ_ID" ]] && _tui_resize.mouse "$name" "$3" "$4" && return 0   # pane resize handles (tui_resize.sh)
     _tui_input.dispatch "$name"
+}
+
+# tui.mouse.capture ID FN - route the held pointer to FN until the button is released, wherever it moves. Call it from a
+# press handler. FN EVENT ID X Y runs for each drag (EVENT=drag) and once on release (EVENT=release), X Y the absolute
+# 1-based cell, and decides what the gesture means. A new press ends a capture whose release was lost.
+# state:direct
+tui.mouse.capture() { _TUI_CAPTURE_ID="$1" _TUI_CAPTURE_FN="$2"; }
+
+# _tui_input.captured NAME X Y - hands a drag / release to the capturing handler. rc 0 = consumed
+_tui_input.captured() {
+    local name="$1" fn="$_TUI_CAPTURE_FN" id="$_TUI_CAPTURE_ID"
+    case "$name" in
+        *drag:*) "$fn" drag "$id" "$2" "$3" ;;
+        *release) _TUI_CAPTURE_FN="" _TUI_CAPTURE_ID=""; "$fn" release "$id" "$2" "$3" ;;
+        mouse:*) _TUI_CAPTURE_FN="" _TUI_CAPTURE_ID=""; return 1 ;;
+        *) return 1 ;;
+    esac
 }
 
 # ── built-in actions ────────────────────────────────────────────────────
@@ -659,6 +691,31 @@ tui.action.scroll_bottom() {
     _tui_scroll.apply "$_ST"
 }
 
+# _tui_input.scrollbar_held EVENT PANE X Y - a held scrollbar thumb follows the pointer even off the bar
+_tui_input.scrollbar_held() {
+    [[ "$1" == drag ]] && _tui_hit.scrollbar_drag "$2" "$_TUI_SB_ORIENT" "$3" "$4"
+    return 0
+}
+
+# _tui_input.button_held EVENT ID X Y - a button fires on release, and only when the pointer is still over it. The press
+# (focus) and hover looks drop in state first, so an action that moves focus keeps its choice, but the action runs before
+# any paint: a spammed button never queues its click behind the un-press redraws. One batched draw follows.
+_tui_input.button_held() {
+    [[ "$1" == release ]] || return 0
+    local id="$2" over="$_HIT" was_focused=0 old_hover="$_TUI_HOVERED_WIDGET" pane="${_TUI_W_PANE[$2]:-}"
+    if [[ "$_TUI_FOCUS_ID" == "$id" ]]; then was_focused=1; _TUI_FOCUS_ID=""; _TUI_FOCUS_IDX=-1; fi
+    _TUI_HOVERED_WIDGET=""
+    if [[ "$over" == "$id" ]]; then
+        local action="${_TUI_W_ACTION[$id]:-}"
+        [[ -n "$action" ]] && "$action" "$id"
+    fi
+    ((_TUI_RUNNING)) || return 0
+    [[ -n "${_TUI_W_TYPE[$id]+x}" ]] || return 0                       # the action replaced the page
+    _tui._draw_widgets_now "$id" "$old_hover"
+    ((was_focused)) && _tui._draw_pane_borders_now "$pane"
+    return 0
+}
+
 # Left press/drag: scrollbar jump, else activate the widget under the pointer,
 # else drop focus.
 tui.action.click() {
@@ -668,7 +725,9 @@ tui.action.click() {
     # Scrollbar jump: only while the left button is actually down (press or
     # drag), never on bare hover.
     if [[ "$TUI_EVENT_ZONE" == scrollbar ]] && (( (btn & 195) == 0 )); then   # the plain left button only
-        _tui_hit.scrollbar_jump "$TUI_EVENT_ZONE_ID" "$TUI_EVENT_ZONE_ARG" "$mx" "$my"
+        _TUI_SB_ORIENT="$TUI_EVENT_ZONE_ARG"
+        tui.mouse.capture "$TUI_EVENT_ZONE_ID" _tui_input.scrollbar_held
+        _tui_hit.scrollbar_grab "$TUI_EVENT_ZONE_ID" "$_TUI_SB_ORIENT" "$mx" "$my"
         return
     fi
 
@@ -682,8 +741,7 @@ tui.action.click() {
         case "$wtype" in
             button)
                 tui.focus "$wid"
-                local action="${_TUI_W_ACTION[$wid]:-}"
-                [[ -n "$action" ]] && "$action" "$wid" ;;
+                tui.mouse.capture "$wid" _tui_input.button_held ;;
             checkbox)
                 tui.focus "$wid"
                 tui.checkbox.toggle "$wid" ;;
@@ -831,8 +889,25 @@ _tui_input.coalescible() {
     [[ -n "$n" ]] || return 1          # unknown/undecodable key: nothing to look up
     for id in "${!_TUI_BIND[@]}" "${!_TUI_UBIND[@]}"; do [[ "$id" == pane:*"|$n" ]] && return 1; done
     cmd="${_TUI_UBIND[|$n]:-${_TUI_BIND[|$n]:-}}"
+    [[ -n "$cmd" && -n "${_TUI_BIND_COUNT[|$n]:-}" ]] && return 0
     [[ -z "$cmd" ]] && _tui_input.default_active "$n" && cmd="${_TUI_BIND_DEF[$n]}"
     [[ "$cmd" == "tui.action.scroll "* || "$cmd" == "tui.action.page "* ]]
+}
+
+# _tui_input.countable NAME - rc 0 when whatever receives the key NAME takes a repeat count, so identical presses already
+# waiting in the input may be merged into one event (TUI_EVENT_COUNT): the open modal's count_keys, the focused list or
+# table's up / down / page keys, a bound scroll / page action or a bind made with --count. Typing is never merged.
+_tui_input.countable() {
+    local n="$1"
+    [[ -n "$n" ]] || return 1
+    if [[ -n "$_TUI_MODAL" ]]; then [[ "$_TUI_MODAL_COUNT_KEYS" == *" $n "* ]]; return; fi
+    if [[ -n "$_TUI_FOCUS_ID" ]]; then # an empty id is a bad subscript for an associative array
+        case "${_TUI_W_TYPE[$_TUI_FOCUS_ID]:-}" in
+            list | table) [[ "$n" == @(up|down|pgup|pgdn) ]] && return 0 ;;
+        esac
+    fi
+    [[ -n "$_TUI_L_TRAP" ]] && return 1                 # a modal layer: the page's bindings are off, only its widgets count
+    _tui_input.coalescible "$n"
 }
 
 # _tui_input.same_event KIND FIRST NEXT - is NEXT a repeat of FIRST? (mouse: same
@@ -892,7 +967,7 @@ _tui_input.coalesce_key() {     # CHAR SEQ
     [[ -n "$_TUI_FOCUS_ID" && "${_TUI_W_TYPE[$_TUI_FOCUS_ID]:-}" == input ]] && return 0
     if [[ -n "$1" ]]; then _tui_input.name_char "$1"; else _tui_input.name_seq "$2"; fi
     # resize mode: a held arrow is one batch (_tui_resize.key takes the count), not one frame per repeat
-    [[ -n "$_TUI_RESIZE_PANE" && -z "$_TUI_MODAL" && "$_KEY" == @(|shift+)@(left|right|up|down) ]] || _tui_input.coalescible "$_KEY" || return 0
+    [[ -n "$_TUI_RESIZE_PANE" && -z "$_TUI_MODAL" && "$_KEY" == @(|shift+)@(left|right|up|down) ]] || _tui_input.countable "$_KEY" || return 0
     if [[ -n "$1" ]]; then _tui_input.coalesce key "$1"; else _tui_input.coalesce key "$2"; fi
 }
 
@@ -922,6 +997,7 @@ tui.passthrough() {
     (( _TUI_RUNNING )) || return 0
     if (( v )); then
         printf '\e[?1000l\e[?1002l\e[?1003l\e[?1006l'
+        _tui._pointer_reset
         _TUI_PENDING_INPUT=""            # drop half-read input; reports still in flight are ignored
         _tui_input.draw_box " TERMINAL MODE - mouse & keyboard are yours " " ${TUI_PASSTHROUGH_KEY} = back to the app " "1;30;46"
     else

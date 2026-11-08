@@ -1,0 +1,27 @@
+/* glyphs/variants.css - the built-in widget designs, imported by theme.css so every theme has them.
+ * Pick one per widget with variant="NAME" (markup) or tui.variant ID NAME. A variant sets only the slots it lists;
+ * the rest come from the base `.type` rule. progress_fill.NAME / progress.NAME rules would recolour a variant. */
+
+/* progress bars */
+.progress.thin    { fill: "━"; empty: "━"; }
+.progress.dots    { fill: "●"; empty: "·"; }
+.progress.squares { fill: "■"; empty: "□"; }
+.progress.ascii   { fill: "#"; empty: "-"; }
+
+/* checkboxes */
+.checkbox.round { left: "("; on: "●"; off: " "; right: ")"; }
+.checkbox.plain { left: ""; on: "✔"; off: "·"; right: ""; }
+
+/* selects (dropdowns) */
+.select.plain { left: ""; right: ""; }
+.select.angle { left: "<"; arrow: "v"; right: ">"; }
+
+/* scroll indicators of lists, tables and textareas */
+.scrollbar.thin  { thumb: "┃"; track: "│"; }
+.scrollbar.block { thumb: "█"; track: "░"; }
+.scrollbar.dot   { thumb: "●"; track: "·"; }
+
+/* scrollbars of scrolling panes: v = vertical, h = horizontal (variant="NAME" on a pane) */
+.panebar.block { vthumb: "█"; vtrack: "░"; hthumb: "█"; htrack: "░"; }
+.panebar.line  { vthumb: "┃"; vtrack: "│"; hthumb: "━"; htrack: "─"; }
+.panebar.dot   { vthumb: "●"; vtrack: "·"; hthumb: "●"; htrack: "·"; }

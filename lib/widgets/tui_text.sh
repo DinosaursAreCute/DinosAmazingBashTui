@@ -22,8 +22,9 @@
 #   tui.text.insert ID TEXT          replace the selection / insert at the cursor  tui.text.delete_selection ID
 #   tui.text.undo ID | tui.text.redo ID     tui.text.line_count ID
 #   tui.on_change ID FN              FN ID runs after every edit
-#   tui.text.mode ID markdown|plain  <textarea mode="markdown">: the source is styled as Markdown while you type (lib/markdown);
-#                                    characters, columns, cursor and selection are unchanged, only the SGR differs
+#   tui.text.mode ID markdown|syntax|plain  <textarea mode="markdown">: the source is styled as Markdown while you type (lib/markdown);
+#                                    characters, columns, cursor and selection are unchanged, only the SGR differs;
+#                                    mode="syntax" highlights only the Markdown delimiters, the text keeps the widget style
 #
 # The draw path paints a visible line at a time. With mode markdown the line is styled by tui.md.style_lines (memoized per
 # line, code-fence state from the lines above) and cut to the visible columns by _tui_text.paint_md.
@@ -31,7 +32,7 @@
 
 declare -gA _TXC=() _TXA=() _TXS=() _TXT=() _TXW=() _TXH=()       # cursor, anchor(-1), hscroll, top row, wanted column, rows shown
 declare -gA _TXUV=() _TXUC=() _TXUN=() _TXRV=() _TXRC=() _TXRN=() _TXLK=() _TXLP=()   # undo / redo
-declare -gA _TUI_W_CHANGE=() _TUI_W_MASK=() _TXF=()               # _TXF: 1 = keep the cursor in view on the next draw (0 after a wheel scroll)
+declare -gA _TUI_W_CHANGE=() _TUI_W_CHANGE_DEBOUNCE=() _TUI_W_MASK=() _TXF=()               # _TXF: 1 = keep the cursor in view on the next draw (0 after a wheel scroll)
 declare -gA _TXMD=()                                              # id -> 1: the textarea styles its source as Markdown
 declare -g  TUI_CLIPBOARD=""
 declare -g  _TX_CLICK_T=0 _TX_CLICK_ID="" _TX_CLICK_POS=-1 _TX_CLICK_N=0 _TX_DRAG=""
@@ -195,7 +196,10 @@ tui.text.select_all() { _TXA[$1]=0; _TXC[$1]=${#_TUI_W_VALUE[$1]}; _tui_text.red
 tui.text.set_cursor() { _TXC[$1]=$2; _TXA[$1]=-1; _tui_text.norm "$1"; _tui_text.redraw "$1"; }
 tui.text.cursor()     { _tui_text.rc "$1" "${_TXC[$1]:-0}"; printf '%s %s\n' $(( _ROW + 1 )) $(( _COL + 1 )); }
 tui.text.line_count() { _tui_text.line_count "$1"; printf '%s\n' "$_LC"; }
-tui.on_change()       { _TUI_W_CHANGE[$1]="$2"; }
+tui.on_change() { # ID FN [--debounce]
+    _TUI_W_CHANGE[$1]="$2"
+    if [[ "${3:-}" == --debounce ]]; then _TUI_W_CHANGE_DEBOUNCE[$1]=1; else unset '_TUI_W_CHANGE_DEBOUNCE[$1]'; fi
+}
 
 # state:direct
 _tui_text.redraw() { _TXF[$1]=1; [[ -n "${_TUI_W_PANE[$1]:-}" ]] && (( _TUI_RUNNING )) && _tui._draw_widget "$1"; return 0; }
@@ -495,11 +499,12 @@ _tui_text.paint_md() {
 	_PV=${w//"$reset"/"$reset$base"}
 }
 
-# tui.text.mode ID markdown|plain - styles a textarea's source as Markdown, or back to plain (rc 1 for other widgets).
+# tui.text.mode ID markdown|syntax|plain - styles a textarea's source as Markdown, highlights only its delimiters, or back to plain (rc 1 for other widgets).
 tui.text.mode() {
 	[[ "${_TUI_W_TYPE[$1]:-}" == textarea ]] || return 1
 	case "$2" in
 		markdown) _TXMD[$1]=1 ;;
+		syntax) _TXMD[$1]=2 ;;
 		plain | "") unset '_TXMD[$1]' ;;
 		*) return 1 ;;
 	esac
@@ -586,7 +591,7 @@ _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
     if (( md )); then
         local fence
         tui.md.fence_before "$v" "$top" fence
-        tui.md.style_lines "$fence" "${VL[@]}"
+        if (( md == 2 )); then _tui_md.syntax_lines "$fence" "${VL[@]}"; else tui.md.style_lines "$fence" "${VL[@]}"; fi
         MDR=("${TUI_MD_ROWS[@]}")
     fi
     _tui_text.sel "$id" && { hasel=1; sa=$_SA; sb=$_SB; }
@@ -617,7 +622,7 @@ _tui_text.draw_area() {   # ID SR SC SW SH FOCUSED STYLE_KEY PANE_KEY
         if (( lc > sh && sw > fw )); then
             local thumb=$(( top * (sh - 1) / (lc - sh > 0 ? lc - sh : 1) ))
             _tui.emit_goto $(( sr + i )) $(( sc + fw ))
-            (( i == thumb )) && _tui.emit '▐' || _tui.emit ' '
+            (( i == thumb )) && _tui_wx.scroll_cell "$id" 1 || _tui_wx.scroll_cell "$id" 0
         fi
     done
     _tui.emit_reset

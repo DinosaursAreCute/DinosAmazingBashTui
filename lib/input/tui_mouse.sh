@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tui_mouse.sh - mouse reports: hover tracking, motion coalescing, and the SGR report handler that routes presses to tui_input.sh.
 #
-#   Internal (_tui._*): _set_hovered_pane, _set_hovered_widget, _mouse_seq_is_motion, _coalesce_mouse_motion, _handle_mouse
+#   Internal (_tui._*): _set_hovered_pane, _set_hovered_widget, _pointer_shape_of, _pointer_update, _pointer_reset, _mouse_seq_is_motion, _coalesce_mouse_motion, _handle_mouse
 # requires:
 
 # _tui._set_hovered_pane tracks which pane the pointer is over purely as
@@ -26,6 +26,61 @@ _tui._set_hovered_widget() {
 	_TUI_HOVERED_WIDGET="$new"
 	((_TUI_RUNNING)) || return
 	_tui._draw_widgets_now "$old" "$new"
+}
+
+# Mouse pointer shape (OSC 22, ignored by terminals that lack it). The shape of a widget is its `cursor:` CSS value, else the
+# default of its type; anywhere else the terminal's own. TUI_POINTER_SHAPE=0 (Settings > Input) turns it off.
+declare -g TUI_POINTER_SHAPE=1 _TUI_POINTER_NOW=""
+declare -gA _TUI_POINTER_DEFAULT=([button]=pointer [checkbox]=pointer [select]=pointer [list]=pointer [table]=pointer [input]=text [textarea]=text)
+
+# _tui._pointer_shape_of ZONE_ARG WIDGET_ID X Y -> _PS. An open modal decides alone (its POINTERFN, else the terminal's own pointer); so does
+# the blocked page under a modal or popup layer. Else: layer chrome, resize handles and collapse buttons (they sit on borders), the
+# widget's `cursor:` (:hover, then :focus, then the base rule), its type default, "default".
+_tui._pointer_shape_of() {
+	if [[ -n "$_TUI_MODAL" ]]; then
+		_PS=default
+		[[ -n "$_TUI_MODAL_POINTERFN" ]] && "$_TUI_MODAL_POINTERFN" "$3" "$4"
+		return 0
+	fi
+	if ((_TUI_L_N)) && _tui_layer.blocked; then
+		_PS=default
+		return 0
+	fi
+	case "$1" in
+		ly-btn:* | ly-dt) _PS=pointer && return 0 ;;
+		ly-drag) _PS=move && return 0 ;;
+		ly-size) _PS=nwse-resize && return 0 ;;
+		rz-h | rz-hl) _PS=col-resize && return 0 ;;
+		rz-v | rz-vl) _PS=row-resize && return 0 ;;
+		rz-corner) _PS=nwse-resize && return 0 ;;
+		cv-*) _PS=pointer && return 0 ;;
+	esac
+	_PS=default
+	[[ -n "$2" ]] || return 0
+	_PS="${_TUI_STYLE_CUR[$2_hover]:-}"
+	[[ -z "$_PS" && "$2" == "$_TUI_FOCUS_ID" ]] && _PS="${_TUI_STYLE_CUR[$2_focus]:-}"
+	_PS="${_PS:-${_TUI_STYLE_CUR[$2_normal]:-${_TUI_POINTER_DEFAULT[${_TUI_W_TYPE[$2]:-}]:-default}}}"
+}
+
+# _tui._pointer_update WIDGET_ID ZONE_ARG X Y - sets the pointer shape for what is under the pointer (WIDGET_ID "" for none); writes only on a change.
+_tui._pointer_update() {
+	((TUI_POINTER_SHAPE)) || {
+		_tui._pointer_reset
+		return 0
+	} # switched off in Settings: give the pointer back
+	_tui._pointer_shape_of "${2:-}" "$1" "${3:-}" "${4:-}"
+	local shape="$_PS"
+	[[ "$shape" == "$_TUI_POINTER_NOW" ]] && return 0
+	[[ -z "$_TUI_POINTER_NOW" && "$shape" == default ]] && return 0
+	_TUI_POINTER_NOW="$shape"
+	printf '\e]22;%s\e\\' "$shape" >&"$_TUI_OUT_FD"
+}
+
+# _tui._pointer_reset - hands the pointer back to the terminal (exit, terminal mode).
+_tui._pointer_reset() {
+	[[ -z "$_TUI_POINTER_NOW" ]] && return 0
+	_TUI_POINTER_NOW=""
+	printf '\e]22;\e\\' >&"$_TUI_OUT_FD"
 }
 
 # _tui._mouse_seq_is_motion SEQ - true for a pure movement report (bare
@@ -92,6 +147,9 @@ _tui._handle_mouse() {
 	_tui._set_hovered_pane "$_HIT_PANE"
 	_tui._set_hovered_widget "$hover_widget"
 	_tui_hit.hover # resize handle / collapse button hover (tui_hit.sh)
+	local zone="${_TUI_HZ_HOVER:+${_TUI_HZ_HOVER#*|}}"
+	[[ -z "$zone" && "$_HIT_KIND" == layer ]] && zone="ly-$_HIT_ARG"
+	_tui._pointer_update "$hover_widget" "$zone" "$mx" "$my"
 
 	if [[ -n "$_TUI_ON_INPUT_EVENT" ]]; then
 		local kind="move"

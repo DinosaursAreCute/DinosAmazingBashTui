@@ -197,3 +197,6 @@
   bg: #ff8fbf;
   mods: bold;
 }
+
+/* progress bar glyphs */
+.progress { fill: "♥"; empty: "♡"; }

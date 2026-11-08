@@ -176,6 +176,8 @@ _tui_scroll.stuck() {
 # STYLE: SGR style string to apply to the bar (e.g., $sty)
 # Sets global _SC_BAR to the scrollbar escape string. No output.
 # Draws nothing if total <= viewport (no scrollbar needed).
+# The glyphs are the panebar.vthumb / panebar.vtrack slots of the pane's design (tui.variant): a blank thumb is drawn
+# reversed (a solid block), any other glyph as it is; the track is dim.
 _tui_scroll.bar_v() {
 	local pane="$1" total="$2" off="$3" sty="$4"
 	_SC_BAR=""
@@ -185,25 +187,59 @@ _tui_scroll.bar_v() {
 		return
 	fi
 
-	# Compute track position and dimensions
 	local pc=${_TUI_P_COL[$pane]}
 	local pw=${_TUI_P_W[$pane]}
 	local track_x=$((pc + pw - 1))
 
-	# Compute thumb height (at least 1)
 	local thumb_h=$(((_CR_H * _CR_H) / total))
 	((thumb_h < 1)) && thumb_h=1
-
-	# Compute thumb position
 	local thumb_y=$((_CR_R + (off * (_CR_H - thumb_h) / (total - _CR_H))))
 
-	# Draw track and thumb
+	local _V thumb track rev=""
+	_tui.variant_v "$pane" panebar
+	_tui.glyph_v panebar vthumb "$_V"
+	thumb="$TUI_GLYPH"
+	_tui.glyph_v panebar vtrack "$_V"
+	track="$TUI_GLYPH"
+	[[ "$thumb" == " " ]] && rev=$'\e[7m'
+
 	local i seg
 	for ((i = 0; i < _CR_H; i++)); do
 		if (((_CR_R + i >= thumb_y && _CR_R + i < thumb_y + thumb_h))); then
-			printf -v seg '\033[%d;%dH%s\033[7m \033[0m' $((_CR_R + i)) "$track_x" "$sty"
+			printf -v seg '\033[%d;%dH%s%s%s\033[0m' $((_CR_R + i)) "$track_x" "$sty" "$rev" "$thumb"
 		else
-			printf -v seg '\033[%d;%dH%s\033[2m│\033[0m' $((_CR_R + i)) "$track_x" "$sty"
+			printf -v seg '\033[%d;%dH%s\033[2m%s\033[0m' $((_CR_R + i)) "$track_x" "$sty" "$track"
+		fi
+		_SC_BAR+="$seg"
+	done
+}
+
+# _tui_scroll.bar_h PANE TOTAL OFF STYLE - the horizontal counterpart: TOTAL is the widest content line, OFF the column
+# offset; drawn on the pane's last row over the content width into _SC_BAR (panebar.hthumb / panebar.htrack).
+_tui_scroll.bar_h() {
+	local pane="$1" total="$2" off="$3" sty="$4"
+	_SC_BAR=""
+	((total > _CR_W)) || return 0
+
+	local track_y=$((${_TUI_P_ROW[$pane]} + ${_TUI_P_H[$pane]} - 1))
+	local thumb_w=$((_CR_W * _CR_W / total))
+	((thumb_w < 1)) && thumb_w=1
+	local thumb_x=$((_CR_C + (off * (_CR_W - thumb_w) / (total - _CR_W))))
+
+	local _V thumb track rev=""
+	_tui.variant_v "$pane" panebar
+	_tui.glyph_v panebar hthumb "$_V"
+	thumb="$TUI_GLYPH"
+	_tui.glyph_v panebar htrack "$_V"
+	track="$TUI_GLYPH"
+	[[ "$thumb" == " " ]] && rev=$'\e[7m'
+
+	local i seg
+	for ((i = 0; i < _CR_W; i++)); do
+		if ((_CR_C + i >= thumb_x && _CR_C + i < thumb_x + thumb_w)); then
+			printf -v seg '\033[%d;%dH%s%s%s\033[0m' "$track_y" $((_CR_C + i)) "$sty" "$rev" "$thumb"
+		else
+			printf -v seg '\033[%d;%dH%s\033[2m%s\033[0m' "$track_y" $((_CR_C + i)) "$sty" "$track"
 		fi
 		_SC_BAR+="$seg"
 	done
@@ -247,7 +283,7 @@ _tui_scroll.repaint() {
 	_tui._draw_pane_full_buf "$pane"
 	local buf="$_TUI_FRAME"
 	_TUI_FRAME="$saved_frame"
-	[[ -n "$buf" ]] && _tui._flush "$buf"
+	[[ -n "$buf" ]] && _tui._flush "$buf" # no row diff: a scroll changes most rows and splitting the frame costs more than it saves
 }
 
 # _tui_scroll.is_output PANE - rc 0 for a pane that scrolls tui.output text (content or line count), 1 for widget panes.

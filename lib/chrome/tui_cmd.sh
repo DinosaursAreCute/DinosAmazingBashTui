@@ -199,7 +199,8 @@ tui.palette.open() {
     (( _PAL_ROWS > _TUI_ROWS - 8 )) && _PAL_ROWS=$(( _TUI_ROWS - 8 ))
     (( _PAL_ROWS < 3 )) && _PAL_ROWS=3
     _tui_cmd.filter
-    tui.modal.open palette _tui_cmd.palette_key _tui_cmd.palette_draw _tui_cmd.palette_mouse
+    tui.modal.open palette _tui_cmd.palette_key _tui_cmd.palette_draw _tui_cmd.palette_mouse _tui_cmd.palette_pointer
+    tui.modal.count_keys "up down pgup pgdn"
 }
 tui.palette.close() { tui.modal.active palette && tui.modal.close; }
 
@@ -217,10 +218,10 @@ _tui_cmd.palette_key() {
     case "$name" in
         esc|ctrl+g)          tui.modal.dismiss; return ;;
         enter)               _tui_cmd.run_selected; return ;;
-        up|ctrl+p|ctrl+k)    (( _PAL_SEL > 0 )) && (( _PAL_SEL-- )) ;;
-        down|ctrl+n|ctrl+j)  (( _PAL_SEL < ${#_PAL_IDS[@]} - 1 )) && (( _PAL_SEL++ )) ;;
-        pgup)                (( _PAL_SEL -= _PAL_ROWS )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
-        pgdn)                (( _PAL_SEL += _PAL_ROWS )); (( _PAL_SEL >= ${#_PAL_IDS[@]} )) && _PAL_SEL=$(( ${#_PAL_IDS[@]} - 1 )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
+        up|ctrl+p|ctrl+k)    (( _PAL_SEL -= ${TUI_EVENT_COUNT:-1} )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
+        down|ctrl+n|ctrl+j)  (( _PAL_SEL += ${TUI_EVENT_COUNT:-1} )); (( _PAL_SEL >= ${#_PAL_IDS[@]} )) && _PAL_SEL=$(( ${#_PAL_IDS[@]} - 1 )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
+        pgup)                (( _PAL_SEL -= _PAL_ROWS * ${TUI_EVENT_COUNT:-1} )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
+        pgdn)                (( _PAL_SEL += _PAL_ROWS * ${TUI_EVENT_COUNT:-1} )); (( _PAL_SEL >= ${#_PAL_IDS[@]} )) && _PAL_SEL=$(( ${#_PAL_IDS[@]} - 1 )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
         home)                _PAL_SEL=0 ;;
         end)                 _PAL_SEL=$(( ${#_PAL_IDS[@]} - 1 )); (( _PAL_SEL < 0 )) && _PAL_SEL=0 ;;
         backspace)           _PAL_Q="${_PAL_Q%?}"; _PAL_SEL=0; _PAL_TOP=0; _tui_cmd.filter ;;
@@ -234,6 +235,15 @@ _tui_cmd.palette_key() {
     esac
     _tui_cmd.scroll_into_view
     tui.modal.redraw
+}
+
+# _tui_cmd.palette_pointer X Y - _PS: 'text' over the query line, 'pointer' over a command row.
+_tui_cmd.palette_pointer() {
+    local row=$(( $2 - _PAL_RY ))
+    _PS=default
+    (( $1 > _PAL_BX && $1 < _PAL_BX + _PAL_BW - 1 && $2 == _PAL_BY + 1 )) && _PS=text
+    (( $1 >= _PAL_BX && $1 < _PAL_BX + _PAL_BW && row >= 0 && row < _PAL_ROWS && _PAL_TOP + row < ${#_PAL_IDS[@]} )) && _PS=pointer
+    return 0
 }
 
 # EVENT X Y

@@ -133,3 +133,29 @@ ti_write_chunks_a_long_row_of_single_cell_styles_is_cut_between_sequences_and_in
 	done
 	eq 0 "$bad"
 }
+
+ti_write_inside_an_open_synchronized_update_adds_no_markers_of_its_own() {
+	local got
+	_TUI_SYNC_DEPTH=1
+	got="$(_tui.write "frame")"
+	_TUI_SYNC_DEPTH=0
+	eq "frame" "$got"
+}
+
+ti_write_outside_a_synchronized_update_wraps_the_frame() {
+	local got
+	_TUI_SYNC_DEPTH=0
+	got="$(_tui.write "frame")"
+	eq $'\e[?2026hframe\e[?2026l' "$got"
+}
+
+t_sync_start_and_end_nest_and_never_go_below_zero() {
+	_TUI_SYNC_DEPTH=0
+	mode.sync_start >/dev/null
+	mode.sync_start >/dev/null
+	eq 2 "$_TUI_SYNC_DEPTH"
+	mode.sync_end >/dev/null
+	mode.sync_end >/dev/null
+	mode.sync_end >/dev/null
+	eq 0 "$_TUI_SYNC_DEPTH"
+}

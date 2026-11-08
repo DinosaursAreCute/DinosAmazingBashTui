@@ -7,12 +7,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### News
-* **A new benchmark harness, `tools/compare-v2`, measures DABT and Textual from the screen the user sees.** Output is replayed into a terminal emulator and a step ends at the last visible change; the harness checks itself against a reference app with known delays (`compare.py selftest`: +0.07 ms bias, 0.09 ms jitter). The old `tools/compare` stays as it was.
-
+* **Widgets have selectable designs.** `variant="thin"` (or `dots`, `squares`, `ascii`, `blocks`) restyles progress bars, checkboxes and pane bars; themes and the Settings Glyphs category choose the default and let users build their own.
+* **The cursor is reactive: the mouse pointer changes shape over what it can do.** Buttons show a hand, inputs a text bar, resize handles a resize arrow, window headers a move cursor. 
+* **Holding a scrollbar thumb keeps it under the pointer, and a button fires only when released over it.** The thumb moves by the pointer's movement instead of jumping to the click.
+* **A new benchmark harness, `tools/compare-v2`, measures DABT and Textual from the screen the user sees.** 
 
 ### Added
+* Mouse pointer shapes: a `cursor:` CSS property sets the pointer over a widget of the class (OSC 22); `:hover` and `:focus` variants; resize handles show `col-resize`/`row-resize`/`nwse-resize`, collapse buttons `pointer`; layer headers (`pointer`, `move`, `nwse-resize`), dialog buttons and the command palette react, and the page under a modal or popup keeps the default pointer; `tui.modal.open` takes an optional POINTERFN; buttons, checkboxes, selects, lists and tables default to `pointer`, inputs and textareas to `text`. Settings > Input turns it off (`pointer.shape`).
+* `tui.mouse.capture ID FN` routes the held mouse button to `FN drag|release ID X Y` until release.
+* `<textarea mode="syntax">` and `tui.text.mode ID syntax` highlight only the Markdown delimiters, each in the color of its element class.
 * `tools/compare-v2`: pty-based, black-box benchmarking of comparable dabt and textual apps with improved accuracy and data set than the first version. . 
 .
+* Widget glyph designs: `tui.glyph.get|set|user|available`, `tui.variant`, `tui.variant.default|list`, theme `.type.variant` rules with quoted glyph properties, and `variant=` on widgets and panes.
+* Built-in glyph designs `thin`, `dots`, `squares`, `ascii` and `blocks` in `share/defaults/glyphs/`.
+* The demo has a Glyphs page that shows every widget design side by side.
+* The demo has a Markdown page with an editor and a live preview.
+* Themes can `@import` other stylesheets; editing an imported file refreshes the cached theme.
+* The Settings page has a Glyphs category, a live Preview pane and a custom-design editor.
+* `tui.on_change ID FN --debounce` runs a list or table callback once the keys stop (at most every `TUI_CHANGE_DEBOUNCE_MAX` events).
+* `tui.modal.count_keys` and `tui.bind --count` let a held key reach a handler as one call with `TUI_EVENT_COUNT`.
+* `tui.config.stage` and `tui.config.flush` batch setting writes into one file save.
+
+### Changed
+* A scrollbar press on the thumb no longer jumps; a press on the track centers the thumb on the pointer.
+* A button runs its action on release and drops its focus and hover looks.
+* A button's action runs before its un-press redraw, which is then one batched draw, so spamming a button no longer queues clicks behind repaints.
+* A nav button (`page=`) whose target is the page already shown does nothing instead of reloading it.
+* The default Markdown delimiter color is bold yellow and the default rule color is bold red.
+* The demo Markdown editor uses `mode="syntax"`.
+* Held scroll and navigation keys in lists, tables, dialogs and the command palette are merged into one step with a count.
+* The demo Settings page swaps its input fields for selects and adds a progress-bar design section.
+* List and table redraws no longer blank their first row before drawing it.
+* Widgets above or below the viewport of a scrolling pane are skipped on a full render before their placement is computed.
+
+### Fixed
+* A Markdown heading with no text, such as a lone `#`, no longer crashes the TUI.
+* Emphasis, code and link spans inside a Markdown heading keep the heading colors.
+* A widget redraw inside a page switch no longer ends the switch's synchronized update early, which showed the half-built page.
+* Nested synchronized updates no longer emit inner markers: `_tui.write` adds none while `mode.sync_start` is open.
+* Single widget redraws are written inside a synchronized update instead of as a bare print.
 
 ## [0.0.26] - 2026-11-07
 

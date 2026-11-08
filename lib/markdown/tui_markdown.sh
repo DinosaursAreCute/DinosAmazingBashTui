@@ -67,6 +67,9 @@ declare -gA _TUI_MD_SHOWN=() _TUI_MD_SHOWN_W=() # pane -> source text / width it
 declare -gi _TUI_MD_HOOKED=0
 declare -g _TUI_MD_NEXT_FILE=""
 declare -gi _TUI_MD_KEEP=0 _TUI_MD_DEPTH=0
+declare -g _TUI_MD_SYN="" # "s" while _tui_md.syntax_lines runs: keys the style memo apart from the styled-source rows
+declare -gA _TUI_MD_TOK=() # class -> SGR of its delimiters while _tui_md.syntax_lines runs (the class itself is blanked for the text)
+declare -ga _TUI_MD_CONTENT_CLASSES=(h1 h2 h3 h4 h5 h6 strong em code codeblock quote link strike) # classes of text, not of delimiters
 declare -gA _TUI_MD_IMEMO=() # inline results of whole paragraphs/headings: "BASE\x1fLINKS_BEFORE\x1fTEXT" -> record
 declare -g _TUI_MD_IMEMO_SIG=""
 declare -gi _TUI_MD_TOP=0 _TUI_MD_STOP=0 _TUI_MD_STOP_ROWS=0 _TUI_MD_STOP_AT=0 # resumable top-level block loop
@@ -112,7 +115,7 @@ _TUI_MD_RE_SQUOTE='^([[:space:]]{0,3}>)(.*)$'
 _TUI_MD_RE_SLIST='^([[:space:]]*)([-*+]|[0-9]{1,9}[.)])([[:space:]]+)(.*)$'
 
 # _tui_md.sgr_defaults - fills the class -> SGR table for the current TUI_MD_MONO. The colored table follows the look the
-# Settings page was used to build: magenta titles, cyan bullets, bright-blue bold links, a dim red rule, a dim gray delimiter.
+# Settings page was used to build: magenta titles, cyan bullets, bright-blue bold links, a bold red rule, a bold yellow delimiter (readable on a dark background).
 _tui_md.sgr_defaults() {
 	local e=$'\e['
 	if ((TUI_MD_MONO)); then
@@ -123,7 +126,7 @@ _tui_md.sgr_defaults() {
 	else
 		_TUI_MD_SGR=([h1]="${e}1;4;95m" [h2]="${e}1;34m" [h3]="${e}1;35m" [h4]="${e}1;33m" [h5]="${e}1;32m" [h6]="${e}1m"
 			[strong]="${e}1m" [em]="${e}3m" [code]="${e}33m" [codeblock]="${e}48;5;236m" [quote]="${e}2m" [bullet]="${e}36m"
-			[link]="${e}1;4;94m" [hr]="${e}2;31m" [marker]="${e}2;90m" [strike]="${e}9m" [link_focus]="${e}7;94m" [page]="" [table]="${e}2;90m" [table_head]="${e}1m"
+			[link]="${e}1;4;94m" [hr]="${e}1;31m" [marker]="${e}1;33m" [strike]="${e}9m" [link_focus]="${e}7;94m" [page]="" [table]="${e}2;90m" [table_head]="${e}1m"
 			[hl_keyword]="${e}1;35m" [hl_string]="${e}32m" [hl_comment]="${e}2;37m" [hl_number]="${e}33m" [hl_var]="${e}36m")
 	fi
 }
@@ -834,7 +837,7 @@ _tui_md.link() {
 # _tui_md.inline TEXT BASE -> _MD_OUT - the inline spans of one paragraph. BASE is the style already open around TEXT: every
 # span closes with a reset and reopens BASE. In keep mode (styled source) the delimiters stay, drawn with the marker style.
 _tui_md.inline() {
-	local s=$1 base=$2 out="" pre c n m run inner after sgr delim fc nx pv prevc=" " next lk
+	local s=$1 base=$2 out="" pre c n m run inner after sgr delim fc nx pv prevc=" " next lk tk
 	local marker=${_TUI_MD_SGR[marker]} reset=$_TUI_MD_RESET
 	if ((TUI_MD_DEGRADED)) || [[ "$s" != *[\\*_\`\[~\<]* ]]; then
 		_MD_OUT=$s
@@ -867,7 +870,8 @@ _tui_md.inline() {
 				if _tui_md.code_end "$s" "$n" "$n"; then
 					inner=${s:n:_CE-n}
 					if ((_TUI_MD_KEEP)); then
-						out+="${marker}${run}${reset}${base}${_TUI_MD_SGR[code]}${inner}${reset}${marker}${run}${reset}${base}"
+						tk=$marker; [[ -n "$_TUI_MD_SYN" ]] && tk=${_TUI_MD_TOK[code]-}
+						out+="${tk}${run}${reset}${base}${_TUI_MD_SGR[code]}${inner}${reset}${tk}${run}${reset}${base}"
 					else
 						if [[ "$inner" == " "*" " && -n "${inner//[ ]/}" ]]; then inner=${inner:1:${#inner}-2}; fi
 						out+="${_TUI_MD_SGR[code]}${inner}${reset}${base}"
@@ -886,7 +890,8 @@ _tui_md.inline() {
 					[[ "$lk" != *:* ]] && delim="mailto:$lk"
 					fc=${#BASH_REMATCH[0]}
 					if ((_TUI_MD_KEEP)); then
-						out+="${marker}<${reset}${base}${_TUI_MD_SGR[link]}${lk}${reset}${marker}>${reset}${base}"
+						tk=$marker; [[ -n "$_TUI_MD_SYN" ]] && tk=${_TUI_MD_TOK[link]-}
+						out+="${tk}<${reset}${base}${_TUI_MD_SGR[link]}${lk}${reset}${tk}>${reset}${base}"
 					else
 						n=${#TUI_MD_LINK_URLS[@]}
 						TUI_MD_LINK_URLS+=("$delim")
@@ -906,7 +911,8 @@ _tui_md.inline() {
 					lk=$_LT fc=$_LN delim=$_LU
 					if ((_TUI_MD_KEEP)); then
 						_tui_md.inline "$lk" "$base${_TUI_MD_SGR[link]}"
-						out+="${marker}[${reset}${base}${_TUI_MD_SGR[link]}${_MD_OUT}${reset}${marker}${s:${#lk}+1:fc-${#lk}-1}${reset}${base}"
+						tk=$marker; [[ -n "$_TUI_MD_SYN" ]] && tk=${_TUI_MD_TOK[link]-}
+						out+="${tk}[${reset}${base}${_TUI_MD_SGR[link]}${_MD_OUT}${reset}${tk}${s:${#lk}+1:fc-${#lk}-1}${reset}${base}"
 					elif [[ "${out: -1}" == "!" ]]; then
 						# an image: a placeholder with its description (no terminal graphics here)
 						out=${out%!}
@@ -947,14 +953,15 @@ _tui_md.inline() {
 					fc=$_FC
 					inner=${s:m:fc-m}
 					case "$m" in
-						1) sgr=${_TUI_MD_SGR[em]} ;;
-						2) [[ "$c" == "~" ]] && sgr=${_TUI_MD_SGR[strike]} || sgr=${_TUI_MD_SGR[strong]} ;;
-						*) sgr=${_TUI_MD_SGR[strong]}${_TUI_MD_SGR[em]} ;;
+						1) sgr=${_TUI_MD_SGR[em]} tk=${_TUI_MD_TOK[em]-} ;;
+						2) if [[ "$c" == "~" ]]; then sgr=${_TUI_MD_SGR[strike]} tk=${_TUI_MD_TOK[strike]-}; else sgr=${_TUI_MD_SGR[strong]} tk=${_TUI_MD_TOK[strong]-}; fi ;;
+						*) sgr=${_TUI_MD_SGR[strong]}${_TUI_MD_SGR[em]} tk=${_TUI_MD_TOK[strong]-}${_TUI_MD_TOK[em]-} ;;
 					esac
+					[[ -n "$_TUI_MD_SYN" ]] || tk=$marker
 					_tui_md.inline "$inner" "$base$sgr"
 					delim=${s:0:m}
 					if ((_TUI_MD_KEEP)); then
-						out+="${marker}${delim}${reset}${base}${sgr}${_MD_OUT}${reset}${marker}${s:fc:m}${reset}${base}"
+						out+="${tk}${delim}${reset}${base}${sgr}${_MD_OUT}${reset}${tk}${s:fc:m}${reset}${base}"
 					else
 						out+="${sgr}${_MD_OUT}${reset}${base}"
 					fi
@@ -1303,7 +1310,7 @@ _tui_md.code_row() {
 	TUI_MD_MAP+=("$3")
 }
 
-# _tui_md.slug TEXT -> _SLUG - the anchor of a heading: lower case, spaces to "-", punctuation dropped, "-N" on a repeat.
+# _tui_md.slug TEXT -> _SLUG - the anchor of a heading: lower case, spaces to "-", punctuation dropped, "-N" on a repeat; "section" when nothing is left.
 _tui_md.slug() {
 	local t=${1,,} s="" i c n=0
 	t=${t//[[:space:]]/-}
@@ -1311,8 +1318,49 @@ _tui_md.slug() {
 		c=${t:i:1}
 		[[ "$c" == [[:alnum:]_-] || "$c" == [!\ -~] ]] && s+=$c
 	done
+	s=${s:-section} # an empty key is not a valid associative-array subscript (a heading of only punctuation, or "#")
 	_SLUG=$s
 	while [[ -n "${TUI_MD_ANCHORS[$_SLUG]+x}" ]]; do _SLUG="$s-$((++n))"; done
+}
+
+# _tui_md.uncolor SGR -> _UC - SGR without its colors (foreground, background, default-color resets): the modifiers stay.
+declare -gA _TUI_MD_UNCOLOR=()
+_tui_md.uncolor() {
+	local raw=$1 seq p keep out="" rest=$1 params i
+	if [[ -n "${_TUI_MD_UNCOLOR[$raw]+x}" ]]; then _UC=${_TUI_MD_UNCOLOR[$raw]}; return 0; fi
+	while [[ "$rest" == $'\e['*m* ]]; do
+		seq=${rest%%m*}
+		rest=${rest#"$seq"m}
+		params=${seq#*[}
+		keep=""
+		local -a ps
+		IFS=';' read -ra ps <<<"$params"
+		for ((i = 0; i < ${#ps[@]}; i++)); do
+			p=${ps[i]}
+			case "$p" in
+				38 | 48) [[ "${ps[i + 1]:-}" == 2 ]] && ((i += 4)) || ((i += 2)) ;;
+				3[0-79] | 4[0-79] | 9[0-7] | 10[0-7]) ;;
+				*) keep+="${keep:+;}$p" ;;
+			esac
+		done
+		[[ -n "$keep" ]] && out+=$'\e['"${keep}m"
+	done
+	_TUI_MD_UNCOLOR[$raw]=$out
+	_UC=$out
+}
+
+# _tui_md.inline_in_heading TEXT BASE - inline spans inside a heading keep the heading's colors: a span only adds its own
+# modifiers (bold, italic, underline ...), so an emphasis background never replaces the heading background.
+_tui_md.inline_in_heading() {
+	local c
+	local -A saved=()
+	for c in strong em code link strike; do
+		saved[$c]=${_TUI_MD_SGR[$c]-}
+		_tui_md.uncolor "${saved[$c]}"
+		_TUI_MD_SGR[$c]=$_UC
+	done
+	_tui_md.inline_memo "$1" "$2"
+	for c in strong em code link strike; do _TUI_MD_SGR[$c]=${saved[$c]}; done
 }
 
 # _tui_md.heading LEVEL TEXT WIDTH LINENO - a heading in its font or style; records its anchor and outline entry.
@@ -1332,7 +1380,7 @@ _tui_md.heading() {
 		_tui_md.heading_banner "$text" "${_TUI_MD_HFONT[$level]}" "$width" "$h" "$ln"; then
 		:
 	else
-		_tui_md.inline_memo "$text" "$h"
+		if [[ "$text" == *[\\*_\`\[~\<]* ]]; then _tui_md.inline_in_heading "$text" "$h"; else _tui_md.inline_memo "$text" "$h"; fi
 		_tui_md.wrap "$h$_MD_OUT" "$width" "$ln"
 	fi
 	plain=${text//[\*_\`~|]/}
@@ -1798,6 +1846,7 @@ _tui_md.style_line() {
 		local hashes=${BASH_REMATCH[1]} body=${BASH_REMATCH[3]} gap=${BASH_REMATCH[2]%"${BASH_REMATCH[3]}"}
 		local lead=${line%%"$hashes"*}
 		_tui_md.inline "$body" "$h"
+		[[ -n "$_TUI_MD_SYN" ]] && marker=${_TUI_MD_TOK[h${#hashes}]-}
 		_MD_ROW="${marker}${lead}${hashes}${gap}${reset}"
 		[[ -n "$body" ]] && _MD_ROW+="${h}${_MD_OUT}${reset}"
 	elif [[ "$line" =~ $_TUI_MD_RE_HR ]]; then
@@ -1805,6 +1854,7 @@ _tui_md.style_line() {
 	elif [[ "$line" =~ $_TUI_MD_RE_SQUOTE ]]; then
 		local qm=${BASH_REMATCH[1]} qrest=${BASH_REMATCH[2]}
 		_tui_md.style_line "$qrest"
+		[[ -n "$_TUI_MD_SYN" ]] && marker=${_TUI_MD_TOK[quote]-}
 		_MD_ROW="${marker}${qm}${reset}${_MD_ROW}"
 	elif [[ "$line" =~ $_TUI_MD_RE_SLIST ]]; then
 		local li=${BASH_REMATCH[1]} lm=${BASH_REMATCH[2]} ls=${BASH_REMATCH[3]} lr=${BASH_REMATCH[4]}
@@ -1819,7 +1869,8 @@ _tui_md.style_line() {
 # _tui_md.style_row LINE - styles one source line in keep mode -> _MD_ROW. The caller's infence/fchar/flen carry the code-fence
 # state across lines. Lines outside fences are memoized: moving the cursor or editing one line re-styles that line only.
 _tui_md.style_row() {
-	local line=${1//$'\e'/} run rest
+	local line=${1//$'\e'/} run rest fm=${_TUI_MD_SGR[marker]}
+	[[ -n "$_TUI_MD_SYN" ]] && fm=${_TUI_MD_TOK[code]-}
 	if ((infence)); then
 		run=${line#"${line%%[! ]*}"}
 		rest=""
@@ -1829,7 +1880,7 @@ _tui_md.style_row() {
 		fi
 		if [[ "$run" == "$fchar"* ]] && ((${#run} >= flen)) && [[ -z "${rest//[[:space:]]/}" ]]; then
 			infence=0
-			_MD_ROW="${_TUI_MD_SGR[marker]}${line}${_TUI_MD_RESET}"
+			_MD_ROW="${fm}${line}${_TUI_MD_RESET}"
 		elif [[ -n "$line" ]]; then
 			_MD_ROW="${_TUI_MD_SGR[codeblock]}${line}${_TUI_MD_RESET}"
 		else
@@ -1837,15 +1888,15 @@ _tui_md.style_row() {
 		fi
 	elif [[ "$line" == *'```'* || "$line" == *'~~~'* ]] && [[ "$line" =~ $_TUI_MD_RE_FENCE ]]; then
 		infence=1 fchar=${BASH_REMATCH[1]:0:1} flen=${#BASH_REMATCH[1]}
-		_MD_ROW="${_TUI_MD_SGR[marker]}${line}${_TUI_MD_RESET}"
+		_MD_ROW="${fm}${line}${_TUI_MD_RESET}"
 	elif [[ -z "$line" ]]; then
 		_MD_ROW=""
-	elif [[ -n "${_TUI_MD_MEMO[$line]+x}" ]]; then
-		_MD_ROW=${_TUI_MD_MEMO[$line]}
+	elif [[ -n "${_TUI_MD_MEMO[$_TUI_MD_SYN$line]+x}" ]]; then
+		_MD_ROW=${_TUI_MD_MEMO[$_TUI_MD_SYN$line]}
 	else
 		_tui_md.style_line "$line"
 		((${#_TUI_MD_MEMO[@]} >= 4096)) && _TUI_MD_MEMO=()
-		_TUI_MD_MEMO[$line]=$_MD_ROW
+		_TUI_MD_MEMO[$_TUI_MD_SYN$line]=$_MD_ROW
 	fi
 }
 
@@ -1895,6 +1946,18 @@ tui.md.style_lines() {
 		TUI_MD_ROWS+=("$_MD_ROW")
 	done
 	_TUI_MD_KEEP=0
+}
+
+# _tui_md.syntax_lines FENCE LINE... - like tui.md.style_lines, but only the delimiters (#, **, `, [](), >, bullets, fences, rules)
+# are styled, each in the color of its element's class (md.style.* settings: # in the heading color, ** in strong, ` in code ...);
+# the text between them keeps the caller's style.
+_tui_md.syntax_lines() {
+	local c
+	for c in "${_TUI_MD_CONTENT_CLASSES[@]}"; do _TUI_MD_TOK[$c]=${_TUI_MD_SGR[$c]-} _TUI_MD_SGR[$c]=""; done
+	_TUI_MD_SYN=s
+	tui.md.style_lines "$@"
+	_TUI_MD_SYN=""
+	for c in "${_TUI_MD_CONTENT_CLASSES[@]}"; do _TUI_MD_SGR[$c]=${_TUI_MD_TOK[$c]}; done
 }
 
 # _tui_md.slice ROW LEFT WIDTH -> _SL - the cells [LEFT, LEFT+WIDTH) of a styled row, padded to WIDTH. The slice opens in the

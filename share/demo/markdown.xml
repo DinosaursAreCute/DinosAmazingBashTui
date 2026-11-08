@@ -1,0 +1,11 @@
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="md_visit">
+  <script src="markdown_callbacks.sh"/>
+
+  <!-- a Markdown editor beside its live preview: the textarea styles the source while typing, on_change re-renders the preview -->
+  <pane id="main" split="h" border="none">
+    <pane id="md_edit" weight="50" title="Markdown source" border="single" class="panel" hpad="1">
+      <textarea id="md_text" mode="syntax" placeholder="write Markdown here..." on_change="md_changed"/>
+    </pane>
+    <pane id="md_preview" weight="50" title="Preview" border="single" class="panel" hpad="1" scroll="v"/>
+  </pane>
+</tui>

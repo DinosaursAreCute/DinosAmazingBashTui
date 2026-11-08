@@ -1,0 +1,2 @@
+/* glyphs/squares.css - shared glyph preset: @import "../glyphs/squares.css"; from a theme. Filled squares over hollow squares. */
+.progress { fill: "■"; empty: "□"; }

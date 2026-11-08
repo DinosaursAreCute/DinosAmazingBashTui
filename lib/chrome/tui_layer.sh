@@ -695,20 +695,27 @@ _tui_layer.mouse() {
 	return 1
 }
 
+# _tui_layer.blocked - the pointer (as _tui_hit.at left it) is over a page or lower layer while a modal or auto-closing layer is
+# up: -> _LB_TOP (that layer) and _LB_H (the layer under the pointer, "" for the page). rc 0 = blocked
+_tui_layer.blocked() {
+	local L p="${_HIT_PANE:-}"
+	_LB_TOP="" _LB_H=""
+	[[ "$_HIT_KIND" == layer ]] && p="$_HIT_ID"
+	_LB_H="${_TUI_P_LAYER[${p:-_}]:-}"
+	for L in "${_TUI_L_ORDER[@]}"; do
+		_tui_layer.is_visible "$L" && [[ -n "${_TUI_L_F[$L.modal]:-}" || -n "${_TUI_L_F[$L.autoclose]:-}" ]] && _LB_TOP="$L"
+	done
+	[[ -n "$_LB_TOP" ]] && ((${_TUI_L_RANK[${_LB_H:-_}]:-0} < ${_TUI_L_RANK[$_LB_TOP]}))
+}
+
 # _tui_layer.outside - a left press with the pointer over a page (or a lower layer) while a modal or auto-closing layer is
 # up: the modal swallows it, a popup closes. A press inside a layer raises that layer. rc 0 = consumed
 _tui_layer.outside() {
-	local L top="" p="${_HIT_PANE:-}" H="" rank
-	[[ "$_HIT_KIND" == layer ]] && p="$_HIT_ID"
-	H="${_TUI_P_LAYER[${p:-_}]:-}"
-	for L in "${_TUI_L_ORDER[@]}"; do
-		_tui_layer.is_visible "$L" && [[ -n "${_TUI_L_F[$L.modal]:-}" || -n "${_TUI_L_F[$L.autoclose]:-}" ]] && top="$L"
-	done
-	if [[ -n "$top" ]] && ((${_TUI_L_RANK[${H:-_}]:-0} < ${_TUI_L_RANK[$top]})); then
-		if [[ -n "${_TUI_L_F[$top.autoclose]:-}" ]]; then tui.layer.hide "$top"; fi
+	if _tui_layer.blocked; then
+		[[ -n "${_TUI_L_F[$_LB_TOP.autoclose]:-}" ]] && tui.layer.hide "$_LB_TOP"
 		return 0
 	fi
-	[[ -n "$H" ]] && tui.layer.raise "$H"
+	[[ -n "$_LB_H" ]] && tui.layer.raise "$_LB_H"
 	return 1
 }
 

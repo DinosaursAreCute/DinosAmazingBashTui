@@ -1,7 +1,7 @@
 ### `tui.bind`
 
 ```bash
-tui.bind KEY COMMAND [--pane ID] [--pass] [--always] [--page] [--user] [--desc TEXT]
+tui.bind KEY COMMAND [--pane ID] [--pass] [--always] [--page] [--user] [--count] [--desc TEXT]
 ```
 
 Binds a key or mouse event to a command.
@@ -18,6 +18,7 @@ Binds a key or mouse event to a command.
 - `--always`: also fire while a text widget has focus and would otherwise take the key.
 - `--page`: removed on the next page change. `<bind>` in markup uses this.
 - `--user`: a binding made by the person using the app. It beats code bindings and is saved with [`tui.bind.save`](/api/input/tui.bind.save.html).
+- `--count`: the command takes a repeat count. A held key arrives as one call with `TUI_EVENT_COUNT` set to the number of presses merged, so the command should move or scroll by that many. Without the flag every press is its own call.
 - `--desc TEXT`: description shown in binding lists and the Keybinds page.
 
 **Returns:** `1` when `KEY` or `COMMAND` is missing.

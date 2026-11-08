@@ -53,13 +53,20 @@ chord turns it back on. API: `tui.keys.suspend [on|off|toggle]`, `tui.keys.suspe
 Use it when your own bindings would fire on keys you need to press for something else.
 
 ## Repeat coalescing
-A wheel spin or a held scroll key sends dozens of identical events. Back-to-back
-identical ones that are already buffered are merged into a single dispatch with
-`TUI_EVENT_COUNT=n`; `tui.action.scroll`/`page` multiply their step by it, so the
-distance is the same but it is one redraw. Only events bound to `tui.action.scroll`
-or `tui.action.page` merge - clicks, releases, Enter and typing are never touched.
-Tunables: `TUI_INPUT_COALESCE` (0 disables), `TUI_INPUT_COALESCE_MAX`, and the peek
-window `TUI_MOUSE_DRAIN_PEEK_TIMEOUT` (must stay > 0).
+A wheel spin or a held key sends dozens of identical events. Back-to-back identical
+ones that are already buffered are merged into a single dispatch with
+`TUI_EVENT_COUNT=n`, and the handler moves by n with one redraw, so a slow handler
+cannot fall behind a held key. A key is merged only when whatever receives it takes a
+count:
+- the focused list or table (`up`, `down`, `pgup`, `pgdn`: one change, one redraw);
+- the open dialog, picker or command palette (`tui.modal.count_keys`);
+- keys bound to `tui.action.scroll` / `tui.action.page`;
+- a binding made with `tui.bind KEY CMD --count`: `CMD` reads `TUI_EVENT_COUNT`.
+
+Clicks, releases, Enter and typing are never touched, and a different key ends the batch
+(it is handled next). A held key stops at the edge of a list instead of carrying on into
+focus movement in the same batch. Tunables: `TUI_INPUT_COALESCE` (0 disables),
+`TUI_INPUT_COALESCE_MAX`, and the peek window `TUI_MOUSE_DRAIN_PEEK_TIMEOUT` (must stay > 0).
 
 ## Terminal-control mode (pass-through)
 `ctrl+alt+p` (change with `tui.passthrough.key SPEC`; `tui.passthrough on|off|toggle`,

@@ -8,7 +8,7 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 
 ## Styling and themes
 
-<!-- api: tui.load_theme tui.class tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.paint.reset tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.cache.theme_clear -->
+<!-- api: tui.load_theme tui.class tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.paint.reset tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.glyph.get tui.glyph.set tui.glyph.user tui.glyph.available tui.variant.default tui.variant.list tui.cache.theme_clear -->
 
 | Function | Summary |
 |---|---|
@@ -24,6 +24,12 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 | [`tui.class.style`](style/tui.class.style.md) | Resolves a theme class into variables, without a subshell. Sets `TUI_FG`, `TUI_BG`, `TUI_MODS`. |
 | [`tui.class.sgr`](style/tui.class.sgr.md) | Resolves a theme class into an escape prefix, without a subshell. |
 | [`tui.class.names`](style/tui.class.names.md) | Stores every class and pseudo-state key of the loaded theme, sorted, in the array `TUI_CLASSES`. Fork-free. |
+| [`tui.glyph.get`](style/tui.glyph.get.md) | Resolves a themeable glyph into `TUI_GLYPH`, without a subshell: the variant's value, else the base type's, else the built-in default. |
+| [`tui.glyph.set`](style/tui.glyph.set.md) | Sets a themeable glyph at run time, for apps that let the user pick a look. |
+| [`tui.glyph.user`](style/tui.glyph.user.md) | Sets one part of the user's own design, `custom`, and keeps it across theme changes. The Settings page uses it; the choice is stored as `glyph.TYPE.KEY` in the app's `dabt.conf`. |
+| [`tui.glyph.available`](style/tui.glyph.available.md) | Lists the glyphs the Settings page offers for a slot, without a subshell. Every slot of a group gets the same list, so a checked and an unchecked mark are picked from one set. |
+| [`tui.variant.default`](style/tui.variant.default.md) | Sets the design widgets of one type use when they name no [`variant`](/api/widgets/tui.variant.html) of their own. The Settings page uses it; the choice is stored as `variant.TYPE` in the app's `dabt.conf`. |
+| [`tui.variant.list`](style/tui.variant.list.md) | Lists the designs the loaded theme defines for one widget type, without a subshell. |
 | [`tui.cache.theme_clear`](style/tui.cache.theme_clear.md) | Forgets every memoized stylesheet, so the next load parses the files again. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
@@ -51,6 +57,18 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 {% include_relative style/tui.class.sgr.md %}
 
 {% include_relative style/tui.class.names.md %}
+
+{% include_relative style/tui.glyph.get.md %}
+
+{% include_relative style/tui.glyph.set.md %}
+
+{% include_relative style/tui.glyph.user.md %}
+
+{% include_relative style/tui.glyph.available.md %}
+
+{% include_relative style/tui.variant.default.md %}
+
+{% include_relative style/tui.variant.list.md %}
 
 {% include_relative style/tui.cache.theme_clear.md %}
 

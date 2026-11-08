@@ -96,6 +96,7 @@ Attributes every widget has:
 | Attribute | |
 |---|---|
 | `class` | the style (see [Styling](#styling)) |
+| `variant` | on progress, checkbox, select, list, table, textarea and on scrolling panes (their scrollbars): the design (`.type.NAME` glyph rules of the theme) to draw with, e.g. `variant="thin"` |
 | `align`, `valign` | text position in its row: `left`, `center`, `right`, `fill` (paint the whole row) / `top`, `middle`, `bottom` |
 | `width`, `height` | a size token for the widget itself |
 | `min_width`, `max_width`, `min_height`, `max_height` | limits |
@@ -270,6 +271,16 @@ Tabs known only at run time are built from `on_visit` with `tui.tabs.add` and `t
 | `:hover` | a widget while the mouse is over it (a class without `:hover` shows no hover) |
 | `:checked`, `:unchecked` | a checkbox by its value; `:focus` and `:hover` win while they apply |
 | `:border`, `:title` | a pane's border ring and title |
+
+`cursor` sets the mouse pointer shape over a widget of the class, by CSS name (`pointer`, `text`, `not-allowed`, `grab`, `col-resize`, ...); `default` gives the terminal's own pointer back:
+
+```css
+.danger_button { cursor: not-allowed; }
+```
+
+`.btn:hover { cursor: grab; }` applies while the pointer is over the widget, `.btn:focus { ... }` while it is over the focused widget; `:hover` wins over `:focus`, both win over the base rule. Resize handles show `col-resize`, `row-resize` or `nwse-resize` and the pane collapse button `pointer`. Window headers show `pointer` over their buttons, `move` over the drag area and `nwse-resize` on the corner. While a modal, dialog, popup or the command palette is open, the page under it keeps the terminal's own pointer; dialog buttons and list rows and palette rows show `pointer`, the palette query `text`.
+
+A widget with no `cursor` gets a default by type: buttons, checkboxes, selects, lists and tables show `pointer`, inputs and textareas `text`. It uses the OSC 22 escape sequence, so it works in terminals that support it (kitty, foot, Ghostty, xterm) and is ignored elsewhere. The user can switch it off in Settings > Input (`pointer.shape=0` in `dabt.conf`).
 
 Prefer a class over anything inline: classes are resolved once and cached, and a theme switch (`tui.theme.set`) restyles every page, cached ones included.
 

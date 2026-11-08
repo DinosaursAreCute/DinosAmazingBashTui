@@ -1,7 +1,7 @@
 ### `tui.modal.open`
 
 ```bash
-tui.modal.open NAME KEYFN DRAWFN [MOUSEFN]
+tui.modal.open NAME KEYFN DRAWFN [MOUSEFN [POINTERFN]]
 ```
 
 Opens a modal: a function layer that receives all input until it is closed.
@@ -12,6 +12,7 @@ Opens a modal: a function layer that receives all input until it is closed.
 - `KEYFN`: called as `KEYFN KEY` for every key (`a`, `enter`, `ctrl+p`, ...), and `KEYFN paste` with `TUI_EVENT_PASTE` set.
 - `DRAWFN`: draws the modal.
 - `MOUSEFN`: called as `MOUSEFN EVENT X Y` (`mouse:left`, `wheel:up`, ... at a 1-based cell). Without it, mouse events are ignored.
+- `POINTERFN`: called as `POINTERFN X Y` on pointer movement; set `_PS` to a CSS pointer shape name (`pointer`, `text`, ...) for the cell. Without it the pointer keeps the terminal's own shape while the modal is open.
 
 **Notes**
 

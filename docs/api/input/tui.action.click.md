@@ -4,7 +4,7 @@
 tui.action.click
 ```
 
-Handles a left press or drag: jumps a scrollbar (the pointer is in a scrollbar hit zone, 3 cells wide), else acts on the widget under the pointer, else removes focus.
+Handles a left press or drag: jumps a scrollbar (the pointer is in a scrollbar hit zone, 3 cells wide), else acts on the widget under the pointer (a button runs on release, if the pointer is still on it), else removes focus.
 
 **Notes**
 

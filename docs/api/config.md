@@ -27,12 +27,14 @@ Settings live in `~/.config/DABT/apps/<TUI_APP_NAME>/dabt.conf` as `key=value` l
 
 Functions return `0` unless stated.
 
-<!-- api: tui.config.get tui.config.set tui.config.unset tui.config.keys tui.config.load tui.config.save tui.config.apply -->
+<!-- api: tui.config.get tui.config.set tui.config.stage tui.config.flush tui.config.unset tui.config.keys tui.config.load tui.config.save tui.config.apply -->
 
 | Function | Summary |
 |---|---|
 | [`tui.config.get`](config/tui.config.get.md) | Prints the saved value of a setting, or stores it in `VAR`, which costs no subshell. |
 | [`tui.config.set`](config/tui.config.set.md) | Stores a setting and writes the config file immediately. |
+| [`tui.config.stage`](config/tui.config.stage.md) | Changes a setting in memory only, so a control that changes it many times a second does not write the file each time. A missing `VALUE` removes the key. |
+| [`tui.config.flush`](config/tui.config.flush.md) | Writes the settings file once if anything was staged with [`tui.config.stage`](tui.config.stage.md) since the last write. Does nothing otherwise. |
 | [`tui.config.unset`](config/tui.config.unset.md) | Removes a setting and writes the config file immediately. |
 | [`tui.config.keys`](config/tui.config.keys.md) | Prints every stored key, sorted, one per line. |
 | [`tui.config.load`](config/tui.config.load.md) | Replaces the in-memory store with the contents of the config file. |
@@ -44,6 +46,10 @@ Functions return `0` unless stated.
 {% include_relative config/tui.config.get.md %}
 
 {% include_relative config/tui.config.set.md %}
+
+{% include_relative config/tui.config.stage.md %}
+
+{% include_relative config/tui.config.flush.md %}
 
 {% include_relative config/tui.config.unset.md %}
 

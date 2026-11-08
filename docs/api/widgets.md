@@ -15,7 +15,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 ## Widgets
 
-<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.pin tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
+<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.variant tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.pin tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
 
 | Function | Summary |
 |---|---|
@@ -33,6 +33,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 | [`tui.on_submit`](widgets/tui.on_submit.md) | Sets or replaces the submit function of an input, password or textarea, called as `FN ID TEXT`. |
 | [`tui.align`](widgets/tui.align.md) | Sets the horizontal alignment of one widget, overriding the pane default. |
 | [`tui.valign`](widgets/tui.valign.md) | Sets the vertical anchor of one widget, overriding the pane default. |
+| [`tui.variant`](widgets/tui.variant.md) | Picks the design a widget draws with, so several progress bars, checkboxes, selects or lists can look different side by side. Markup: `variant="NAME"`. |
 | [`tui.minsize`](widgets/tui.minsize.md) | Sets the minimum width of a widget in columns. |
 | [`tui.maxsize`](widgets/tui.maxsize.md) | Sets the maximum width of a widget in columns. |
 | [`tui.width`](widgets/tui.width.md) | Gets or sets the explicit width of a widget. |
@@ -76,6 +77,8 @@ Every widget callback gets the widget id first, so one function can serve severa
 {% include_relative widgets/tui.align.md %}
 
 {% include_relative widgets/tui.valign.md %}
+
+{% include_relative widgets/tui.variant.md %}
 
 {% include_relative widgets/tui.minsize.md %}
 
@@ -142,7 +145,7 @@ Key tables and mouse behaviour: [../guide/widgets.md](../guide/widgets.md). Mark
 | [`tui.select.pick`](widgets/tui.select.pick.md) | Chooses option `INDEX` (0-based) as if the user picked it: sets the value, redraws, then calls the `on_change` function and the action. |
 | [`tui.progress.set`](widgets/tui.progress.set.md) | Sets a progress bar to `VALUE` out of `MAX` and redraws it. |
 | [`tui.on_change`](widgets/tui.on_change.md) | Sets a function called as `FN ID` whenever the widget changes through the user. |
-| [`tui.text.mode`](widgets/tui.text.mode.md) | Styles a textarea's source as Markdown while typing (headings, emphasis, code, links, quotes, lists, fences; characters, columns, cursor and selection unchanged, only the styling differs), or back to plain. |
+| [`tui.text.mode`](widgets/tui.text.mode.md) | Styles a textarea's source as Markdown while typing (headings, emphasis, code, links, quotes, lists, fences; characters, columns, cursor and selection unchanged, only the styling differs), highlights only its Markdown delimiters (`syntax`: the text keeps the widget style), or back to plain. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 

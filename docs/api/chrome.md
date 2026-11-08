@@ -47,7 +47,7 @@ The command bar (default `ctrl+p` or `:`) lists registered commands and runs one
 
 A function layer is a draw function in the layer stack (`lib/chrome/tui_layer.sh`): it is appended to every repaint of the page, so it stays on top. A modal is a function layer that also captures all input.
 
-<!-- api: tui.layer.fn_add tui.layer.fn_remove tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.close tui.modal.dismiss tui.modal.active tui.modal.redraw -->
+<!-- api: tui.layer.fn_add tui.layer.fn_remove tui.overlay.add tui.overlay.remove tui.overlay.box tui.modal.open tui.modal.count_keys tui.modal.close tui.modal.dismiss tui.modal.active tui.modal.redraw -->
 
 | Function | Summary |
 |---|---|
@@ -57,6 +57,7 @@ A function layer is a draw function in the layer stack (`lib/chrome/tui_layer.sh
 | [`tui.overlay.remove`](chrome/tui.overlay.remove.md) | Removes a function layer (an alias of [`tui.layer.fn_remove`](/api/chrome/tui.layer.fn_remove.html)). |
 | [`tui.overlay.box`](chrome/tui.overlay.box.md) | Draws a framed box at an absolute position. Meant for overlay and modal draw functions. |
 | [`tui.modal.open`](chrome/tui.modal.open.md) | Opens a modal: a function layer that receives all input until it is closed. |
+| [`tui.modal.count_keys`](chrome/tui.modal.count_keys.md) | Names the keys the open modal's key function handles with a repeat count, so a held key reaches it as one call instead of one per press. |
 | [`tui.modal.close`](chrome/tui.modal.close.md) | Closes the open modal and repaints the screen under it. |
 | [`tui.modal.dismiss`](chrome/tui.modal.dismiss.md) | Closes the open modal without running anything, replaying the saved page frame when it still matches the screen. |
 | [`tui.modal.active`](chrome/tui.modal.active.md) | Returns `0` while a modal is open (or, with `NAME`, while that modal is open). |
@@ -75,6 +76,8 @@ A function layer is a draw function in the layer stack (`lib/chrome/tui_layer.sh
 {% include_relative chrome/tui.overlay.box.md %}
 
 {% include_relative chrome/tui.modal.open.md %}
+
+{% include_relative chrome/tui.modal.count_keys.md %}
 
 {% include_relative chrome/tui.modal.close.md %}
 

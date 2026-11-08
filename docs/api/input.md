@@ -113,18 +113,21 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 
 `lib/input/tui_focus.sh` keeps the Tab order and group navigation, `lib/input/tui_hit.sh` the per-row index of mouse zones (scrollbar, divider, handle, chevron, title, widget, hitbox, pane). Both are driven by widget attributes in markup.
 
-<!-- api: tui.focus.set tui.hit.set -->
+<!-- api: tui.focus.set tui.hit.set tui.mouse.capture -->
 
 | Function | Summary |
 |---|---|
 | [`tui.focus.set`](input/tui.focus.set.md) | Sets one focus attribute of a widget. Every attribute is also a markup attribute on every widget tag, so most pages never call this. |
 | [`tui.hit.set`](input/tui.hit.set.md) | Widens the area of a widget that counts as a mouse hit. The same names work as markup attributes on every widget tag. |
+| [`tui.mouse.capture`](input/tui.mouse.capture.md) | Routes the held mouse button to `FN` until it is released, wherever the pointer moves. Call it from a press handler. `FN EVENT ID X Y` runs for every drag (`EVENT` is `drag`) and once on release (`EVENT` is `release`); `X Y` is the absolute 1-based cell. `FN` decides what the gesture means. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
 
 {% include_relative input/tui.focus.set.md %}
 
 {% include_relative input/tui.hit.set.md %}
+
+{% include_relative input/tui.mouse.capture.md %}
 
 </div>
 
@@ -145,7 +148,7 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 | [`tui.action.focus_dir`](input/tui.action.focus_dir.md) | Moves focus to the widget you would expect in that direction on screen. |
 | [`tui.action.unfocus`](input/tui.action.unfocus.md) | Removes focus from the focused widget (`esc`). |
 | [`tui.action.activate`](input/tui.action.activate.md) | Acts on the focused widget as Enter does: presses a button, toggles a checkbox, submits a text widget, opens a select, or runs a list/table action. |
-| [`tui.action.click`](input/tui.action.click.md) | Handles a left press or drag: jumps a scrollbar (the pointer is in a scrollbar hit zone, 3 cells wide), else acts on the widget under the pointer, else removes focus. |
+| [`tui.action.click`](input/tui.action.click.md) | Handles a left press or drag: jumps a scrollbar (the pointer is in a scrollbar hit zone, 3 cells wide), else acts on the widget under the pointer (a button runs on release, if the pointer is still on it), else removes focus. |
 | [`tui.action.scroll`](input/tui.action.scroll.md) | Scrolls the target pane by `N` lines (up/down, default 3) or columns (left/right, default 5). |
 | [`tui.action.page`](input/tui.action.page.md) | Scrolls the target pane by one screen (its height minus 3 rows). |
 | [`tui.action.scroll_top`](input/tui.action.scroll_top.md) | Scrolls the target pane to the top left. |

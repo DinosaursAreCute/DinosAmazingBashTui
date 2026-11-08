@@ -42,7 +42,7 @@ Notes:
 - Shift+click is reserved by most terminals for their own selection, so select with drag or `shift`+keys.
 - Pasting into a single-line widget turns newlines into spaces; a textarea keeps them.
 - Long lines scroll sideways (no soft wrap yet, see the roadmap). The textarea shows a scroll indicator in its last column.
-- `<textarea mode="markdown">` styles the source as Markdown while you type (headings, emphasis, code, links, quotes, lists, fences). Only the styling changes; text, columns, cursor and selection behave as usual. `mode="plain"` (the default) turns it off, and `tui.text.mode ID markdown|plain` does the same from code.
+- `<textarea mode="markdown">` styles the source as Markdown while you type (headings, emphasis, code, links, quotes, lists, fences). Only the styling changes; text, columns, cursor and selection behave as usual. `mode="syntax"` highlights only the delimiters (`#`, `**`, backticks, `[](...)`, `>`, bullets, fences, rules) and leaves the text in the widget style. `mode="plain"` (the default) turns it off, and `tui.text.mode ID markdown|syntax|plain` does the same from code.
 - Bindings you make with `tui.bind` win over the editor except on the keys the editor consumes; use `--always` to take a key from it.
 
 Programmatic access: `tui.text.selection ID`, `tui.text.select ID START END`, `tui.text.select_all ID`, `tui.text.cursor ID` (`ROW COL`, 1-based), `tui.text.set_cursor ID OFFSET`, `tui.text.insert ID TEXT`, `tui.text.delete_selection ID`, `tui.text.undo|redo ID`, `tui.text.line_count ID`, and `tui.on_change ID FN` (runs after every edit).

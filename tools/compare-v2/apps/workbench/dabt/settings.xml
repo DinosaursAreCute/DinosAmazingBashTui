@@ -1,0 +1,24 @@
+<tui on_visit="wb_settings_visit">
+  <script src="callbacks.sh"/>
+  <theme src="look_dark.css"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav" width="18%" title="Menu" border="single" class="panel">
+      <include src="_nav.xml"/>
+    </pane>
+    <pane id="main" width="fill" title="Settings" border="single" class="panel" hpad="1">
+      <label row="0"    id="lbl_page"  text="Page 5: Settings"/>
+      <input row="2"    id="inp_name" autofocus="true"  label="Name:"  label_width="8" placeholder="display name"/>
+      <select row="3"   id="sel_level" label="Level:" label_width="8" items="info|warn|debug" value="info"/>
+      <checkbox row="5" id="chk_a"     label="Notifications" checked="true"/>
+      <checkbox row="6" id="chk_b"     label="Auto-save"     checked="false"/>
+      <checkbox row="7" id="chk_c"     label="Telemetry"     checked="false"/>
+      <button row="9"   id="btn_apply" text="[ Apply ]" action="wb_settings_apply" align="left"/>
+      <label row="11"    id="lbl_saved" text="Saved: nothing yet"/>
+    </pane>
+  </pane>
+
+  <bind key="alt+n" action="tui.focus inp_name" desc="Name"/>
+  <bind key="alt+p" action="wb_settings_apply"  desc="Apply"/>
+  <include src="_keys.xml"/>
+</tui>

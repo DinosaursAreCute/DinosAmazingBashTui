@@ -1,0 +1,21 @@
+/* look_light.css - the Textual-like light look (textual-light): #e0e0e0 ground, #1f1f1f text, #d0d0d0 footer with blue keys. */
+.panel        { fg: #1f1f1f; bg: #e0e0e0; }
+.panel:border { fg: #ffffff; }
+.panel:title  { fg: #1f1f1f; }
+.panel:focus  { fg: #1f1f1f; bg: #e0e0e0; }
+.panes        { fg: #1f1f1f; bg: #e0e0e0; }
+.footer       { fg: #1f1f1f; bg: #d0d0d0; }
+.footer_key   { fg: #0178d4; bg: #d0d0d0; mods: bold; }
+.footer_label { fg: #1f1f1f; bg: #d0d0d0; }
+.field_label       { fg: #1f1f1f; }
+.field_label:focus { fg: #1f1f1f; mods: bold; }
+.list_sel     { fg: #1f1f1f; bg: #b7d3ea; }
+.table_sel    { fg: #1f1f1f; bg: #b7d3ea; }
+.table_head   { fg: #1f1f1f; bg: #d0d0d0; mods: bold; }
+.progress     { fg: #c0c0c0; }
+.progress_fill { fg: #0178d4; }
+.check:checked   { fg: #1f1f1f; mods: bold; }
+.check:unchecked { fg: #1f1f1f; }
+.tab_header_compact         { fg: #1f1f1f; bg: #e0e0e0; }
+.tab_header_compact:focus   { fg: #ffffff; bg: #0178d4; mods: bold; }
+.collapse_button            { fg: #1f1f1f; bg: #e0e0e0; }

@@ -1,0 +1,23 @@
+<tui on_visit="wb_overview_visit">
+  <script src="callbacks.sh"/>
+  <theme src="look_dark.css"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav" width="18%" title="Menu" border="single" class="panel">
+      <include src="_nav.xml"/>
+    </pane>
+    <pane id="main" width="fill" title="Overview" border="single" class="panel" hpad="1">
+      <label row="0"    id="lbl_page"   text="Page 1: Overview"/>
+      <progress row="2" id="prg_build"  label="Build: " value="0"/>
+      <progress row="3" id="prg_test"   label="Test:  " value="0"/>
+      <progress row="4" id="prg_deploy" label="Deploy:" value="0"/>
+      <label row="6"    id="lbl_jobs"   text="Jobs: idle"/>
+      <button row="8"   id="btn_start" autofocus="true"  text="[ Start jobs ]" action="wb_jobs_start" align="left"/>
+      <button row="9"   id="btn_reset"  text="[ Reset ]"      action="wb_jobs_reset" align="left"/>
+    </pane>
+  </pane>
+
+  <bind key="alt+s" action="wb_jobs_start" desc="Start jobs"/>
+  <bind key="alt+r" action="wb_jobs_reset" desc="Reset"/>
+  <include src="_keys.xml"/>
+</tui>

@@ -1,0 +1,7 @@
+<bind key="alt+1" action="tui.action.goto overview.xml" desc="Overview"/>
+<bind key="alt+2" action="tui.action.goto tasks.xml"    desc="Tasks"/>
+<bind key="alt+3" action="tui.action.goto notes.xml"    desc="Notes"/>
+<bind key="alt+4" action="tui.action.goto logs.xml"     desc="Logs"/>
+<bind key="alt+5" action="tui.action.goto settings.xml" desc="Settings"/>
+<bind key="alt+6" action="tui.action.goto admin.xml"    desc="Admin"/>
+<footer/>

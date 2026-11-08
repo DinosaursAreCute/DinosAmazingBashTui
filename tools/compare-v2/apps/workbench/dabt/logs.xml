@@ -1,0 +1,21 @@
+<tui on_visit="wb_logs_visit">
+  <script src="callbacks.sh"/>
+  <theme src="look_dark.css"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav" width="18%" title="Menu" border="single" class="panel">
+      <include src="_nav.xml"/>
+    </pane>
+    <pane id="main" width="fill" title="Logs" border="single" class="panel" hpad="1">
+      <label row="0"  id="lbl_page"   text="Page 4: Logs"/>
+      <label row="2"  id="lbl_lines"  text="Lines: 0"/>
+      <label row="3"  id="lbl_cursor" text="Line: 1"/>
+      <button row="4" id="btn_append" text="[ Append 200 ]" action="wb_logs_append" align="left"/>
+      <list row="5"   id="lst_logs" autofocus="true"   rows="0" items="" on_change="wb_logs_moved"/>
+    </pane>
+  </pane>
+
+  <bind key="alt+a" action="wb_logs_append"     desc="Append"/>
+  <bind key="alt+l" action="tui.focus lst_logs" desc="List"/>
+  <include src="_keys.xml"/>
+</tui>

@@ -1,0 +1,32 @@
+<tui on_visit="wb_tasks_visit">
+  <script src="callbacks.sh"/>
+  <theme src="look_dark.css"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav" width="18%" title="Menu" border="single" class="panel">
+      <include src="_nav.xml"/>
+    </pane>
+    <pane id="main" width="fill" split="h" border="none">
+      <pane id="left" width="65%" title="Tasks" border="single" class="panel" hpad="1">
+        <label row="0"  id="lbl_page"   text="Page 2: Tasks"/>
+        <input row="2"  id="inp_filter" label="Filter:" label_width="8" placeholder="type to filter" on_change="wb_apply_filter"/>
+        <select row="3" id="sel_status" label="Status:" label_width="8" items="all|open|done|blocked" value="all" on_change="wb_apply_filter"/>
+        <label row="4"  id="lbl_count"  text="Rows: 0/0"/>
+        <table row="5"  id="tbl_tasks" autofocus="true"  rows="0" columns="ID|Title|Owner|Status" data="" on_change="wb_show_detail"/>
+      </pane>
+      <pane id="right" width="fill" title="Detail" border="single" class="panel" hpad="1">
+        <label row="0"    id="lbl_sel"    text="Selected: -"/>
+        <label row="2"    id="lbl_title"  text="Title: -"/>
+        <label row="3"    id="lbl_owner"  text="Owner: -"/>
+        <label row="4"    id="lbl_status" text="Status: -"/>
+        <checkbox row="6" id="chk_flag"   label="Flagged" checked="false"/>
+        <button row="8"   id="btn_delete" text="[ Delete ]" action="wb_delete_ask" align="left"/>
+      </pane>
+    </pane>
+  </pane>
+
+  <bind key="alt+i" action="tui.focus inp_filter" desc="Filter"/>
+  <bind key="alt+t" action="tui.focus tbl_tasks"  desc="Table"/>
+  <bind key="alt+d" action="wb_delete_ask"        desc="Delete"/>
+  <include src="_keys.xml"/>
+</tui>

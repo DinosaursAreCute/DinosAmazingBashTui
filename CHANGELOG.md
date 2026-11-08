@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+* **A new benchmark harness, `tools/compare-v2`, measures DABT and Textual from the screen the user sees.** Output is replayed into a terminal emulator and a step ends at the last visible change; the harness checks itself against a reference app with known delays (`compare.py selftest`: +0.07 ms bias, 0.09 ms jitter). The old `tools/compare` stays as it was.
+
+
+### Added
+* `tools/compare-v2`: pty-based, black-box benchmarking of comparable dabt and textual apps with improved accuracy and data set than the first version. . 
+.
+
 ## [0.0.26] - 2026-11-07
 
 ### News

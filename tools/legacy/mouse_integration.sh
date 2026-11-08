@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 # ShellCheck source=./*
-source ./cursor_controls.sh
-source ./terminal_controls.sh
-source ./colors.sh
-source ./terminal_renderer.sh
+source ../../lib/cursor_controls.sh
+source ../../lib/terminal_controls.sh
+source ../../lib/colors.sh
+source ../../lib/terminal_renderer.sh
 
 finally() {
 	mouse.any_off
@@ -245,3 +245,4 @@ mouse_spectrum() {
 
 spectrum_test
 color_test
+mouse_spectrum

@@ -1,0 +1,22 @@
+/* look_dark.css - the Textual-like dark look (colours sampled from Textual's textual-dark screen) so both apps paint the same cells:
+ * a full-screen #121212 ground, #e0e0e0 text, white borders, #242f38 footer, #153854 cursor rows. */
+.panel        { fg: #e0e0e0; bg: #121212; }
+.panel:border { fg: #ffffff; }
+.panel:title  { fg: #e0e0e0; }
+.panel:focus  { fg: #e0e0e0; bg: #121212; }
+.panes        { fg: #e0e0e0; bg: #121212; }
+.footer       { fg: #e0e0e0; bg: #242f38; }
+.footer_key   { fg: #ffa62b; bg: #242f38; mods: bold; }
+.footer_label { fg: #e0e0e0; bg: #242f38; }
+.field_label       { fg: #e0e0e0; }
+.field_label:focus { fg: #e0e0e0; mods: bold; }
+.list_sel     { fg: #e0e0e0; bg: #153854; }
+.table_sel    { fg: #e0e0e0; bg: #153854; }
+.table_head   { fg: #e0e0e0; bg: #242f38; mods: bold; }
+.progress     { fg: #3a3a3a; }
+.progress_fill { fg: #0178d4; }
+.check:checked   { fg: #e0e0e0; mods: bold; }
+.check:unchecked { fg: #e0e0e0; }
+.tab_header_compact         { fg: #e0e0e0; bg: #121212; }
+.tab_header_compact:focus   { fg: #ffffff; bg: #0178d4; mods: bold; }
+.collapse_button            { fg: #e0e0e0; bg: #121212; }

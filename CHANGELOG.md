@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.28] - 2026-11-08
+
 ### News
 - **Table keys are about twice as fast: a Down keypress on a 200-row table drops from 40 ms to 20 ms.** Column widths and padded row text are cached per table, and held Down no longer repaints more than the cursor and detail pane.
 - **Typing in a filter input paints the character first and runs `on_change` after it, cutting a keystroke that filters a table from 42 ms to 5 ms.**

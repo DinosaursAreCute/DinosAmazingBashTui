@@ -436,14 +436,10 @@ _tui._layout_fixed() {
 # roughly-square grid shape when neither rows nor cols was specified. n is
 # always a small cell count here, so a linear search is fine - this runs
 # once per grid build, never per-frame.
-_tui._ceil_sqrt() {
+_tui._ceil_sqrt_v() {
 	local n="$1" i=1
-	((n <= 1)) && {
-		printf '1'
-		return
-	}
 	while ((i * i < n)); do ((i++)); done
-	printf '%s' "$i"
+	_R=$i
 }
 
 # tui.grid PARENT ROWS COLS FIT ROW_WEIGHTS COL_WEIGHTS NAME...
@@ -478,7 +474,8 @@ tui.grid() {
 	local n=${#names[@]}
 
 	if [[ -z "$cols" && -z "$rows" ]]; then
-		cols=$(_tui._ceil_sqrt "$n")
+		_tui._ceil_sqrt_v "$n"
+		cols=$_R
 		rows=$(((n + cols - 1) / cols))
 	elif [[ -z "$cols" ]]; then
 		cols=$(((n + rows - 1) / rows))
@@ -1045,7 +1042,47 @@ tui.update() {
 	fi
 
 	_ps.widgets.set "$1" value "$2"
-	_tui._draw_widget "$1"
+	_tui._draw_or_queue "$1"
+}
+
+# _tui._draw_or_queue ID - redraws ID now, or (inside _tui.batch_call) queues it for the batch's single flush
+declare -gi _TUI_BATCH_DEPTH=0
+declare -ga _TUI_BATCH_IDS=()
+_tui._draw_or_queue() {
+	if ((_TUI_BATCH_DEPTH)); then
+		_TUI_BATCH_IDS+=("$1")
+	else
+		_tui._draw_widget "$1"
+	fi
+}
+
+# _tui._draw_batch_now ID... - draws each widget once in one synchronized write. Not row-diffed (see _tui._draw_widget): a list or
+# table redraw changes most rows, and splitting its frame into rows cost a third of a 200-line append.
+_tui._draw_batch_now() {
+	local id seen=" " saved="$_TUI_FRAME" buf
+	_TUI_FRAME=""
+	for id in "$@"; do
+		[[ -z "$id" || "$seen" == *" $id "* ]] && continue
+		seen+="$id "
+		_tui._draw_widget_buf "$id"
+	done
+	buf="$_TUI_FRAME"
+	_TUI_FRAME="$saved"
+	[[ -n "$buf" ]] && _tui._flush "$buf"
+}
+
+# _tui.batch_call FN ARGS... - runs a user callback; every widget it updates is drawn once, in one synchronized write, afterwards
+# (N updates in a callback cost one flush, not N). Only the outermost call flushes.
+_tui.batch_call() {
+	local rc=0
+	((_TUI_BATCH_DEPTH++))
+	"$@" || rc=$?
+	if ((--_TUI_BATCH_DEPTH == 0 && ${#_TUI_BATCH_IDS[@]})); then
+		local -a ids=("${_TUI_BATCH_IDS[@]}")
+		_TUI_BATCH_IDS=()
+		((_TUI_RUNNING)) && _tui._draw_batch_now "${ids[@]}"
+	fi
+	return $rc
 }
 # tui.select ID [true|false] - marks a button selected (default true) so it draws its .class:selected look
 # even while another widget has focus (focus and hover still win). Redraws ID when the flag changes.
@@ -2127,6 +2164,7 @@ _tui.frame_present() {
 tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
 	_TUI_FRAME_REQ=0
+	_TUI_BATCH_IDS=() # the full frame draws every widget as it is now: updates queued by a callback (_tui.batch_call) are in it
 	_tui.epoch_bump hit
 	((_TUI_FOCUS_AUTO)) && _tui_focus.autofocus
 	_tui_perf.begin render

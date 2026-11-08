@@ -27,6 +27,8 @@
 #   .field_label (+ :focus) - the label in front of an input, password, select or progress bar
 # requires:
 
+declare -gA _WXRL=() _WXGEN=() # padded row text per id:index, valid while its key (width, columns, _WXGEN: bumped with every row change) matches
+declare -gA _WXCW=() # table id -> widest cell per column (space-joined), dropped by every setter that changes the rows or header
 declare -gA _TUI_W_ROWSPAN=() _WXSEL=() _WXTOP=() _WXCOLS=() _WXH=() _WXPCT=() _WXF=()
 declare -gA _WXAL=() _WXHW=() _WXHH=() # table column alignment ("ID:COL" -> l|r) and heat thresholds ("ID:COL" -> warn / hot)
 declare -g _WX_TARGET="" _WX_CLICK_T=0 _WX_CLICK_ID="" _WX_CLICK_I=-1
@@ -79,6 +81,7 @@ tui.table() {
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
 	_WXCOLS[$1]=""
+	unset '_WXCW[$1]'; ((_WXGEN[$1]++))
 	_ps.widgets.set "$1" expand y
 	_tui_wx.arr "$1"
 	_WXA=()
@@ -108,21 +111,27 @@ _tui_wx.arr() {
 
 # ── data setters ─────────────────────────────────────────────────────────
 _tui_wx.redraw() {
-	((_TUI_RUNNING)) && _tui._draw_widget "$1"
+	((_TUI_RUNNING)) && _tui._draw_or_queue "$1"
 	return 0
 }
 # _tui_wx.changed ID - the widget's on_change callback; a --debounce one is only queued while the loop runs, so a held key
 # moves and redraws the widget on every step but runs the callback (and the repaints it causes) once the keys stop
 declare -gA _WX_CHG_PENDING=()
 declare -gi _WX_CHG_AGE=0
+declare -gi _WX_HOLD=0 # 1 while _tui_wx.key moves a selection: the callback waits until the widget is drawn
+declare -g _WX_HELD=""
 _tui_wx.changed() {
 	local fn="${_TUI_W_CHANGE[$1]:-}"
 	[[ -n "$fn" ]] || return 0
+	if ((_WX_HOLD)); then
+		_WX_HELD="$1"
+		return 0
+	fi
 	if ((_TUI_RUNNING)) && [[ -n "${_TUI_W_CHANGE_DEBOUNCE[$1]:-}" ]]; then
 		_WX_CHG_PENDING[$1]=1
 		return 0
 	fi
-	"$fn" "$1"
+	_tui.batch_call "$fn" "$1"
 }
 
 # _tui_wx.flush_changes - runs the queued on_change callbacks, one per widget
@@ -132,7 +141,7 @@ _tui_wx.flush_changes() {
 	for id in "${!_WX_CHG_PENDING[@]}"; do
 		unset '_WX_CHG_PENDING[$id]'
 		fn="${_TUI_W_CHANGE[$id]:-}"
-		[[ -n "$fn" ]] && "$fn" "$id"
+		[[ -n "$fn" ]] && _tui.batch_call "$fn" "$id"
 	done
 	return 0
 }
@@ -142,6 +151,7 @@ tui.list.set() {
 	shift
 	_tui_wx.arr "$id"
 	_WXA=("$@")
+	unset '_WXCW[$id]'; ((_WXGEN[$id]++))
 	((${#_WXA[@]})) && _WXSEL[$id]=0 || _WXSEL[$id]=-1
 	_WXTOP[$id]=0
 	_tui_wx.redraw "$id"
@@ -151,12 +161,14 @@ tui.list.add() {
 	shift
 	_tui_wx.arr "$id"
 	_WXA+=("$@")
+	unset '_WXCW[$id]'; ((_WXGEN[$id]++))
 	((${_WXSEL[$id]:--1} < 0)) && _WXSEL[$id]=0
 	_tui_wx.redraw "$id"
 }
 tui.list.clear() {
 	_tui_wx.arr "$1"
 	_WXA=()
+	unset '_WXCW[$1]'; ((_WXGEN[$1]++))
 	_WXSEL[$1]=-1
 	_WXTOP[$1]=0
 	_tui_wx.redraw "$1"
@@ -203,6 +215,7 @@ tui.table.set() {
 	shift 2
 	_tui_wx.arr "$id"
 	_WXCOLS[$id]="$head"
+	unset '_WXCW[$id]'; ((_WXGEN[$id]++))
 	if [[ -n $keep ]] && ((sel >= 0)); then
 		local -a cells
 		IFS='|' read -ra cells <<<"${_WXA[sel]:-}"
@@ -237,6 +250,7 @@ tui.table.align() {
 	local id="$1" c spec
 	IFS='|' read -ra spec <<<"$2"
 	for c in "${!spec[@]}"; do _WXAL[$id:$c]=${spec[c]}; done
+	((_WXGEN[$id]++))
 	_tui_wx.redraw "$id"
 }
 # tui.table.heat ID COL WARN HOT - colours the cells of column COL (0-based) with a whole-number value >= WARN with the
@@ -387,8 +401,12 @@ _tui_wx.key() {
 	case "$type" in
 		input | password | textarea) _tui_text.key "$id" "$name" ;;
 		list | table)
+			# the cursor paints first, then the on_change callback runs
+			_WX_HOLD=1 _WX_HELD=""
 			_tui_wx.move "$id" "$name" "${TUI_EVENT_COUNT:-1}"
+			_WX_HOLD=0
 			_tui_wx.redraw "$id"
+			[[ -n "$_WX_HELD" ]] && _tui_wx.changed "$_WX_HELD"
 			;;
 		select) _tui_wx.select_open "$id" ;;
 		*) [[ -n "${_TUI_WT_KEY[$type]-}" ]] && "${_TUI_WT_KEY[$type]}" "$id" "$name" ;;
@@ -620,6 +638,17 @@ _tui_wx.draw_progress() {
 	_tui.emit_printf '%s%s%s%s%s %3d%%%s' "$f" "${fs// /"$gf"}" "$e" "${es// /"$ge"}" $'\e[0m'"$_SGR" "$pct" $'\e[0m'
 }
 
+# _tui_wx.split ROW -> _WXC: ROW's "|" separated cells. Parameter expansion only: a here-string costs a write per row
+declare -ga _WXC=()
+_tui_wx.split() {
+	local rest="$1|"
+	_WXC=()
+	while [[ -n $rest ]]; do
+		_WXC+=("${rest%%|*}")
+		rest=${rest#*|}
+	done
+}
+
 # list / table rows
 _tui_wx.draw_rows() {
 	local id="$1" type="$2" sr="$3" sc="$4" sw="$5" sh="$6" focused="$7" sk="$8" pk="$9"
@@ -645,12 +674,18 @@ _tui_wx.draw_rows() {
 	local -a cw=() cells
 	if ((hdr)); then
 		local r c maxc=0 total
-		IFS='|' read -ra cells <<<"${_WXCOLS[$id]}"
-		for c in "${!cells[@]}"; do cw[c]=${#cells[c]}; done
-		for r in "${_WXA[@]}"; do
-			IFS='|' read -ra cells <<<"$r"
-			for c in "${!cells[@]}"; do ((${#cells[c]} > ${cw[c]:-0})) && cw[c]=${#cells[c]}; done
-		done
+		if [[ -z ${_WXCW[$id]+x} ]]; then # widest cells: one scan of every row per data change, not per draw
+			IFS='|' read -ra cells <<<"${_WXCOLS[$id]}"
+			for c in "${!cells[@]}"; do cw[c]=${#cells[c]}; done
+			for r in "${_WXA[@]}"; do
+				_tui_wx.split "$r"
+				for c in "${!_WXC[@]}"; do ((${#_WXC[c]} > ${cw[c]:-0})) && cw[c]=${#_WXC[c]}; done
+			done
+			_WXCW[$id]="${cw[*]}"
+		else
+			# shellcheck disable=SC2206 # widths are digits: splitting is the point
+			cw=(${_WXCW[$id]})
+		fi
 		total=0
 		for c in "${!cw[@]}"; do ((total += cw[c] + 2)); done
 		while ((total > fw)); do
@@ -694,26 +729,33 @@ _tui_wx.draw_rows() {
 		_tui.emit_printf '%s%s%s%s' "$hs" "$line" $'\e[0m' "$base"
 		rowi=1
 	fi
+	local cached rowkey="$fw|$hdr|${cw[*]}|${_WXGEN[$id]:-0}" # a row's padded text depends on these only (not on the selection)
 	for ((i = 0; i < rows; i++)); do
 		_tui.emit_goto $((sr + rowi + i)) "$sc"
 		idx=$((top + i))
 		if ((idx < n)); then
-			if ((hdr)); then
-				IFS='|' read -ra cells <<<"${_WXA[idx]}"
-				line=""
-				for c in "${!cw[@]}"; do
-					_tui_wx.cell "$id" "$c" "${cells[c]:-}" "${cw[c]}"
-					if ((colored && idx != sel)) && [[ -n "${_WXHH[$id:$c]:-}" && "${cells[c]:-}" =~ ^[0-9]+ ]]; then
-						if ((BASH_REMATCH[0] >= _WXHH[$id:$c])); then line+="$hotsgr$_PADC"$'\e[39m  '
-						elif ((BASH_REMATCH[0] >= _WXHW[$id:$c])); then line+="$warnsgr$_PADC"$'\e[39m  '
+			cached=${_WXRL[$id:$idx]-}
+			if ((!colored)) && [[ $cached == "$rowkey"$'\x1f'* ]]; then
+				line=${cached#*$'\x1f'}
+			else
+				if ((hdr)); then
+					_tui_wx.split "${_WXA[idx]}"
+					line=""
+					for c in "${!cw[@]}"; do
+						_tui_wx.cell "$id" "$c" "${_WXC[c]:-}" "${cw[c]}"
+						if ((colored && idx != sel)) && [[ -n "${_WXHH[$id:$c]:-}" && "${_WXC[c]:-}" =~ ^[0-9]+ ]]; then
+							if ((BASH_REMATCH[0] >= _WXHH[$id:$c])); then line+="$hotsgr$_PADC"$'\e[39m  '
+							elif ((BASH_REMATCH[0] >= _WXHW[$id:$c])); then line+="$warnsgr$_PADC"$'\e[39m  '
+							else line+="$_PADC  "; fi
 						else line+="$_PADC  "; fi
-					else line+="$_PADC  "; fi
-				done
-			else line=" ${_WXA[idx]}"; fi
-			# a colored row holds escapes, which _tui_text.padc would count as text: it is padded by hand instead
-			if ((colored && idx != sel)); then printf -v line '%s%*s' "$line" "$((fw - total))" ""; else
-				_tui_text.padc "$line" "$fw"
-				line="$_PADC"
+					done
+				else line=" ${_WXA[idx]}"; fi
+				# a colored row holds escapes, which _tui_text.padc would count as text: it is padded by hand instead
+				if ((colored && idx != sel)); then printf -v line '%s%*s' "$line" "$((fw - total))" ""; else
+					_tui_text.padc "$line" "$fw"
+					line="$_PADC"
+				fi
+				((colored)) || _WXRL[$id:$idx]="$rowkey"$'\x1f'"$line"
 			fi
 			if ((idx == sel)); then
 				if ((focused)); then
@@ -746,6 +788,7 @@ _tui_wx.reset() {
 	_WXTOP=()
 	_WXCOLS=()
 	_WXAL=()
+	_WXRL=()
 	_WXHW=()
 	_WXHH=()
 	_WXH=()
@@ -775,10 +818,12 @@ _tui_wx.reset() {
 }
 _tui_wx.forget() {
 	local id="$1"
-	unset '_TUI_W_ROWSPAN[$id]' '_WXSEL[$id]' '_WXTOP[$id]' '_WXCOLS[$id]' '_WXH[$id]' '_TUI_W_CHANGE[$id]' '_TUI_W_CHANGE_DEBOUNCE[$id]' '_WX_CHG_PENDING[$id]' \
+	unset '_TUI_W_ROWSPAN[$id]' '_WXSEL[$id]' '_WXTOP[$id]' '_WXCOLS[$id]' '_WXCW[$id]' '_WXH[$id]' '_TUI_W_CHANGE[$id]' '_TUI_W_CHANGE_DEBOUNCE[$id]' '_WX_CHG_PENDING[$id]' \
 		'_TXC[$id]' '_TXA[$id]' '_TXS[$id]' '_TXT[$id]' '_TXW[$id]' '_TXH[$id]' '_TXUN[$id]' '_TXRN[$id]' '_TXLK[$id]' '_TXLP[$id]'
 	local k
 	for k in "${!_WXAL[@]}" "${!_WXHH[@]}"; do [[ $k == "$id:"* ]] && unset '_WXAL[$k]' '_WXHW[$k]' '_WXHH[$k]'; done
+	for k in "${!_WXRL[@]}"; do [[ $k == "$id:"* ]] && unset '_WXRL[$k]'; done
+	unset '_WXGEN[$id]'
 }
 
 # markup: <password|textarea|list|table|select|progress ...>  (called by tui_markup.sh)

@@ -244,9 +244,9 @@ _tui_api._tick() {
 			if [[ -n "${_TA_ONCE[$id]:-}" ]]; then
 				local fn="${_TA_FN[$id]}"
 				_tui_api._job_del "$id"
-				"$fn" "$id"
+				_tui.batch_call "$fn" "$id"
 			else
-				"${_TA_FN[$id]}" "$id"
+				_tui.batch_call "${_TA_FN[$id]}" "$id"
 			fi
 		done
 	fi
@@ -711,7 +711,7 @@ tui.capture() {
 	"$@" >"$_cap_file"
 	_cap_rc=$?
 	((_TA_CAP_DEPTH--))
-	_cap_out="$(<"$_cap_file")"
+	_cap_out="$(<"$_cap_file")" # Does not fork. bash 5 reads file content directly into a variable without subshell
 	printf -v "$_cap_var" '%s' "$_cap_out"
 	return "$_cap_rc"
 }

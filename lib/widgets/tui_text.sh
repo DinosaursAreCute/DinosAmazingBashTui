@@ -148,9 +148,14 @@ tui.text.redo() {
     _tui_text.norm "$id"; _tui_text.changed "$id"
 }
 
+# while _tui_text.key edits, the callbacks wait (_TXHOLD): the typed character paints first, then the callbacks run as one batch
+declare -gi _TXHOLD=0
+declare -g _TXHELD=""
 _tui_text.changed() {
     local fn="${_TUI_W_CHANGE[$1]:-}"
-    [[ -n "$fn" ]] && "$fn" "$1"
+    [[ -n "$fn" ]] || return 0
+    if (( _TXHOLD )); then _TXHELD="$1"; return 0; fi
+    _tui.batch_call "$fn" "$1"
     return 0
 }
 
@@ -311,6 +316,7 @@ _tui_text.consumes() {
 # _tui_text.key ID NAME : apply the key (call only when consumes said yes)
 _tui_text.key() {
     local id="$1" name="$2" c v n
+    _TXHOLD=1 _TXHELD=""
     _tui_text.multiline "$id" && _tui_text.geom "$id"
     _tui_text.norm "$id"
     c=${_TXC[$id]}; v="${_TUI_W_VALUE[$id]}"; n=${#v}
@@ -363,7 +369,9 @@ _tui_text.key() {
         space) tui.text.insert "$id" " " type ;;
         *)     (( ${#name} == 1 )) && tui.text.insert "$id" "$name" type ;;
     esac
+    _TXHOLD=0
     _tui_text.redraw "$id"
+    if [[ -n "$_TXHELD" ]]; then id="$_TXHELD"; _TXHELD=""; _tui_text.changed "$id"; fi
     return 0
 }
 

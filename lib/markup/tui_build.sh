@@ -376,7 +376,8 @@ _tui_build.resolve_grid() {
 	fi
 
 	if [[ -z "$cols" && -z "$rows" ]]; then
-		cols=$(_tui._ceil_sqrt "$total")
+		_tui._ceil_sqrt_v "$total"
+		cols=$_R
 		rows=$(((total + cols - 1) / cols))
 	elif [[ -z "$cols" ]]; then
 		cols=$(((total + rows - 1) / rows))

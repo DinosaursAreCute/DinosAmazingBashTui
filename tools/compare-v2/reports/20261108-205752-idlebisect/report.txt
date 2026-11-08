@@ -1,0 +1,151 @@
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • 1-min load average is 5.29 on 12 CPUs: other work is competing.                                                                                  │
+│ • the app's CPUs are 16% busy before the run starts.                                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ compare-v2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ scenario   idlebisect — idle bisect                                                                                                                │
+│ app        DABT  DABT 0.0.27   keys: legacy ESC                                                                                                    │
+│ run        1 rounds (+0 warm-up) · 150x45 · 40.9s · 2026-11-08 20:57:11                                                                            │
+│ machine    AMD Ryzen 5 2600 Six-Core Processor · 12 CPUs · kernel 7.2.9-2-cachyos · governor n/a · load 5.29 3.21 2.00                             │
+│ isolation  app on CPUs [0, 1, 2, 3, 4, 6, 7, 8, 9, 10] · harness on [5, 11] · python 3.14.8 · bash 5.3.20(1)-release · repo e9b592d+dirty          │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚠ 1-min load average is 5.29 on 12 CPUs: other work is competing.
+⚠ the app's CPUs are 16% busy before the run starts.
+⚠ only 1 measured rounds: confidence intervals are rough below ~8.
+╭─ summary ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+startup  (spawn → first correct frame)                                                                                             
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT             
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+startup.cold        DABT                        683.3   ██████████████     683.3    3545    23.3 kB        6   baseline            
+                                                                                                                                   
+startup.warm        DABT                        383.2   ██████████████     383.2     226    22.0 kB        3   baseline            
+interaction  (input → expected screen)                                                                                             
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT             
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+jobs.run            DABT                       2177.9   ██████████████    2177.9     228    29.7 kB       22   baseline            
+                                                                                                                                   
+jobs.reset          DABT                         12.6   ██████████████      12.6      14       2533        1   baseline            
+                                                                                                                                   
+nav.tasks           DABT                        121.2   ██████████████     121.2     200    49.9 kB        2   baseline            
+                                                                                                                                   
+table.down          DABT                         34.2   ██████████████      34.2      34       4323        2   baseline            
+                                                                                                                                   
+table.down_held     DABT                         40.7   ██████████████      40.7     328    42.2 kB       20   baseline            
+                                                                                                                                   
+table.pagedown      DABT                         34.1   ██████████████      34.1      34       4325        2   baseline            
+                                                                                                                                   
+table.top           DABT                         31.7   ██████████████      31.7      33       4323        2   baseline            
+                                                                                                                                   
+focus.filter        DABT                         27.1   ██████████████      27.1      28       3777        1   baseline            
+                                                                                                                                   
+filter.char         DABT                          5.0   ██████████████       5.0      36       4514        1   baseline            
+                                                                                                                                   
+focus.table2        DABT                         17.3   ██████████████      17.3      18       3434        1   baseline            
+                                                                                                                                   
+dialog.open         DABT                          3.2   ██████████████       3.2       5        963        1   baseline            
+                                                                                                                                   
+dialog.confirm      DABT                         57.8   ██████████████      57.8      59    33.6 kB        8   baseline            
+                                                                                                                                   
+focus.filter2       DABT                         17.4   ██████████████      17.4      19       3840        1   baseline            
+                                                                                                                                   
+filter.clear        DABT                         51.2   ██████████████      51.2      52       5614        2   baseline            
+                                                                                                                                   
+nav.notes           DABT                        178.2   ██████████████     178.2     251    75.4 kB        2   baseline            
+                                                                                                                                   
+editor.word         DABT                         74.9   ██████████████      63.9     339    51.7 kB        9   baseline            
+                                                                                                                                   
+nav.logs            DABT                        114.3   ██████████████     114.3     170    47.5 kB        2   baseline            
+                                                                                                                                   
+list.pagedown       DABT                         16.8   ██████████████      16.8      15       5444        2   baseline            
+                                                                                                                                   
+list.end            DABT                         16.2   ██████████████      16.2      16       5446        2   baseline            
+                                                                                                                                   
+list.append         DABT                         27.5   ██████████████      27.5      28       5431        1   baseline            
+                                                                                                                                   
+list.home           DABT                         15.1   ██████████████      15.1      15       5443        2   baseline            
+                                                                                                                                   
+list.wheel          DABT                         12.4   ██████████████      12.4      83    29.4 kB        5   baseline            
+                                                                                                                                   
+resize.small        DABT                         93.7   ██████████████      93.7      45    20.0 kB        1   baseline            
+                                                                                                                                   
+resize.back         DABT                         65.9   ██████████████      65.9      23    24.9 kB        1   baseline            
+                                                                                                                                   
+nav.settings        DABT                        102.9   ██████████████     102.9     135    44.5 kB        2   baseline            
+                                                                                                                                   
+form.type           DABT                          3.2   ██████████████       3.2      13       1170        3   baseline            
+                                                                                                                                   
+form.apply          DABT                          6.1   ██████████████       6.1       7       1180        2   baseline            
+                                                                                                                                   
+nav.admin           DABT                         89.9   ██████████████      89.9     129    37.6 kB        2   baseline            
+                                                                                                                                   
+tab.appearance      DABT                          7.6   ██████████████       7.6       9       1336        2   baseline            
+                                                                                                                                   
+tab.general         DABT                          9.7   ██████████████       9.7      11       1509        2   baseline            
+                                                                                                                                   
+collapse.close      DABT                         26.4   ██████████████      26.4      27    12.4 kB        1   baseline            
+                                                                                                                                   
+collapse.open       DABT                         25.8   ██████████████      25.8      27    21.1 kB        1   baseline            
+                                                                                                                                   
+theme.light         DABT                        160.5   ██████████████     160.5     165    22.7 kB        1   baseline            
+                                                                                                                                   
+theme.dark          DABT                         47.4   ██████████████      47.4      52    22.2 kB        1   baseline            
+                                                                                                                                   
+palette.open        DABT                         22.5   ██████████████      22.5      24       2889        1   baseline            
+                                                                                                                                   
+palette.type        DABT                         26.7   ██████████████      26.7      95    11.3 kB        4   baseline            
+                                                                                                                                   
+palette.run         DABT                         75.2   ██████████████      75.2     100    51.0 kB        2   baseline            
+                                                                                                                                   
+revisit.overview    DABT                         78.4   ██████████████      78.4     120    42.4 kB        2   baseline            
+                                                                                                                                   
+revisit.tasks       DABT                        106.7   ██████████████     106.7     181    47.7 kB        2   baseline            
+                                                                                                                                   
+revisit.notes       DABT                        120.4   ██████████████     120.4     188    70.0 kB        2   baseline            
+                                                                                                                                   
+revisit.settings    DABT                         89.0   ██████████████      89.0     120    38.3 kB        2   baseline            
+                                                                                                                                   
+revisit.admin       DABT                         78.2   ██████████████      78.2     112    35.4 kB        2   baseline            
+idle  (app sits still)                                                               
+step                      app    idle CPU   wakeups   idle bytes   vs DABT (idle CPU)
+─────────────────────────────────────────────────────────────────────────────────────
+idle.after.jobs.run       DABT       0.68       0.0            0   baseline          
+                                                                                     
+idle.after.jobs.reset     DABT       0.70       0.0            0   baseline          
+                                                                                     
+idle.after.filter.clear   DABT       0.74       0.0            0   baseline          
+                                                                                     
+idle.after.editor.word    DABT       0.61       0.0            0   baseline          
+                                                                                     
+idle.after.list.wheel     DABT       0.62       0.0            0   baseline          
+                                                                                     
+idle.after.resize.back    DABT       0.61       0.0            0   baseline          
+                                                                                     
+idle.after.form.apply     DABT       0.77       0.0            0   baseline          
+                                                                                     
+idle.after.theme.dark     DABT       1.65       3.0    10.3 kB/s   baseline          
+                                                                                     
+idle.after.palette.run    DABT       0.63       0.0            0   baseline          
+                                                                                     
+idle.3s                   DABT       0.64       0.0            0   baseline          
+memory                                                             
+step     app        PSS       RSS   procs   threads   vs DABT (PSS)
+───────────────────────────────────────────────────────────────────
+memory   DABT   19.0 MB   22.5 MB       1         1   baseline     
+how to read:  done = ms from the input to the LAST visible change of the screen; it is the number compared. ready = when the expected text first 
+showed.
+              paints = visible screen changes; CPU = app process tree incl. reaped children; written = bytes the app sent to the terminal.
+statistics:   one value per round (median of that round's samples); [lo–hi] = bootstrap 95% CI of the median across rounds; "vs" ratios
+              are medians of other/base with a bootstrap CI. "≈ same" = gap below the noise floor or < 5%; "unclear" = CI spans 1.
+flags:        ~ noisy (CV > 25%)   ° outlier rounds present (kept, never dropped)   k/n ok = rounds where the expected text appeared   stale! = 
+expectation was already true before the input
+method:       fresh process + HOME per round, warm-up rounds discarded, apps interleaved in shuffled order, pinned CPUs, output stamped when read and
+              replayed offline into a terminal emulator (synchronized updates honoured), terminal answers capability queries like a modern terminal.
+keys:         input arrives at human speed. Modified keys (alt+x, ctrl+x) are sent as a terminal would send them to that app: kitty CSI-u when the app
+              asked for the kitty keyboard protocol, the legacy ESC prefix otherwise (see the keys line in the header for what each app got).
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • 1-min load average is 5.29 on 12 CPUs: other work is competing.                                                                                  │
+│ • the app's CPUs are 16% busy before the run starts.                                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

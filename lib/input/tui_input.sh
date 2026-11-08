@@ -405,7 +405,7 @@ _tui_input.run() {
         [[ "$cmd" == *";"* ]] && cmd="${cmd#*;}" || cmd=""
         read -ra words <<< "$part"
         (( ${#words[@]} )) || continue
-        if declare -F "${words[0]}" >/dev/null || type -t "${words[0]}" >/dev/null; then "${words[@]}"
+        if declare -F "${words[0]}" >/dev/null || type -t "${words[0]}" >/dev/null; then _tui.batch_call "${words[@]}"
         else TUI_LAST_BIND_ERROR="no such command: ${words[0]}"; fi
     done
 }
@@ -707,7 +707,7 @@ _tui_input.button_held() {
     _TUI_HOVERED_WIDGET=""
     if [[ "$over" == "$id" ]]; then
         local action="${_TUI_W_ACTION[$id]:-}"
-        [[ -n "$action" ]] && "$action" "$id"
+        [[ -n "$action" ]] && _tui.batch_call "$action" "$id"
     fi
     ((_TUI_RUNNING)) || return 0
     [[ -n "${_TUI_W_TYPE[$id]+x}" ]] || return 0                       # the action replaced the page

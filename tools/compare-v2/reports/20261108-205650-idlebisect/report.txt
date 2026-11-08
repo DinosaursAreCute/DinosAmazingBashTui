@@ -1,0 +1,67 @@
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • 1-min load average is 4.78 on 12 CPUs: other work is competing.                                                                                  │
+│ • the app's CPUs are 7% busy before the run starts.                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ compare-v2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ scenario   idlebisect — idle bisect                                                                                                                │
+│ app        DABT  DABT 0.0.27   keys: legacy ESC                                                                                                    │
+│ run        2 rounds (+0 warm-up) · 150x45 · 68.4s · 2026-11-08 20:55:42                                                                            │
+│ machine    AMD Ryzen 5 2600 Six-Core Processor · 12 CPUs · kernel 7.2.9-2-cachyos · governor n/a · load 4.78 2.45 1.65                             │
+│ isolation  app on CPUs [0, 1, 2, 3, 4, 6, 7, 8, 9, 10] · harness on [5, 11] · python 3.14.8 · bash 5.3.20(1)-release · repo e9b592d+dirty          │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚠ 1-min load average is 4.78 on 12 CPUs: other work is competing.
+⚠ the app's CPUs are 7% busy before the run starts.
+⚠ only 2 measured rounds: confidence intervals are rough below ~8.
+╭─ summary ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+startup  (spawn → first correct frame)                                                                                             
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT             
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+startup.cold        DABT                        689.7   ██████████████     689.7    3502    23.3 kB        6   baseline            
+                                                                                                                                   
+startup.warm        DABT                        381.4   ██████████████     381.4     216    22.0 kB        3   baseline            
+interaction  (input → expected screen)                                                                                             
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT             
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+nav.admin           DABT                         82.9   ██████████████      82.9     116    35.4 kB        2   baseline            
+                                                                                                                                   
+theme.light         DABT                        157.9   ██████████████     157.9     158    21.9 kB        1   baseline            
+                                                                                                                                   
+theme.dark          DABT                         45.7   ██████████████      45.7      50    21.4 kB        1   baseline            
+                                                                                                                                   
+palette.open        DABT                         21.9   ██████████████      21.9      23       2889        1   baseline            
+                                                                                                                                   
+palette.type        DABT                         26.8   ██████████████      26.8      97    11.3 kB        4   baseline            
+                                                                                                                                   
+palette.run         DABT                     - 0/2 ok                          -       -          -        -   baseline            
+                                                                                                                                   
+revisit.tasks       DABT                        125.1   ██████████████     125.1     197    52.3 kB        2   baseline            
+idle  (app sits still)                                                      
+step             app    idle CPU   wakeups   idle bytes   vs DABT (idle CPU)
+────────────────────────────────────────────────────────────────────────────
+idle.0.start     DABT       0.55       0.0            0   baseline          
+                                                                            
+idle.1.admin     DABT       0.58       0.0            0   baseline          
+                                                                            
+idle.2.theme     DABT       0.60       0.0            0   baseline          
+                                                                            
+idle.3.palette   DABT       0.60       0.0            0   baseline          
+                                                                            
+idle.4.revisit   DABT       0.62       0.0            0   baseline          
+how to read:  done = ms from the input to the LAST visible change of the screen; it is the number compared. ready = when the expected text first 
+showed.
+              paints = visible screen changes; CPU = app process tree incl. reaped children; written = bytes the app sent to the terminal.
+statistics:   one value per round (median of that round's samples); [lo–hi] = bootstrap 95% CI of the median across rounds; "vs" ratios
+              are medians of other/base with a bootstrap CI. "≈ same" = gap below the noise floor or < 5%; "unclear" = CI spans 1.
+flags:        ~ noisy (CV > 25%)   ° outlier rounds present (kept, never dropped)   k/n ok = rounds where the expected text appeared   stale! = 
+expectation was already true before the input
+method:       fresh process + HOME per round, warm-up rounds discarded, apps interleaved in shuffled order, pinned CPUs, output stamped when read and
+              replayed offline into a terminal emulator (synchronized updates honoured), terminal answers capability queries like a modern terminal.
+keys:         input arrives at human speed. Modified keys (alt+x, ctrl+x) are sent as a terminal would send them to that app: kitty CSI-u when the app
+              asked for the kitty keyboard protocol, the legacy ESC prefix otherwise (see the keys line in the header for what each app got).
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • 1-min load average is 4.78 on 12 CPUs: other work is competing.                                                                                  │
+│ • the app's CPUs are 7% busy before the run starts.                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

@@ -6,48 +6,70 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+- **Table keys are about twice as fast: a Down keypress on a 200-row table drops from 40 ms to 20 ms.** Column widths and padded row text are cached per table, and held Down no longer repaints more than the cursor and detail pane.
+- **Typing in a filter input paints the character first and runs `on_change` after it, cutting a keystroke that filters a table from 42 ms to 5 ms.**
+- **A callback that updates several widgets now costs one redraw instead of one per widget.**
+
+### Added
+- `tools/compare-v2` accepts extra scenarios with `--plugins DIR`; the workbench scenario pauses 5 s before its idle step so background work does not count as idle.
+
+### Changed
+- `tui.update`, `tui.progress.set` and the list and table setters queue their redraw while a callback runs and draw each widget once, in one write, after it returns.
+- Key bindings, button actions, `on_change` callbacks and `tui.every`/`tui.after` jobs run as one draw batch.
+- A text widget's `on_change` runs after the widget is redrawn, as a batch with the widgets it updates.
+- A list or table key press redraws the widget before its `on_change` callback runs.
+- A full `tui.render` discards redraws queued by a running callback, since the frame already contains them.
+- A table scans its rows for column widths once per data change, and caches each visible row's padded text until its rows, columns, width or alignment change.
+- Table rows are split with parameter expansion instead of a here-string, so a row costs no write.
+
+### Fixed
+- A page switch started from a button no longer repaints the new page twice.
+- A 200-line `tui.list.add` on a long list no longer pays a row-diff pass on its batched redraw.
+- Installer no longer downloads code from main but from latest release.
+
 ## [0.0.27] - 2026-11-08
 
 ### News
-* **Widgets have selectable designs.** `variant="thin"` (or `dots`, `squares`, `ascii`, `blocks`) restyles progress bars, checkboxes and pane bars; themes and the Settings Glyphs category choose the default and let users build their own.
-* **The cursor is reactive: the mouse pointer changes shape over what it can do.** Buttons show a hand, inputs a text bar, resize handles a resize arrow, window headers a move cursor. 
-* **Holding a scrollbar thumb keeps it under the pointer, and a button fires only when released over it.** The thumb moves by the pointer's movement instead of jumping to the click.
-* **A new benchmark harness, `tools/compare-v2`, measures DABT and Textual from the screen the user sees.** 
+- **Widgets have selectable designs.** `variant="thin"` (or `dots`, `squares`, `ascii`, `blocks`) restyles progress bars, checkboxes and pane bars; themes and the Settings Glyphs category choose the default and let users build their own.
+- **The cursor is reactive: the mouse pointer changes shape over what it can do.** Buttons show a hand, inputs a text bar, resize handles a resize arrow, window headers a move cursor. 
+- **Holding a scrollbar thumb keeps it under the pointer, and a button fires only when released over it.** The thumb moves by the pointer's movement instead of jumping to the click.
+- **A new benchmark harness, `tools/compare-v2`, measures DABT and Textual from the screen the user sees.** 
 
 ### Added
-* Mouse pointer shapes: a `cursor:` CSS property sets the pointer over a widget of the class (OSC 22); `:hover` and `:focus` variants; resize handles show `col-resize`/`row-resize`/`nwse-resize`, collapse buttons `pointer`; layer headers (`pointer`, `move`, `nwse-resize`), dialog buttons and the command palette react, and the page under a modal or popup keeps the default pointer; `tui.modal.open` takes an optional POINTERFN; buttons, checkboxes, selects, lists and tables default to `pointer`, inputs and textareas to `text`. Settings > Input turns it off (`pointer.shape`).
-* `tui.mouse.capture ID FN` routes the held mouse button to `FN drag|release ID X Y` until release.
-* `<textarea mode="syntax">` and `tui.text.mode ID syntax` highlight only the Markdown delimiters, each in the color of its element class.
-* `tools/compare-v2`: pty-based, black-box benchmarking of comparable dabt and textual apps with improved accuracy and data set than the first version. . 
+- Mouse pointer shapes: a `cursor:` CSS property sets the pointer over a widget of the class (OSC 22); `:hover` and `:focus` variants; resize handles show `col-resize`/`row-resize`/`nwse-resize`, collapse buttons `pointer`; layer headers (`pointer`, `move`, `nwse-resize`), dialog buttons and the command palette react, and the page under a modal or popup keeps the default pointer; `tui.modal.open` takes an optional POINTERFN; buttons, checkboxes, selects, lists and tables default to `pointer`, inputs and textareas to `text`. Settings > Input turns it off (`pointer.shape`).
+- `tui.mouse.capture ID FN` routes the held mouse button to `FN drag|release ID X Y` until release.
+- `<textarea mode="syntax">` and `tui.text.mode ID syntax` highlight only the Markdown delimiters, each in the color of its element class.
+- `tools/compare-v2`: pty-based, black-box benchmarking of comparable dabt and textual apps with improved accuracy and data set than the first version. . 
 .
-* Widget glyph designs: `tui.glyph.get|set|user|available`, `tui.variant`, `tui.variant.default|list`, theme `.type.variant` rules with quoted glyph properties, and `variant=` on widgets and panes.
-* Built-in glyph designs `thin`, `dots`, `squares`, `ascii` and `blocks` in `share/defaults/glyphs/`.
-* The demo has a Glyphs page that shows every widget design side by side.
-* The demo has a Markdown page with an editor and a live preview.
-* Themes can `@import` other stylesheets; editing an imported file refreshes the cached theme.
-* The Settings page has a Glyphs category, a live Preview pane and a custom-design editor.
-* `tui.on_change ID FN --debounce` runs a list or table callback once the keys stop (at most every `TUI_CHANGE_DEBOUNCE_MAX` events).
-* `tui.modal.count_keys` and `tui.bind --count` let a held key reach a handler as one call with `TUI_EVENT_COUNT`.
-* `tui.config.stage` and `tui.config.flush` batch setting writes into one file save.
+- Widget glyph designs: `tui.glyph.get|set|user|available`, `tui.variant`, `tui.variant.default|list`, theme `.type.variant` rules with quoted glyph properties, and `variant=` on widgets and panes.
+- Built-in glyph designs `thin`, `dots`, `squares`, `ascii` and `blocks` in `share/defaults/glyphs/`.
+- The demo has a Glyphs page that shows every widget design side by side.
+- The demo has a Markdown page with an editor and a live preview.
+- Themes can `@import` other stylesheets; editing an imported file refreshes the cached theme.
+- The Settings page has a Glyphs category, a live Preview pane and a custom-design editor.
+- `tui.on_change ID FN --debounce` runs a list or table callback once the keys stop (at most every `TUI_CHANGE_DEBOUNCE_MAX` events).
+- `tui.modal.count_keys` and `tui.bind --count` let a held key reach a handler as one call with `TUI_EVENT_COUNT`.
+- `tui.config.stage` and `tui.config.flush` batch setting writes into one file save.
 
 ### Changed
 * A scrollbar press on the thumb no longer jumps; a press on the track centers the thumb on the pointer.
-* A button runs its action on release and drops its focus and hover looks.
-* A button's action runs before its un-press redraw, which is then one batched draw, so spamming a button no longer queues clicks behind repaints.
-* A nav button (`page=`) whose target is the page already shown does nothing instead of reloading it.
-* The default Markdown delimiter color is bold yellow and the default rule color is bold red.
-* The demo Markdown editor uses `mode="syntax"`.
-* Held scroll and navigation keys in lists, tables, dialogs and the command palette are merged into one step with a count.
-* The demo Settings page swaps its input fields for selects and adds a progress-bar design section.
-* List and table redraws no longer blank their first row before drawing it.
-* Widgets above or below the viewport of a scrolling pane are skipped on a full render before their placement is computed.
+- A button runs its action on release and drops its focus and hover looks.
+- A button's action runs before its un-press redraw, which is then one batched draw, so spamming a button no longer queues clicks behind repaints.
+- A nav button (`page=`) whose target is the page already shown does nothing instead of reloading it.
+- The default Markdown delimiter color is bold yellow and the default rule color is bold red.
+- The demo Markdown editor uses `mode="syntax"`.
+- Held scroll and navigation keys in lists, tables, dialogs and the command palette are merged into one step with a count.
+- The demo Settings page swaps its input fields for selects and adds a progress-bar design section.
+- List and table redraws no longer blank their first row before drawing it.
+- Widgets above or below the viewport of a scrolling pane are skipped on a full render before their placement is computed.
 
 ### Fixed
-* A Markdown heading with no text, such as a lone `#`, no longer crashes the TUI.
-* Emphasis, code and link spans inside a Markdown heading keep the heading colors.
-* A widget redraw inside a page switch no longer ends the switch's synchronized update early, which showed the half-built page.
-* Nested synchronized updates no longer emit inner markers: `_tui.write` adds none while `mode.sync_start` is open.
-* Single widget redraws are written inside a synchronized update instead of as a bare print.
+- A Markdown heading with no text, such as a lone `#`, no longer crashes the TUI.
+- Emphasis, code and link spans inside a Markdown heading keep the heading colors.
+- A widget redraw inside a page switch no longer ends the switch's synchronized update early, which showed the half-built page.
+- Nested synchronized updates no longer emit inner markers: `_tui.write` adds none while `mode.sync_start` is open.
+- Single widget redraws are written inside a synchronized update instead of as a bare print.
 
 ## [0.0.26] - 2026-11-07
 
@@ -55,47 +77,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Scrolling a pane of widgets is about twice as fast: 147 ms instead of 72 ms per wheel tick** (profiler, scroll scenario, 2 rounds, 200x45; Page keys 96 ms to 41 ms, the list wheel 71 ms to 51 ms). A scroll step no longer places, draws or indexes the widgets that are outside the viewport.
 
 ### Changed
-* A scrolling pane's repaint skips the widgets above and below the viewport before computing their placement (the pinned widget is always drawn); the output is the same.
-* The widget placement cache no longer includes the scroll offset in its key: it holds the unscrolled placement and the offset, the pin and the clip at the viewport's bottom edge are applied after the lookup (`_tui._wp_scroll`), so a new offset is still a hit.
-* The hit index skips widgets that cannot be hit in a vertically scrolling pane: below the viewport (unless they have `hit_pad` or `hitbox`) and above it. Spatial focus moves still find them, they fall back to `_tui._widget_pos`.
-* `_tui_scroll.stuck` walks only the pinned widgets instead of every widget; `_tui_scroll.measure` drops its per-widget locals and regex.
+- A scrolling pane's repaint skips the widgets above and below the viewport before computing their placement (the pinned widget is always drawn); the output is the same.
+- The widget placement cache no longer includes the scroll offset in its key: it holds the unscrolled placement and the offset, the pin and the clip at the viewport's bottom edge are applied after the lookup (`_tui._wp_scroll`), so a new offset is still a hit.
+- The hit index skips widgets that cannot be hit in a vertically scrolling pane: below the viewport (unless they have `hit_pad` or `hitbox`) and above it. Spatial focus moves still find them, they fall back to `_tui._widget_pos`.
+- `_tui_scroll.stuck` walks only the pinned widgets instead of every widget; `_tui_scroll.measure` drops its per-widget locals and regex.
 
 ## [0.0.25] - 2026-11-07
 ### News
-* **Cold start of the demo: 1.4 s instead of 2.8 s** (profiler, 5 rounds, idle machine; the run before this work read 4.3 s, but with some load on the machine). Page validation runs in parallel and in the background, only the first page is built behind the splash, the rest of the cache is built while the app runs; the start page appears after about 0.4 s. Warm start is unchanged (521 ms). Details in `docs/concepts/performance-progress.md`, section 15m.
-* **Dragging or resizing a window repaints only what it uncovered.** The page is repainted inside the rectangle the layer covered before (shadow included), leaf by leaf, and the stack follows in the same write; the other panes are not drawn. One drag step of a small page: 11.5 ms before, 7.2 ms now.
+- **Cold start of the demo: 1.4 s instead of 2.8 s** (profiler, 5 rounds, idle machine; the run before this work read 4.3 s, but with some load on the machine). Page validation runs in parallel and in the background, only the first page is built behind the splash, the rest of the cache is built while the app runs; the start page appears after about 0.4 s. Warm start is unchanged (521 ms). Details in `docs/concepts/performance-progress.md`, section 15m.
+- **Dragging or resizing a window repaints only what it uncovered.** The page is repainted inside the rectangle the layer covered before (shadow included), leaf by leaf, and the stack follows in the same write; the other panes are not drawn. One drag step of a small page: 11.5 ms before, 7.2 ms now.
 
 ### Added
-* `tui.log.level [NAME]` reads or sets the log level (`debug`, `info`, `warn`, `error`, `off`) while the app runs; `TUI_LOG_LEVEL` sets it at start.
-* Settings in `tui_configuration.sh` for the start-up work: `TUI_CACHE_LAZY` (`0` builds every page before the first frame, as before), `TUI_CACHE_LAZY_WORKERS`, `TUI_CACHE_LAZY_PREP`, `TUI_CACHE_LAZY_NICE`, `TUI_VALIDATE_JOBS` (`1` validates in the calling shell) and `TUI_VALIDATE_ASYNC` (`0` validates before building).
-* While the background cache build runs, a toast says so; another says when the cache is ready. Plugins get the hooks `cache_building` and `cache_complete`.
-* Profiler: every cold-start phase has a probe (shared prep, starting the background build, restoring page state, focus, the cache-build announcement, validation start and wait), stretches no probe covers are named ("unprobed after X"), a `page builds` line gives the workers, the slowest and the work in total, and `cache complete` (when the background build ends) is shown as information, not as part of the budget.
+- `tui.log.level [NAME]` reads or sets the log level (`debug`, `info`, `warn`, `error`, `off`) while the app runs; `TUI_LOG_LEVEL` sets it at start.
+- Settings in `tui_configuration.sh` for the start-up work: `TUI_CACHE_LAZY` (`0` builds every page before the first frame, as before), `TUI_CACHE_LAZY_WORKERS`, `TUI_CACHE_LAZY_PREP`, `TUI_CACHE_LAZY_NICE`, `TUI_VALIDATE_JOBS` (`1` validates in the calling shell) and `TUI_VALIDATE_ASYNC` (`0` validates before building).
+- While the background cache build runs, a toast says so; another says when the cache is ready. Plugins get the hooks `cache_building` and `cache_complete`.
+- Profiler: every cold-start phase has a probe (shared prep, starting the background build, restoring page state, focus, the cache-build announcement, validation start and wait), stretches no probe covers are named ("unprobed after X"), a `page builds` line gives the workers, the slowest and the work in total, and `cache complete` (when the background build ends) is shown as information, not as part of the budget.
 
 ### Changed
-* The first launch (and every launch after an update or a page edit) builds only the first page behind the splash. The other pages are built by background workers (at lower priority) while the app runs, the pages the first page's buttons link to first, in the order they appear. A page opened before its worker is done is built on the spot. The cache is written once they finish; a quit before that keeps the pages already built.
-* Page validation runs in parallel, one worker per core: 27 pages took 1550 ms, now 248 ms; the messages are the same and come in the same order. A launch that finds the pages unchanged still skips it.
-* Validation runs in a background process while the first page is built, and is joined before the cache is written or the app starts, so an invalid page still stops the start with the same messages. Cold start 1.70 s before, 1.45 s after (3 rounds, profiler).
-* Themes and shells are prepared for the first page behind the splash and for the other pages by the background pool, and each theme file is loaded once instead of once per page (a memoized load still cost about 3 ms). Cold start 1.79 s before, 1.70 s after (median of 3).
-* The app log writes `info` and above by default; it used to write every debug line (about 600 per 6 page builds, 83 ms of CPU). Building 6 pages: 2224 ms at `debug`, 2141 ms at `info`. Set `TUI_LOG_LEVEL=debug` for the build trace.
-* The logger moved from `tui.sh` into its own file, `lib/tui_log.sh`; its functions are unchanged.
-* The DABT/Textual comparison waits for DABT's "Page cache ready" notice at the end of the cold session, so its steps run on a complete cache.
+- The first launch (and every launch after an update or a page edit) builds only the first page behind the splash. The other pages are built by background workers (at lower priority) while the app runs, the pages the first page's buttons link to first, in the order they appear. A page opened before its worker is done is built on the spot. The cache is written once they finish; a quit before that keeps the pages already built.
+- Page validation runs in parallel, one worker per core: 27 pages took 1550 ms, now 248 ms; the messages are the same and come in the same order. A launch that finds the pages unchanged still skips it.
+- Validation runs in a background process while the first page is built, and is joined before the cache is written or the app starts, so an invalid page still stops the start with the same messages. Cold start 1.70 s before, 1.45 s after (3 rounds, profiler).
+- Themes and shells are prepared for the first page behind the splash and for the other pages by the background pool, and each theme file is loaded once instead of once per page (a memoized load still cost about 3 ms). Cold start 1.79 s before, 1.70 s after (median of 3).
+- The app log writes `info` and above by default; it used to write every debug line (about 600 per 6 page builds, 83 ms of CPU). Building 6 pages: 2224 ms at `debug`, 2141 ms at `info`. Set `TUI_LOG_LEVEL=debug` for the build trace.
+- The logger moved from `tui.sh` into its own file, `lib/tui_log.sh`; its functions are unchanged.
+- The DABT/Textual comparison waits for DABT's "Page cache ready" notice at the end of the cold session, so its steps run on a complete cache.
 
 ### Removed
-* The debug trace in the app log by default (page-build steps, style bakes): it is only written at `TUI_LOG_LEVEL=debug`.
+- The debug trace in the app log by default (page-build steps, style bakes): it is only written at `TUI_LOG_LEVEL=debug`.
 
 ### Fixed
-* A headless cache build counted as a run of the app: `runs` and `last_run` in `app.meta` were changed once for every page the splash built. They only change when the app itself starts.
+- A headless cache build counted as a run of the app: `runs` and `last_run` in `app.meta` were changed once for every page the splash built. They only change when the app itself starts.
 
 ## [0.0.24] - 2026-11-06
 ### News 
-* **Markdown documents open fast.** The part of a file outside the first screen is rendered by a background process that leaves the file's snapshot; the pane paints the first screen at once and takes the rest from the snapshot when it is done (`TUI_MD_BACKGROUND=0` goes back to rendering it in slices in the app). The Docs page settles on its first visit in about 0.4 s instead of 1.6 s. The slices that remain (text that is not a file) append to the stored rows instead of copying them and repaint only every 4th time while the rows in view do not change; the inline memo is kept next to the snapshot (`*.memo`), snapshots carry a format version and are written whole or not at all.
-* **Pictures in Markdown cost what text costs.** A `graphics` render was never cached, so every visit, resize and page switch was a cold render with every picture built again (1.1 s for the README). It is now cached in memory (11 ms) and in the snapshot (24 ms) and paints the view first again. Image ids are a hash of `path|cols|rows`, the same in every session; a picture is built once per size; placeholder rows are measured without a per-character loop; converted PNGs and their sizes are found by path and age instead of `cksum` and `od` forks. The Docs page with pictures settles in about 0.6 s instead of 2.3 s.
-* **Pictures arrive reliably.** Downloads run at most 5 at a time (`TUI_MD_IMAGE_FETCH_JOBS`), a failed one is tried 3 times, the pane renders again once per batch instead of once per picture, a snapshot that could not show a picture starts its download when it is loaded, and files an older version stored are still used.
-* **Faster Markdown parsing.** Link and emphasis scanning jumps to the next special character instead of stepping through the text: the first screen of the README renders in 116 ms instead of 144, a whole cold render is 10 % faster.
-* **Cheaper frames.** The junction cells of fused panes are worked out once per layout and replayed, straight stretches are one string instead of one cell at a time; the terminal size is measured once and again only after a resize (no `stty` per call); the app's metadata folder is created only when it is missing.
-* **The select widget works again.** `<select>` and `tui.select ID PANE ROW LABEL [ACTION]` could not be built: a second function of the same name (marking a button selected) replaced it. One `tui.select` does both now.
-* **`dabt version` and `dabt build` read `VERSION` properly.** A blank first line made `dabt version` print no number and `dabt build` fall back to 0.0.0; both take the first line with something on it.
-* **Profiler:** a `docs` scenario (first visit and revisit of the Docs page: the quick way to measure Markdown work), `DPROF_IMAGES=1` or `remote` to run it with kitty graphics (local pictures, or a local server on port 8765), background renders count as work, and the `nav` scenario remembers the nav labels once (a page switch does not repaint them, so a heavy page pushed them out of the output tail the profiler reads).
+- **Markdown documents open fast.** The part of a file outside the first screen is rendered by a background process that leaves the file's snapshot; the pane paints the first screen at once and takes the rest from the snapshot when it is done (`TUI_MD_BACKGROUND=0` goes back to rendering it in slices in the app). The Docs page settles on its first visit in about 0.4 s instead of 1.6 s. The slices that remain (text that is not a file) append to the stored rows instead of copying them and repaint only every 4th time while the rows in view do not change; the inline memo is kept next to the snapshot (`*.memo`), snapshots carry a format version and are written whole or not at all.
+- **Pictures in Markdown cost what text costs.** A `graphics` render was never cached, so every visit, resize and page switch was a cold render with every picture built again (1.1 s for the README). It is now cached in memory (11 ms) and in the snapshot (24 ms) and paints the view first again. Image ids are a hash of `path|cols|rows`, the same in every session; a picture is built once per size; placeholder rows are measured without a per-character loop; converted PNGs and their sizes are found by path and age instead of `cksum` and `od` forks. The Docs page with pictures settles in about 0.6 s instead of 2.3 s.
+- **Pictures arrive reliably.** Downloads run at most 5 at a time (`TUI_MD_IMAGE_FETCH_JOBS`), a failed one is tried 3 times, the pane renders again once per batch instead of once per picture, a snapshot that could not show a picture starts its download when it is loaded, and files an older version stored are still used.
+- **Faster Markdown parsing.** Link and emphasis scanning jumps to the next special character instead of stepping through the text: the first screen of the README renders in 116 ms instead of 144, a whole cold render is 10 % faster.
+- **Cheaper frames.** The junction cells of fused panes are worked out once per layout and replayed, straight stretches are one string instead of one cell at a time; the terminal size is measured once and again only after a resize (no `stty` per call); the app's metadata folder is created only when it is missing.
+- **The select widget works again.** `<select>` and `tui.select ID PANE ROW LABEL [ACTION]` could not be built: a second function of the same name (marking a button selected) replaced it. One `tui.select` does both now.
+- **`dabt version` and `dabt build` read `VERSION` properly.** A blank first line made `dabt version` print no number and `dabt build` fall back to 0.0.0; both take the first line with something on it.
+- **Profiler:** a `docs` scenario (first visit and revisit of the Docs page: the quick way to measure Markdown work), `DPROF_IMAGES=1` or `remote` to run it with kitty graphics (local pictures, or a local server on port 8765), background renders count as work, and the `nav` scenario remembers the nav labels once (a page switch does not repaint them, so a heavy page pushed them out of the output tail the profiler reads).
 - `Row` attribute for widgets is no longer required and is inferred based on its position in the markup. If row is specified it will be ensured.  
 - `tui.page.refresh` applies a change next to plugin widgets (tags a plugin registered, such as a graph) pane by pane instead of rebuilding the whole page in the background.
 - Anything open over the page (a layer, the command palette, a dialog) now goes out in the same write as every repaint of the page under it, so background updates no longer flicker through it.

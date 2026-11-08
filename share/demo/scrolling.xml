@@ -46,7 +46,7 @@
           <label id="sf_gh" pin="top" text="Generated rows: every widget type (loop + template; the count follows the terminal height)" class="muted_label"/>
           <label id="sf_lh" text="Recent files (a list: the wheel scrolls it first, then the form)" class="muted_label"/>
           <list id="sf_list" rows="6" action="tui.action.noop" items="file_01.txt|file_02.txt|file_03.txt|file_04.txt|file_05.txt|file_06.txt|file_07.txt|file_08.txt|file_09.txt|file_10.txt|file_11.txt|file_12.txt|file_13.txt|file_14.txt|file_15.txt|file_16.txt|file_17.txt|file_18.txt|file_19.txt|file_20.txt|file_21.txt|file_22.txt|file_23.txt|file_24.txt"/>
-          <for id="gen_groups" count="6" index="g">
+          <for id="gen_groups" count="2" index="g">
             <for each="input password check select progress button text list table label" as="kind">
               <use template="gen_row" id="g{{@g}}{{@kind}}" kind="{{@kind}}" n="{{@g}}"/>
             </for>

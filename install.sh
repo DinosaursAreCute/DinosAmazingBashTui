@@ -15,7 +15,7 @@
 # files you changed are never overwritten silently (see docs/guide/install-and-update.md).
 SRC="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # Bootstrap: run standalone (curl ... | bash) there is no checkout next to this script, so fetch the repo archive and run its install.sh.
-#   DABT_REF=<branch|tag> picks what to download (default main); DABT_REPO overrides owner/name.
+#   DABT_REF=<branch|tag> picks what to download (default: the latest GitHub release; DABT_REF=main for the development branch); DABT_REPO overrides owner/name.
 if [[ ! -f "$SRC/lib/apps/tui_sync.sh" ]]; then
 	case "${1:-}" in -h | --help)
 		sed -n '2,16p' "${BASH_SOURCE[0]:-$0}" 2>/dev/null | sed 's/^# \?//'
@@ -23,7 +23,17 @@ if [[ ! -f "$SRC/lib/apps/tui_sync.sh" ]]; then
 		;;
 	esac
 	repo="${DABT_REPO:-DinosaursAreCute/DinosAmazingBashTui}"
-	ref="${DABT_REF:-main}"
+	ref="${DABT_REF:-}"
+	if [[ -z "$ref" ]]; then
+		# no ref given: resolve the latest release tag
+		api="https://api.github.com/repos/$repo/releases/latest"
+		if command -v curl >/dev/null 2>&1; then json="$(curl -fsSL "$api" 2>/dev/null)"; elif command -v wget >/dev/null 2>&1; then json="$(wget -qO- "$api" 2>/dev/null)"; else json=""; fi
+		ref="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"$json" | head -n1)"
+		[[ -n "$ref" ]] || {
+			echo "install.sh: could not determine the latest release of $repo (set DABT_REF=<tag|branch>, e.g. DABT_REF=main)" >&2
+			exit 2
+		}
+	fi
 	url="https://github.com/$repo/archive/refs/heads/$ref.tar.gz"
 	[[ "$ref" == v[0-9]* ]] && url="https://github.com/$repo/archive/refs/tags/$ref.tar.gz"
 	command -v tar >/dev/null 2>&1 || {

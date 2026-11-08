@@ -84,5 +84,6 @@ def workbench(c):
     # -- revisit: every page again (DABT: page cache; Textual: screen rebuild) ----------------------------
     for page in ("overview", "tasks", "notes", "settings", "admin"):
         go(c, f"revisit.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
+    c.pause(5)  # untimed: DABT's background page-cache rebuild after the theme switch has to finish, or "idle" measures that work
     c.idle("idle.3s", 3)
     c.memory("memory")

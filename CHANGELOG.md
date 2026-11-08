@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.27] - 2026-11-08
+
 ### News
 * **Widgets have selectable designs.** `variant="thin"` (or `dots`, `squares`, `ascii`, `blocks`) restyles progress bars, checkboxes and pane bars; themes and the Settings Glyphs category choose the default and let users build their own.
 * **The cursor is reactive: the mouse pointer changes shape over what it can do.** Buttons show a hand, inputs a text bar, resize handles a resize arrow, window headers a move cursor. 

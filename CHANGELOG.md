@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.29] - 2026-11-11
+
 ### Changed
 - `tui.cmd.load` keeps the parse of a commands file (`commands.xml`) as a snapshot under `$TUI_HOME/cache/commands` and replays it with one `source` while the XML is not newer: sourcing `tui_cmd.sh` takes about 3 ms instead of 14 ms (the 23 shipped commands cost seven regex reads each before).
 - A button click costs about 60 ms less. Releasing a button that changed the page repainted the released button and its pane's border once more, 20-28 ms after the new page was drawn, so the screen could also show the pane in a focus ring the page render does not draw; it now skips that when the action repainted the whole screen (`_TUI_RENDER_SEQ`). `tui.focus` called by an `on_visit` composed two or three pane borders only to drop them (27 ms on Docu); it now sets the focus state and composes nothing while the page loads. A pane border's side columns are composed in one append per row instead of eight calls: a 42-row pane 7.9 ms to 1.7 ms, which every border redraw (a focus change, a press) and the page render pay.

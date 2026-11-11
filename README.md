@@ -1,3 +1,16 @@
+## Table of Contents
+
+<details>
+
+   <summary>Contents</summary>
+
+1. [Screenshots](#screenshots)
+1. [Documentation](#documentation)
+1. [Requirements](#requirements)
+1. [Ecosystem](#ecosystem)
+
+</details>
+
 <p align="center">
   <img alt="D.A.B.T - DinosAmazingBashTui" src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" width="800" height="400"/>
 
@@ -171,7 +184,8 @@ A text-pattern scan can be fooled, so **a clean report is not a guarantee.**
 
 </details>
 
-## Performance
+<h2 id="performance"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/performance.svg" alt="performance" height="35"/></h2>
+
 <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/performance/hero.svg" alt="DABT, Textual and Bubble Tea compared on page switches, key presses, typing, dialogs, theme switches, idle CPU and memory" width="900"/>
 <br/>
 

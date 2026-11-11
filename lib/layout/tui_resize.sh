@@ -98,17 +98,37 @@ _tui_resize.clear() {
 	_TUI_RESIZE_PANE="" _TUI_RZ_TITLE="" _TUI_RZ_ID="" _TUI_RZ_LAST_ID=""
 }
 
-# _tui_resize.parent CHILD -> _RZ_P (the split holding it) and _RZ_I (its index there); rc 1 for root
-_tui_resize.parent() {
-	local p ch i
-	for p in "${_TUI_P_ALL[@]}"; do
-		[[ " ${_TUI_P_CHILDREN[$p]:-} " == *" $1 "* ]] || continue
-		read -ra ch <<<"${_TUI_P_CHILDREN[$p]}"
-		for i in "${!ch[@]}"; do [[ "${ch[i]}" == "$1" ]] && break; done
-		_RZ_P="$p" _RZ_I=$i _RZ_N=${#ch[@]}
+# _tui_resize.parent_of CHILD -> _RZ_P: the split holding CHILD; rc 1 for root. The parent found is remembered: the footer asks
+# for the ancestors of the focused pane on every build, and a scan of every pane per ancestor is the cost. A remembered parent
+# is used only while its children list still holds CHILD; a remembered miss only until the layout changes (every change of
+# a children list announces itself as one).
+declare -gA _TUI_RZ_PARENT_OF=() _TUI_RZ_NO_PARENT=() # child -> parent / child -> the _TUI_LY_GEN it was found to have none at
+_tui_resize.parent_of() {
+	local p="${_TUI_RZ_PARENT_OF[$1]:-}" i
+	[[ -n "$p" && " ${_TUI_P_CHILDREN[$p]:-} " == *" $1 "* ]] && {
+		_RZ_P="$p"
 		return 0
+	}
+	[[ "${_TUI_RZ_NO_PARENT[$1]:-}" == "$_TUI_LY_GEN" ]] && return 1
+	for p in "${_TUI_P_ALL[@]}"; do
+		[[ " ${_TUI_P_CHILDREN[$p]:-} " == *" $1 "* ]] && {
+			_TUI_RZ_PARENT_OF[$1]="$p"
+			_RZ_P="$p"
+			return 0
+		}
 	done
+	_TUI_RZ_NO_PARENT[$1]="$_TUI_LY_GEN"
 	return 1
+}
+
+# _tui_resize.parent CHILD -> _RZ_P (the split holding it) and _RZ_I (its index there) and _RZ_N (its child count); rc 1 for root
+_tui_resize.parent() {
+	local ch i
+	_tui_resize.parent_of "$1" || return 1
+	read -ra ch <<<"${_TUI_P_CHILDREN[$_RZ_P]}"
+	for i in "${!ch[@]}"; do [[ "${ch[i]}" == "$1" ]] && break; done
+	_RZ_I=$i _RZ_N=${#ch[@]}
+	return 0
 }
 
 # ── weight transfer ───────────────────────────────────────────────────────
@@ -458,7 +478,7 @@ _tui_resize.find() {
 			_RZ_P="$p"
 			return 0
 		}
-		_tui_resize.parent "$p" || break
+		_tui_resize.parent_of "$p" || break
 		p="$_RZ_P"
 	done
 	for p in "${_TUI_P_ALL[@]}"; do

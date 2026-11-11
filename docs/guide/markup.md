@@ -31,6 +31,8 @@ Run a page with `tui.start_cached "config/home.xml"` (or try the bundled demo: `
 - Tags are `<tag attr="value"/>` or `<tag attr="value">…</tag>`. Values can use `"double"` or `'single'` quotes. A tag may span several lines, and comments (`<!-- … -->`) may stand anywhere.
 - `&lt; &gt; &amp; &quot; &apos;` work inside values. A `>` inside a quoted value does not end the tag.
 - The root is `<tui>`. Everything on the page is inside it.
+- **Put each element on its own line.** A child written on the same line as its parent's opening tag has its attributes merged with the parent's, and the page is refused (`attribute 'id' given twice`).
+- **A pane that contains panes needs a `split`** (`h`, `v`, `grid` or `fixed`). The page names the pane when it is missing.
 - **Every pane and every widget gets an `id`.** Bash finds things by id, addons and `tui.page.refresh` match by id, and error messages quote it. Use a prefix by kind (`lbl_`, `inp_`, `btn_`, `lst_`), it keeps ids unique and readable.
 - Pages are checked when the app starts. A mistake is reported with file, line and column (`share/demo/x.xml line 19 col 18: widget id 'foot' is already used at line 17`) and the start is refused; `--ignore-invalid-xml` starts anyway. The same schema is available to your editor: [share/tui.xsd](https://github.com/DinosaursAreCute/DinosAmazingBashTui/blob/main/share/tui.xsd) gives completion and validation in editors that read XSD (reference it from the root tag: `<tui xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="tui.xsd">`).
 
@@ -45,16 +47,23 @@ A pane is a rectangle. It either **holds widgets** or **is split into child pane
 | `grid` | cells of a grid, see [Grid layouts](grid-layouts-and-tabs.md) |
 | `fixed` | rows of fixed-size cells that wrap, see [Grid layouts](grid-layouts-and-tabs.md) |
 
-**Sizes.** A child pane takes its size along the parent's split axis from `width` (in an `h` split) or `height` (in a `v` split). The value is a *size token*:
+**Sizes.** A child takes its size along the parent's split axis from `width` (in an `h` split) or `height` (in a `v` split):
 
-| Token | Meaning |
+| Value | Means |
 |---|---|
-| `24` | 24 cells |
+| `2` or `2fr` | 2 **shares** of the free space. A bare number is a share, the same as `weight="2"`. |
 | `30%` | 30 % of the available space |
-| `2fr` | 2 shares of what is left after the fixed, percent and `auto` children (`fill` = `1fr`) |
-| `clamp(20,30%,50)` | prefer 30 %, but never below 20 or above 50 cells (each part may be any token) |
+| `fill` | the same as `1fr` |
+| `clamp(20,30%,50)` | prefer 30 %, never below 20 or above 50 **cells** |
 
-`weight="3"` is the same as `3fr` and is fine for simple splits. Space that `max_width`/`max_height` leaves over goes to the other children; `min_width`/`min_height` are honoured, and a pane that still does not fit shows a `min space = WxH` notice instead of its content. `gap="1"` on a split pane leaves cells between its children. `hpad`/`vpad` keep the content away from the border; `border` is `single`, `double`, `heavy` or `none`; `title` goes into the top border.
+**Need an exact number of cells?** A bare number never means cells: `height="4"` next to `height="1fr"` is 4 shares against 1, not 4 rows. Write `clamp(4,4,4)`, or use `min_height` / `max_height` (`min_width` / `max_width`).
+
+```xml
+<pane id="head" height="clamp(4,4,4)"/>   <!-- exactly 4 rows -->
+<pane id="body" height="1fr"/>            <!-- everything that is left -->
+```
+
+Space that `max_width`/`max_height` leaves over goes to the other children; `min_width`/`min_height` are honoured, and a pane that still does not fit shows a `min space = WxH` notice instead of its content. `gap="1"` on a split pane leaves cells between its children. `hpad`/`vpad` keep the content away from the border; `border` is `single`, `double`, `heavy` or `none`; `title` goes into the top border.
 
 Panes can be given `row`, `col`, `group`, `spacer` and `divider` instead of `pane` when that reads better: `row` is a pane with `split="h"`, `col` one with `split="v"`, `divider` one with a border, and `spacer` an empty pane that takes up space.
 

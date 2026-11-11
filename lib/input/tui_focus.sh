@@ -156,6 +156,12 @@ tui.focus() {
 		fi
 	fi
 
+	# a page is loading under tui.goto: the focus state and the scroll offset are set, the frame it renders covers the drawing
+	if ((_TUI_DEFER_RENDER && _TUI_RUNNING)); then
+		_TUI_FRAME="$saved_frame"
+		return 0
+	fi
+
 	# If reveal changed the offset, redraw the entire pane
 	if ((pane_full_redraw)); then
 		_tui._draw_pane_full_buf "$newpane"

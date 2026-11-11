@@ -8,6 +8,7 @@
 # tui_node.children N -> _N_CHILDREN[]        N's kids, in order
 # tui_node.walk N FN                          pre-order: FN NODE for N and every descendant
 # tui_node.dump -> stdout                     declare -p of every node table
+# tui_node.snapshot -> _N_DUMP                the same dump into a variable, no subshell
 # tui_node.load DUMP                          restores tables from tui_node.dump's output
 # tui_node.reset                              clears every node table
 #
@@ -87,7 +88,15 @@ tui_node.walk() {
 # tui_node.dump -> stdout : declare -p of every node table, `source`-able
 # (or tui_node.load-able) to restore this exact state.
 tui_node.dump() {
-	declare -p _N_NEXT _N_TYPE _N_PARENT _N_KIDS _N_ID _N_ATTR _N_ANAMES _N_BY_ID
+	tui_node.snapshot
+	printf '%s\n' "$_N_DUMP"
+}
+
+# tui_node.snapshot -> _N_DUMP : tui_node.dump's text without a subshell. ${arr[@]@A} is the `declare -p` form (a scalar's
+# value is single-quoted), which tui_node.load evals the same.
+declare -g _N_DUMP=""
+tui_node.snapshot() {
+	_N_DUMP="${_N_NEXT@A}"$'\n'"${_N_TYPE[@]@A}"$'\n'"${_N_PARENT[@]@A}"$'\n'"${_N_KIDS[@]@A}"$'\n'"${_N_ID[@]@A}"$'\n'"${_N_ATTR[@]@A}"$'\n'"${_N_ANAMES[@]@A}"$'\n'"${_N_BY_ID[@]@A}"
 }
 
 # tui_node.load DUMP - restores every node table from tui_node.dump's

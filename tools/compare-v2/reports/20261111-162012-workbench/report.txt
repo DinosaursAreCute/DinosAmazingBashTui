@@ -1,0 +1,251 @@
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ compare-v2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ scenario   workbench — Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form                                        │
+│ app        DABT  DABT 0.0.28   keys: legacy ESC                                                                                                    │
+│ app        Textual  Textual 8.2.8 / Python 3.14.9   keys: kitty CSI-u                                                                              │
+│ app        Bubble Tea  Bubble Tea v1.3.4 / go1.27.3-X:nodwarf5   keys: legacy ESC                                                                  │
+│ run        1 rounds (+1 warm-up) · 150x45 · 176.9s · 2026-11-11 16:17:15                                                                           │
+│ machine    AMD Ryzen 7 2700X Eight-Core Processor · 16 CPUs · kernel 7.3.3-1-cachyos · governor schedutil · load 0.97 1.17 1.06                    │
+│ isolation  app on CPUs [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14] · harness on [7, 15] · python 3.14.9 · bash 5.3.20(1)-release · repo        │
+│            55a75b8+dirty                                                                                                                           │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚠ CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).
+⚠ only 1 measured rounds: confidence intervals are rough below ~8.
+╭─ summary ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ DABT is 2.28× faster than Textual on interaction latency, measured to the last visible change (geometric mean over 47 steps).  DABT better in 0,   │
+│ Textual better in 0, no clear difference in 47.                                                                                                    │
+│ warm startup:  unclear (1.80×, CI spans 1)                                                                                                         │
+│ Bubble Tea is 4.34× faster than DABT on interaction latency, measured to the last visible change (geometric mean over 47 steps).  DABT better in   │
+│ 0, Bubble Tea better in 0, no clear difference in 47.                                                                                              │
+│ warm startup:  unclear (0.35×, CI spans 1)                                                                                                         │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+startup  (spawn → first correct frame)                                                                                                      
+step                app           done  median [95% CI]                      ready     CPU    written   paints   vs DABT                    
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+startup.cold        DABT                          504.9   ██████████████     504.9    2687    23.3 kB        6   baseline                   
+                    Textual                       378.3   ██████████▌        357.8     404    27.7 kB        3   unclear (0.75×, CI spans 1)
+                    Bubble Tea                     74.1   ██                  73.6      80    17.2 kB        6   unclear (0.15×, CI spans 1)
+                                                                                                                                            
+startup.warm        DABT                          223.0   ███████▊           223.0     213    22.0 kB        3   baseline                   
+                    Textual                       401.8   ██████████████     401.8     409    27.7 kB        2   unclear (1.80×, CI spans 1)
+                    Bubble Tea                     78.0   ██▊                 77.6      79    17.2 kB        6   unclear (0.35×, CI spans 1)
+interaction  (input → expected screen)                                                                                                          
+step                   app           done  median [95% CI]                      ready     CPU    written   paints   vs DABT                     
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+jobs.run               DABT                         2064.1   ██████████████    2064.1     165    44.9 kB       22   baseline                    
+                       Textual                      2031.6   █████████████▊    2031.6     185    24.2 kB       22   unclear (0.98×, CI spans 1) 
+                       Bubble Tea                   2009.7   █████████████▋    2009.7      19    96.7 kB       34   unclear (0.97×, CI spans 1) 
+                                                                                                                                                
+jobs.reset             DABT                           16.3   ██████████████      16.3      18       2533        1   baseline                    
+                       Textual                         7.8   ██████▊              7.8       8       1365        1   unclear (0.48×, CI spans 1) 
+                       Bubble Tea                      6.7   █████▊               6.7       1       8030        2   unclear (0.41×, CI spans 1) 
+                                                                                                                                                
+nav.tasks              DABT                          130.5   ██████             130.5     158    45.1 kB        2   baseline                    
+                       Textual                       307.0   ██████████████     163.3     326   141.2 kB        5   unclear (2.35×, CI spans 1) 
+                       Bubble Tea                      9.5   ▍                    9.3       8    14.5 kB        4   unclear (0.07×, CI spans 1) 
+                                                                                                                                                
+table.down             DABT                           16.3   ████████▊           16.3      16       5095        2   baseline                    
+                       Textual                        26.1   ██████████████      26.1      15       3238        2   unclear (1.60×, CI spans 1) 
+                       Bubble Tea                     15.6   ████████▍           15.6       3       1980        1   unclear (0.96×, CI spans 1) 
+                                                                                                                                                
+table.down_held        DABT                           25.8   ██████████████      25.8     161    49.7 kB       20   baseline                    
+                       Textual                        16.6   █████████           16.6     155    32.1 kB       10   unclear (0.64×, CI spans 1) 
+                       Bubble Tea                     18.5   ██████████          18.5      44    19.1 kB       10   unclear (0.72×, CI spans 1) 
+                                                                                                                                                
+table.pagedown         DABT                           32.7   ██████              32.7      33       5097        2   baseline                    
+                       Textual                        75.6   ██████████████      75.6      62    14.3 kB        2   unclear (2.31×, CI spans 1) 
+                       Bubble Tea                     19.0   ███▌                18.9       5    12.2 kB        3   unclear (0.58×, CI spans 1) 
+                                                                                                                                                
+table.top              DABT                           25.3   █████               25.3      27       5095        2   baseline                    
+                       Textual                        71.5   ██████████████      71.5      61    14.3 kB        2   unclear (2.83×, CI spans 1) 
+                       Bubble Tea                     16.5   ███▎                16.3       4    12.8 kB        4   unclear (0.65×, CI spans 1) 
+                                                                                                                                                
+focus.filter           DABT                           20.6   ███▌                20.6      22       4163        1   baseline                    
+                       Textual                        82.0   ██████████████      82.0     183    45.9 kB        1   unclear (3.98×, CI spans 1) 
+                       Bubble Tea                      5.1   ▉                    5.1       2        389        1   unclear (0.25×, CI spans 1) 
+                                                                                                                                                
+filter.char            DABT                            9.1   ████████▌            9.1      52       5286        1   baseline                    
+                       Textual                        14.8   █████████████▊      14.8      62    11.1 kB        1   unclear (1.62×, CI spans 1) 
+                       Bubble Tea                     15.2   ██████████████      15.2       6       1534        2   unclear (1.66×, CI spans 1) 
+                                                                                                                                                
+focus.table2           DABT                           14.7   ██▊                 14.7      16       3820        1   baseline                    
+                       Textual                        74.0   ██████████████      74.0     121    36.5 kB        1   unclear (5.04×, CI spans 1) 
+                       Bubble Tea                     11.8   ██▎                 11.8       2        351        1   unclear (0.80×, CI spans 1) 
+                                                                                                                                                
+dialog.open            DABT                            6.1   ▉                    6.1       8       1349        1   baseline                    
+                       Textual                        96.9   ██████████████      36.8     132   160.0 kB        2   unclear (15.97×, CI spans 1)
+                       Bubble Tea                      1.3   ▏                    1.3       2       2691        1   unclear (0.21×, CI spans 1) 
+                                                                                                                                                
+dialog.confirm         DABT                           74.7   ███████████▌        74.7      76    36.6 kB        8   baseline                    
+                       Textual                        91.4   ██████████████      91.4      88    80.5 kB        3   unclear (1.22×, CI spans 1) 
+                       Bubble Tea                     20.1   ███▏                20.1       5    13.1 kB        4   unclear (0.27×, CI spans 1) 
+                                                                                                                                                
+focus.filter2          DABT                           14.0   ███▉                14.0      16       4218        1   baseline                    
+                       Textual                        51.2   ██████████████      51.2      97    36.4 kB        1   unclear (3.65×, CI spans 1) 
+                       Bubble Tea                      8.6   ██▍                  8.6       2        359        1   unclear (0.61×, CI spans 1) 
+                                                                                                                                                
+filter.clear           DABT                           60.1   ████████▋           60.1      61       6370        2   baseline                    
+                       Textual                        97.9   ██████████████      69.1      71    24.9 kB        3   unclear (1.63×, CI spans 1) 
+                       Bubble Tea                      6.9   █                    6.5       6    12.4 kB        4   unclear (0.11×, CI spans 1) 
+                                                                                                                                                
+nav.notes              DABT                          210.5   █████████▊         152.8     216   114.5 kB        3   baseline                    
+                       Textual                       302.8   ██████████████     197.3     309   135.5 kB        4   unclear (1.44×, CI spans 1) 
+                       Bubble Tea                     20.7   █                   20.1       8    29.8 kB        8   unclear (0.10×, CI spans 1) 
+                                                                                                                                                
+editor.word            DABT                           62.2   ███████▉            45.4     312    73.0 kB       11   baseline                    
+                       Textual                       110.0   ██████████████     110.0     422    30.8 kB        4   unclear (1.77×, CI spans 1) 
+                       Bubble Tea                     14.0   █▊                  14.0      43    11.2 kB        6   unclear (0.23×, CI spans 1) 
+                                                                                                                                                
+nav.logs               DABT                          115.3   ██████             115.3     143    44.1 kB        2   baseline                    
+                       Textual                       269.0   ██████████████     146.3     298   123.1 kB        4   unclear (2.33×, CI spans 1) 
+                       Bubble Tea                      5.7   ▎                    5.6       4    11.5 kB        3   unclear (0.05×, CI spans 1) 
+                                                                                                                                                
+list.pagedown          DABT                           25.2   ████████▏           25.2      25       6216        2   baseline                    
+                       Textual                        43.8   ██████████████      43.8      20    11.6 kB        2   unclear (1.74×, CI spans 1) 
+                       Bubble Tea                     18.8   ██████              18.7       3       9594        3   unclear (0.75×, CI spans 1) 
+                                                                                                                                                
+list.end               DABT                           16.8   ██▎                 16.8      17       6218        2   baseline                    
+                       Textual                        56.2   ███████▍            56.2      34    11.6 kB        2   unclear (3.33×, CI spans 1) 
+                       Bubble Tea                    105.9   ██████████████       6.6       3       9715        4   unclear (6.28×, CI spans 1) 
+                                                                                                                                                
+list.append            DABT                           12.4   ▉                   12.4      14       5817        1   baseline                    
+                       Textual                       188.3   ██████████████      26.9      42    14.6 kB        2   unclear (15.16×, CI spans 1)
+                       Bubble Tea                      7.4   ▌                    7.3       2       8787        3   unclear (0.60×, CI spans 1) 
+                                                                                                                                                
+list.home              DABT                           26.8   █████████▌          26.8      27       6215        2   baseline                    
+                       Textual                        39.3   ██████████████      39.3      16    11.5 kB        2   unclear (1.47×, CI spans 1) 
+                       Bubble Tea                     12.3   ████▍               12.1       2       9312        3   unclear (0.46×, CI spans 1) 
+                                                                                                                                                
+list.wheel             DABT                            9.8   ████████▏            9.8      82    31.7 kB        5   baseline                    
+                       Textual                        14.7   ████████████        14.7      71    36.9 kB        4   unclear (1.49×, CI spans 1) 
+                       Bubble Tea                     17.0   ██████████████      17.0       8       4075        5   unclear (1.73×, CI spans 1) 
+                                                                                                                                                
+resize.small           DABT                          163.7   ████████████▎      163.7      72    40.4 kB        2   baseline                    
+                       Textual                       186.4   ██████████████     186.4     233    83.6 kB        1   unclear (1.14×, CI spans 1) 
+                       Bubble Tea                     20.6   █▌                  20.6       9       8865        3   unclear (0.13×, CI spans 1) 
+                                                                                                                                                
+resize.back            DABT                           99.3   █████████████▎      99.3      43    24.9 kB        1   baseline                    
+                       Textual                       105.0   ██████████████     105.0     109   100.1 kB        2   unclear (1.06×, CI spans 1) 
+                       Bubble Tea                     11.4   █▌                  11.4      10    11.1 kB        3   unclear (0.11×, CI spans 1) 
+                                                                                                                                                
+nav.settings           DABT                          108.3   ██████▉            108.3     134    44.5 kB        2   baseline                    
+                       Textual                       221.2   ██████████████     138.5     214    92.1 kB        3   unclear (2.04×, CI spans 1) 
+                       Bubble Tea                      1.1   ▏                    1.0       2       9913        3   unclear (0.01×, CI spans 1) 
+                                                                                                                                                
+form.type              DABT                            4.9   ██████████           4.9      19       1170        3   baseline                    
+                       Textual                         6.9   ██████████████       6.9      19        780        3   unclear (1.39×, CI spans 1) 
+                       Bubble Tea                      4.4   █████████            4.4       3        930        3   ≈ same                      
+                                                                                                                                                
+form.apply             DABT                            8.7   ██▍                  8.7      11       1180        2   baseline                    
+                       Textual                        51.1   ██████████████      51.1      30       1234        2   unclear (5.85×, CI spans 1) 
+                       Bubble Tea                     11.1   ███                 11.1       1       1495        1   unclear (1.27×, CI spans 1) 
+                                                                                                                                                
+nav.admin              DABT                          100.7   ██████             100.7     132    36.5 kB        2   baseline                    
+                       Textual                       234.5   ██████████████     146.1     255    90.5 kB        4   unclear (2.33×, CI spans 1) 
+                       Bubble Tea                     17.1   █                   17.0       2      10081        3   unclear (0.17×, CI spans 1) 
+                                                                                                                                                
+tab.appearance         DABT                           12.4   ▋                   12.4      14       1336        2   baseline                    
+                       Textual                       307.4   ██████████████      13.3      91    10.9 kB       13   unclear (24.72×, CI spans 1)
+                       Bubble Tea                      3.8   ▏                    3.8       1        568        1   unclear (0.31×, CI spans 1) 
+                                                                                                                                                
+tab.general            DABT                           12.4   ▋                   12.4      15       1509        2   baseline                    
+                       Textual                       296.5   ██████████████      20.5      98    11.1 kB       14   unclear (23.91×, CI spans 1)
+                       Bubble Tea                      0.3   ▏                    0.3       1        568        1   unclear (0.03×, CI spans 1) 
+                                                                                                                                                
+collapse.close         DABT                           41.6   ██████████████      41.6      43    12.4 kB        1   baseline                    
+                       Textual                        19.3   ██████▌             19.3      26    22.5 kB        1   unclear (0.46×, CI spans 1) 
+                       Bubble Tea                      5.9   ██                   5.9       1       1064        1   unclear (0.14×, CI spans 1) 
+                                                                                                                                                
+collapse.open          DABT                           29.6   ██████████████      29.6      31    21.1 kB        1   baseline                    
+                       Textual                        22.2   ██████████▌         22.2      29    22.3 kB        1   unclear (0.75×, CI spans 1) 
+                       Bubble Tea                     17.4   ████████▎           17.4       1       1597        1   unclear (0.59×, CI spans 1) 
+                                                                                                                                                
+theme.light            DABT                          165.2   ██████████████     165.2     166    21.6 kB        1   baseline                    
+                       Textual                       135.3   ███████████▌       135.3     145    68.8 kB        1   unclear (0.82×, CI spans 1) 
+                       Bubble Tea                     17.2   █▌                  17.1       4      10093        3   unclear (0.10×, CI spans 1) 
+                                                                                                                                                
+theme.dark             DABT                           66.4   ████████▊           66.4      67    21.1 kB        1   baseline                    
+                       Textual                       106.6   ██████████████     106.6     116    65.0 kB        1   unclear (1.61×, CI spans 1) 
+                       Bubble Tea                     15.9   ██▏                 15.8       6      10081        3   unclear (0.24×, CI spans 1) 
+                                                                                                                                                
+palette.open           DABT                           39.3   ███▋                39.3      42       3275        1   baseline                    
+                       Textual                       152.9   ██████████████     101.2     182    78.9 kB        2   unclear (3.89×, CI spans 1) 
+                       Bubble Tea                      8.1   ▊                    8.1       2       4318        2   unclear (0.21×, CI spans 1) 
+                                                                                                                                                
+palette.type           DABT                           21.7   ██████████████      21.7     110    12.8 kB        4   baseline                    
+                       Textual                        16.5   ██████████▋         13.1      70    26.6 kB        8   unclear (0.76×, CI spans 1) 
+                       Bubble Tea                      3.0   ██                   3.0       4       5608        4   unclear (0.14×, CI spans 1) 
+                                                                                                                                                
+palette.run            DABT                           90.7   ███▎                90.7      92    46.5 kB        2   baseline                    
+                       Textual                       393.8   ██████████████     393.8     384    41.8 kB        1   unclear (4.34×, CI spans 1) 
+                       Bubble Tea                      2.7   ▏                    2.6       3    11.5 kB        3   unclear (0.03×, CI spans 1) 
+                                                                                                                                                
+revisit.overview       DABT                          101.4   ██████▊            101.4     129    42.2 kB        2   baseline                    
+                       Textual                       208.6   ██████████████     126.7     203    91.7 kB        3   unclear (2.06×, CI spans 1) 
+                       Bubble Tea                      4.4   ▎                    4.1       2    16.7 kB        5   unclear (0.04×, CI spans 1) 
+                                                                                                                                                
+revisit.tasks          DABT                           96.6   ███▉                96.6     124    45.1 kB        2   baseline                    
+                       Textual                       345.7   ██████████████     183.3     349   136.8 kB        5   unclear (3.58×, CI spans 1) 
+                       Bubble Tea                     17.6   ▊                   17.4       8    14.5 kB        4   unclear (0.18×, CI spans 1) 
+                                                                                                                                                
+revisit.notes          DABT                          113.6   ████▉              113.6     149    67.9 kB        2   baseline                    
+                       Textual                       325.7   ██████████████     213.0     327   133.6 kB        4   unclear (2.87×, CI spans 1) 
+                       Bubble Tea                     50.6   ██▏                 17.8      10    30.5 kB        9   unclear (0.45×, CI spans 1) 
+                                                                                                                                                
+revisit.settings       DABT                          100.1   ████▍              100.1     127    40.2 kB        2   baseline                    
+                       Textual                       317.6   ██████████████     137.6     317    97.7 kB        3   unclear (3.17×, CI spans 1) 
+                       Bubble Tea                     13.5   ▋                   13.4       1    10.3 kB        3   unclear (0.13×, CI spans 1) 
+                                                                                                                                                
+revisit.admin          DABT                          299.3   ██████████████      88.5     149    57.3 kB        3   baseline                    
+                       Textual                       243.8   ███████████▍       140.4     240    88.1 kB        3   unclear (0.81×, CI spans 1) 
+                       Bubble Tea                      3.7   ▏                    3.6       2       9831        3   unclear (0.01×, CI spans 1) 
+                                                                                                                                                
+revisit.key.overview   DABT                           66.3   █████▉              66.3      58    21.7 kB        1   baseline                    
+                       Textual                       157.6   ██████████████      74.7     154    67.5 kB        2   unclear (2.38×, CI spans 1) 
+                       Bubble Tea                      7.1   ▋                    6.8       2    17.1 kB        5   unclear (0.11×, CI spans 1) 
+                                                                                                                                                
+revisit.key.tasks      DABT                           97.7   ████▊               97.7      88    29.3 kB        1   baseline                    
+                       Textual                       288.0   ██████████████     128.4     290   115.1 kB        4   unclear (2.95×, CI spans 1) 
+                       Bubble Tea                     14.7   ▊                   14.5       2    14.0 kB        4   unclear (0.15×, CI spans 1) 
+                                                                                                                                                
+revisit.key.notes      DABT                           82.2   ████▌               82.2      79    48.9 kB        1   baseline                    
+                       Textual                       254.5   ██████████████     146.8     254    98.9 kB        3   unclear (3.10×, CI spans 1) 
+                       Bubble Tea                     18.8   █                   18.2       4    29.0 kB        8   unclear (0.23×, CI spans 1) 
+                                                                                                                                                
+revisit.key.settings   DABT                           66.1   ██████              66.1      57    21.1 kB        1   baseline                    
+                       Textual                       154.5   ██████████████      80.4     154    68.1 kB        2   unclear (2.34×, CI spans 1) 
+                       Bubble Tea                      4.2   ▍                    4.1       2    10.3 kB        3   unclear (0.06×, CI spans 1) 
+                                                                                                                                                
+revisit.key.admin      DABT                           69.6   ███▏                69.6      61    20.7 kB        1   baseline                    
+                       Textual                       309.0   ██████████████     210.8     306    66.5 kB        2   unclear (4.44×, CI spans 1) 
+                       Bubble Tea                      5.1   ▎                    5.1       2       9831        3   unclear (0.07×, CI spans 1) 
+idle  (app sits still)                                                              
+step      app          idle CPU   wakeups   idle bytes   vs DABT (idle CPU)         
+────────────────────────────────────────────────────────────────────────────────────
+idle.3s   DABT             0.96       0.0            0   baseline                   
+          Textual          0.05       0.0            0   unclear (0.05×, CI spans 1)
+          Bubble Tea       0.27       0.0            0   unclear (0.29×, CI spans 1)
+memory                                                                                 
+step     app              PSS       RSS   procs   threads   vs DABT (PSS)              
+───────────────────────────────────────────────────────────────────────────────────────
+memory   DABT         25.5 MB   38.3 MB       2         2   baseline                   
+         Textual      80.2 MB   89.6 MB       1         4   unclear (3.14×, CI spans 1)
+         Bubble Tea   49.3 MB   51.2 MB       1        20   unclear (1.93×, CI spans 1)
+how to read:  done = ms from the input to the LAST visible change of the screen; it is the number compared. ready = when the expected text first 
+showed.
+              paints = visible screen changes; CPU = app process tree incl. reaped children; written = bytes the app sent to the terminal.
+statistics:   one value per round (median of that round's samples); [lo–hi] = bootstrap 95% CI of the median across rounds; "vs" ratios
+              are medians of other/base with a bootstrap CI. "≈ same" = gap below the noise floor or < 5%; "unclear" = CI spans 1.
+flags:        ~ noisy (CV > 25%)   ° outlier rounds present (kept, never dropped)   k/n ok = rounds where the expected text appeared   stale! = 
+expectation was already true before the input
+method:       fresh process + HOME per round, warm-up rounds discarded, apps interleaved in shuffled order, pinned CPUs, output stamped when read and
+              replayed offline into a terminal emulator (synchronized updates honoured), terminal answers capability queries like a modern terminal.
+keys:         input arrives at human speed. Modified keys (alt+x, ctrl+x) are sent as a terminal would send them to that app: kitty CSI-u when the app
+              asked for the kitty keyboard protocol, the legacy ESC prefix otherwise (see the keys line in the header for what each app got).
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

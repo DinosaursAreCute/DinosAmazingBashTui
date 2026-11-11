@@ -4,7 +4,7 @@
 tui.cache.dump_dir DIR
 ```
 
-Writes every recorded page to `DIR`, three files per page (`.key`, `.cache`, `.sig`).
+Writes every recorded page to `DIR`, one file per page (see `tui.cache.dump_page`).
 
 **Notes**
 

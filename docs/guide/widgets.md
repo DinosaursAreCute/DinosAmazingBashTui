@@ -61,7 +61,23 @@ One row: `Label  [ value ▾ ]`. Enter, space, Down or a click opens a picker (a
 
 ## Theming
 
-`.selection` (selected text), `.list_sel`, `.table_sel`, `.table_head`, `.table_warn` and `.table_hot` (cells coloured by `tui.table.heat`), `.progress`, `.progress_fill`, `.field_label` (the label in front of an input, password, select or progress bar; `.field_label:focus` while that widget has focus; it sets the text colour and mods, the background comes from the pane unless the class sets one - without the class the label uses the pane's colours in bold), plus the usual `class=` / `:focus` / `:hover` on the widget itself. All have built-in fallbacks.
+`.selection` (selected text), `.list_sel` and `.table_sel` (the selected row while the widget has focus; without focus the row is shown reversed), `.table_head`, `.table_warn` and `.table_hot` (cells coloured by `tui.table.heat`), `.progress`, `.progress_fill`, `.field_label` (the label in front of an input, password, select or progress bar; `.field_label:focus` while that widget has focus; it sets the text colour and mods, the background comes from the pane unless the class sets one - without the class the label uses the pane's colours in bold), plus the usual `class=` / `:focus` / `:hover` on the widget itself. All have built-in fallbacks.
+
+## Glyphs
+
+Small drawing characters (progress fill, checkbox brackets, scrollbars) are *glyphs*. Themes set them, and an app can change them at run time:
+
+```bash
+tui.glyph.get progress fill            # sets TUI_GLYPH, no subshell
+tui.glyph.set progress fill "▰"        # one visible, single-cell character
+tui.variant prg_answer thin            # a design: .progress.thin { fill: "━"; empty: "━"; }
+```
+
+Slots: `progress` (`fill`, `empty`), `checkbox` (`left`, `on`, `off`, `right`), `select` (`left`, `arrow`, `right`), `scrollbar` (`thumb`, `track`), `panebar` (`vthumb`, `vtrack`, `hthumb`, `htrack`). Built-in designs: progress `thin dots squares ascii`, checkbox `round plain`, select `plain angle`. In markup: `variant="thin"` on the widget.
+
+- A theme reload clears glyphs set with `tui.glyph.set`. Set them again when your page is shown.
+- A glyph is one visible cell. Control characters, wide characters and `;` are rejected: the rule is skipped and a warning is logged.
+- None of the slots covers the spinner of `tui.job.run`: its look is fixed.
 
 ## Roadmap
 

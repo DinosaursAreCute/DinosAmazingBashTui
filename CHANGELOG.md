@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+- `tui.cmd.load` keeps the parse of a commands file (`commands.xml`) as a snapshot under `$TUI_HOME/cache/commands` and replays it with one `source` while the XML is not newer: sourcing `tui_cmd.sh` takes about 3 ms instead of 14 ms (the 23 shipped commands cost seven regex reads each before).
+- A button click costs about 60 ms less. Releasing a button that changed the page repainted the released button and its pane's border once more, 20-28 ms after the new page was drawn, so the screen could also show the pane in a focus ring the page render does not draw; it now skips that when the action repainted the whole screen (`_TUI_RENDER_SEQ`). `tui.focus` called by an `on_visit` composed two or three pane borders only to drop them (27 ms on Docu); it now sets the focus state and composes nothing while the page loads. A pane border's side columns are composed in one append per row instead of eight calls: a 42-row pane 7.9 ms to 1.7 ms, which every border redraw (a focus change, a press) and the page render pay.
+- The page cache on disk is one file per page (`<path>.page`) instead of twelve, so a start reads 26 files instead of 286: `tui.cache.load_dir` takes 50 ms instead of 88 ms for the demo's 26 pages. A file that was not written whole is ignored; the files of the old layout are deleted the first time they are seen, and their pages are built again once.
+- `tui.bind.defaults` keeps the parse of `keybinds.xml` as a snapshot under `$TUI_HOME/cache/keybinds` and loads it with one `source` while the XML is not newer: sourcing the library takes about 71 ms instead of 91 ms.
+- A page switch paints the screen once. Draws made while `tui.goto` loads the page (`tui.update`, `tui.focus`, `tui.pane_title`, a list or output redraw in `on_visit`) return before they compose anything, because the frame `tui.goto` renders afterwards covers them, and output queued before that frame is no longer painted again right after it. On the demo's Docu page, 5 writes (41 KB) and a 9 KB repaint became one write (32 KB), and the goto pair lost about 45 ms of composing that was thrown away (Settings 23 ms, Markdown 11 ms, Terminal 10 ms).
+- Leaving a page of a shell twice in a row does the work once (`tui.goto` and the replay that follows both left the page), and `tui.goto` syncs the page ids once before it leaves instead of twice.
+- `tui.page.resettable`, run by every footer build, looks only at the ids that keep state (as save and restore do) instead of every widget and pane: 1.1-2.7 ms down to 0.2-0.4 ms. The footer's `Collapse` and `Resize` predicates find a pane's parent through a remembered, re-checked lookup (`_tui_resize.parent_of`) instead of scanning every pane per ancestor. A footer build went from 3.0-6.5 ms to 1.8-2.3 ms.
+
+### Added
+- Pages are ready for the current terminal size when they are opened. The background pool re-fits every cached page laid out for another size, at start-up and, after `TUI_CACHE_RESIZE_DEBOUNCE_MS` of stillness, after every resize (restore, lay out, snapshot: about a tenth of a rebuild), silently and at low priority. `tui.cache.is_sized` tells whether a page is ready for the current size.
+
+### Fixed
+- After clicking a button that switches the page, the screen could show the menu pane in a focus ring that a full render of the same state does not draw (42 rows differed from a redraw after a resize); the click now ends on the page render.
+- The Settings page no longer fails with `cursor:: command not found`. A backtick in a double-quoted description ran as a command, so every app showed an error toast and the pointer setting lost the words `` `cursor:` ``.
+
+### Documentation
+- New guides: [collapsible panes](docs/guide/collapsible-panes.md), [tabs, detach and menus](docs/guide/tabs-detach-menus.md), [live output](docs/guide/live-output.md) and [charts](docs/guide/charts.md), each with a Quirks and a Performance section.
+- Fast apps: new section 10, a long transcript or log, with measured redraw costs (5 ms for one message, 400 ms for a thousand) and the three fixes.
+- Input bindings: recalling earlier messages with up and down (`tui.hist` is a chart series, not input history). Widgets: glyph slots and variants. Animation: `tui.canvas.patch`. Markdown: copying in a chat-style app. Grids: forms built with `tui.factory`.
+- Markup rules: each element on its own line, and a pane that contains panes needs a `split`.
+- Tabs and menus guide: a detached pane draws widgets but not pane text, labels measure colour escapes, `alt+d` and friends belong to text inputs. Live output guide: a job spinner can leave the footer clipped (repaired with `tui.action.redraw`).
+- Sizes: a bare number in `height` / `width` is a share (like `weight`), not a cell count. An exact size is `clamp(N,N,N)`.
+- Plugins: an app's own plugin folder is next to its first page (`config/plugins/`); `TUI_PLUGIN_DIRS` moves it.
+- Widgets: `.list_sel` / `.table_sel` colour the selected row only while the widget has focus.
+- Markdown: how an app opts into the `theme` profile so `.md_*` rules apply.
+
 ## [0.0.28] - 2026-11-08
 
 ### News

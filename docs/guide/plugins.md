@@ -17,7 +17,9 @@ A plugin is a bash file that adds commands, keys, hooks, timers or overlays to a
 
 Set `TUI_APP_NAME` (and optionally `TUI_APP_TITLE`, `TUI_APP_DESC`, `TUI_APP_ENTRY`) **before** sourcing `tui.sh`. `app.meta` is rewritten by `tui.init` and holds any key you add with `tui.app.meta_set`. Files from the older layout (`~/.config/<app>/dabt.conf`, `keybinds.xml`, `settings.conf`) are moved into the new folder the first time.
 
-Plugins are discovered in: `share/plugins/` (built in), `<app dir>/plugins/` (the application's own), `~/.config/DABT/plugins/` (yours) and any folder in `TUI_PLUGIN_DIRS` (colon separated).
+Plugins are discovered in: `share/plugins/` (built in), `plugins/` next to the app's first page (the application's own), `~/.config/DABT/plugins/` (yours) and any folder in `TUI_PLUGIN_DIRS` (colon separated).
+
+**Where is the app's own folder?** Next to its *first page*: for `config/home.xml` that is `config/plugins/`, not the folder with the entry script. To keep `plugins/` at the app root, set `TUI_PLUGIN_DIRS="$APP_DIR/plugins"` before you `source tui.sh`.
 
 ## Writing one
 

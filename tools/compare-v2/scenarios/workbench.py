@@ -1,6 +1,6 @@
 """The workbench benchmark: five pages (Overview, Tasks, Notes, Logs, Settings) exercising a timer-driven progress animation, a filtered
 table with detail pane and confirm dialog, a markdown editor with live preview, a 2000-line list and a form. Spec: apps/workbench/SPEC.md.
-Everything after the page switches is keyboard driven, so both apps need no pixel-exact layout."""
+Page switches are timed three ways: click, the alt+<n> nav keys, and arrow keys + Enter in the menu; everything else is keyboard driven, so both apps need no pixel-exact layout."""
 import os
 import sys
 
@@ -32,7 +32,18 @@ def go(c, name, page, arrive=None):
     c.step(name, click(5, 2 + PAGES.index(page)), arrive or ARRIVE[page])
 
 
-@scenario("workbench", ready="Page 1: Overview", title="Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form", apps=("wb-dabt", "wb-dabt-plain", "wb-textual"), default_apps=("wb-dabt", "wb-textual"))
+def go_key(c, name, page, arrive=None):
+    """Switch page with its alt+<n> nav key (all three apps bind it): the fastest realistic way."""
+    c.step(name, alt(str(1 + PAGES.index(page))), arrive or ARRIVE[page])
+
+
+def go_arrows(c, name, page, arrive=None):
+    """Switch page through the menu with the keyboard only: alt+0 focuses the first menu button, Down walks to the page's button, Enter presses it.
+    One step, sent as held-key repeats, so the time covers the whole way a keyboard user takes."""
+    c.step(name, [alt("0")] + [DOWN] * PAGES.index(page) + [ENTER], arrive or ARRIVE[page], gap_ms=HELD_KEY_MS)
+
+
+@scenario("workbench", ready="Page 1: Overview", title="Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form", apps=("wb-dabt", "wb-dabt-plain", "wb-dabt-unthemed", "wb-textual", "wb-bubbletea"), default_apps=("wb-dabt", "wb-textual", "wb-bubbletea"))
 def workbench(c):
     rows, cols = c.rows, c.cols
     # -- overview: timer-driven progress ----------------------------------------------------------------
@@ -43,7 +54,7 @@ def workbench(c):
     c.step("table.down", DOWN, selected(2))
     c.step("table.down_held", [DOWN] * 10, selected(12), gap_ms=HELD_KEY_MS)
     c.step("table.pagedown", PGDN, regex(r"Selected: T-00(1[3-9]|[2-9]\d)"))
-    c.step("table.top", HOME if c.app.name.startswith("wb-dabt") else CTRL_HOME, selected(1))  # each framework's own key for "first row"
+    c.step("table.top", HOME if c.app.name != "wb-textual" else CTRL_HOME, selected(1))  # each framework's own key for "first row"
     c.step("focus.filter", alt("i"))
     for i, ch in enumerate("cache"):
         typed = "cache"[:i + 1]  # the count alone stops changing after "ca": the typed text must show too
@@ -76,14 +87,19 @@ def workbench(c):
     c.step("tab.general", alt("g"), "Tab: General")
     c.step("collapse.close", alt("z"), absent("Network: 3 interfaces up"))
     c.step("collapse.open", alt("z"), "Network: 3 interfaces up")
-    c.step("theme.light", alt("m"), "Theme: light", timeout=15, snap=True)
-    c.step("theme.dark", alt("m"), "Theme: dark", timeout=15)
+    if c.app.name != "wb-dabt-unthemed":  # the unthemed DABT app has no stylesheet to switch
+        c.step("theme.light", alt("m"), "Theme: light", timeout=15, snap=True)
+        c.step("theme.dark", alt("m"), "Theme: dark", timeout=15)
     c.step("palette.open", ctrl("p"), text("Command palette") | text("Search for commands"))
     c.step("palette.type", chars("logs"), "logs", gap_ms=TYPING_MS)
     c.step("palette.run", ENTER, "Lines: 2200", timeout=15)
     # -- revisit: every page again (DABT: page cache; Textual: screen rebuild) ----------------------------
     for page in ("overview", "tasks", "notes", "settings", "admin"):
         go(c, f"revisit.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
-    c.pause(5)  # untimed: DABT's background page-cache rebuild after the theme switch has to finish, or "idle" measures that work
+    for page in ("overview", "tasks", "notes", "settings", "admin"):
+        go_key(c, f"revisit.key.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
+    for page in ("overview", "tasks", "notes", "settings", "admin"):
+        go_arrows(c, f"revisit.arrows.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
+    c.pause(5)
     c.idle("idle.3s", 3)
     c.memory("memory")

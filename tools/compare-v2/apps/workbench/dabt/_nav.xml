@@ -1,7 +1,7 @@
-<button row="0" id="btn_overview" text="  Overview" page="overview.xml" align="left"/>
-<button row="1" id="btn_tasks"    text="  Tasks"    page="tasks.xml"    align="left"/>
-<button row="2" id="btn_notes"    text="  Notes"    page="notes.xml"    align="left"/>
-<button row="3" id="btn_logs"     text="  Logs"     page="logs.xml"     align="left"/>
-<button row="4" id="btn_settings" text="  Settings" page="settings.xml" align="left"/>
-<button row="5" id="btn_admin"    text="  Admin"    page="admin.xml"    align="left"/>
+<button row="0" id="btn_overview" text="  Overview" page="overview.xml" align="left" focus_group="nav" focus_nav="arrows"/>
+<button row="1" id="btn_tasks"    text="  Tasks"    page="tasks.xml"    align="left" focus_group="nav" focus_nav="arrows"/>
+<button row="2" id="btn_notes"    text="  Notes"    page="notes.xml"    align="left" focus_group="nav" focus_nav="arrows"/>
+<button row="3" id="btn_logs"     text="  Logs"     page="logs.xml"     align="left" focus_group="nav" focus_nav="arrows"/>
+<button row="4" id="btn_settings" text="  Settings" page="settings.xml" align="left" focus_group="nav" focus_nav="arrows"/>
+<button row="5" id="btn_admin"    text="  Admin"    page="admin.xml"    align="left" focus_group="nav" focus_nav="arrows"/>
 <button row="7" id="btn_quit"     text="  Quit"     action="tui.action.quit" align="left"/>

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="934" height="458" viewBox="0 0 934 458" shape-rendering="crispEdges" font-family="'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+<rect width="934" height="458" fill="#0b0f14"/>
+<rect x="1" y="1" width="932" height="456" fill="#141c26" stroke="#22303f" stroke-width="2"/>
+<rect x="1" y="1" width="932" height="6" fill="#ff8cbf"/>
+<rect x="311" y="1" width="311" height="6" fill="#a8d8ff"/>
+<rect x="622" y="1" width="310" height="6" fill="#fff3a8"/>
+<text x="32" y="50" font-size="22" font-weight="700" fill="#d7e0ea">FEELS INSTANT</text>
+<text x="32" y="74" font-size="13" fill="#8497ab">workbench &#183; median time until the screen is final &#183; lower is better &#183; each group scaled to its slowest</text>
+<rect x="32" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="32" y="246" width="30" height="136" fill="#ff8cbf"/>
+<text x="47.0" y="239" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">99ms</text>
+<rect x="68" y="132" width="30" height="250" fill="#a8d8ff"/>
+<text x="83.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">182ms</text>
+<rect x="104" y="366" width="30" height="16" fill="#fff3a8"/>
+<text x="119.0" y="359" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">12ms</text>
+<text x="83.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">PAGE SWITCH</text>
+<rect x="160" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="160" y="256" width="30" height="126" fill="#ff8cbf"/>
+<text x="175.0" y="249" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">20ms</text>
+<rect x="196" y="132" width="30" height="250" fill="#a8d8ff"/>
+<text x="211.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">40ms</text>
+<rect x="232" y="323" width="30" height="59" fill="#fff3a8"/>
+<text x="247.0" y="316" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">9.3ms</text>
+<text x="211.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">KEY PRESS</text>
+<rect x="288" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="288" y="132" width="30" height="250" fill="#ff8cbf"/>
+<text x="303.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">24ms</text>
+<rect x="324" y="291" width="30" height="91" fill="#a8d8ff"/>
+<text x="339.0" y="284" font-size="10" font-weight="800" fill="#a8d8ff" text-anchor="middle">8.7ms</text>
+<rect x="360" y="254" width="30" height="128" fill="#fff3a8"/>
+<text x="375.0" y="247" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">12ms</text>
+<text x="339.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">TYPING</text>
+<rect x="416" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="416" y="259" width="30" height="123" fill="#ff8cbf"/>
+<text x="431.0" y="252" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">59ms</text>
+<rect x="452" y="132" width="30" height="250" fill="#a8d8ff"/>
+<text x="467.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">120ms</text>
+<rect x="488" y="360" width="30" height="22" fill="#fff3a8"/>
+<text x="503.0" y="353" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">11ms</text>
+<text x="467.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">DIALOG + PALETTE</text>
+<rect x="544" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="544" y="195" width="30" height="187" fill="#ff8cbf"/>
+<text x="559.0" y="188" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">107ms</text>
+<rect x="580" y="132" width="30" height="250" fill="#a8d8ff"/>
+<text x="595.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">142ms</text>
+<rect x="616" y="349" width="30" height="33" fill="#fff3a8"/>
+<text x="631.0" y="342" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">19ms</text>
+<text x="595.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">THEME SWITCH</text>
+<rect x="672" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="672" y="132" width="30" height="250" fill="#ff8cbf"/>
+<text x="687.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">0.98%</text>
+<rect x="708" y="371" width="30" height="11" fill="#a8d8ff"/>
+<text x="723.0" y="364" font-size="10" font-weight="800" fill="#a8d8ff" text-anchor="middle">0.04%</text>
+<rect x="744" y="309" width="30" height="73" fill="#fff3a8"/>
+<text x="759.0" y="302" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">0.29%</text>
+<text x="723.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">IDLE CPU</text>
+<rect x="800" y="382" width="102" height="2" fill="#22303f"/>
+<rect x="800" y="303" width="30" height="79" fill="#ff8cbf"/>
+<text x="815.0" y="296" font-size="10" font-weight="800" fill="#ff8cbf" text-anchor="middle">26MB</text>
+<rect x="836" y="132" width="30" height="250" fill="#a8d8ff"/>
+<text x="851.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">81MB</text>
+<rect x="872" y="215" width="30" height="167" fill="#fff3a8"/>
+<text x="887.0" y="208" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">54MB</text>
+<text x="851.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">MEMORY</text>
+<rect x="32" y="428" width="14" height="10" fill="#ff8cbf"/><text x="54" y="438" font-size="12" fill="#8497ab">DABT</text>
+<rect x="104" y="428" width="14" height="10" fill="#a8d8ff"/><text x="126" y="438" font-size="12" fill="#8497ab">Textual</text>
+<rect x="200" y="428" width="14" height="10" fill="#fff3a8"/><text x="222" y="438" font-size="12" fill="#8497ab">Bubble Tea</text>
+</svg>

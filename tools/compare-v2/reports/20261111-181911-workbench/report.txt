@@ -1,0 +1,254 @@
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).                                │
+│ • the app's CPUs are 11% busy before the run starts.                                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ compare-v2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ scenario   workbench — Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form                                        │
+│ app        DABT  DABT 0.0.28   keys: legacy ESC                                                                                                    │
+│ app        Textual  Textual 8.2.8 / Python 3.14.9   keys: kitty CSI-u                                                                              │
+│ app        Bubble Tea  Bubble Tea v1.3.4 / go1.27.3-X:nodwarf5   keys: legacy ESC                                                                  │
+│ run        2 rounds (+1 warm-up) · 150x45 · 221.0s · 2026-11-11 18:15:30                                                                           │
+│ machine    AMD Ryzen 7 2700X Eight-Core Processor · 16 CPUs · kernel 7.3.3-1-cachyos · governor schedutil · load 2.00 1.76 1.72                    │
+│ isolation  app on CPUs [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14] · harness on [7, 15] · python 3.14.9 · bash 5.3.20(1)-release · repo        │
+│            55a75b8+dirty                                                                                                                           │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚠ CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).
+⚠ the app's CPUs are 11% busy before the run starts.
+⚠ only 2 measured rounds: confidence intervals are rough below ~8.
+╭─ summary ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ DABT is 2.68× faster than Textual on interaction latency, measured to the last visible change (geometric mean over 47 steps).  DABT better in 37,  │
+│ Textual better in 1, no clear difference in 9.                                                                                                     │
+│ warm startup:  DABT 2.02× faster  [2.00–2.04]                                                                                                      │
+│ Bubble Tea is 3.64× faster than DABT on interaction latency, measured to the last visible change (geometric mean over 47 steps).  DABT better in   │
+│ 3, Bubble Tea better in 38, no clear difference in 6.                                                                                              │
+│ warm startup:  Bubble Tea 2.41× faster  [2.13–2.77]                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+startup  (spawn → first correct frame)                                                                                                               
+step                app           done  median [95% CI]                      ready     CPU    written   paints   vs DABT                             
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+startup.cold        DABT                          487.0   ██████████████     487.0    2698    23.3 kB        6   baseline                            
+                    Textual                       390.2   ███████████▎       366.4     414    27.7 kB        3   Textual 1.25× faster  [1.23–1.27]   
+                    Bubble Tea                     92.1   ██▋                 91.6      96    17.2 kB        6   Bubble Tea 5.29× faster  [4.56–6.26]
+                                                                                                                                                     
+startup.warm        DABT                          195.1   ██████▉            195.1     183    22.0 kB        3   baseline                            
+                    Textual                       393.8   ██████████████     393.8     416    27.7 kB        2   DABT 2.02× faster  [2.00–2.04]      
+                    Bubble Tea                     81.0   ██▉                 80.5      84    17.2 kB        6   Bubble Tea 2.41× faster  [2.13–2.77]
+interaction  (input → expected screen)                                                                                                                
+step                  app           done  median [95% CI]                      ready     CPU    written   paints   vs DABT                            
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+jobs.run              DABT                         2175.3   ██████████████    2175.3     224    44.9 kB       22   baseline                           
+                      Textual                      2040.5   █████████████▏    2040.5     148    24.2 kB       22   Textual 1.07× faster  [1.05–1.09]  
+                      Bubble Tea                   2030.4   █████████████▏    2030.4      20    96.7 kB       34   Bubble Tea 1.07× faster  [1.05–1.09
+                                                                                                                                                      
+jobs.reset            DABT                           13.3   ██████████████      13.3      15       2533        1   baseline                           
+                      Textual                        10.0   ██████████▋         10.0      10       1365        1   unclear (0.76×, CI spans 1)        
+                      Bubble Tea                      8.9   █████████▍           8.9       1       8030        2   Bubble Tea 1.50× faster  [1.03–2.24
+                                                                                                                                                      
+nav.tasks             DABT                          116.1   █████              116.1     143    45.1 kB        2   baseline                           
+                      Textual                       327.2   ██████████████     181.9     357   141.2 kB        5   DABT 2.82× faster  [2.48–3.22]     
+                      Bubble Tea                      8.2   ▍                    8.0       5    14.5 kB        4   Bubble Tea 14.18× faster  [8.50–32.
+                                                                                                                                                      
+table.down            DABT                           22.9   ████████▊           22.9      23       5095        2   baseline                           
+                      Textual                        36.8   ██████████████      36.8      15       3238        2   DABT 1.61× faster  [1.28–2.14]     
+                      Bubble Tea                     13.1   █████               13.1       6       1980        1   Bubble Tea 1.74× faster  [1.22–2.36
+                                                                                                                                                      
+table.down_held       DABT                           17.4   ████████████▎       17.4     173    49.7 kB       20   baseline                           
+                      Textual                        19.8   ██████████████      19.8     137    33.3 kB       10   unclear (1.14×, CI spans 1)        
+                      Bubble Tea                     16.5   ███████████▋        16.5      25    19.1 kB       10   unclear (0.95×, CI spans 1)        
+                                                                                                                                                      
+table.pagedown        DABT                           33.0   ██████▍             33.0      33       5097        2   baseline                           
+                      Textual                        73.0   ██████████████      73.0      55    14.3 kB        2   DABT 2.21× faster  [1.78–2.66]     
+                      Bubble Tea                      8.7   █▋                   8.6       4    12.2 kB        3   Bubble Tea 3.80× faster  [3.30–4.44
+                                                                                                                                                      
+table.top             DABT                           19.5   ████▎               19.5      21       5095        2   baseline                           
+                      Textual                        64.4   ██████████████      64.4      53    14.3 kB        2   DABT 3.29× faster  [2.36–5.05]     
+                      Bubble Tea                     11.2   ██▍                 11.0       3    12.8 kB        4   unclear (0.57×, CI spans 1)        
+                                                                                                                                                      
+focus.filter          DABT                           19.4   ████▉               19.4      21       4163        1   baseline                           
+                      Textual                        55.9   ██████████████      55.9     158    45.8 kB        1   DABT 2.88× faster  [2.70–3.07]     
+                      Bubble Tea                      6.5   █▋                   6.5       3        389        1   Bubble Tea 3.01× faster  [1.98–5.79
+                                                                                                                                                      
+filter.char           DABT                            7.9   ███████▊             7.9      39       5286        1   baseline                           
+                      Textual                        13.4   █████████████▎      13.4      56    11.1 kB        1   DABT 1.71× faster  [1.17–2.40]     
+                      Bubble Tea                     14.3   ██████████████      12.9       6        946        2   DABT 1.81× faster  [1.10–2.72]     
+                                                                                                                                                      
+focus.table2          DABT                           14.2   █▏                  14.2      16       3820        1   baseline                           
+                      Textual                       179.8   ██████████████     179.8     108    37.3 kB        2   DABT 12.70× faster  [3.41–22.03]   
+                      Bubble Tea                      5.6   ▍                    5.6       1        351        1   Bubble Tea 2.55× faster  [2.16–3.10
+                                                                                                                                                      
+dialog.open           DABT                            4.1   ▋                    4.1       6       1349        1   baseline                           
+                      Textual                        99.0   ██████████████      52.5     136   161.3 kB        2   DABT 23.96× faster  [12.04–41.26]  
+                      Bubble Tea                      9.9   █▍                   9.9       2       2691        1   unclear (2.39×, CI spans 1)        
+                                                                                                                                                      
+dialog.confirm        DABT                           75.1   ███████████▏        75.1      76    36.6 kB        8   baseline                           
+                      Textual                        94.3   ██████████████      94.3      90    80.8 kB        2   DABT 1.26× faster  [1.16–1.36]     
+                      Bubble Tea                     13.7   ██                  13.7       5    13.1 kB        4   Bubble Tea 5.47× faster  [4.81–6.33
+                                                                                                                                                      
+focus.filter2         DABT                           14.1   ███▏                14.1      16       4218        1   baseline                           
+                      Textual                        62.0   ██████████████      62.0     113    36.4 kB        1   DABT 4.41× faster  [3.42–5.41]     
+                      Bubble Tea                     12.6   ██▉                 12.6       1        359        1   Bubble Tea 1.12× faster  [1.10–1.14
+                                                                                                                                                      
+filter.clear          DABT                           60.9   ████████▊           60.9      62       6370        2   baseline                           
+                      Textual                        97.3   ██████████████      64.3      74    24.9 kB        3   DABT 1.60× faster  [1.39–1.81]     
+                      Bubble Tea                      9.7   █▍                   9.4       4    12.4 kB        4   Bubble Tea 6.26× faster  [4.98–8.39
+                                                                                                                                                      
+nav.notes             DABT                          215.8   █████████▌         186.9     227    94.2 kB        3   baseline                           
+                      Textual                       317.3   ██████████████     209.1     325   135.5 kB        4   DABT 1.47× faster  [1.35–1.61]     
+                      Bubble Tea                     17.6   ▊                   16.8       7    29.8 kB        8   Bubble Tea 12.29× faster  [10.12–15
+                                                                                                                                                      
+editor.word           DABT                           62.0   ██████▏             47.8     308    73.0 kB       11   baseline                           
+                      Textual                       140.9   ██████████████     140.9     432    33.8 kB        4   DABT 2.27× faster  [1.93–2.63]     
+                      Bubble Tea                     13.9   █▍                  13.9      40    11.2 kB        6   Bubble Tea 4.46× faster  [3.78–5.39
+                                                                                                                                                      
+nav.logs              DABT                          106.7   █████▏             106.7     135    44.1 kB        2   baseline                           
+                      Textual                       294.0   ██████████████     160.8     314   123.1 kB        4   DABT 2.76× faster  [2.54–3.00]     
+                      Bubble Tea                      9.0   ▍                    8.9       3    11.5 kB        3   Bubble Tea 11.83× faster  [7.35–24.
+                                                                                                                                                      
+list.pagedown         DABT                           20.8   ██████▊             20.8      20       6216        2   baseline                           
+                      Textual                        43.1   ██████████████      43.1      22    11.6 kB        2   DABT 2.07× faster  [1.50–3.00]     
+                      Bubble Tea                     18.1   █████▉              17.9       3       9594        3   unclear (0.87×, CI spans 1)        
+                                                                                                                                                      
+list.end              DABT                           22.6   ██▉                 22.6      28       6218        2   baseline                           
+                      Textual                        51.4   ██████▍             51.4      30    11.6 kB        2   DABT 2.27× faster  [1.56–3.42]     
+                      Bubble Tea                    112.3   ██████████████       4.1       3       9715        4   DABT 4.97× faster  [3.11–7.96]     
+                                                                                                                                                      
+list.append           DABT                           16.8   █▉                  16.8      18       5817        1   baseline                           
+                      Textual                       127.6   ██████████████      94.3     105    14.6 kB        2   DABT 7.60× faster  [3.01–17.15]    
+                      Bubble Tea                      4.3   ▌                    4.2       2       8787        3   Bubble Tea 3.90× faster  [2.07–6.77
+                                                                                                                                                      
+list.home             DABT                           20.6   ██████▎             20.6      31       6215        2   baseline                           
+                      Textual                        45.7   ██████████████      45.7      23    11.5 kB        2   DABT 2.22× faster  [1.48–3.36]     
+                      Bubble Tea                      7.0   ██▏                  6.8       2       9312        3   Bubble Tea 2.96× faster  [1.94–4.47
+                                                                                                                                                      
+list.wheel            DABT                           10.7   ████▊               10.7      81    29.1 kB        4   baseline                           
+                      Textual                        31.7   ██████████████      31.7      71    46.1 kB        5   DABT 2.97× faster  [2.73–3.23]     
+                      Bubble Tea                      7.0   ███▏                 7.0       9       4075        5   Bubble Tea 1.52× faster  [1.46–1.58
+                                                                                                                                                      
+resize.small          DABT                          163.2   ██████████████     163.2      56    40.4 kB        2   baseline                           
+                      Textual                       125.7   ██████████▊        125.7     176    83.6 kB        1   unclear (0.77×, CI spans 1)        
+                      Bubble Tea                     16.5   █▍                  16.5       9       8865        3   Bubble Tea 9.87× faster  [7.72–12.7
+                                                                                                                                                      
+resize.back           DABT                           87.9   ██████████▉         87.9      38    24.9 kB        1   baseline                           
+                      Textual                       112.6   ██████████████     112.6     116   100.1 kB        2   DABT 1.28× faster  [1.26–1.31]     
+                      Bubble Tea                     19.3   ██▍                 19.3      11    11.1 kB        3   Bubble Tea 4.56× faster  [3.36–7.02
+                                                                                                                                                      
+nav.settings          DABT                           92.9   ██████              92.9     123    44.5 kB        2   baseline                           
+                      Textual                       218.1   ██████████████     136.2     211    92.1 kB        3   DABT 2.35× faster  [2.32–2.38]     
+                      Bubble Tea                     11.0   ▊                   10.9       2       9913        3   Bubble Tea 8.47× faster  [5.34–20.3
+                                                                                                                                                      
+form.type             DABT                            4.0   ███████▌             4.0      16       1170        3   baseline                           
+                      Textual                         6.7   ████████████▍        6.7      20        780        3   DABT 1.66× faster  [1.22–2.59]     
+                      Bubble Tea                      7.6   ██████████████       7.6       3        930        3   unclear (1.88×, CI spans 1)        
+                                                                                                                                                      
+form.apply            DABT                            6.9   ██▎                  6.9       9       1180        2   baseline                           
+                      Textual                        42.1   ██████████████      42.1      28       1234        2   DABT 6.11× faster  [4.48–9.58]     
+                      Bubble Tea                     11.4   ███▊                11.4       1       1495        1   DABT 1.65× faster  [1.16–2.69]     
+                                                                                                                                                      
+nav.admin             DABT                           92.3   █████▍              92.3     122    36.5 kB        2   baseline                           
+                      Textual                       237.6   ██████████████     146.3     259    90.5 kB        4   DABT 2.58× faster  [2.30–2.92]     
+                      Bubble Tea                     12.0   ▊                   11.9       2      10081        3   Bubble Tea 7.69× faster  [5.05–13.3
+                                                                                                                                                      
+tab.appearance        DABT                           10.4   ▌                   10.4      12       1336        2   baseline                           
+                      Textual                       297.9   ██████████████      11.7      91    11.2 kB       13   DABT 28.61× faster  [23.62–36.24]  
+                      Bubble Tea                      8.9   ▍                    8.9       1        568        1   unclear (0.86×, CI spans 1)        
+                                                                                                                                                      
+tab.general           DABT                           10.1   ▌                   10.1      12       1509        2   baseline                           
+                      Textual                       295.6   ██████████████      13.9      86    11.2 kB       14   DABT 29.35× faster  [25.18–34.88]  
+                      Bubble Tea                      2.9   ▏                    2.9       1        568        1   Bubble Tea 3.42× faster  [2.81–4.10
+                                                                                                                                                      
+collapse.close        DABT                           29.8   ██████████████      29.8      31    12.4 kB        1   baseline                           
+                      Textual                        21.9   ██████████▎         21.9      28    22.5 kB        1   unclear (0.73×, CI spans 1)        
+                      Bubble Tea                      7.9   ███▊                 7.9       1       1064        1   Bubble Tea 3.77× faster  [1.73–14.6
+                                                                                                                                                      
+collapse.open         DABT                           29.4   ██████████████      29.4      31    21.1 kB        1   baseline                           
+                      Textual                        21.5   ██████████▎         21.5      29    22.3 kB        1   unclear (0.73×, CI spans 1)        
+                      Bubble Tea                     16.7   ████████            16.7       1       1597        1   Bubble Tea 1.76× faster  [1.24–2.29
+                                                                                                                                                      
+theme.light           DABT                          137.8   ██████████████     137.8     139    21.6 kB        1   baseline                           
+                      Textual                       131.2   █████████████▍     131.2     142    68.8 kB        1   ≈ same                             
+                      Bubble Tea                     15.0   █▌                  14.9       8      10093        3   Bubble Tea 9.19× faster  [7.76–10.9
+                                                                                                                                                      
+theme.dark            DABT                           52.3   ████▊               52.3      54    21.1 kB        1   baseline                           
+                      Textual                       155.6   ██████████████     155.6     165    65.0 kB        1   DABT 2.98× faster  [1.93–4.47]     
+                      Bubble Tea                     19.6   █▊                  19.5       8      10081        3   Bubble Tea 2.66× faster  [1.91–3.67
+                                                                                                                                                      
+palette.open          DABT                           28.7   ██▋                 28.7      31       3275        1   baseline                           
+                      Textual                       153.1   ██████████████     100.2     186    78.9 kB        2   DABT 5.33× faster  [4.03–7.61]     
+                      Bubble Tea                      3.3   ▎                    3.3       2       4318        2   Bubble Tea 8.65× faster  [4.12–23.3
+                                                                                                                                                      
+palette.type          DABT                           28.4   ████████████▊       28.4     111    12.8 kB        4   baseline                           
+                      Textual                        31.2   ██████████████       7.4      67    26.6 kB        8   unclear (1.10×, CI spans 1)        
+                      Bubble Tea                     11.0   ████▉               11.0       5       5608        4   Bubble Tea 2.59× faster  [2.19–3.02
+                                                                                                                                                      
+palette.run           DABT                           81.5   ██▉                 81.5      83    46.5 kB        2   baseline                           
+                      Textual                       398.4   ██████████████     398.4     389    41.8 kB        1   DABT 4.89× faster  [4.18–5.78]     
+                      Bubble Tea                      2.3   ▏                    2.2       2    11.5 kB        3   Bubble Tea 35.38× faster  [24.03–56
+                                                                                                                                                      
+revisit.overview      DABT                           81.5   █████▏              81.5     110    42.2 kB        2   baseline                           
+                      Textual                       223.5   ██████████████     136.9     216    91.6 kB        3   DABT 2.74× faster  [2.41–3.17]     
+                      Bubble Tea                      3.2   ▎                    2.9       3    16.7 kB        5   Bubble Tea 25.65× faster  [14.37–66
+                                                                                                                                                      
+revisit.tasks         DABT                          111.3   ████▍              111.3     140    45.1 kB        2   baseline                           
+                      Textual                       358.5   ██████████████     187.7     362   136.8 kB        5   DABT 3.22× faster  [2.97–3.52]     
+                      Bubble Tea                     16.7   ▋                   16.6       7    14.5 kB        4   Bubble Tea 6.64× faster  [5.87–7.48
+                                                                                                                                                      
+revisit.notes         DABT                          104.2   ████▏              104.2     135    57.3 kB        2   baseline                           
+                      Textual                       351.3   ██████████████     231.0     351   133.6 kB        4   DABT 3.37× faster  [3.17–3.60]     
+                      Bubble Tea                     39.6   █▋                  14.1       8    30.3 kB        9   Bubble Tea 2.63× faster  [1.57–6.53
+                                                                                                                                                      
+revisit.settings      DABT                           89.6   ███▌                89.6     118    40.2 kB        2   baseline                           
+                      Textual                       352.7   ██████████████     196.2     351    97.7 kB        3   DABT 3.94× faster  [3.27–4.76]     
+                      Bubble Tea                      3.7   ▏                    3.6       2    10.3 kB        3   Bubble Tea 24.07× faster  [17.91–33
+                                                                                                                                                      
+revisit.admin         DABT                          180.1   ██████████▋         81.9     119    46.9 kB        2   baseline                           
+                      Textual                       238.4   ██████████████     125.9     236    88.1 kB        3   unclear (1.32×, CI spans 1)        
+                      Bubble Tea                      9.2   ▌                    9.2       2       9831        3   Bubble Tea 19.48× faster  [4.74–79.
+                                                                                                                                                      
+revisit.key.overvi…   DABT                          111.8   █████████           54.4      53    32.8 kB        2   baseline                           
+                      Textual                       173.3   ██████████████      89.9     172    67.5 kB        2   unclear (1.55×, CI spans 1)        
+                      Bubble Tea                      4.9   ▍                    4.6       2    17.1 kB        5   Bubble Tea 22.77× faster  [9.31–55.
+                                                                                                                                                      
+revisit.key.tasks     DABT                           91.5   ████▎               91.5      82    29.3 kB        1   baseline                           
+                      Textual                       303.7   ██████████████     132.1     308   115.1 kB        4   DABT 3.32× faster  [3.09–3.58]     
+                      Bubble Tea                     13.7   ▋                   13.5       4    14.0 kB        4   Bubble Tea 6.67× faster  [5.50–8.19
+                                                                                                                                                      
+revisit.key.notes     DABT                           73.2   ███▉                73.2      64    38.6 kB        1   baseline                           
+                      Textual                       266.0   ██████████████     153.4     267    98.9 kB        3   DABT 3.64× faster  [3.29–4.04]     
+                      Bubble Tea                     17.5   ▉                   16.8       4    29.0 kB        8   Bubble Tea 4.18× faster  [3.25–5.50
+                                                                                                                                                      
+revisit.key.settin…   DABT                           44.3   ██▌                 44.3      35    21.1 kB        1   baseline                           
+                      Textual                       245.8   ██████████████     159.9     245    68.1 kB        2   DABT 5.56× faster  [4.15–7.00]     
+                      Bubble Tea                      9.0   ▌                    8.9       1    10.3 kB        3   Bubble Tea 4.89× faster  [4.79–5.00
+                                                                                                                                                      
+revisit.key.admin     DABT                           58.1   ███▏                58.1      50    20.7 kB        1   baseline                           
+                      Textual                       263.9   ██████████████     163.1     262    66.5 kB        2   DABT 4.54× faster  [3.06–6.60]     
+                      Bubble Tea                      3.8   ▎                    3.8       2       9831        3   Bubble Tea 15.13× faster  [7.87–44.
+idle  (app sits still)                                                                      
+step      app          idle CPU   wakeups   idle bytes   vs DABT (idle CPU)                 
+────────────────────────────────────────────────────────────────────────────────────────────
+idle.3s   DABT             0.87       0.0            0   baseline                           
+          Textual          0.05       0.0            0   Textual 16.44× lower  [14.60–18.29]
+          Bubble Tea       0.28       0.0            0   Bubble Tea 3.09× lower  [2.43–3.96]
+memory                                                                                   
+step     app              PSS       RSS   procs   threads   vs DABT (PSS)                
+─────────────────────────────────────────────────────────────────────────────────────────
+memory   DABT         25.7 MB   38.6 MB       2         2   baseline                     
+         Textual      80.8 MB   90.2 MB       1         4   DABT 3.14× lower  [3.12–3.17]
+         Bubble Tea   45.9 MB   47.8 MB       1        19   DABT 1.78× lower  [1.76–1.81]
+how to read:  done = ms from the input to the LAST visible change of the screen; it is the number compared. ready = when the expected text first 
+showed.
+              paints = visible screen changes; CPU = app process tree incl. reaped children; written = bytes the app sent to the terminal.
+statistics:   one value per round (median of that round's samples); [lo–hi] = bootstrap 95% CI of the median across rounds; "vs" ratios
+              are medians of other/base with a bootstrap CI. "≈ same" = gap below the noise floor or < 5%; "unclear" = CI spans 1.
+flags:        ~ noisy (CV > 25%)   ° outlier rounds present (kept, never dropped)   k/n ok = rounds where the expected text appeared   stale! = 
+expectation was already true before the input
+method:       fresh process + HOME per round, warm-up rounds discarded, apps interleaved in shuffled order, pinned CPUs, output stamped when read and
+              replayed offline into a terminal emulator (synchronized updates honoured), terminal answers capability queries like a modern terminal.
+keys:         input arrives at human speed. Modified keys (alt+x, ctrl+x) are sent as a terminal would send them to that app: kitty CSI-u when the app
+              asked for the kitty keyboard protocol, the legacy ESC prefix otherwise (see the keys line in the header for what each app got).
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).                                │
+│ • the app's CPUs are 11% busy before the run starts.                                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

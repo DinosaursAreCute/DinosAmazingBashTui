@@ -549,3 +549,21 @@ ti_store_restoring_what_is_already_there_does_not_lay_out_again() {
 	_tui_store.restore_page # now it differs: the pane is collapsed again and the geometry is stale until the layout runs
 	ok 'tui.collapsed a'
 }
+
+# a page keeps a few fields: tui.page.resettable (run by every footer build) looks at those, not at every widget and pane
+t_store_resettable_only_looks_at_the_ids_that_keep_something() {
+	_st_setup
+	_st_two_inputs
+	local n
+	for n in 1 2 3 4 5 6 7 8; do _st_w "plain$n" button; done # widgets that keep nothing
+	_ST_LOOKED=0
+	local saved
+	saved="$(declare -f _tui_store.fields)"
+	_tui_store.fields() {
+		((_ST_LOOKED++))
+		_SFL=""
+	}
+	tui.page.resettable
+	eval "$saved"
+	eq "2" "$_ST_LOOKED" # the two kept inputs; the eight buttons and the panes are not asked
+}

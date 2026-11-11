@@ -4,4 +4,5 @@
 <bind key="alt+4" action="tui.action.goto logs.xml"     desc="Logs"/>
 <bind key="alt+5" action="tui.action.goto settings.xml" desc="Settings"/>
 <bind key="alt+6" action="tui.action.goto admin.xml"    desc="Admin"/>
+<bind key="alt+0" action="tui.focus btn_overview" desc="Menu"/>
 <footer/>

@@ -39,6 +39,7 @@ declare -gA _TUI_CACHE_GOTOS=()                          # resolved page path ->
 declare -gA _TUI_CACHE_THEME=()                          # resolved page path -> its <theme src> file, reloaded on every replay
 declare -gA _TUI_CACHE_CLASSES=()                        # resolved page path -> newline-joined "id\tclass" pairs, re-applied on every replay
 declare -gA _TUI_CACHE_SHELL=()                          # resolved page path -> canonical path of its shell ("" for a page without one; unset = not recorded)
+declare -gA _TUI_CACHE_SIZE=()                           # resolved page path -> "rows cols" of the terminal its geometry was laid out for
 declare -gA _TUI_CACHE_PAGEUNDO=() _TUI_CACHE_PAGEGEO=() # shell page: scalar-restoring script / outlet "row col h w"; its _TUI_CACHE_PAGE is a delta over the shell
 # Theme overlay the page's baked _TUI_STYLE_* were built under. The _TUI_STYLE_ prefix puts it in the page
 # snapshot (see _TUI_CACHE_STATE_REGEX), so a replay reads back the record-time value: equal to the current
@@ -428,6 +429,7 @@ tui.cache.record() {
 	_SHL_RECORD=0
 	_TUI_STYLE_SIG="${_TUI_THEME_OVERLAY:-}"
 	_TUI_CACHE_SHELL["$file"]="$_rec_shell"
+	_TUI_CACHE_SIZE["$file"]="$_TUI_ROWS $_TUI_COLS"
 	if [[ -n "$_rec_shell" ]]; then # _SH_APPLY / _SH_UNDO: the delta tui.load took before on_visit
 		printf -v _rec_join '_TUI_STYLE_SIG=%q\n' "$_TUI_STYLE_SIG"
 		_TUI_CACHE_PAGE["$file"]="${_SH_APPLY}${_rec_join}"
@@ -465,7 +467,7 @@ tui.cache.record() {
 tui.cache.forget() {
 	unset '_TUI_CACHE_PAGE[$1]' '_TUI_CACHE_SIG[$1]' '_TUI_CACHE_SCRIPTS[$1]' \
 		'_TUI_CACHE_ON_VISIT[$1]' '_TUI_CACHE_GOTOS[$1]' '_TUI_CACHE_THEME[$1]' \
-		'_TUI_CACHE_CLASSES[$1]' '_TUI_CACHE_SHELL[$1]' '_TUI_CACHE_PAGEUNDO[$1]' '_TUI_CACHE_PAGEGEO[$1]'
+		'_TUI_CACHE_CLASSES[$1]' '_TUI_CACHE_SHELL[$1]' '_TUI_CACHE_PAGEUNDO[$1]' '_TUI_CACHE_PAGEGEO[$1]' '_TUI_CACHE_SIZE[$1]'
 }
 
 # 1 once tui.start_cached has validated and warmed every page: source files are then assumed not to change while the
@@ -642,63 +644,52 @@ tui.load_cached() {
 # boundary, since a background process can't share bash memory with the
 # foreground one it's warming a cache for. ──────────────────────────────
 
-# tui.cache.dump_dir DIR - writes every currently-recorded page out as one
-# file set each (.key/.cache/.sig/.scripts/.onvisit/.gotos), named by a
-# filesystem-safe encoding of its cache key. Also usable as a persistent
-# on-disk cache, not just to cross the precompute worker's process boundary
-# - see tui.cache.disk_dir.
-tui.cache.dump_dir() {
-	local dir="$1" key fname
-	mkdir -p "$dir"
-	for key in "${!_TUI_CACHE_PAGE[@]}"; do
-		fname="${key//\//_}"
-		printf '%s' "$key" >"$dir/${fname}.key"
-		printf '%s' "${_TUI_CACHE_PAGE[$key]}" >"$dir/${fname}.cache"
-		printf '%s' "${_TUI_CACHE_SIG[$key]:-}" >"$dir/${fname}.sig"
-		printf '%s' "${_TUI_CACHE_SCRIPTS[$key]:-}" >"$dir/${fname}.scripts"
-		printf '%s' "${_TUI_CACHE_ON_VISIT[$key]:-}" >"$dir/${fname}.onvisit"
-		printf '%s' "${_TUI_CACHE_GOTOS[$key]:-}" >"$dir/${fname}.gotos"
-		printf '%s' "${_TUI_CACHE_THEME[$key]:-}" >"$dir/${fname}.theme"
-		printf '%s' "${_TUI_CACHE_CLASSES[$key]:-}" >"$dir/${fname}.classes"
-		printf '%s' "${_TUI_CACHE_SHELL[$key]:-}" >"$dir/${fname}.shell"
-		printf '%s' "${_TUI_CACHE_PAGEUNDO[$key]:-}" >"$dir/${fname}.pageundo"
-		printf '%s' "${_TUI_CACHE_PAGEGEO[$key]:-}" >"$dir/${fname}.pagegeo"
-	done
+# tui.cache.dump_page KEY [DIR] - one page's cache entry as ONE file, DIR/<fname>.page (DIR defaults to the disk cache
+# the background pool persists into). The file is the entry packed by tui.cache.encode between a version tag with the key
+# and an end marker, fields apart by \x1e: one read loads it, and a writer that stopped halfway leaves no marker, so a reader
+# (tui.cache.load_dir, _tui_cache_base_load) never takes a partial page. No rename: a rewrite is plain, and a fork-free write.
+declare -g _TUI_CACHE_FILE_TAG="DABT-PAGE-1"
+tui.cache.dump_page() {
+	local key="$1" dir="${2:-$_TUI_LAZY_DISK}"
+	{
+		printf '%s\x1e%s\x1e' "$_TUI_CACHE_FILE_TAG" "$key"
+		tui.cache.encode "$key"
+		printf '\x1eEND'
+	} >"$dir/${key//\//_}.page"
 }
 
-# tui.cache.load_dir DIR - reads cache files written by tui.cache.dump_dir
-# into this process's own cache maps, dropping (not just leaving stale) any
-# entry that fails tui.cache.valid against the current filesystem - callers
-# can assume everything left after this call is actually usable, no
-# separate check needed.
+# tui.cache.dump_dir DIR - writes every recorded page to DIR, one file each (tui.cache.dump_page). Also usable as a
+# persistent on-disk cache, not just to cross the precompute worker's process boundary - see tui.cache.disk_dir.
+tui.cache.dump_dir() {
+	local dir="$1" key
+	mkdir -p "$dir"
+	for key in "${!_TUI_CACHE_PAGE[@]}"; do tui.cache.dump_page "$key" "$dir"; done
+}
+
+# _tui_cache_read_file FILE -> _TCI: FILE's fields (tag, key, then the encoded entry); rc 1 unless it is a whole page file
+declare -ga _TCI=()
+_tui_cache_read_file() {
+	_TCI=()
+	[[ -f "$1" ]] || return 1
+	IFS=$'\x1e' read -r -d '' -a _TCI <"$1"
+	[[ "${_TCI[0]:-}" == "$_TUI_CACHE_FILE_TAG" && "${_TCI[13]:-}" == END ]]
+}
+
+# tui.cache.load_dir DIR - reads page files written by tui.cache.dump_dir into this process's own cache maps, dropping
+# (not just leaving stale) any entry that fails tui.cache.valid against the current filesystem - callers can assume
+# everything left after this call is actually usable, no separate check needed. The files of the older layout (twelve per
+# page) are deleted the first time they are seen; their pages are built again.
 tui.cache.load_dir() {
 	local dir="$1" f key
 	local -a keys=() deps=()
 	[[ -d "$dir" ]] || return 0
-	for f in "$dir"/*.key; do
-		[[ -e "$f" ]] || continue
-		_tui_cache_slurp "$f"
-		key="$_SLURP"
-		_tui_cache_slurp "${f%.key}.cache"
-		_TUI_CACHE_PAGE["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.sig"
-		_TUI_CACHE_SIG["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.scripts"
-		_TUI_CACHE_SCRIPTS["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.onvisit"
-		_TUI_CACHE_ON_VISIT["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.gotos"
-		_TUI_CACHE_GOTOS["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.theme"
-		_TUI_CACHE_THEME["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.classes"
-		_TUI_CACHE_CLASSES["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.shell"
-		_TUI_CACHE_SHELL["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.pageundo"
-		_TUI_CACHE_PAGEUNDO["$key"]="$_SLURP"
-		_tui_cache_slurp "${f%.key}.pagegeo"
-		_TUI_CACHE_PAGEGEO["$key"]="$_SLURP"
+	if compgen -G "$dir/*.key" >/dev/null; then
+		rm -f "$dir"/*.{key,cache,sig,scripts,onvisit,gotos,theme,classes,shell,pageundo,pagegeo,size}
+	fi
+	for f in "$dir"/*.page; do
+		_tui_cache_read_file "$f" || continue
+		key="${_TCI[1]}"
+		_tui_cache_install "$key" 2
 		keys+=("$key")
 	done
 	((${#keys[@]})) || return 0
@@ -737,7 +728,7 @@ tui.cache.fname() { printf '%s' "${1//\//_}"; }
 # tui.cache.dump_dir's five, for stage 1.4's per-page worker pool.
 tui.cache.encode() {
 	local file="$1" sep=$'\x1e'
-	printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+	printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
 		"${_TUI_CACHE_SIG[$file]:-}" "$sep" \
 		"${_TUI_CACHE_PAGE[$file]:-}" "$sep" \
 		"${_TUI_CACHE_SCRIPTS[$file]:-}" "$sep" \
@@ -747,28 +738,55 @@ tui.cache.encode() {
 		"${_TUI_CACHE_CLASSES[$file]:-}" "$sep" \
 		"${_TUI_CACHE_SHELL[$file]:-}" "$sep" \
 		"${_TUI_CACHE_PAGEGEO[$file]:-}" "$sep" \
-		"${_TUI_CACHE_PAGEUNDO[$file]:-}"
+		"${_TUI_CACHE_PAGEUNDO[$file]:-}" "$sep" \
+		"${_TUI_CACHE_SIZE[$file]:-}"
 }
 
 # tui.cache.decode FILE BLOB - installs BLOB (from tui.cache.encode) as
 # FILE's cache entry in this process's cache maps.
 tui.cache.decode() {
-	local file="$1" blob="$2" sep=$'\x1e'
-	local -a parts=()
-	# -d '': the blob's snapshot field is itself multi-line (declare -p, one
-	# array per line) - plain `read` stops at the first newline regardless
-	# of IFS, silently truncating everything after it.
-	IFS="$sep" read -r -d '' -a parts <<<"$blob"
-	_TUI_CACHE_SIG[$file]="${parts[0]:-}"
-	_TUI_CACHE_PAGE[$file]="${parts[1]:-}"
-	_TUI_CACHE_SCRIPTS[$file]="${parts[2]:-}"
-	_TUI_CACHE_ON_VISIT[$file]="${parts[3]:-}"
-	_TUI_CACHE_GOTOS[$file]="${parts[4]:-}"
-	_TUI_CACHE_THEME[$file]="${parts[5]:-}"
-	_TUI_CACHE_CLASSES[$file]="${parts[6]:-}"
-	_TUI_CACHE_SHELL[$file]="${parts[7]:-}"
-	_TUI_CACHE_PAGEGEO[$file]="${parts[8]:-}"
-	_TUI_CACHE_PAGEUNDO[$file]="${parts[9]:-}"
+	local file="$1" blob="$2"
+	# -d '': the blob's snapshot field is itself multi-line (declare -p, one array per line) - plain `read` stops at the
+	# first newline regardless of IFS, silently truncating everything after it.
+	IFS=$'\x1e' read -r -d '' -a _TCI <<<"$blob"
+	_tui_cache_install "$file" 0
+	_TUI_CACHE_SIZE[$file]="${_TUI_CACHE_SIZE[$file]%$'\n'}" # the here-string adds one newline to the last field
+}
+
+# _tui_cache_install FILE FIRST - FILE's cache entry from the fields _TCI[FIRST..FIRST+10], in tui.cache.encode's order
+_tui_cache_install() {
+	local file="$1" i=$2
+	_TUI_CACHE_SIG[$file]="${_TCI[i]:-}"
+	_TUI_CACHE_PAGE[$file]="${_TCI[i + 1]:-}"
+	_TUI_CACHE_SCRIPTS[$file]="${_TCI[i + 2]:-}"
+	_TUI_CACHE_ON_VISIT[$file]="${_TCI[i + 3]:-}"
+	_TUI_CACHE_GOTOS[$file]="${_TCI[i + 4]:-}"
+	_TUI_CACHE_THEME[$file]="${_TCI[i + 5]:-}"
+	_TUI_CACHE_CLASSES[$file]="${_TCI[i + 6]:-}"
+	_TUI_CACHE_SHELL[$file]="${_TCI[i + 7]:-}"
+	_TUI_CACHE_PAGEGEO[$file]="${_TCI[i + 8]:-}"
+	_TUI_CACHE_PAGEUNDO[$file]="${_TCI[i + 9]:-}"
+	_TUI_CACHE_SIZE[$file]="${_TCI[i + 10]:-}"
+}
+
+# tui.cache.is_sized FILE - true when FILE's cached geometry was laid out for the current terminal size, so a replay needs
+# no relayout (see tui.cache.replay). A page cached before the size was recorded is not.
+tui.cache.is_sized() {
+	local rows cols
+	term.size rows cols
+	[[ "${_TUI_CACHE_SIZE[$1]:-}" == "$rows $cols" ]]
+}
+
+# _tui_cache_resized PAGE... -> _TUI_CACHE_RESIZED: the cached PAGEs whose geometry is for another terminal size. They are
+# re-fitted by the background pool, so the first visit replays without a relayout.
+declare -ga _TUI_CACHE_RESIZED=()
+_tui_cache_resized() {
+	local p
+	_TUI_CACHE_RESIZED=()
+	for p; do
+		[[ -n "${_TUI_CACHE_PAGE[$p]:-}" ]] && ! tui.cache.is_sized "$p" && _TUI_CACHE_RESIZED+=("$p")
+	done
+	return 0
 }
 
 _tui_cache_now_us() { printf '%s' "${EPOCHREALTIME//[^0-9]/}"; }
@@ -790,17 +808,17 @@ _tui_cache_warm_prelude() {
 	_tui_shell.warm "$@"
 }
 
-# _tui_cache_warm_worker PAGE ROOT REPORT - one forked build of PAGE: headless, no side effects outside its own snapshot
+# _tui_cache_warm_worker PAGE ROOT REPORT [TAG] - one forked build of PAGE: headless, no side effects outside its own snapshot
 # ROOT/cache/<fname>.snap (written atomically via tmp + mv, so a crashed worker leaves no partial file and concurrent
 # app instances warming the same page race harmlessly). Stdin/stdout are /dev/null, so its tui.init cannot take the
-# terminal; it appends one "DONE page" or "FAILED page" line to REPORT (a fifo or a file) and exits.
+# terminal; it appends one "DONE TAGpage" or "FAILED TAGpage" line to REPORT (a fifo or a file) and exits.
 _tui_cache_warm_worker() {
-	local _tcw_page="$1" _tcw_root="$2" _tcw_cache_dir="$2/cache"
+	local _tcw_page="$1" _tcw_root="$2" _tcw_cache_dir="$2/cache" _tcw_tag="${4:-}"
 	exec </dev/null
 	exec 6>>"$3"
 	exec 1>/dev/null 2>"$_tcw_root/worker.$BASHPID.stderr.log"
 	# a worker that dies without reporting (an error aborting the build) would leave the parent waiting forever
-	trap 'tui.log.error "cache worker $BASHPID: died while recording $_tcw_page without reporting, reporting FAILED"; printf "FAILED %s\n" "$_tcw_page" >&6' EXIT
+	trap 'tui.log.error "cache worker $BASHPID: died while recording $_tcw_page without reporting, reporting FAILED"; printf "FAILED %s%s\n" "$_tcw_tag" "$_tcw_page" >&6' EXIT
 	tui.log.debug "cache worker $BASHPID: recording $_tcw_page"
 	_TUI_WARM_WORKER=1
 	tui.init
@@ -812,10 +830,10 @@ _tui_cache_warm_worker() {
 		tui.cache.encode "$_tcw_page" >"$_tcw_tmp"
 		mv -f "$_tcw_tmp" "$_tcw_cache_dir/${_tcw_fn}.snap"
 		tui.log.debug "cache worker $BASHPID: $_tcw_page recorded, snapshot at $_tcw_cache_dir/${_tcw_fn}.snap"
-		printf 'DONE %s\n' "$_tcw_page" >&6
+		printf 'DONE %s%s\n' "$_tcw_tag" "$_tcw_page" >&6
 	else
 		tui.log.warn "cache worker $BASHPID: tui.cache.record failed for $_tcw_page"
-		printf 'FAILED %s\n' "$_tcw_page" >&6
+		printf 'FAILED %s%s\n' "$_tcw_tag" "$_tcw_page" >&6
 	fi
 	trap - EXIT
 	exec 6>&-
@@ -982,7 +1000,7 @@ tui.cache.warm_with_spinner() {
 	{ exec 5>&-; } 2>/dev/null
 
 	# Load every page a worker actually finished - not tui.cache.load_dir
-	# (that reads back tui.cache.dump_dir's five-file-per-page shape): each
+	# (that reads back tui.cache.dump_dir's one-file-per-page shape): each
 	# worker wrote its own single atomic FILE.snap (tui.cache.encode), read
 	# back here by the same original page path, not a directory scan.
 	local _tcw_page3 _tcw_snap
@@ -1000,10 +1018,17 @@ tui.cache.warm_with_spinner() {
 	fi
 }
 
-# ── lazy warm-up: pages after the first are built while the app runs ──────
+# ── lazy warm-up: pages after the first are built while the app runs; later, resizes re-fit the cached pages ──────
+#
+# One pool driver (_tui_cache_lazy.serve) is forked before the terminal is taken over, so the workers it forks never touch
+# the running UI. It stays up for the whole run, blocked on a fifo, and serves a numbered request ("generation") at a time:
+# a list of pages, each either built from scratch (no signature) or only re-fitted to the terminal size (its cached
+# signature). A newer request cancels the running one. The app polls the current generation's directory from its tick.
 
-declare -g _TUI_LAZY_ROOT="" _TUI_LAZY_PID="" _TUI_LAZY_OWNER="" _TUI_LAZY_TOAST="" _TUI_LAZY_QUIET=0
-declare -ga _TUI_LAZY_PENDING=()
+declare -g _TUI_LAZY_ROOT="" _TUI_LAZY_PID="" _TUI_LAZY_OWNER="" _TUI_LAZY_TOAST="" _TUI_LAZY_QUIET=0 _TUI_LAZY_FD="" _TUI_LAZY_DISK=""
+declare -gi _TUI_LAZY_GEN=0 _TUI_LAZY_BUILT=0 _TUI_LAZY_DEBOUNCE_AT=0
+declare -ga _TUI_LAZY_PENDING=() _TUI_LAZY_ALL=()
+declare -gA _TUI_LAZY_REFRESH=() # pages the pool re-fits to the terminal size: their snapshot replaces the page's geometry only
 
 # _tui_cache_lazy.split FIRST STALE... -> _TUI_LAZY_FIRST (FIRST when it is among STALE, else empty) and _TUI_LAZY_LATER
 declare -ga _TUI_LAZY_FIRST=() _TUI_LAZY_LATER=()
@@ -1040,96 +1065,303 @@ _tui_cache_lazy.order() {
 	_TUI_LAZY_LATER=("${ordered[@]}")
 }
 
-# _tui_cache_lazy.start PAGE... - forks one pool driver that prepares PAGE... (themes and shells, TUI_CACHE_LAZY_PREP) and
-# builds them with TUI_CACHE_LAZY_WORKERS workers (0 = half the cores) at lower priority (TUI_CACHE_LAZY_NICE), and
-# registers the main loop's tick to collect the snapshots. Forked before the terminal
-# is taken over, like the splash's workers, so a worker's exit path never touches the running UI.
+# _tui_cache_refit_page PAGE -> _RF_PAGE _RF_UNDO _RF_GEO: PAGE's cached state laid out for the terminal size in
+# _TUI_ROWS/_TUI_COLS, the steps tui.cache.replay takes at a different size. A page without a shell is restored, laid out
+# and snapshotted again. A page of a shell is applied as a delta onto the shell (replayed from the cache), only the outlet
+# is laid out, and the delta against the shell is taken again, as tui.cache.record takes it.
+_tui_cache_refit_page() {
+	local page="$1" shell="${_TUI_CACHE_SHELL[$1]:-}" _rf_join
+	_RF_UNDO="" _RF_GEO=""
+	if [[ -z "$shell" ]]; then
+		_tui_cache_restore "${_TUI_CACHE_PAGE[$page]}"
+		_tui_cache_relayout
+		_RF_PAGE="$(_tui_cache_snapshot)"
+		return 0
+	fi
+	tui.reset_ui
+	_tui_shell.ensure "$shell" 1 || return 1
+	_tui_shell.leave_page
+	_tui_shell.base_capture
+	_tui_shell.apply "$page"
+	_tui_cache_select_active_tabs "$page"
+	_tui.epoch_bump layout
+	_tui._layout "$_TUI_OUTLET"
+	_tui_shell.delta
+	printf -v _rf_join '_TUI_STYLE_SIG=%q\n' "$_TUI_STYLE_SIG"
+	_RF_PAGE="${_SH_APPLY}${_rf_join}"
+	_RF_UNDO="$_SH_UNDO"
+	_tui_shell.geometry
+	_RF_GEO="$_SH_GEO"
+}
+
+# _tui_cache_refresh_job PAGE GENDIR REPORT TAG SIG - one forked re-fit of PAGE's cached state to the terminal size in
+# _TERM_SIZE (see _tui_cache_refit_page): no markup parse, no scripts, no on_visit, and no tui.init (nothing here touches
+# the terminal). The new state is written as "SIZE GEO UNDO PAGE", fields apart by \x1e. SIG is the signature the cached
+# page must carry; the disk copy is used when the process has no such entry.
+_tui_cache_refresh_job() {
+	local page="$1" dir="$2" tag="$4" sig="$5" tmp sep=$'\x1e'
+	exec </dev/null >/dev/null 2>&1
+	exec 6>>"$3"
+	trap 'printf "FAILED %s%s\n" "$tag" "$page" >&6' EXIT
+	tmp="$dir/cache/${page//\//_}.rsnap.tmp.$BASHPID"
+	if _tui_cache_base_load "$page" "$sig"; then
+		_TUI_ROWS="${_TERM_SIZE% *}" _TUI_COLS="${_TERM_SIZE#* }"
+		if _tui_cache_refit_page "$page"; then
+			printf '%s' "$_TUI_ROWS $_TUI_COLS$sep$_RF_GEO$sep$_RF_UNDO$sep$_RF_PAGE" >"$tmp" && mv -f "$tmp" "${tmp%.tmp.*}" &&
+				printf 'DONE %s%s\n' "$tag" "$page" >&6 && trap - EXIT
+		fi
+	fi
+	exit 0
+}
+
+# _tui_cache_base_load PAGE SIG - makes the cached state of PAGE, the one carrying signature SIG, the process's own:
+# already there, or read from the page file on disk, which counts only when it is whole (see tui.cache.dump_page) and
+# carries signature SIG.
+_tui_cache_base_load() {
+	local page="$1" sig="$2" dir
+	[[ -n "$sig" ]] || return 1
+	[[ "${_TUI_CACHE_SIG[$page]:-}" == "$sig" && -n "${_TUI_CACHE_PAGE[$page]:-}" ]] && return 0
+	dir="$(tui.cache.disk_dir)"
+	_tui_cache_read_file "$dir/${page//\//_}.page" && [[ "${_TCI[2]}" == "$sig" && -n "${_TCI[3]}" ]] || return 1
+	_tui_cache_install "$page" 2
+}
+
+# _tui_cache_persist_size PAGE - PAGE's re-fitted entry into its page file on disk (see tui.cache.dump_page: a reader never
+# takes a half-written file)
+_tui_cache_persist_size() {
+	[[ -d "$_TUI_LAZY_DISK" && -e "$_TUI_LAZY_DISK/${1//\//_}.page" ]] || return 0 # only a page that is on disk already
+	tui.cache.dump_page "$1"
+}
+
+# _tui_cache_lazy.serve ROOT OWNER MAX PAGE... - the pool driver: serves requests from the fifo ROOT/req until OWNER (the
+# app) is gone. PAGE... is every page of the app (themes and shells are prepared for them once, TUI_CACHE_LAZY_PREP, before
+# the first build, and inherited by the workers). Workers report "DONE|FAILED GEN PAGE" down the same fifo, which keeps
+# MAX of them running and ends a cancelled request's workers.
+_tui_cache_lazy.serve() {
+	local root="$1" owner="$2" max="$3" fd line tag f=0 i gen=-1 running=0 next=0 total=0 prepared=0 sep=$'\x1f'
+	shift 3
+	local -a all=("$@") pids=() queue=() sigs=() fields=()
+	exec </dev/null >/dev/null 2>&1
+	trap - EXIT INT
+	((${TUI_CACHE_LAZY_NICE:-10} > 0)) && renice -n "${TUI_CACHE_LAZY_NICE:-10}" -p "$BASHPID" >/dev/null 2>&1 # workers inherit it: the app's own input wins the cores
+	exec {fd}<>"$root/req"
+	trap 'kill "${pids[@]}" 2>/dev/null; exit 0' TERM
+	_tcl_launch() {
+		while ((next < total && running < max)); do
+			if [[ -n "${sigs[next]}" ]]; then
+				_tui_cache_refresh_job "${queue[next]}" "$root/g$gen" "$root/req" "$gen " "${sigs[next]}" &
+			else
+				_tui_cache_warm_worker "${queue[next]}" "$root/g$gen" "$root/req" "$gen " &
+			fi
+			pids+=($!)
+			((running++, next++))
+		done
+		((gen >= 0 && next >= total && running == 0)) && : >"$root/g$gen/DONE"
+		return 0
+	}
+	while :; do
+		if IFS= read -r -t 2 -u "$fd" line; then
+			case "$line" in
+				QUIT) break ;;
+				"REQ "*)
+					((${#pids[@]})) && {
+						kill "${pids[@]}" 2>/dev/null
+						wait "${pids[@]}" 2>/dev/null
+					}
+					((gen >= 0)) && rm -rf "$root/g$gen" "$root/req.$gen"
+					pids=() queue=() sigs=() running=0 next=0
+					gen="${line#REQ }"
+					IFS= read -r line <"$root/req.$gen"
+					IFS=$sep read -ra fields <<<"$line"
+					_TERM_SIZE="${fields[0]}" # the workers lay out for the size the request was made at
+					for ((i = 1; i < ${#fields[@]}; i += 2)); do
+						queue+=("${fields[i]}")
+						sigs+=("${fields[i + 1]:-}")
+						[[ -n "${fields[i + 1]:-}" ]] || f=1
+					done
+					total=${#queue[@]}
+					mkdir -p "$root/g$gen/cache"
+					if ((f && ! prepared)); then # something is built from scratch: its shared inputs are parsed once, here
+						prepared=1
+						((${TUI_CACHE_LAZY_PREP:-1})) && _tui_cache_warm_prelude "${all[@]}"
+					fi
+					f=0
+					_tcl_launch
+					;;
+				"DONE "* | "FAILED "*)
+					tag="${line#* }"
+					[[ "${tag%% *}" == "$gen" ]] || continue # a cancelled request's worker
+					((running--))
+					_tcl_launch
+					;;
+			esac
+		else
+			kill -0 "$owner" 2>/dev/null || {
+				((${#pids[@]})) && kill "${pids[@]}" 2>/dev/null
+				rm -rf "$root" # the app died without stopping the pool
+				exit 0
+			}
+		fi
+	done
+	((${#pids[@]})) && kill "${pids[@]}" 2>/dev/null
+	exit 0
+}
+
+# _tui_cache_lazy.start PAGE... - forks the pool driver for the app's pages, before the terminal is taken over, and
+# registers the resize hook that re-fits the cached pages (TUI_CACHE_LAZY_WORKERS workers, 0 = half the cores). It builds
+# nothing until _tui_cache_lazy.request.
 _tui_cache_lazy.start() {
 	(($#)) || return 0
 	_tui_mkdtemp _TUI_LAZY_ROOT tui_cache_lazy || return 1
-	mkdir -p "$_TUI_LAZY_ROOT/cache"
-	_TUI_LAZY_PENDING=("$@")
+	mkfifo "$_TUI_LAZY_ROOT/req" || return 1
+	_TUI_LAZY_ALL=("$@")
 	_TUI_LAZY_OWNER="$BASHPID"
-	local root="$_TUI_LAZY_ROOT" max="${TUI_CACHE_LAZY_WORKERS:-0}"
+	_TUI_LAZY_DISK="$(tui.cache.disk_dir)"
+	local max="${TUI_CACHE_LAZY_WORKERS:-0}"
 	((max > 0)) || max=$(($(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) / 2))
 	((max < 1)) && max=1
-	(
-		exec </dev/null >/dev/null 2>&1
-		trap - EXIT INT
-		((${TUI_CACHE_LAZY_NICE:-10} > 0)) && renice -n "${TUI_CACHE_LAZY_NICE:-10}" -p "$BASHPID" >/dev/null 2>&1 # workers inherit it: the app's own input wins the cores
-		((${TUI_CACHE_LAZY_PREP:-1})) && _tui_cache_warm_prelude "$@"                                              # the workers inherit it, as from the splash's parent
-		local -a pids=()
-		local running=0 page
-		trap 'kill "${pids[@]}" 2>/dev/null; exit 0' TERM
-		for page; do
-			((running >= max)) && {
-				wait -n
-				((running--))
-			}
-			_tui_cache_warm_worker "$page" "$root" "$root/report" &
-			pids+=($!)
-			((running++))
-		done
-		wait
-		: >"$root/DONE"
-	) &
+	exec {_TUI_LAZY_FD}<>"$_TUI_LAZY_ROOT/req"
+	_tui_cache_lazy.serve "$_TUI_LAZY_ROOT" "$BASHPID" "$max" "$@" &
 	_TUI_LAZY_PID=$!
+	tui.hook.on resize _tui_cache_lazy.on_resize
+}
+
+# _tui_cache_lazy.request PAGE... - the pool builds PAGE... at the current terminal size and drops whatever it was doing.
+# A page in _TUI_LAZY_REFRESH is only re-fitted (it has a snapshot already), any other is built from scratch.
+# The request line goes into a file (it can exceed what a fifo write keeps whole), the fifo gets only its number.
+_tui_cache_lazy.request() {
+	local rows cols p sep=$'\x1f' line
+	_tui_perf.begin cache_lazy_request
+	term.size rows cols
+	_TUI_LAZY_PENDING=("$@")
+	_TUI_LAZY_GEN+=1
+	line="$rows $cols"
+	for p; do line+="$sep$p$sep${_TUI_LAZY_REFRESH[$p]:+${_TUI_CACHE_SIG[$p]:-}}"; done
+	printf '%s\n' "$line" >"$_TUI_LAZY_ROOT/req.$_TUI_LAZY_GEN"
+	printf 'REQ %d\n' "$_TUI_LAZY_GEN" >&"$_TUI_LAZY_FD"
+	tui.tick.add _tui_cache_lazy.poll
+	_tui_perf.end cache_lazy_request
+}
+
+# _tui_cache_lazy.on_resize ROWS COLS - the resize hook: the re-fit is requested once the terminal has been still for
+# TUI_CACHE_RESIZE_DEBOUNCE_MS (the drag of a window edge is a burst of sizes, only the last one matters)
+_tui_cache_lazy.on_resize() {
+	[[ -n "$_TUI_LAZY_PID" ]] && ((TUI_CACHE_RESIZE_DEBOUNCE_MS > 0)) || return 0
+	_TUI_LAZY_DEBOUNCE_AT=$((${EPOCHREALTIME//[!0-9]/} + TUI_CACHE_RESIZE_DEBOUNCE_MS * 1000))
 	tui.tick.add _tui_cache_lazy.poll
 }
 
-# _tui_cache_lazy.poll - the tick listener: decodes ONE finished snapshot per call (input stays responsive), keeping a
-# page the app already built on a visit; ends the warm-up once the pool is done and nothing more is coming.
-_tui_cache_lazy.poll() {
-	local i page snap
+# _tui_cache_lazy.refit - requests the pages not fitted to the terminal size, behind the ones still being built from
+# scratch (a new request would cancel those): the current page's links first
+_tui_cache_lazy.refit() {
+	local p i
+	local -a build=()
+	_TUI_LAZY_DEBOUNCE_AT=0
+	for i in "${!_TUI_LAZY_PENDING[@]}"; do
+		p="${_TUI_LAZY_PENDING[i]}"
+		[[ -n "${_TUI_LAZY_REFRESH[$p]+x}" ]] || build+=("$p")
+	done
+	_tui_cache_resized "${_TUI_LAZY_ALL[@]}"
+	_TUI_LAZY_LATER=("${_TUI_CACHE_RESIZED[@]}")
+	for p in "${_TUI_LAZY_LATER[@]}"; do _TUI_LAZY_REFRESH[$p]=1; done
+	[[ -n "${_TUI_MARKUP_FILE:-}" ]] && _tui_cache_lazy.order "$_TUI_MARKUP_FILE"
+	((${#build[@]} + ${#_TUI_LAZY_LATER[@]})) || return 0
+	_tui_cache_lazy.request "${build[@]}" "${_TUI_LAZY_LATER[@]}"
+}
+
+# _tui_cache_lazy.poll_one - installs ONE finished snapshot of the current request (input stays responsive); rc 1 when
+# there is none. A re-fit replaces the page's geometry and size and is persisted at once; a page built from scratch is
+# kept only if the app has not built it meanwhile.
+_tui_cache_lazy.poll_one() {
+	local i page snap blob size geo undo
 	for i in "${!_TUI_LAZY_PENDING[@]}"; do
 		page="${_TUI_LAZY_PENDING[i]}"
-		snap="$_TUI_LAZY_ROOT/cache/${page//\//_}.snap"
+		snap="$_TUI_LAZY_ROOT/g$_TUI_LAZY_GEN/cache/${page//\//_}"
+		if [[ -n "${_TUI_LAZY_REFRESH[$page]+x}" ]]; then snap+=".rsnap"; else snap+=".snap"; fi
 		[[ -f "$snap" ]] || continue
 		unset "_TUI_LAZY_PENDING[$i]"
-		[[ -n "${_TUI_CACHE_PAGE[$page]:-}" ]] || tui.cache.decode "$page" "$(<"$snap")"
+		if [[ -n "${_TUI_LAZY_REFRESH[$page]+x}" ]]; then
+			# one read splits the four fields: a pattern expansion (${x#*sep}) on a snapshot this size is quadratic
+			if [[ -n "${_TUI_CACHE_PAGE[$page]:-}" ]]; then
+				_tui_perf.begin cache_refit_install
+				IFS=$'\x1e' read -r -d '' size geo undo blob <"$snap"
+				_TUI_CACHE_SIZE[$page]="$size"
+				_TUI_CACHE_PAGEGEO[$page]="$geo"
+				_TUI_CACHE_PAGEUNDO[$page]="$undo"
+				_TUI_CACHE_PAGE[$page]="$blob"
+				_tui_cache_persist_size "$page"
+				_tui_perf.end cache_refit_install
+				_tui_perf.count cache_refit
+			fi
+		elif [[ -z "${_TUI_CACHE_PAGE[$page]:-}" ]]; then
+			_tui_cache_slurp "$snap"
+			tui.cache.decode "$page" "$_SLURP"
+			_TUI_LAZY_BUILT=1
+		fi
 		return 0
 	done
-	[[ -f "$_TUI_LAZY_ROOT/DONE" ]] && _tui_cache_lazy.finish
+	return 1
+}
+
+# _tui_cache_lazy.poll - the tick listener: the debounced re-fit when it is due, else one finished snapshot per call;
+# ends the request once the pool is done with it and nothing more is coming.
+_tui_cache_lazy.poll() {
+	if ((_TUI_LAZY_DEBOUNCE_AT)); then
+		((${EPOCHREALTIME//[!0-9]/} >= _TUI_LAZY_DEBOUNCE_AT)) && _tui_cache_lazy.refit
+		return 0
+	fi
+	_tui_cache_lazy.poll_one && return 0
+	[[ -f "$_TUI_LAZY_ROOT/g$_TUI_LAZY_GEN/DONE" ]] && _tui_cache_lazy.finish
 	return 0
 }
 
 # _tui_cache_lazy.announce - once the first page is up: a toast that stays while the pool builds (the app is usable, the
-# first visit of a page may be slower) and the cache_building hook
+# first visit of a page may be slower) and the cache_building hook. Only for pages built from scratch: a re-fit changes
+# nothing the user can see.
 _tui_cache_lazy.announce() {
 	[[ -n "$_TUI_LAZY_ROOT" ]] || return 0
+	((${#_TUI_LAZY_PENDING[@]} > ${#_TUI_LAZY_REFRESH[@]})) || return 0
 	tui.notify "Building the page cache in the background (${#_TUI_LAZY_PENDING[@]} pages)..." info 0
 	_TUI_LAZY_TOAST="$TUI_NOTIFY_ID"
 	tui.hook.fire cache_building
 }
 
-# _tui_cache_lazy.finish - every page that could be built is in memory: persist the cache and drop the pool's directory;
-# the toast turns into "ready" and the cache_complete hook fires (both skipped when the app is ending)
+# _tui_cache_lazy.finish - the current request is done, and every page that could be built is in memory: persist the pages
+# built from scratch; the toast turns into "ready" and the cache_complete hook fires (both skipped when the app is ending).
+# The driver stays up for the next resize; without one (nothing started it) the directory goes too.
 _tui_cache_lazy.finish() {
 	tui.tick.remove _tui_cache_lazy.poll
-	tui.cache.dump_dir "$(tui.cache.disk_dir)"
-	rm -rf "$_TUI_LAZY_ROOT" 2>/dev/null
-	_TUI_LAZY_ROOT="" _TUI_LAZY_PID=""
-	_TUI_LAZY_PENDING=()
+	((_TUI_LAZY_BUILT)) && tui.cache.dump_dir "$(tui.cache.disk_dir)"
+	_TUI_LAZY_BUILT=0 _TUI_LAZY_PENDING=() _TUI_LAZY_REFRESH=()
+	if [[ -z "$_TUI_LAZY_PID" ]]; then
+		rm -rf "$_TUI_LAZY_ROOT" 2>/dev/null
+		_TUI_LAZY_ROOT=""
+	fi
 	((_TUI_LAZY_QUIET)) && return 0
-	[[ -n "$_TUI_LAZY_TOAST" ]] && tui.notify.clear "$_TUI_LAZY_TOAST"
+	[[ -n "$_TUI_LAZY_TOAST" ]] || return 0 # never announced: nothing to turn into "ready"
+	tui.notify.clear "$_TUI_LAZY_TOAST"
 	_TUI_LAZY_TOAST=""
 	tui.notify "Page cache ready" success
 	tui.hook.fire cache_complete
 }
 
-# _tui_cache_lazy.stop - the app ends while the pool still runs: stop it (the driver ends its workers), keep every page
-# already built (decoded and persisted like a finished pool's), and drop the directory; the rest are built again on the
-# next start. Only the process that started the pool acts: its workers inherit these variables and run the same exit path.
+# _tui_cache_lazy.stop - the app ends: stop the driver (it ends its workers), keep every page already built (decoded and
+# persisted like a finished request's), and drop the directory; the rest are built again on the next start. Only the
+# process that started the driver acts: its workers inherit these variables and run the same exit path.
 _tui_cache_lazy.stop() {
 	[[ -n "$_TUI_LAZY_ROOT" && "$_TUI_LAZY_OWNER" == "$BASHPID" ]] || return 0
 	if [[ -n "$_TUI_LAZY_PID" ]]; then
 		kill "$_TUI_LAZY_PID" 2>/dev/null
 		wait "$_TUI_LAZY_PID" 2>/dev/null
 	fi
-	: >"$_TUI_LAZY_ROOT/DONE"
 	_TUI_LAZY_QUIET=1
-	while [[ -n "$_TUI_LAZY_ROOT" ]]; do _tui_cache_lazy.poll; done
+	_TUI_LAZY_DEBOUNCE_AT=0
+	while _tui_cache_lazy.poll_one; do :; done
+	_TUI_LAZY_PID="" # no driver any more: finish removes the directory
+	_tui_cache_lazy.finish
 	_TUI_LAZY_QUIET=0
+	[[ -n "$_TUI_LAZY_FD" ]] && { exec {_TUI_LAZY_FD}>&-; } 2>/dev/null
+	_TUI_LAZY_FD=""
 }
 
 # tui.start_cached FIRST_PAGE - like tui.start, but first pre-warms the
@@ -1180,6 +1412,17 @@ tui.start_cached() {
 		tui.cache.valid "$p" || stale+=("$p")
 	done
 	_TUI_CACHE_MTIME_FRESH=0
+	# measured before any worker forks: they inherit _TERM_SIZE and build every page for this size. Cached pages fitted to
+	# another size are re-fitted by the background pool, so they are ready for this terminal when visited.
+	local -a resized=()
+	local r _sz_rows _sz_cols
+	if ((TUI_CACHE_LAZY && _TUI_CACHES)); then
+		term.size _sz_rows _sz_cols
+		_tui_cache_resized "${pages[@]}"
+		resized=("${_TUI_CACHE_RESIZED[@]}")
+		for r in "${resized[@]}"; do _TUI_LAZY_REFRESH[$r]=1; done
+	fi
+	local -a later=()
 	if ((${#stale[@]} > 1 && TUI_CACHE_LAZY)); then
 		# only the first page is needed for the first frame: it is prepared and built behind the splash, the rest by the
 		# background pool (which prepares them too, unless TUI_CACHE_LAZY_PREP is off: then it is done here, for all)
@@ -1191,12 +1434,22 @@ tui.start_cached() {
 		_tui_validate.finish || return 1
 		# persisted at once: a quit before the pool is done still leaves the first page warm
 		((${#_TUI_LAZY_FIRST[@]})) && tui.cache.dump_dir "$disk_dir"
+		_TUI_LAZY_LATER+=("${resized[@]}")
 		_tui_cache_lazy.order "$first_file" # the first page is built (or loaded) by now: its links are known
-		_tui_cache_lazy.start "${_TUI_LAZY_LATER[@]}"
+		later=("${_TUI_LAZY_LATER[@]}")
 	elif ((${#stale[@]} > 0)); then
 		tui.cache.warm_with_spinner "${stale[@]}"
 		_tui_validate.finish || return 1
 		tui.cache.dump_dir "$disk_dir"
+		later=("${resized[@]}")
+	else
+		later=("${resized[@]}")
+	fi
+	# the pool driver is forked here, before the terminal is taken over, and stays up: it serves the pages still to build
+	# and every later resize
+	if ((TUI_CACHE_LAZY && _TUI_CACHES && ${#pages[@]} && (${#later[@]} || TUI_CACHE_RESIZE_DEBOUNCE_MS > 0))); then
+		_tui_cache_lazy.start "${pages[@]}"
+		((${#later[@]})) && _tui_cache_lazy.request "${later[@]}"
 	fi
 	_tui_validate.finish || return 1 # nothing to build: the check is joined here (a no-op when already done)
 	# every page is now cached and checked against its files: from here on the files are assumed unchanged

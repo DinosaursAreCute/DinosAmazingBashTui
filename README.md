@@ -1,3 +1,16 @@
+## Table of Contents
+
+<details>
+
+   <summary>Contents</summary>
+
+1. [Screenshots](#screenshots)
+1. [Documentation](#documentation)
+1. [Requirements](#requirements)
+1. [Ecosystem](#ecosystem)
+
+</details>
+
 <p align="center">
   <img alt="D.A.B.T - DinosAmazingBashTui" src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" width="800" height="400"/>
 
@@ -170,6 +183,23 @@ Findings only warn by default. `--strict` refuses to install on HIGH findings.
 A text-pattern scan can be fooled, so **a clean report is not a guarantee.**
 
 </details>
+
+<h2 id="performance"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/606b4ac39cf3efbe528fb9345d27b7b637e3b117/assets/headers/performance.svg" alt="performance" height="35"/></h2>
+
+<img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/0efb75409ba984479da70063db63afe2d72bca94/assets/performance/hero.svg" alt="DABT, Textual and Bubble Tea compared on page switches, key presses, typing, dialogs, theme switches, idle CPU and memory" width="900"/>
+<br/>
+
+One of the first questions that might come to mind: 
+A bash tui framework that does all these things? That must be slowwwwwwwww! \
+Behold with the power of one (1) slightly obsessed bash developer and a keyboard this is what dabt looks like compared to textual and bubbletea. 
+
+A page switch lands in about 100 ms: \
+well ahead of Textual :D \
+a good mile behind bubbletea :( \
+Memory is the lowest of the three. Idle CPU is not, and we are working on it. \
+We will not beat Bubble Tea (or will we?), and the fact a shell script that gets within shouting distance of it is kinda funny.
+
+Numbers are from one run of [`tools/compare-v2`](tools/compare-v2/README.md), so treat them as a mood, not a verdict. Re-run it on your own machine, or [read the harness](tools/compare-v2/) and tell us what we got wrong.
 
 ## Screenshots
 

@@ -28,6 +28,8 @@ tui.set_canvas rain "$frame"     # rows already as wide as the pane, ANSI allowe
 
 Nothing is measured, the pane draws at once, and a frame made for another size is not drawn until you make a new one (so a resize never shows a wide frame in a narrow pane). Read the pane's size with `tui.pane_size`, and rebuild the frame on the next tick.
 
+When only a few cells change (a blinking cursor, a moving highlight), patch them instead of resending the frame. `tui.canvas.source PANE FN` names the function that can rebuild the whole frame (it is called before every full paint). `tui.canvas.fresh` says whether the screen still shows the last canvas frame, and while it does, `tui.canvas.patch PANE BYTES` draws just the changed cells, with absolute cursor moves, in one write. After any other paint, send the whole frame with `tui.set_canvas` again. The Home demo page paints its banner this way.
+
 ## 3. Painters: `tui.async.*`
 
 A painter is a function that runs in its own process and writes straight to the terminal with absolute cursor moves. Its frames cost the main loop nothing, so hover and focus highlighting stay instant.

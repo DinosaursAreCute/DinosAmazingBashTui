@@ -46,7 +46,7 @@ tools/profiler/profile.sh --scenario nav --rounds 5     # the real app in a pty:
 tools/profiler/profile.sh --deep       # also a per-function trace, forks per call site
 ```
 
-In your own app: `_tui_perf.begin NAME` / `_tui_perf.end NAME` around a phase, `tui.perf.report`, or `TUI_PERF_LOG=FILE`. The profiler report lists **forks per call site** (`attr.forks`) and **time per function and per page**; read those two first. Compare against the run before your change, not against a feeling.
+In your own app: `_tui_perf.begin NAME` / `_tui_perf.end NAME` around a phase, `tui.perf.report`, or `TUI_PERF_LOG=FILE`. The profiler report lists **forks per call site** (`attr.forks`) and **time per function and per page**; read those two first. Compare against the run before your change, not against a feeling. There is no public span call yet (`_tui_perf.*` is the documented exception). For a quick number in app code, take `${EPOCHREALTIME//[!0-9]/}` before and after a phase and log the difference with `tui.log.info`, behind an environment switch.
 
 A trivial page still costs about 120 ms to revisit in the profiler: about 23 ms cache replay, 28 ms render and about 33 ms of probe and settle overhead. Anything above that is page code or layout.
 
@@ -194,6 +194,8 @@ Text derived from a setting that changes rarely (a refresh interval, a label) do
 | line-slice and width memos | re-measuring and re-slicing coloured output lines | new line text (it is a miss, not an error) |
 | `tui.modal.dismiss` | re-rendering the page under a closing overlay (palette close 38 ms to 14 ms) | anything painting, restyling or resizing while the overlay is open (it falls back to the full repaint) |
 | page refresh (`tui.page.refresh`) | a full rebuild (parse, build, layout) when an addon or generated content changes: only the changed panes are rebuilt, from a tree the page remembers | a change outside the panes, a pane without an `id`, `<tabs>` or a widget that points at its pane with `pane="..."` in the changed part: it falls back to a background rebuild with a spinner |
+| one paint per page switch | `tui.goto` renders the whole screen once; a draw made while the page loads (`tui.update`, `tui.focus`, a pane border in `on_visit`) returns before it composes anything, and output queued before that frame is not painted a second time. A docu switch went from 5 writes and 41 KB plus a 9 KB repaint to one 32 KB write | a draw after `tui.goto` returns (a timer, a hook on `page`) is a normal draw; before `tui.run` nothing is dropped |
+| one paint per button click | the release of a button whose action rendered the whole screen (a page switch) does not draw the button, its pane's border or the old hover target again | an action that renders nothing still gets the un-press draw; a draw in your own callback after `tui.goto` returns is a normal draw |
 | `TUI_ROWCACHE=0`, `TUI_DISMISS_REPLAY=0` | switch the caches off to check whether one causes a problem | |
 
 Use `tui.modal.dismiss` for esc and click-outside. Use `tui.modal.close` when a command runs after the close, because the saved page cannot know what the command changes.
@@ -277,3 +279,24 @@ A held key repeats about every 33 ms, so each press has a third of the 100 ms bu
 - **Search structures read the hit index, not per-widget geometry.** Arrow-key focus search reads the rects the hit index already holds (`_TUI_HZ_WR/WC/WW`) instead of one `_tui._widget_pos` per focusable per press: 80 -> 8 ms per hold action on the Scrolling page.
 - **Measure held keys at the real repeat rate:** `tools/profiler/profile.sh --scenario held`. Lag is key sent to first output; judge the worst press.
 - **`tui.set` stores a value, `tui.update` stores it and redraws.** A visit callback that calls `tui.set` on a visible checkbox or input shows the old state until the next hover; use `tui.update`.
+
+## 10. A long transcript or log
+
+`tui.md.show` renders **all** of the text every time it is called, so a view that is redrawn often gets slower as it grows. Measured in the Chatty app (a streamed answer redrawing the transcript, development machine):
+
+| Messages | Text | One redraw |
+|---|---|---|
+| 1 | 54 B | 5 ms |
+| 104 | 15 KB | 41 ms |
+| 406 | 55 KB | 106 ms |
+| 1008 | 125 KB | about 400 ms |
+
+At 20 redraws a second that is the whole loop: typing and keys lag. Three changes, in order of effect:
+
+1. **Draw only the newest part.** Keep the last N messages (40 in Chatty) and say how many are hidden. A redraw then cost about 27 ms at 406 messages and 26 ms at 1008: flat.
+2. **Redraw less often.** A typed-out answer at 10 redraws a second looks the same as at 20 with twice the characters per tick. Live streaming polls its stream file at 10 Hz and redraws only when the text changed.
+3. **Skip identical frames.** Compare with what is on screen and return early.
+
+The cost also depends on the content: tables and code blocks cost more per byte than paragraphs, which is why 6 KB of mixed answers still took about 30 ms.
+
+Other numbers from the same app, for planning: a tab switch in a four-pane deck 35 to 53 ms; a form built with `tui.factory` plus a relayout about 50 ms (build it once, refresh the values); a six-row `linechart` 5.9 ms; an empty `$( )` 1.3 ms. More in [Live output](live-output.md), [Charts](charts.md) and [Tabs and menus](tabs-detach-menus.md).

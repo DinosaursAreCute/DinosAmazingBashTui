@@ -141,3 +141,17 @@ t_node_attribute_names_index_follows_set_clone_and_remove() {
 	eq "" "${_N_ANAMES[$a]:-}"
 	eq "" "${_N_ATTR["$a.title"]:-}"
 }
+
+t_node_snapshot_roundtrips_through_load_without_a_fork() {
+	tui_node.reset
+	tui_node.create pane root_pane
+	tui_node.create button btn_a "$_N"
+	tui_node.attr_set "$_N" text "a 'quoted' \"text\""
+	tui_node.snapshot
+	local snap=$_N_DUMP
+	tui_node.reset
+	tui_node.load "$snap"
+	eq "button" "${_N_TYPE[1]}"
+	eq "a 'quoted' \"text\"" "${_N_ATTR[1.text]}"
+	eq "1" "${_N_BY_ID[btn_a]}"
+}

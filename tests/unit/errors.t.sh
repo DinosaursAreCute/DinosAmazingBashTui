@@ -44,7 +44,7 @@ t_errors_distinct_messages_each_get_a_toast() {
 	eq 2 "$(tui.errors.count)"
 }
 
-t_errors_stderr_is_captured_and_reported_from_the_tick() {
+t_errors_stderr_is_captured_and_reported_by_the_loop_pass() {
 	_err_setup
 	tui.errors.capture on
 	printf 'q.sh: line 9: nope\n' >&2

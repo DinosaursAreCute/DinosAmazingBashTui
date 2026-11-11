@@ -126,6 +126,20 @@ The file is loaded automatically on the next start, in the same `<bind .../>` fo
 command isn't defined right now (its page isn't loaded) is skipped silently (`TUI_LAST_BIND_ERROR`). The **Keys**
 page has the Save and Discard buttons and an "unsaved changes" marker.
 
+## Recalling earlier messages
+
+Up and down in an input can walk through what was sent before. DABT has no ready-made input history (`tui.hist` is a number series for charts), so keep an array yourself and bind the keys to the input's pane:
+
+```bash
+tui.bind up   recall_prev --pane compose --always
+tui.bind down recall_next --pane compose --always
+
+recall_prev() { local draft; tui.get inp_msg draft; history_prev "$draft" && tui.update inp_msg "$_R"; }
+recall_next() { history_next && tui.update inp_msg "$_R"; }
+```
+
+`history_prev` keeps the half-typed text (the draft) the first time you go back, so `down` past the newest entry brings it back. `--pane` limits the binding to that pane and `--always` lets it win over the input's own arrow handling. Skip empty and repeated messages and cap the list (100 is plenty). A complete, tested version is `chatty.input.*` in `DinosAmazingScripts/DinosChattyChat/lib/chatty_core.sh`.
+
 ## Command palette (the command bar)
 `ctrl+p` (works while typing) or `:` opens a fuzzy command list; Enter runs the selection, Esc closes, the wheel and
 clicks work. It is built on the **command registry**, and DABT's own commands use the same API you do:
@@ -142,6 +156,8 @@ Defaults live in `share/defaults/commands.xml` (quit, reload, redraw, focus, scr
 terminal mode) plus providers for **Go to: page**, **Theme: name** (every `themes/*.css`), **Focus pane: name** and
 **Default keys: turn 'group' on/off**. The key shown beside a command is looked up from the live bindings.
 Turn the palette's own keys off with `tui.defaults.off palette`.
+
+**Performance:** a provider runs, and its commands are rebuilt, every time the palette opens. Keep it fork-free and cheap (a loop of `tui.cmd.add`). A command's action can carry arguments: `tui.cmd.add agent:coder "Agent: Coder" "pick_agent coder"`.
 
 While it is open it owns the keyboard and mouse. The mechanism is public, for your own dialogs: `tui.modal.open NAME
 KEYFN DRAWFN [MOUSEFN]`, `tui.modal.close`, and `tui.overlay.add/remove FN` (overlays are redrawn after every render

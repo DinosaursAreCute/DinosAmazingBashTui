@@ -31,6 +31,13 @@ The Settings page writes these keys (see [../api/config.md](../api/config.md)):
 
 With profile `theme`, every `.md_CLASS` rule of the active theme sets that class (`fg`, `bg` and `mods`). A class the theme does not define keeps DABT's look, and a style set in Settings goes on top:
 
+An app can switch the profile on once, on first run:
+
+```bash
+tui.config.get md.profile "" profile
+[[ -z "$profile" ]] && { tui.config.set md.profile theme; tui.md.config_apply; }
+```
+
 ```css
 .md_h1 { fg: cyan; mods: bold underline; }
 .md_link { fg: blue; mods: underline; }
@@ -75,3 +82,10 @@ Links to `#anchor` scroll to that heading; a relative `.md` link loads that file
 Set it in Settings > Markdown > Images, or `tui.md.images graphics` (config `md.images=graphics`).
 
 **Pictures as headings and table cells.** A heading that holds only a picture (`<h2 id="news"><img src="..." alt="news"></h2>`, the README's section banners) is drawn as the picture in `graphics` mode; in the other modes, and until the picture has arrived, it is its alt text as a heading, so the outline and `#news` anchors work either way. A table cell that holds only pictures is drawn as pictures, each no wider than an equal share of the table (the theme tables of the README); a table too narrow for that, or a cell that mixes text and a picture, stays text.
+
+## In a chat-style app
+
+- `alt+y` copies the source of the section at the top of the view and `alt+u` the whole document. "Copy the last answer" is yours to write: keep the text and call `tui.clipboard.copy` (OSC 52: kitty, foot, WezTerm, Alacritty, iTerm2 and tmux with `set-clipboard on` work; VTE terminals ignore it).
+- The plain reading keys (`tui.md.keys PANE reader`) act while the pane has the keyboard. In an app with a text input keep the default `chords` mode, so a focused input keeps its own keys.
+- Every redraw renders all of the text. For a long transcript draw only the newest part: see [Fast apps](performance.md#10-a-long-transcript-or-log).
+- For `.md_*` rules in your theme to apply, switch the `theme` profile on once (see Themes above).

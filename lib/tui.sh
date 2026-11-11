@@ -101,7 +101,6 @@ tui.errors.capture() {
 				set -x
 			fi
 			_TUI_ERR_ON=1
-			tui.tick.add _tui_errors.drain
 			;;
 		off)
 			((_TUI_ERR_ON)) || return 0
@@ -1059,6 +1058,7 @@ _tui._draw_or_queue() {
 # _tui._draw_batch_now ID... - draws each widget once in one synchronized write. Not row-diffed (see _tui._draw_widget): a list or
 # table redraw changes most rows, and splitting its frame into rows cost a third of a 200-line append.
 _tui._draw_batch_now() {
+	((_TUI_DEFER_RENDER && _TUI_RUNNING)) && return 0 # a page is loading under tui.goto: its frame covers this draw
 	local id seen=" " saved="$_TUI_FRAME" buf
 	_TUI_FRAME=""
 	for id in "$@"; do
@@ -1799,16 +1799,15 @@ _tui._draw_pane_border_buf() {
 	_tui.emit_goto "$r" "$c"
 	_tui_frame.edge "$id" top "$tl" "$tr" "$hz" "$inner" "$title" "$style_key" "$style_key"
 
-	local row
-	for ((row = 1; row < h - 1; row++)); do
-		_tui.emit_goto $((r + row)) "$c"
-		_tui.emit_ring "$style_key" "${id}_border" "$id"
-		_tui.emit "$vt"
-		_tui.emit_reset
-		_tui.emit_goto $((r + row)) $((c + w - 1))
-		_tui.emit_ring "$style_key" "${id}_border" "$id"
-		_tui.emit "$vt"
-		_tui.emit_reset
+	# the two side columns: the ring and the glyph are the same on every row, so they are composed once and each row is one
+	# append (a call per piece, eight per row, cost 8 ms on a 42-row pane)
+	local row side right=$((c + w - 1)) _bs_saved="$_TUI_FRAME"
+	_TUI_FRAME=""
+	_tui.emit_ring "$style_key" "${id}_border" "$id"
+	side="${_TUI_FRAME}${vt}"$'\e[0m'
+	_TUI_FRAME="$_bs_saved"
+	for ((row = r + 1; row < r + h - 1; row++)); do
+		_TUI_FRAME+=$'\e['"${row};${c}H${side}"$'\e['"${row};${right}H${side}"
 	done
 
 	_tui.emit_goto $((r + h - 1)) "$c"
@@ -1855,6 +1854,7 @@ _tui._draw_pane_border_buf() {
 # _tui._draw_widget_buf directly so every widget folds into one shared
 # buffer and one flush.
 _tui._draw_widget() {
+	((_TUI_DEFER_RENDER && _TUI_RUNNING)) && return 0 # a page is loading under tui.goto: its frame covers this draw
 	# no row diff here: splitting the frame costs more bash time than the unchanged rows save (a list or pane repaint changes most rows)
 	local _dw_saved="$_TUI_FRAME" buf
 	_TUI_FRAME=""
@@ -2090,6 +2090,12 @@ _tui._now_us() {
 # only happens while _TUI_PERF_TRACKING is on.
 _tui._flush() {
 	local buf="$1" out="${2-$1}" # OUT: the part of BUF that must reach the terminal (tui_paint.sh drops unchanged rows)
+	# a page is loading under tui.goto: it renders the whole screen once afterwards, so a draw made by the build or by on_visit
+	# is overpainted before it can be seen; it still counts as a flush for the paint diff and the saved base frame
+	if ((_TUI_DEFER_RENDER && _TUI_RUNNING)); then
+		((_TUI_FLUSH_GEN++))
+		return 0
+	fi
 	((_TUI_OVL_FLUSHING)) || _tui_modal.base_fold "$buf"
 	((_TUI_FLUSH_GEN++))
 	# a repaint of the page (a clock tick, an animation, a hover) may cross a layer, the command palette or a dialog: what is
@@ -2163,6 +2169,7 @@ _tui.frame_present() {
 # state:direct
 tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
+	((_TUI_RENDER_SEQ++))
 	_TUI_FRAME_REQ=0
 	_TUI_BATCH_IDS=() # the full frame draws every widget as it is now: updates queued by a callback (_tui.batch_call) are in it
 	_tui.epoch_bump hit
@@ -2204,6 +2211,7 @@ tui.render() {
 	for _oid in "${!_TUI_PANE_CONTENT[@]}"; do
 		[[ -n "${_TUI_PANE_CONTENT[$_oid]}" ]] && _tui._render_output_buf "$_oid"
 	done
+	_TUI_PENDING_OUTPUT=() # every pane's content is in this frame: a queued re-render of it would paint the same rows again
 	# Not diffed: tui.render only runs for full transitions (init, resize, page switch),
 	# where almost every row differs and the split costs more than it saves (+41% measured).
 	# Targeted redraws (_tui._draw_ids_now) go through _tui_paint.flush instead.
@@ -2303,6 +2311,7 @@ _tui._flush_pending_render() {
 # there's no burst to collapse, just no reason to split one logical update
 # across N separate writes to the terminal.
 _tui._draw_ids_now() {
+	((_TUI_DEFER_RENDER && _TUI_RUNNING)) && return 0 # a page is loading under tui.goto: its frame covers this draw
 	local draw_fn="$1"
 	shift
 	local id seen=" "
@@ -2615,6 +2624,7 @@ tui.output_clear() {
 # write). Aggregate render paths call _tui._render_output_buf directly so
 # every pane's content folds into one shared buffer and one flush.
 _tui._render_output() {
+	((_TUI_DEFER_RENDER && _TUI_RUNNING)) && return 0 # a page is loading under tui.goto: its frame covers this draw
 	local _ro_saved="$_TUI_FRAME"
 	_TUI_FRAME=""
 	_tui._render_output_buf "$1"

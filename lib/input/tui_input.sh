@@ -702,7 +702,7 @@ _tui_input.scrollbar_held() {
 # any paint: a spammed button never queues its click behind the un-press redraws. One batched draw follows.
 _tui_input.button_held() {
     [[ "$1" == release ]] || return 0
-    local id="$2" over="$_HIT" was_focused=0 old_hover="$_TUI_HOVERED_WIDGET" pane="${_TUI_W_PANE[$2]:-}"
+    local id="$2" over="$_HIT" was_focused=0 old_hover="$_TUI_HOVERED_WIDGET" pane="${_TUI_W_PANE[$2]:-}" seq=$_TUI_RENDER_SEQ
     if [[ "$_TUI_FOCUS_ID" == "$id" ]]; then was_focused=1; _TUI_FOCUS_ID=""; _TUI_FOCUS_IDX=-1; fi
     _TUI_HOVERED_WIDGET=""
     if [[ "$over" == "$id" ]]; then
@@ -711,6 +711,7 @@ _tui_input.button_held() {
     fi
     ((_TUI_RUNNING)) || return 0
     [[ -n "${_TUI_W_TYPE[$id]+x}" ]] || return 0                       # the action replaced the page
+    ((_TUI_RENDER_SEQ != seq)) && return 0                             # it repainted the whole screen: focus and hover were already cleared, the frame shows the button released
     _tui._draw_widgets_now "$id" "$old_hover"
     ((was_focused)) && _tui._draw_pane_borders_now "$pane"
     return 0
@@ -786,12 +787,19 @@ _tui_input.attr() {
     return 0
 }
 
-# tui.bind.defaults [FILE] - (re)load the default bindings.
+# tui.bind.defaults [FILE] - (re)load the default bindings. The parse (five regex reads per <bind> line) is kept as a
+# snapshot of the four tables, $TUI_HOME/cache/keybinds/<file path>.v1.snap, and loaded with one source while the XML is not
+# newer than it; bump the v1 when this parser changes what it produces. Without a TUI_HOME the file is parsed every time.
 tui.bind.defaults() {
     (( _TUI_BIND_GEN++ ))
-    local file="${1:-$TUI_DEFAULTS_DIR/keybinds.xml}" line key act
+    local file="${1:-$TUI_DEFAULTS_DIR/keybinds.xml}" line key act snap=""
     _TUI_BIND_DEF=(); _TUI_BIND_DEF_GROUP=(); _TUI_BIND_DEF_DESC=(); _TUI_BIND_DEF_ALWAYS=()
     if [[ ! -r "$file" ]]; then echo "tui.bind.defaults: cannot read '$file' (no default keybinds)" >&2; return 1; fi
+    if [[ -n "${TUI_HOME:-}" ]]; then
+        snap="$TUI_HOME/cache/keybinds/${file//\//_}.v1.snap"
+        [[ "$snap" -nt "$file" ]] && source "$snap" 2>/dev/null && return 0
+        _TUI_BIND_DEF=(); _TUI_BIND_DEF_GROUP=(); _TUI_BIND_DEF_DESC=(); _TUI_BIND_DEF_ALWAYS=() # a snapshot that failed halfway
+    fi
     while IFS= read -r line; do
         [[ "$line" == *"<bind "* ]] || continue
         _tui_input.attr "$line" key;    key="$_ATTR"
@@ -803,6 +811,17 @@ tui.bind.defaults() {
         _tui_input.attr "$line" desc;   _TUI_BIND_DEF_DESC[$key]="$_ATTR"
         _tui_input.attr "$line" always; [[ "$_ATTR" == true ]] && _TUI_BIND_DEF_ALWAYS[$key]=1
     done < "$file"
+    [[ -n "$snap" ]] && _tui_input.defaults_save "$snap"
+    return 0
+}
+
+# _tui_input.defaults_save SNAP - the four default tables as a script that sets them again (declare -g: it is sourced from a
+# function), moved into place whole so a reader never sees half of it. Runs once per version of the XML.
+_tui_input.defaults_save() {
+    local snap="$1" line out=""
+    mkdir -p "${snap%/*}" 2>/dev/null || return 0
+    while IFS= read -r line; do out+="declare -gA ${line#declare -A }"$'\n'; done < <(declare -p _TUI_BIND_DEF _TUI_BIND_DEF_GROUP _TUI_BIND_DEF_DESC _TUI_BIND_DEF_ALWAYS)
+    printf '%s' "$out" >"$snap.$BASHPID" && mv -f "$snap.$BASHPID" "$snap"
 }
 
 tui.defaults.off() {

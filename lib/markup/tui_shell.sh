@@ -28,6 +28,8 @@ declare -gA _TUI_SHELL_IDS=() _TUI_PAGE_IDS=()
 declare -g _TUI_PAGE_UNDO="" # script putting the scalars the page changed back (runs when the page is left)
 declare -gi _SHL_RECORD=0    # 1 while tui.cache.record builds a page of a shell: the delta is taken before on_visit runs
 declare -gi _SHL_SOFT=0      # 1 while tui.goto swaps pages inside a live shell (the store then only saves/restores page ids)
+declare -gi _SHL_LEFT=0      # 1 once _tui_shell.leave_page has run and no page was built since: leaving again finds nothing
+declare -g _SHL_LEFT_SIG=""  # widget and pane count right after that leave: a page built into the outlet changes one of them
 declare -ga _SHL_TIMERS=() _SHL_WATCH=()
 declare -gA _SHL_BINDS=()
 declare -g _SH_OF=""
@@ -144,6 +146,7 @@ _tui_shell.collect_ids() {
 # the outlet stands in the shell, so tab order follows the document order of shell and page together.
 _tui_shell.build_page() {
 	local node="$1" kept=${#_TUI_W_ORDER[@]} at=$_TUI_SHELL_AT
+	_SHL_LEFT=0
 	_TUI_BUILD_CTX_PANE=""
 	_TUI_BUILD_CTX_ROW=0
 	_tui_build.pane_kids "$_TUI_OUTLET" "$node" "$_TUI_OUTLET_SPLIT" "" "" "" "" "" "" "" 1
@@ -168,7 +171,10 @@ _tui_shell.leave_page() {
 	local id k o="$_TUI_OUTLET"
 	local -a keep=() wl=() pl=() ids=()
 	local -A gone=()
-	_tui_shell.sync_page_ids
+	# left already and nothing built since (apply and build_page clear the flag; the counts catch a widget or pane made by hand)
+	((_SHL_LEFT)) && [[ "${#_TUI_W_ORDER[@]}:${#_TUI_P_ALL[@]}" == "$_SHL_LEFT_SIG" && -z "$_TUI_PAGE_UNDO" ]] && return 0
+	[[ "${1:-}" == synced ]] || _tui_shell.sync_page_ids # tui.goto has synced a moment ago and says so
+	((_SHL_LEFT && ${#_TUI_PAGE_IDS[@]} == 0)) && [[ -z "$_TUI_PAGE_UNDO" ]] && return 0
 	for k in "${!_EXEC_STATUS[@]}"; do # exec instances die with their page, like in tui.reset_ui
 		[[ -n "${_TUI_PAGE_IDS[${_EXEC_OUT_PANE[$k]:-}]+x}" || -n "${_TUI_PAGE_IDS[${_EXEC_CTL_PANE[$k]:-}]+x}" ]] || continue
 		_exec_dismiss_instance "$k"
@@ -218,6 +224,8 @@ _tui_shell.leave_page() {
 	_tui._collect_leaves root
 	_tui_w.changed
 	_tui.epoch_bump layout
+	_SHL_LEFT=1
+	_SHL_LEFT_SIG="${#_TUI_W_ORDER[@]}:${#_TUI_P_ALL[@]}"
 }
 
 # ── the page's cache entry: a delta over the shell ─────────────────────────
@@ -361,6 +369,7 @@ _tui_shell.drop_base() {
 # _tui_shell.apply FILE - the cached page delta of FILE onto the live shell
 _tui_shell.apply() {
 	local f="$1"
+	_SHL_LEFT=0
 	eval "${_TUI_CACHE_PAGE[$f]}"
 	_TUI_PAGE_UNDO="${_TUI_CACHE_PAGEUNDO[$f]:-}"
 	_TUI_P_ALL=()

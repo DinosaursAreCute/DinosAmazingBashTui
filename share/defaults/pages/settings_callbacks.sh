@@ -89,7 +89,7 @@ _dset_build() {
 
 	_dset_add input retain "Keep focus in an input after Enter" toggle "After Enter the input keeps focus so you can type the next line."
 	_dset_add input coalesce "Merge fast repeated scroll events" toggle "Fast wheel or key repeats are merged into one scroll step per frame."
-	_dset_add input pointer "Change the mouse pointer over widgets" toggle "Buttons and lists show a hand and text fields an I-beam. Themes can set `cursor:` per class. Needs a terminal with pointer shapes (kitty, foot, Ghostty, xterm); others ignore it."
+	_dset_add input pointer "Change the mouse pointer over widgets" toggle "Buttons and lists show a hand and text fields an I-beam. Themes can set \`cursor:\` per class. Needs a terminal with pointer shapes (kitty, foot, Ghostty, xterm); others ignore it."
 	_dset_add input confirmq "Ask before quitting" toggle "Shows a confirmation before the app quits."
 	_dset_add input tsfree "Free terminal shortcuts while DABT runs" toggle "Needs the *Terminal shortcuts* plugin: hands ctrl+c, ctrl+z and friends back to the terminal's own bindings while DABT runs."
 

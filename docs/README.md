@@ -45,6 +45,8 @@ This page is the map: how the framework is put together, and where to look for w
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
 | Make pages and callbacks fast: budgets, fork-free callbacks, memoising, what the caches do | [guide/performance.md](guide/performance.md) |
 | Animate: timers, `tui.set_canvas`, background painters, why overlays do not flicker | [guide/animation.md](guide/animation.md) |
+| Fold, tab and detach panes; right-click menus | [guide/collapsible-panes.md](guide/collapsible-panes.md), [guide/tabs-detach-menus.md](guide/tabs-detach-menus.md) |
+| Show live output: processes, streams, charts and number series | [guide/live-output.md](guide/live-output.md), [guide/charts.md](guide/charts.md) |
 | Bind keys and mouse, use the command bar, footer, default pages | [guide/input-bindings.md](guide/input-bindings.md) |
 | Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
 | Show Markdown: the renderer, Settings > Markdown, themes, links, search, images | [guide/markdown.md](guide/markdown.md) |

@@ -33,12 +33,12 @@ Contents: [Anatomy](#anatomy) · [The entry script](#the-entry-script) · [Appli
 my_app/
 ├── .dabt.metadata           name, version, entry ... read by `dabt app install`
 ├── my_app.sh                entry script (the only thing that is executed)
-├── plugins/                 optional: plugins that belong to this app (discovered automatically)
 └── config/
     ├── home.xml  other.xml  pages
     ├── _templates.xml       parts every page shares (header, menu) as <template>s; a leading _ keeps it out of the page cache warm-up
     ├── home_callbacks.sh    functions for action= / submit= / on_visit=
     ├── theme.css            classes for class="..."
+    ├── plugins/             optional: this app's own plugins (looked up next to the first page)
     └── themes/*.css         optional app-wide theme overlays
 ```
 
@@ -180,6 +180,8 @@ on_add() {
 
 `tui.every`, `tui.clock`, `tui.watch`, `tui.monitor` and `tui.exec` share one tick listener. Add your own per-frame work with `tui.tick.add`, never by assigning `_TUI_TICK_FN`. Do not add direct `tui.render` calls in hot paths - `tui.update`/`tui.set_text` already redraw only what changed.
 
+More on live content: [live output](live-output.md), [charts](charts.md), [tabs, detach and menus](tabs-detach-menus.md), [collapsible panes](collapsible-panes.md).
+
 ## Input, commands, footer
 
 ```bash
@@ -209,7 +211,7 @@ Dialogs are asynchronous: the call returns immediately and your callback runs la
 
 ## Plugins in your app
 
-Every DABT app supports plugins with no code from you: user plugins in `~/.config/DABT/plugins/`, built-ins from `share/plugins/`, and your own from `<app folder>/plugins/` (discovered automatically; shown as source `app` in Settings > Plugins). Hooks you can rely on from your side: `init`, `ready`, `page FILE`, `resize`, `key NAME`, `quit`, `exit`. To disable plugins entirely set `TUI_NO_PLUGINS=1`. Writing plugins: [../tutorials/writing-your-first-plugin.md](../tutorials/writing-your-first-plugin.md), [plugins.md](plugins.md).
+Every DABT app supports plugins with no code from you: user plugins in `~/.config/DABT/plugins/`, built-ins from `share/plugins/`, and your own from `config/plugins/`, next to the first page (or any folder in `TUI_PLUGIN_DIRS`). They show as source `app` in Settings > Plugins. Hooks you can rely on from your side: `init`, `ready`, `page FILE`, `resize`, `key NAME`, `quit`, `exit`. To disable plugins entirely set `TUI_NO_PLUGINS=1`. Writing plugins: [../tutorials/writing-your-first-plugin.md](../tutorials/writing-your-first-plugin.md), [plugins.md](plugins.md).
 
 ## Packaging and distribution
 

@@ -157,3 +157,22 @@ Two things to know:
 
 - The factory constructors do not print their id (stdout is the screen): read it from `_TUI_FACTORY_LAST_ID` right after the call.
 - If the dynamic part can be written as markup with a `<for>` (a count and a template), prefer that and [`tui.page.refresh`](../api/core/tui.page.refresh.md): the structure stays in the page file and only the changed pane is rebuilt.
+
+### Forms built at run time
+
+The same constructors make a small form when the fields depend on data, for example a settings panel for whichever item is selected:
+
+```bash
+build_form() {
+  tui.factory.clear form                                    # drop the widgets of this namespace
+  tui.factory.label form form_pane 0 "$title"
+  tui.factory.input form form_pane 1 "0 to 2" "Temperature  " apply
+  TEMP_ID=$_TUI_FACTORY_LAST_ID                             # keep the generated id
+  tui.relayout                                              # the factory does not repaint
+}
+tui.update "$TEMP_ID" "$value"                              # values are refreshed without a rebuild
+```
+
+- Build once per subject and refresh the values afterwards. Clearing and laying out again cost about 50 ms in the Chatty app; updating values is cheap.
+- Everything created under a namespace is dropped on a page change.
+- A button written in markup can share the pane, on a row below the generated ones.

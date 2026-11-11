@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+- The Settings page no longer fails with `cursor:: command not found`. A backtick in a double-quoted description ran as a command, so every app showed an error toast and the pointer setting lost the words `` `cursor:` ``.
+
+### Documentation
+- New guides: [collapsible panes](docs/guide/collapsible-panes.md), [tabs, detach and menus](docs/guide/tabs-detach-menus.md), [live output](docs/guide/live-output.md) and [charts](docs/guide/charts.md), each with a Quirks and a Performance section.
+- Fast apps: new section 10, a long transcript or log, with measured redraw costs (5 ms for one message, 400 ms for a thousand) and the three fixes.
+- Input bindings: recalling earlier messages with up and down (`tui.hist` is a chart series, not input history). Widgets: glyph slots and variants. Animation: `tui.canvas.patch`. Markdown: copying in a chat-style app. Grids: forms built with `tui.factory`.
+- Markup rules: each element on its own line, and a pane that contains panes needs a `split`.
+- Tabs and menus guide: a detached pane draws widgets but not pane text, labels measure colour escapes, `alt+d` and friends belong to text inputs. Live output guide: a job spinner can leave the footer clipped (repaired with `tui.action.redraw`).
+- Sizes: a bare number in `height` / `width` is a share (like `weight`), not a cell count. An exact size is `clamp(N,N,N)`.
+- Plugins: an app's own plugin folder is next to its first page (`config/plugins/`); `TUI_PLUGIN_DIRS` moves it.
+- Widgets: `.list_sel` / `.table_sel` colour the selected row only while the widget has focus.
+- Markdown: how an app opts into the `theme` profile so `.md_*` rules apply.
+
 ## [0.0.28] - 2026-11-08
 
 ### News

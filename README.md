@@ -184,7 +184,7 @@ A text-pattern scan can be fooled, so **a clean report is not a guarantee.**
 
 </details>
 
-<h2 id="performance"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/headers/performance.svg" alt="performance" height="35"/></h2>
+<h2 id="performance"><img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/606b4ac39cf3efbe528fb9345d27b7b637e3b117/assets/headers/performance.svg" alt="performance" height="35"/></h2>
 
 <img src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/performance/hero.svg" alt="DABT, Textual and Bubble Tea compared on page switches, key presses, typing, dialogs, theme switches, idle CPU and memory" width="900"/>
 <br/>

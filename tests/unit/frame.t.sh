@@ -529,3 +529,29 @@ t_frame_edge_left_title_keeps_the_thin_dash_for_builtin_styles() {
 	_tui_frame.edge tp top ╔ ╗ ═ 28 "cpu" tp_border ""
 	match "$_TUI_FRAME" '╔─'
 }
+
+# the side columns of a border are composed in one append per row, byte for byte what the per-call emits made
+ti_pane_border_side_columns_match_the_per_call_emits() {
+	tui.reset_ui
+	_TUI_P_ROW[bs]=3 _TUI_P_COL[bs]=7 _TUI_P_H[bs]=9 _TUI_P_W[bs]=25 _TUI_P_BORDER[bs]=single _TUI_P_TITLE[bs]=""
+	_TUI_P_ALL+=(bs)
+	local want="" row r=3 c=7 w=25 h=9 saved="$_TUI_FRAME"
+	_TUI_FRAME=""
+	for ((row = 1; row < h - 1; row++)); do
+		_tui.emit_goto $((r + row)) "$c"
+		_tui.emit_ring bs_border bs_border bs
+		_tui.emit "│"
+		_tui.emit_reset
+		_tui.emit_goto $((r + row)) $((c + w - 1))
+		_tui.emit_ring bs_border bs_border bs
+		_tui.emit "│"
+		_tui.emit_reset
+	done
+	want="$_TUI_FRAME"
+	_TUI_FRAME=""
+	_tui._draw_pane_border_buf bs
+	local got="$_TUI_FRAME"
+	_TUI_FRAME="$saved"
+	[[ "$got" == *"$want"* ]]
+	eq "0" "$?"
+}

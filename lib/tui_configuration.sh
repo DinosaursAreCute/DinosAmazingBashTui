@@ -61,6 +61,11 @@ declare -gi TUI_CACHE_LAZY_WORKERS="${TUI_CACHE_LAZY_WORKERS:-12}"
 # 0=they are prepared for every page before the first page is built
 declare -gi TUI_CACHE_LAZY_PREP="${TUI_CACHE_LAZY_PREP:-1}"
 
+# milliseconds the terminal must stay at one size before the background pool re-fits the cached pages to it (a window drag
+# is a burst of sizes: only the last one matters); 0=never re-fit, and no pool driver is started when nothing is to be
+# built at start-up; needs TUI_CACHE_LAZY=1
+declare -gi TUI_CACHE_RESIZE_DEBOUNCE_MS="${TUI_CACHE_RESIZE_DEBOUNCE_MS:-300}"
+
 # nice value of the background pool, so the app's own input wins the cores while it builds; 0=same priority as the app
 declare -gi TUI_CACHE_LAZY_NICE="${TUI_CACHE_LAZY_NICE:-10}"
 

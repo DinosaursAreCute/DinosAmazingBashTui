@@ -319,3 +319,106 @@ ti_shell_page_replayed_from_the_cache_still_carries_what_a_refresh_needs() {
 	ok '[[ -n "${_TUI_P_SIG_OWN[pb_main]:-}" && -z "${_TUI_P_SIG_OWN[pa_main]:-}" || -n "${_TUI_P_SIG_OWN[pb_main]:-}" ]]'
 	eq "" "$(<"$_SHD/err")"
 }
+
+# a page of a shell re-fitted by the cache pool equals the page replayed at the new size: same panes, and its recorded
+# outlet needs no relayout
+ti_shell_a_refit_page_replays_like_a_relayout_at_the_new_size() {
+	_t_needs_caches || return 0
+	_sh_setup
+	local pa="$_SHD/pa.xml" g="$_SHD/gen" sig geo_before h_expected w_expected
+	_sh_go pa.xml # recorded at 24x80
+	sig="${_TUI_CACHE_SIG[$pa]}"
+	_TUI_ROWS=50 _TUI_COLS=160 _TERM_SIZE="50 160"
+	_tui._root_w
+	_tui._root_h
+	tui.reset_ui
+	tui.cache.replay "$pa"
+	h_expected="${_TUI_P_H[pa_main]}" w_expected="${_TUI_P_W[pa_main]}"
+	_tui_shell.geometry
+	geo_before="$_SH_GEO"
+	mkdir -p "$g/cache"
+	(_tui_cache_refresh_job "$pa" "$g" "$g/report" "1 " "$sig")
+	eq "DONE 1 $pa" "$(<"$g/report")"
+	_TUI_LAZY_ROOT="$_SHD/lazyroot" _TUI_LAZY_GEN=7 _TUI_LAZY_PENDING=("$pa") _TUI_LAZY_REFRESH=([$pa]=1)
+	mkdir -p "$_TUI_LAZY_ROOT/g7/cache"
+	cp "$g/cache/${pa//\//_}.rsnap" "$_TUI_LAZY_ROOT/g7/cache/"
+	_tui_cache_lazy.poll
+	eq "50 160" "${_TUI_CACHE_SIZE[$pa]}"
+	eq "$geo_before" "${_TUI_CACHE_PAGEGEO[$pa]}"
+	tui.reset_ui
+	tui.cache.replay "$pa"
+	eq "$h_expected $w_expected" "${_TUI_P_H[pa_main]} ${_TUI_P_W[pa_main]}"
+	eq "pa_main" "${_TUI_P_CHILDREN[body]}"
+	_TUI_LAZY_ROOT="" _TUI_LAZY_PENDING=() _TUI_LAZY_REFRESH=() _TERM_SIZE=""
+	tui.tick.remove _tui_cache_lazy.poll
+}
+
+# leaving a page twice in a row does the work once: tui.goto leaves the old page, and the replay or the build that follows
+# starts by leaving whatever page is there - which is nothing
+_sh_count_leaves() { # CMD... -> _SH_LEAVES: how many times CMD ran the full leave (it always ends in _tui_modal.reset)
+	_SH_LEAVES=0
+	local saved
+	saved="$(declare -f _tui_modal.reset)"
+	_tui_modal.reset() { ((_SH_LEAVES++)); }
+	"$@"
+	eval "$saved"
+}
+
+ti_shell_leaving_an_already_left_page_does_nothing() {
+	_sh_setup
+	_sh_go pa.xml
+	_sh_count_leaves _tui_shell.leave_page
+	eq "1" "$_SH_LEAVES"
+	_sh_count_leaves _tui_shell.leave_page
+	eq "0" "$_SH_LEAVES"
+	_sh_go pb.xml # a page is built again: the next leave is real
+	_sh_count_leaves _tui_shell.leave_page
+	eq "1" "$_SH_LEAVES"
+}
+
+ti_shell_a_goto_between_pages_of_a_shell_leaves_once() {
+	_sh_setup
+	_sh_go pa.xml
+	_sh_go pb.xml # recorded and cached
+	_sh_go pa.xml
+	_TUI_RUNNING=1
+	_sh_count_leaves _sh_go pb.xml
+	_TUI_RUNNING=0
+	eq "1" "$_SH_LEAVES"
+	eq "pb_main" "${_TUI_P_CHILDREN[body]}"
+	eq "search pb_btn quit" "${_TUI_W_ORDER[*]}"
+}
+
+# the page's ids are synced when something may have changed them, not again right after: a goto between cached pages of
+# a shell syncs once before it leaves the page and once after the page's on_visit
+ti_shell_a_goto_between_pages_of_a_shell_syncs_the_page_ids_twice() {
+	_sh_setup
+	_sh_go pa.xml
+	_sh_go pb.xml
+	_sh_go pa.xml
+	_TUI_RUNNING=1
+	local saved
+	saved="$(declare -f _tui_shell.sync_page_ids)"
+	_SH_SYNCS=0
+	eval "_real_$saved"
+	eval "_real_sync_page_ids() $(declare -f _tui_shell.sync_page_ids | tail -n +2)"
+	_tui_shell.sync_page_ids() {
+		((_SH_SYNCS++))
+		_real_sync_page_ids
+	}
+	_sh_go pb.xml
+	eval "$saved"
+	_TUI_RUNNING=0
+	eq "2" "$_SH_SYNCS"
+	eq "pb_main" "${_TUI_P_CHILDREN[body]}"
+}
+
+# a widget made after the page was left is a page widget again: leaving finds it
+ti_shell_leaving_sees_a_widget_made_after_the_last_leave() {
+	_sh_setup
+	_sh_go pa.xml
+	_tui_shell.leave_page
+	tui.button late_btn body 5 "late" ""
+	_tui_shell.leave_page
+	ok '[[ -z "${_TUI_W_TYPE[late_btn]:-}" ]]'
+}

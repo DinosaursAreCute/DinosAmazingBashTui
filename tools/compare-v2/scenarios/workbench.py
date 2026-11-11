@@ -1,6 +1,6 @@
 """The workbench benchmark: five pages (Overview, Tasks, Notes, Logs, Settings) exercising a timer-driven progress animation, a filtered
 table with detail pane and confirm dialog, a markdown editor with live preview, a 2000-line list and a form. Spec: apps/workbench/SPEC.md.
-Everything after the page switches is keyboard driven, so both apps need no pixel-exact layout."""
+Page switches are timed three ways: click, the alt+<n> nav keys, and arrow keys + Enter in the menu; everything else is keyboard driven, so both apps need no pixel-exact layout."""
 import os
 import sys
 
@@ -30,6 +30,17 @@ def selected(n):
 
 def go(c, name, page, arrive=None):
     c.step(name, click(5, 2 + PAGES.index(page)), arrive or ARRIVE[page])
+
+
+def go_key(c, name, page, arrive=None):
+    """Switch page with its alt+<n> nav key (all three apps bind it): the fastest realistic way."""
+    c.step(name, alt(str(1 + PAGES.index(page))), arrive or ARRIVE[page])
+
+
+def go_arrows(c, name, page, arrive=None):
+    """Switch page through the menu with the keyboard only: alt+0 focuses the first menu button, Down walks to the page's button, Enter presses it.
+    One step, sent as held-key repeats, so the time covers the whole way a keyboard user takes."""
+    c.step(name, [alt("0")] + [DOWN] * PAGES.index(page) + [ENTER], arrive or ARRIVE[page], gap_ms=HELD_KEY_MS)
 
 
 @scenario("workbench", ready="Page 1: Overview", title="Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form", apps=("wb-dabt", "wb-dabt-plain", "wb-dabt-unthemed", "wb-textual", "wb-bubbletea"), default_apps=("wb-dabt", "wb-textual", "wb-bubbletea"))
@@ -85,6 +96,9 @@ def workbench(c):
     # -- revisit: every page again (DABT: page cache; Textual: screen rebuild) ----------------------------
     for page in ("overview", "tasks", "notes", "settings", "admin"):
         go(c, f"revisit.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
-    c.pause(5)  # untimed: DABT's background page-cache rebuild after the theme switch has to finish, or "idle" measures that work
+    for page in ("overview", "tasks", "notes", "settings", "admin"):
+        go_key(c, f"revisit.key.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
+    for page in ("overview", "tasks", "notes", "settings", "admin"):
+        go_arrows(c, f"revisit.arrows.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
     c.idle("idle.3s", 3)
     c.memory("memory")

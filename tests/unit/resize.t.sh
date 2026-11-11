@@ -64,3 +64,41 @@ t_init_installs_the_winch_trap_before_the_first_render_can_happen() {
 	# terminal control codes - checking its body is the host-independent way.)
 	match "$(declare -f tui.init)" "trap 'tui\.on_resize' WINCH"
 }
+
+# a pane's parent is remembered: the footer asks for it for every ancestor of the focused pane on each build, and finding it
+# scans every pane of the page. The remembered parent is checked against the children list, so a pane that moved is found again.
+t_resize_parent_is_remembered_and_checked_against_the_children() {
+	tui.reset_ui
+	tui.hsplit root a b
+	_tui_resize.parent a
+	eq "root 0 2" "$_RZ_P $_RZ_I $_RZ_N"
+	local all=("${_TUI_P_ALL[@]}")
+	_TUI_P_ALL=() # no scan is possible now: the answer comes from memory
+	_RZ_P="" _RZ_I="" _RZ_N=""
+	_tui_resize.parent a
+	eq "0 root 0 2" "$? $_RZ_P $_RZ_I $_RZ_N"
+	_TUI_P_ALL=("${all[@]}")
+	_TUI_P_CHILDREN[root]="b a" # a moved within its parent
+	_tui_resize.parent a
+	eq "root 1 2" "$_RZ_P $_RZ_I $_RZ_N"
+	_TUI_P_CHILDREN[root]="b" _TUI_P_CHILDREN[b]="a" # a moved under b
+	_tui_resize.parent a
+	eq "b 0 1" "$_RZ_P $_RZ_I $_RZ_N"
+	_TUI_P_CHILDREN[b]=""
+	_tui_resize.parent a
+	eq "1" "$?"
+}
+
+# the root has no parent, and the walk up from any pane ends there every time: that miss is remembered too, until the layout changes
+t_resize_parent_miss_is_remembered_until_the_layout_changes() {
+	tui.reset_ui
+	tui.hsplit root a b
+	_tui_resize.parent root
+	eq "1" "$?"
+	_TUI_P_CHILDREN[a]="root" # root is a child now, but no layout change was announced: the remembered miss stands
+	_tui_resize.parent root
+	eq "1" "$?"
+	_tui.epoch_bump layout
+	_tui_resize.parent root
+	eq "0 a" "$? $_RZ_P"
+}

@@ -81,7 +81,7 @@ tui.action.collapse_toggle() {
 	local p
 	_tui_input.pane_current
 	p="$_PC"
-	while [[ -n "$p" && -z "${_TUI_P_COLLAPSIBLE[$p]:-}" ]]; do _tui_resize.parent "$p" && p="$_RZ_P" || p=""; done
+	while [[ -n "$p" && -z "${_TUI_P_COLLAPSIBLE[$p]:-}" ]]; do _tui_resize.parent_of "$p" && p="$_RZ_P" || p=""; done
 	[[ -n "$p" ]] || return 1
 	tui.collapse "$p" toggle
 	[[ -n "${_TUI_P_COLLAPSED[$p]:-}" ]] && _TUI_PANE_FOCUS="$p"
@@ -134,7 +134,7 @@ _tui_collapse.focus_pane() {
 	local p
 	_tui_input.pane_current
 	p="$_PC"
-	while [[ -n "$p" && -z "${_TUI_P_COLLAPSIBLE[$p]:-}" ]]; do _tui_resize.parent "$p" && p="$_RZ_P" || p=""; done
+	while [[ -n "$p" && -z "${_TUI_P_COLLAPSIBLE[$p]:-}" ]]; do _tui_resize.parent_of "$p" && p="$_RZ_P" || p=""; done
 	[[ -n "$p" ]] || return 1
 	_CL_P="$p"
 }

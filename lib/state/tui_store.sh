@@ -505,7 +505,7 @@ tui.page.resettable() {
 	((${#_TUI_P_WEIGHTS0[@]})) && return 0
 	_tui_store.active || return 1
 	_tui_store.page
-	_tui_store.ids
+	_tui_store.kept_ids # as save and restore: an id that keeps nothing has no field to differ
 	for id in "${_SIDS[@]}"; do
 		_tui_store.owner "$id"
 		_tui_store.fields "$id"

@@ -9,3 +9,4 @@ Reads pages written by [`tui.cache.dump_dir`](/api/markup/tui.cache.dump_dir.htm
 **Notes**
 
 - A missing `DIR` is not an error.
+- A file that was not written whole is skipped. The files of the older layout (twelve per page) are deleted the first time they are seen.

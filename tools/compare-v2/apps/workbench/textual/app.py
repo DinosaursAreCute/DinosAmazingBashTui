@@ -71,7 +71,7 @@ class ConfirmScreen(ModalScreen[bool]):
 
 
 class PageScreen(Screen):
-    BINDINGS = [chord(f"alt+{i}", f"goto('{p}')", t) for i, (p, t) in enumerate(
+    BINDINGS = [chord("alt+0", "focus_nav", "Menu")] + [chord(f"alt+{i}", f"goto('{p}')", t) for i, (p, t) in enumerate(
         [("overview", "Overview"), ("tasks", "Tasks"), ("notes", "Notes"), ("logs", "Logs"), ("settings", "Settings"), ("admin", "Admin")], 1)]
 
     def compose(self) -> ComposeResult:
@@ -85,6 +85,16 @@ class PageScreen(Screen):
 
     def on_mount(self) -> None:
         self.query_one("#nav").border_title = "Menu"
+
+    def action_focus_nav(self) -> None:
+        self.query_one("#nav_overview").focus()
+
+    def on_key(self, event) -> None:
+        """Up/Down move between the menu buttons while one has the focus (Enter then presses it)."""
+        f = self.focused
+        if f is not None and (f.id or "").startswith("nav_") and event.key in ("up", "down"):
+            (self.focus_previous if event.key == "up" else self.focus_next)()
+            event.stop()
 
     def action_goto(self, page: str) -> None:
         self.app.show(page)

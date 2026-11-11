@@ -77,6 +77,7 @@ type palette struct {
 
 type model struct {
 	w, h, navW, mainW int
+	navFocus          int // menu row holding the keyboard focus (alt+0), -1 when the page has it
 	th                theme
 	dark              bool
 	page              page
@@ -134,7 +135,7 @@ func staticInput(placeholder string) textinput.Model {
 }
 
 func newModel() *model {
-	m := &model{th: darkTheme, dark: true, jobState: "idle", saved: "nothing yet"}
+	m := &model{navFocus: -1, th: darkTheme, dark: true, jobState: "idle", saved: "nothing yet"}
 	m.bar = progress.New(progress.WithSolidFill(string(m.th.accent)))
 
 	m.tasks = makeTasks()
@@ -291,6 +292,7 @@ func (m *model) notify(msg string) tea.Cmd {
 
 func (m *model) goTo(p page) tea.Cmd {
 	m.page = p
+	m.navFocus = -1
 	m.notes.Blur()
 	m.filter.Blur()
 	m.name.Blur()
@@ -529,6 +531,25 @@ func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 		in.Width = 54
 		m.pal = &palette{in: in}
 		return m.pal.in.Focus()
+	}
+	if s == "alt+0" {
+		m.navFocus = 0
+		m.notes.Blur()
+		m.filter.Blur()
+		m.name.Blur()
+		return nil
+	}
+	if m.navFocus >= 0 {
+		switch s {
+		case "up":
+			m.navFocus = max(m.navFocus-1, 0)
+			return nil
+		case "down":
+			m.navFocus = min(m.navFocus+1, len(pageNames)-1)
+			return nil
+		case "enter":
+			return m.goTo(page(m.navFocus))
+		}
 	}
 	if len(s) == 5 && strings.HasPrefix(s, "alt+") && s[4] >= '1' && s[4] <= '6' {
 		return m.goTo(page(s[4] - '1'))
@@ -778,7 +799,7 @@ func (m *model) navView(bh int) []string {
 	var body []string
 	for i, n := range pageNames {
 		l := fit("  "+n, m.navW-4)
-		if page(i) == m.page {
+		if (m.navFocus < 0 && page(i) == m.page) || i == m.navFocus {
 			l = m.th.selected(l)
 		} else {
 			l = m.th.text(l)

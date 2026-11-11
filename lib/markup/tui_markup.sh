@@ -212,7 +212,7 @@ tui.reset_ui() {
 	_tui_collapse.clear
 	((_TUI_L_N)) && _tui_layer.clear
 	_tui_store.clear
-	_TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT="" _TUI_SHELL_AT=0 _TUI_SHELL_IDS=() _TUI_PAGE_IDS=() _TUI_PAGE_UNDO=""
+	_TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT="" _TUI_SHELL_AT=0 _TUI_SHELL_IDS=() _TUI_PAGE_IDS=() _TUI_PAGE_UNDO="" _SHL_LEFT=0
 	_TUI_P_STRICT_FIT=()
 	_TUI_P_EFFECTIVE_MINW=()
 	_TUI_P_EFFECTIVE_MINH=()
@@ -364,7 +364,7 @@ tui.goto() {
 		_tui_store.save_page
 		_tui_store.save_focus
 		_tui_store.flush_disk
-		_tui_shell.leave_page
+		_tui_shell.leave_page synced
 	else
 		_tui_store.save_page
 		_tui_store.save_focus

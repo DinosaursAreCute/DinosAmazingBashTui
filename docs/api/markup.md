@@ -39,16 +39,18 @@ Functions return `0` unless their entry says otherwise.
 
 A loaded page is recorded as the list of `tui.*` calls it made and replayed on later visits, as long as the page and its includes keep their mtimes. Why and how: [../design/write-ahead-logging-and-replay.md](../design/write-ahead-logging-and-replay.md). Cache keys are absolute, normalized paths.
 
-<!-- api: tui.cache.valid tui.cache.record tui.cache.replay tui.cache.signature tui.cache.deps_of tui.cache.dump_dir tui.cache.load_dir tui.cache.disk_dir tui.cache.fname tui.cache.encode tui.cache.decode tui.cache.warm_with_spinner tui.cache.cleanup -->
+<!-- api: tui.cache.valid tui.cache.is_sized tui.cache.record tui.cache.replay tui.cache.signature tui.cache.deps_of tui.cache.dump_dir tui.cache.dump_page tui.cache.load_dir tui.cache.disk_dir tui.cache.fname tui.cache.encode tui.cache.decode tui.cache.warm_with_spinner tui.cache.cleanup -->
 
 | Function | Summary |
 |---|---|
 | [`tui.cache.valid`](markup/tui.cache.valid.md) | Returns `0` when `FILE` has a recorded page and neither it nor any of its includes changed since, else `1`. |
+| [`tui.cache.is_sized`](markup/tui.cache.is_sized.md) | Returns `0` when the cached geometry of `FILE` was laid out for the current terminal size, else `1`. |
 | [`tui.cache.record`](markup/tui.cache.record.md) | Loads `FILE` with recording on and stores the call log and a signature of its files. |
 | [`tui.cache.replay`](markup/tui.cache.replay.md) | Rebuilds a page by replaying its recorded call log. Returns `1` when nothing is recorded for `FILE`. |
 | [`tui.cache.signature`](markup/tui.cache.signature.md) | Prints `path=mtime;` for every file, sorted by path, as one line without a newline. Used as the cache validity key. |
 | [`tui.cache.deps_of`](markup/tui.cache.deps_of.md) | Appends `FILE` and every file it includes, recursively, to the array named `ARRAY_NAME`, as absolute paths. |
-| [`tui.cache.dump_dir`](markup/tui.cache.dump_dir.md) | Writes every recorded page to `DIR`, three files per page (`.key`, `.cache`, `.sig`). |
+| [`tui.cache.dump_dir`](markup/tui.cache.dump_dir.md) | Writes every recorded page to `DIR`, one file per page (see `tui.cache.dump_page`). |
+| [`tui.cache.dump_page`](markup/tui.cache.dump_page.md) | Writes the recorded page `KEY` to `DIR/<fname>.page`, one file holding the whole entry. `DIR` defaults to the disk cache the background pool persists into. |
 | [`tui.cache.load_dir`](markup/tui.cache.load_dir.md) | Reads pages written by [`tui.cache.dump_dir`](/api/markup/tui.cache.dump_dir.html) and drops every entry that is no longer valid. |
 | [`tui.cache.disk_dir`](markup/tui.cache.disk_dir.md) | Prints the folder of the persistent page cache, `$TUI_HOME/cache/pages`, without a newline. |
 | [`tui.cache.fname`](markup/tui.cache.fname.md) | The filesystem-safe encoding of a cache key: every `/` becomes `_`. Used to name the files `tui.cache.dump_dir`/`tui.cache.warm_with_spinner`'s worker pool write per page. |
@@ -61,6 +63,8 @@ A loaded page is recorded as the list of `tui.*` calls it made and replayed on l
 
 {% include_relative markup/tui.cache.valid.md %}
 
+{% include_relative markup/tui.cache.is_sized.md %}
+
 {% include_relative markup/tui.cache.record.md %}
 
 {% include_relative markup/tui.cache.replay.md %}
@@ -70,6 +74,8 @@ A loaded page is recorded as the list of `tui.*` calls it made and replayed on l
 {% include_relative markup/tui.cache.deps_of.md %}
 
 {% include_relative markup/tui.cache.dump_dir.md %}
+
+{% include_relative markup/tui.cache.dump_page.md %}
 
 {% include_relative markup/tui.cache.load_dir.md %}
 

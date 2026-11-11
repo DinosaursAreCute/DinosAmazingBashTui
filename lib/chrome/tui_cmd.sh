@@ -77,10 +77,16 @@ tui.cmd.list() {
     done
 }
 
-# tui.cmd.load FILE - one <cmd .../> per line (same style as share/defaults/keybinds.xml)
+# tui.cmd.load FILE - one <cmd .../> per line (same style as share/defaults/keybinds.xml). The parse (seven regex reads per
+# line) is kept as a script of tui.cmd.add calls, $TUI_HOME/cache/commands/<file path>.v1.snap, replayed with one source while
+# the XML is not newer than it; bump the v1 when this parser changes what it produces. Without a TUI_HOME it parses every time.
 tui.cmd.load() {
-    local file="$1" line id title act group desc when key
+    local file="$1" line id title act group desc when key snap="" out="" q
     [[ -r "$file" ]] || { echo "tui.cmd.load: cannot read '$file'" >&2; return 1; }
+    if [[ -n "${TUI_HOME:-}" ]]; then
+        snap="$TUI_HOME/cache/commands/${file//\//_}.v1.snap"
+        [[ "$snap" -nt "$file" ]] && source "$snap" 2>/dev/null && return 0
+    fi
     while IFS= read -r line; do
         [[ "$line" == *"<cmd "* ]] || continue
         _tui_input.attr "$line" id;     id="$_ATTR"
@@ -97,7 +103,11 @@ tui.cmd.load() {
         [[ -n "$when" ]]  && fl+=(--when "$when")
         [[ -n "$key" ]]   && fl+=(--key "$key")
         tui.cmd.add "$id" "$title" "$act" "${fl[@]}"
+        printf -v q '%q ' tui.cmd.add "$id" "$title" "$act" "${fl[@]}"; out+="$q"$'\n'
     done < "$file"
+    [[ -n "$snap" ]] || return 0
+    mkdir -p "${snap%/*}" 2>/dev/null || return 0
+    printf '%s' "$out" >"$snap.$BASHPID" && mv -f "$snap.$BASHPID" "$snap" # whole, so a reader never sees half of it
 }
 
 # ── palette ─────────────────────────────────────────────────────────────

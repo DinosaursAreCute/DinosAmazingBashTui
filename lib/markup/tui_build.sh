@@ -797,7 +797,8 @@ tui_build.load() {
 	else
 		_tui_perf.begin parse
 		tui.parse.file "$file"
-		_TUI_P_RAW="$(tui_node.dump)" # the tree as written: tui.page.refresh starts from it instead of parsing again
+		tui_node.snapshot
+		_TUI_P_RAW=$_N_DUMP # the tree as written: tui.page.refresh starts from it instead of parsing again
 		tui_addon.apply "$_P_ROOT" "$file"
 		tui_compose.expand "$_P_ROOT"
 		_tui_perf.end parse

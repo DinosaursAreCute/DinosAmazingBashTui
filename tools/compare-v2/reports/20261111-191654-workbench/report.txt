@@ -1,0 +1,51 @@
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).                                │
+│ • 1-min load average is 5.22 on 16 CPUs: other work is competing.                                                                                  │
+│ • the app's CPUs are 24% busy before the run starts.                                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ compare-v2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ scenario   workbench — Workbench: animation, filtered table + dialog, markdown editor, 2000-line list, form                                        │
+│ app        DABT  DABT 0.0.28                                                                                                                       │
+│ app        Textual  Textual 8.2.8 / Python 3.14.9                                                                                                  │
+│ app        Bubble Tea  Bubble Tea v1.3.4 / go1.27.3-X:nodwarf5                                                                                     │
+│ run        1 rounds (+1 warm-up) · 150x45 · 149.9s · 2026-11-11 19:14:25                                                                           │
+│ machine    AMD Ryzen 7 2700X Eight-Core Processor · 16 CPUs · kernel 7.3.3-1-cachyos · governor schedutil · load 5.22 5.20 4.50                    │
+│ isolation  app on CPUs [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14] · harness on [7, 15] · python 3.14.9 · bash 5.3.20(1)-release · repo        │
+│            d7d0743+dirty                                                                                                                           │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚠ CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).
+⚠ 1-min load average is 5.22 on 16 CPUs: other work is competing.
+⚠ the app's CPUs are 24% busy before the run starts.
+⚠ only 1 measured rounds: confidence intervals are rough below ~8.
+✗ wb-textual round -1: AttributeError: 'Ctx' object has no attribute 'sleep'. Did you mean: 'step'?
+✗ wb-dabt round -1: AttributeError: 'Ctx' object has no attribute 'sleep'. Did you mean: 'step'?
+✗ wb-bubbletea round -1: AttributeError: 'Ctx' object has no attribute 'sleep'. Did you mean: 'step'?
+✗ wb-bubbletea round 0: AttributeError: 'Ctx' object has no attribute 'sleep'. Did you mean: 'step'?
+✗ wb-dabt round 0: AttributeError: 'Ctx' object has no attribute 'sleep'. Did you mean: 'step'?
+✗ wb-textual round 0: AttributeError: 'Ctx' object has no attribute 'sleep'. Did you mean: 'step'?
+╭─ summary ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+startup  (spawn → first correct frame)                                                                                             
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT             
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+interaction  (input → expected screen)                                                                                             
+step                app         done  median [95% CI]                      ready     CPU    written   paints   vs DABT             
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+how to read:  done = ms from the input to the LAST visible change of the screen; it is the number compared. ready = when the expected text first 
+showed.
+              paints = visible screen changes; CPU = app process tree incl. reaped children; written = bytes the app sent to the terminal.
+statistics:   one value per round (median of that round's samples); [lo–hi] = bootstrap 95% CI of the median across rounds; "vs" ratios
+              are medians of other/base with a bootstrap CI. "≈ same" = gap below the noise floor or < 5%; "unclear" = CI spans 1.
+flags:        ~ noisy (CV > 25%)   ° outlier rounds present (kept, never dropped)   k/n ok = rounds where the expected text appeared   stale! = 
+expectation was already true before the input
+method:       fresh process + HOME per round, warm-up rounds discarded, apps interleaved in shuffled order, pinned CPUs, output stamped when read and
+              replayed offline into a terminal emulator (synchronized updates honoured), terminal answers capability queries like a modern terminal.
+keys:         input arrives at human speed. Modified keys (alt+x, ctrl+x) are sent as a terminal would send them to that app: kitty CSI-u when the app
+              asked for the kitty keyboard protocol, the legacy ESC prefix otherwise (see the keys line in the header for what each app got).
+╭─ ⚠ skewed ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SKEWED RUN: do not quote these timings as real.                                                                                                    │
+│ • CPU governor is 'schedutil': frequency scaling adds run-to-run noise (use 'performance' for publishable numbers).                                │
+│ • 1-min load average is 5.22 on 16 CPUs: other work is competing.                                                                                  │
+│ • the app's CPUs are 24% busy before the run starts.                                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

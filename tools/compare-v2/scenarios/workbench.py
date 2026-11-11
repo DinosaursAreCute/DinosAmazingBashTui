@@ -100,5 +100,6 @@ def workbench(c):
         go_key(c, f"revisit.key.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
     for page in ("overview", "tasks", "notes", "settings", "admin"):
         go_arrows(c, f"revisit.arrows.{page}", page, {"tasks": "Rows: 199/199"}.get(page))
+    c.pause(5)
     c.idle("idle.3s", 3)
     c.memory("memory")

@@ -101,7 +101,6 @@ tui.errors.capture() {
 				set -x
 			fi
 			_TUI_ERR_ON=1
-			tui.tick.add _tui_errors.drain
 			;;
 		off)
 			((_TUI_ERR_ON)) || return 0

@@ -116,7 +116,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run", nargs="?")
     ap.add_argument("-o", "--out", default="all.svg")
-    ap.add_argument("-m", "--metric", default="ready_ms", choices=["ready_ms", "first_byte_ms", "first_paint_ms", "settled_ms"])
+    ap.add_argument("-m", "--metric", default="settled_ms", choices=["ready_ms", "first_byte_ms", "first_paint_ms", "settled_ms"])
     a = ap.parse_args()
     _, res = C.load(a.run)
     with open(a.out, "w") as f:

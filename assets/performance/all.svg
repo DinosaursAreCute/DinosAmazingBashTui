@@ -28,30 +28,30 @@
 <text x="199.2" y="508.1" font-size="12" font-weight="700" fill="#d7e0ea" text-anchor="end">Command palette</text>
 <line x1="480" y1="440" x2="268.9" y2="271.7" stroke="#22303f" stroke-width="1"/>
 <text x="254.8" y="264.4" font-size="12" font-weight="700" fill="#d7e0ea" text-anchor="end">Go back to a page</text>
-<polygon points="480.0,269.1 556.3,379.2 553.1,456.7 527.0,537.6 435.1,533.1 390.7,460.4 404.0,379.4" fill="#fff3a8" fill-opacity="0.13" stroke="#fff3a8" stroke-width="2.5" stroke-linejoin="round"/>
-<circle cx="480.0" cy="269.1" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Start the app: 67.4ms</title></circle>
-<circle cx="556.3" cy="379.2" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Switch page: 9.2ms</title></circle>
+<polygon points="480.0,268.9 557.0,378.6 553.1,456.7 527.0,537.6 435.0,533.4 390.4,460.4 390.8,368.9" fill="#fff3a8" fill-opacity="0.13" stroke="#fff3a8" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="480.0" cy="268.9" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Start the app: 67.7ms</title></circle>
+<circle cx="557.0" cy="378.6" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Switch page: 9.4ms</title></circle>
 <circle cx="553.1" cy="456.7" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Open a dialog: 5.0ms</title></circle>
 <circle cx="527.0" cy="537.6" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Resize the window: 12.3ms</title></circle>
-<circle cx="435.1" cy="533.1" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Switch theme: 10.7ms</title></circle>
-<circle cx="390.7" cy="460.4" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Command palette: 7.8ms</title></circle>
-<circle cx="404.0" cy="379.4" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Go back to a page: 9.1ms</title></circle>
-<polygon points="480.0,204.4 636.0,315.6 647.3,478.2 554.0,593.7 397.8,610.6 281.5,485.3 318.5,311.2" fill="#a8d8ff" fill-opacity="0.13" stroke="#a8d8ff" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="435.0" cy="533.4" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Switch theme: 10.8ms</title></circle>
+<circle cx="390.4" cy="460.4" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Command palette: 7.8ms</title></circle>
+<circle cx="390.8" cy="368.9" r="4" fill="#fff3a8"><title>Bubble Tea &#183; Go back to a page: 14.4ms</title></circle>
+<polygon points="480.0,204.4 653.0,302.1 659.5,481.0 554.0,593.7 397.8,610.6 276.0,486.6 303.4,299.2" fill="#a8d8ff" fill-opacity="0.13" stroke="#a8d8ff" stroke-width="2.5" stroke-linejoin="round"/>
 <circle cx="480.0" cy="204.4" r="4" fill="#a8d8ff"><title>Textual &#183; Start the app: 393ms</title></circle>
-<circle cx="636.0" cy="315.6" r="4" fill="#a8d8ff"><title>Textual &#183; Switch page: 147ms</title></circle>
-<circle cx="647.3" cy="478.2" r="4" fill="#a8d8ff"><title>Textual &#183; Open a dialog: 68.8ms</title></circle>
+<circle cx="653.0" cy="302.1" r="4" fill="#a8d8ff"><title>Textual &#183; Switch page: 265ms</title></circle>
+<circle cx="659.5" cy="481.0" r="4" fill="#a8d8ff"><title>Textual &#183; Open a dialog: 96.5ms</title></circle>
 <circle cx="554.0" cy="593.7" r="4" fill="#a8d8ff"><title>Textual &#183; Resize the window: 66.8ms</title></circle>
 <circle cx="397.8" cy="610.6" r="4" fill="#a8d8ff"><title>Textual &#183; Switch theme: 111ms</title></circle>
-<circle cx="281.5" cy="485.3" r="4" fill="#a8d8ff"><title>Textual &#183; Command palette: 164ms</title></circle>
-<circle cx="318.5" cy="311.2" r="4" fill="#a8d8ff"><title>Textual &#183; Go back to a page: 178ms</title></circle>
-<polygon points="480.0,196.8 621.8,326.9 614.6,470.7 565.5,617.6 402.2,601.6 335.2,473.0 353.0,338.7" fill="#ff8cbf" fill-opacity="0.13" stroke="#ff8cbf" stroke-width="2.5" stroke-linejoin="round"/>
-<circle cx="480.0" cy="196.8" r="4" fill="#ff8cbf"><title>DABT &#183; Start the app: 482ms</title></circle>
+<circle cx="276.0" cy="486.6" r="4" fill="#a8d8ff"><title>Textual &#183; Command palette: 192ms</title></circle>
+<circle cx="303.4" cy="299.2" r="4" fill="#a8d8ff"><title>Textual &#183; Go back to a page: 300ms</title></circle>
+<polygon points="480.0,194.5 621.8,326.9 614.6,470.7 565.5,617.6 402.2,601.6 335.2,473.0 351.0,337.2" fill="#ff8cbf" fill-opacity="0.13" stroke="#ff8cbf" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="480.0" cy="194.5" r="4" fill="#ff8cbf"><title>DABT &#183; Start the app: 514ms</title></circle>
 <circle cx="621.8" cy="326.9" r="4" fill="#ff8cbf"><title>DABT &#183; Switch page: 89.5ms</title></circle>
 <circle cx="614.6" cy="470.7" r="4" fill="#ff8cbf"><title>DABT &#183; Open a dialog: 27.6ms</title></circle>
 <circle cx="565.5" cy="617.6" r="4" fill="#ff8cbf"><title>DABT &#183; Resize the window: 138ms</title></circle>
 <circle cx="402.2" cy="601.6" r="4" fill="#ff8cbf"><title>DABT &#183; Switch theme: 85.0ms</title></circle>
 <circle cx="335.2" cy="473.0" r="4" fill="#ff8cbf"><title>DABT &#183; Command palette: 36.6ms</title></circle>
-<circle cx="353.0" cy="338.7" r="4" fill="#ff8cbf"><title>DABT &#183; Go back to a page: 53.5ms</title></circle>
+<circle cx="351.0" cy="337.2" r="4" fill="#ff8cbf"><title>DABT &#183; Go back to a page: 57.3ms</title></circle>
 <text x="32" y="780" font-size="12" fill="#8497ab">MEAN TIME PER INTERACTION &#183; mean of the steps in each area &#183; fastest in each row is bold</text>
 <rect x="276" y="798" width="14" height="10" fill="#ff8cbf"/><text x="330" y="808" font-size="12" font-weight="700" fill="#ff8cbf" text-anchor="end">DABT</text>
 <rect x="452" y="798" width="14" height="10" fill="#a8d8ff"/><text x="530" y="808" font-size="12" font-weight="700" fill="#a8d8ff" text-anchor="end">Textual</text>
@@ -59,19 +59,19 @@
 <rect x="32" y="816" width="896" height="1" fill="#22303f"/>
 <text x="32" y="840" font-size="12" fill="#d7e0ea">Start the app</text>
 <text x="928" y="840" font-size="11" fill="#8497ab" text-anchor="end">2 steps</text>
-<text x="330" y="840" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">482ms</text>
+<text x="330" y="840" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">514ms</text>
 <text x="530" y="840" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">393ms</text>
-<text x="730" y="840" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">67.4ms</text>
+<text x="730" y="840" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">67.7ms</text>
 <rect x="24" y="847" width="912" height="22" fill="#ffffff" opacity="0.025"/>
 <text x="32" y="862" font-size="12" fill="#d7e0ea">Switch page</text>
 <text x="928" y="862" font-size="11" fill="#8497ab" text-anchor="end">5 steps</text>
 <text x="330" y="862" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">89.5ms</text>
-<text x="530" y="862" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">147ms</text>
-<text x="730" y="862" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">9.2ms</text>
+<text x="530" y="862" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">265ms</text>
+<text x="730" y="862" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">9.4ms</text>
 <text x="32" y="884" font-size="12" fill="#d7e0ea">Open a dialog</text>
 <text x="928" y="884" font-size="11" fill="#8497ab" text-anchor="end">2 steps</text>
 <text x="330" y="884" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">27.6ms</text>
-<text x="530" y="884" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">68.8ms</text>
+<text x="530" y="884" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">96.5ms</text>
 <text x="730" y="884" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">5.0ms</text>
 <rect x="24" y="891" width="912" height="22" fill="#ffffff" opacity="0.025"/>
 <text x="32" y="906" font-size="12" fill="#d7e0ea">Resize the window</text>
@@ -83,16 +83,16 @@
 <text x="928" y="928" font-size="11" fill="#8497ab" text-anchor="end">2 steps</text>
 <text x="330" y="928" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">85.0ms</text>
 <text x="530" y="928" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">111ms</text>
-<text x="730" y="928" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">10.7ms</text>
+<text x="730" y="928" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">10.8ms</text>
 <rect x="24" y="935" width="912" height="22" fill="#ffffff" opacity="0.025"/>
 <text x="32" y="950" font-size="12" fill="#d7e0ea">Command palette</text>
 <text x="928" y="950" font-size="11" fill="#8497ab" text-anchor="end">3 steps</text>
 <text x="330" y="950" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">36.6ms</text>
-<text x="530" y="950" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">164ms</text>
+<text x="530" y="950" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">192ms</text>
 <text x="730" y="950" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">7.8ms</text>
 <text x="32" y="972" font-size="12" fill="#d7e0ea">Go back to a page</text>
 <text x="928" y="972" font-size="11" fill="#8497ab" text-anchor="end">15 steps</text>
-<text x="330" y="972" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">53.5ms</text>
-<text x="530" y="972" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">178ms</text>
-<text x="730" y="972" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">9.1ms</text>
+<text x="330" y="972" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">57.3ms</text>
+<text x="530" y="972" font-size="12" font-weight="400" fill="#8497ab" text-anchor="end">300ms</text>
+<text x="730" y="972" font-size="12" font-weight="800" fill="#fff3a8" text-anchor="end">14.4ms</text>
 </svg>

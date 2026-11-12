@@ -249,7 +249,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run", nargs="?", help="run dir or results.json (default: latest in reports/)")
     ap.add_argument("-o", "--out", help="output dir (default: <run>/charts)")
-    ap.add_argument("-m", "--metric", default="ready_ms", choices=["ready_ms", "first_byte_ms", "first_paint_ms", "settled_ms"])
+    ap.add_argument("-m", "--metric", default="settled_ms", choices=["ready_ms", "first_byte_ms", "first_paint_ms", "settled_ms"])
     a = ap.parse_args()
     path, res = load(a.run)
     out = a.out or os.path.join(os.path.dirname(path), "charts")

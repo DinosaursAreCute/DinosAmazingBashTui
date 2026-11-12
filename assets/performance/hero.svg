@@ -7,36 +7,36 @@
 <text x="32" y="50" font-size="22" font-weight="700" fill="#d7e0ea">FEELS INSTANT</text>
 <text x="32" y="74" font-size="13" fill="#8497ab">workbench &#183; mean time until the screen is final &#183; lower is better &#183; each group scaled to its slowest</text>
 <rect x="32" y="382" width="102" height="2" fill="#22303f"/>
-<rect x="32" y="260" width="30" height="122" fill="#ff8cbf"/>
-<text x="47.0" y="253" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">77ms</text>
+<rect x="32" y="314" width="30" height="68" fill="#ff8cbf"/>
+<text x="47.0" y="307" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">77ms</text>
 <rect x="68" y="132" width="30" height="250" fill="#a8d8ff"/>
-<text x="83.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">158ms</text>
-<rect x="104" y="369" width="30" height="13" fill="#fff3a8"/>
-<text x="119.0" y="362" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">8.2ms</text>
+<text x="83.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">284ms</text>
+<rect x="104" y="368" width="30" height="14" fill="#fff3a8"/>
+<text x="119.0" y="361" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">16ms</text>
 <text x="83.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">PAGE SWITCH</text>
 <rect x="160" y="382" width="102" height="2" fill="#22303f"/>
-<rect x="160" y="292" width="30" height="90" fill="#ff8cbf"/>
-<text x="175.0" y="285" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">13ms</text>
+<rect x="160" y="352" width="30" height="30" fill="#ff8cbf"/>
+<text x="175.0" y="345" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">13ms</text>
 <rect x="196" y="132" width="30" height="250" fill="#a8d8ff"/>
-<text x="211.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">37ms</text>
-<rect x="232" y="321" width="30" height="61" fill="#fff3a8"/>
-<text x="247.0" y="314" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">8.9ms</text>
+<text x="211.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">109ms</text>
+<rect x="232" y="361" width="30" height="21" fill="#fff3a8"/>
+<text x="247.0" y="354" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">9.0ms</text>
 <text x="211.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">KEY PRESS</text>
 <rect x="288" y="382" width="102" height="2" fill="#22303f"/>
-<rect x="288" y="231" width="30" height="151" fill="#ff8cbf"/>
-<text x="303.0" y="224" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">21ms</text>
+<rect x="288" y="240" width="30" height="142" fill="#ff8cbf"/>
+<text x="303.0" y="233" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">24ms</text>
 <rect x="324" y="132" width="30" height="250" fill="#a8d8ff"/>
-<text x="339.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">35ms</text>
-<rect x="360" y="330" width="30" height="52" fill="#fff3a8"/>
-<text x="375.0" y="323" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">7.3ms</text>
+<text x="339.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">43ms</text>
+<rect x="360" y="339" width="30" height="43" fill="#fff3a8"/>
+<text x="375.0" y="332" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">7.4ms</text>
 <text x="339.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">TYPING</text>
 <rect x="416" y="382" width="102" height="2" fill="#22303f"/>
-<rect x="416" y="325" width="30" height="57" fill="#ff8cbf"/>
-<text x="431.0" y="318" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">36ms</text>
+<rect x="416" y="333" width="30" height="49" fill="#ff8cbf"/>
+<text x="431.0" y="326" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">36ms</text>
 <rect x="452" y="132" width="30" height="250" fill="#a8d8ff"/>
-<text x="467.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">156ms</text>
-<rect x="488" y="371" width="30" height="11" fill="#fff3a8"/>
-<text x="503.0" y="364" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">7.0ms</text>
+<text x="467.0" y="125" font-size="10" font-weight="400" fill="#8497ab" text-anchor="middle">183ms</text>
+<rect x="488" y="372" width="30" height="10" fill="#fff3a8"/>
+<text x="503.0" y="365" font-size="10" font-weight="800" fill="#fff3a8" text-anchor="middle">7.0ms</text>
 <text x="467.0" y="404" font-size="11" font-weight="700" fill="#d7e0ea" text-anchor="middle">DIALOG + PALETTE</text>
 <rect x="544" y="382" width="102" height="2" fill="#22303f"/>
 <rect x="544" y="191" width="30" height="191" fill="#ff8cbf"/>

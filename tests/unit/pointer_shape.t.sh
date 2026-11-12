@@ -187,8 +187,8 @@ t_palette_query_is_text_and_rows_are_pointers() {
 ti_demo_menu_edge_shows_col_resize_through_the_real_pointer_path() {
 	local out
 	out=$( # a subshell: loading a page changes state the runner does not restore
-		tui.reset_ui
-		tui.load "$REPO/share/demo/layers.xml" 2>/dev/null
+		tui.reset_ui >/dev/null # reset_ui/load erase the screen on stdout: keep it out of the captured bytes
+		tui.load "$REPO/share/demo/layers.xml" >/dev/null 2>&1
 		tui.render >/dev/null
 		_ps_setup
 		_TUI_W_TYPE=()

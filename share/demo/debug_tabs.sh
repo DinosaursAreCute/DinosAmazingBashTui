@@ -6,3 +6,4 @@ dbg_tab_here() { :; }
 dbg_goto_input() { tui.goto "debug_input.xml"; }
 dbg_goto_events() { tui.goto "debug.xml"; }
 dbg_goto_lab() { tui.goto "debug_lab.xml"; }
+dbg_goto_console() { tui.goto "debug_console.xml"; }

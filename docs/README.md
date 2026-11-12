@@ -52,6 +52,7 @@ This page is the map: how the framework is put together, and where to look for w
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
 | Make pages and callbacks fast: budgets, fork-free callbacks, memoising, what the caches do | [guide/performance.md](guide/performance.md) |
+| Watch the framework while the app runs: `dabt --debug`, the status strip and the dev-tools dock | [guide/debugging.md](guide/debugging.md) |
 | Animate: timers, `tui.set_canvas`, background painters, why overlays do not flicker | [guide/animation.md](guide/animation.md) |
 | Fold, tab and detach panes; right-click menus | [guide/collapsible-panes.md](guide/collapsible-panes.md), [guide/tabs-detach-menus.md](guide/tabs-detach-menus.md) |
 | Show live output: processes, streams, charts and number series | [guide/live-output.md](guide/live-output.md), [guide/charts.md](guide/charts.md) |

@@ -116,6 +116,9 @@ declare -ga TUI_JOB_SPINNER_GLYPHS=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "�
 # Ring buffer size per timing span (higher = more history, higher memory use)
 declare -gi TUI_PERF_RING_MAX="${TUI_PERF_RING_MAX:-500}"
 
+# Debug mode (dabt --debug): events kept per ring buffer
+declare -gi TUI_DEBUG_RING_MAX="${TUI_DEBUG_RING_MAX:-500}"
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  WIDGET & INPUT BEHAVIOR DEFAULTS
 # ═══════════════════════════════════════════════════════════════════════════

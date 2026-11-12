@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# keybinds_callbacks.sh - DABT default Keybinds page. Only public tui.* calls.
+# keybinds_callbacks.sh - DABT default 	return 0
+}binds page. Only public tui.* calls.
 tui.require terminal_renderer
 
 _dkb_refresh() {
 	tui.bind.table
 	tui.set_text table "$_TBL"
-	return 0
-	local -a rows=("Scope|Key|Command|Note")
-	local scope key cmd note
-	while IFS=$'\t' read -r scope key cmd note; do rows+=("${scope}|${key}|${cmd}|${note:- }"); done < <(tui.bind.list)
-	tui.output table "$(printf '%b' "$(table_string -r "${rows[@]}")")"
 }
 
 _dkb_dirty() {
@@ -30,8 +26,8 @@ dkb_visit() {
 
 dkb_bind() {
 	local k a
-	k="$(tui.get inp_key)"
-	a="$(tui.get inp_action)"
+	tui.get inp_key k
+	tui.get inp_action a
 	if [[ -z "$k" || -z "$a" ]]; then
 		tui.update lbl_status "need both a key and an action"
 		return
@@ -47,7 +43,7 @@ dkb_bind() {
 }
 dkb_unbind() {
 	local k
-	k="$(tui.get inp_key)"
+	tui.get inp_key k
 	[[ -z "$k" ]] && {
 		tui.update lbl_status "type the key to unbind first"
 		return

@@ -18,8 +18,7 @@ tui.require terminal_renderer
 
 # ── Config, controlled live from the controls row ───────────────────────
 declare -g _MON_ENABLED_CPU=1 _MON_ENABLED_MEM=1 _MON_ENABLED_LOAD=1 _MON_ENABLED_DISK=1
-declare -g _MON_TICK_COUNT=0
-declare -g _MON_REFRESH_EVERY_TICKS=20 # ≈1s at the default 0.05s poll timeout
+declare -g _MON_REFRESH_S=1 # seconds between refreshes (a tui.every job)
 declare -g _MON_NPROC
 [[ -n "$_MON_NPROC" ]] || _MON_NPROC="$(nproc 2>/dev/null || echo 1)" # once per process: the script is re-sourced on every visit
 
@@ -27,7 +26,6 @@ declare -g _MON_NPROC
 # title/border each carries - tui.grid resets both on every pane it
 # (re)creates, "grid"'s own row/cell wrappers included, so a disabled
 # pane's title/border have to be reapplied by hand after each rebuild.
-declare -gA _MON_INTERVAL_S
 declare -ga _MON_PANE_ORDER=(cpu_pane mem_pane load_pane disk_pane)
 declare -gA _MON_PANE_TITLE=(
 	[cpu_pane]="CPU Cores - vbar"
@@ -454,14 +452,9 @@ _mon_refresh_all() {
 	_mon_refresh_load
 	_mon_refresh_disk
 
-	# the interval text only changes with the tick count or poll timeout: awk runs once per pair, not per refresh
-	local interval_s memo_key="$_MON_REFRESH_EVERY_TICKS|${TUI_INPUT_POLL_TIMEOUT:-0.05}" now
-	if [[ -z "${_MON_INTERVAL_S[$memo_key]+x}" ]]; then
-		_MON_INTERVAL_S[$memo_key]="$(awk -v t="$_MON_REFRESH_EVERY_TICKS" -v p="${TUI_INPUT_POLL_TIMEOUT:-0.05}" 'BEGIN{printf "%.2g", t*p}')"
-	fi
-	interval_s="${_MON_INTERVAL_S[$memo_key]}"
+	local now
 	printf -v now '%(%H:%M:%S)T' -1
-	_TUI_W_LABEL[lbl_mon_stamp]="Last refreshed: ${now}  (every ${interval_s}s)"
+	_TUI_W_LABEL[lbl_mon_stamp]="Last refreshed: ${now}  (every ${_MON_REFRESH_S}s)"
 	((_TUI_RUNNING)) && _tui._queue_render "header"
 }
 
@@ -500,11 +493,8 @@ on_monitor_set_interval() {
 	if [[ -z "$value" ]] || ! [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
 		value=1
 	fi
-	local ticks
-	ticks="$(awk -v s="$value" -v p="${TUI_INPUT_POLL_TIMEOUT:-0.05}" \
-		'BEGIN{t=int(s/p+0.5); if (t<1) t=1; print t}')"
-	_MON_REFRESH_EVERY_TICKS=$ticks
-	_MON_TICK_COUNT=0
+	_MON_REFRESH_S=$value
+	tui.every "$_MON_REFRESH_S" _mon_refresh_job mon_refresh_job
 	tui.set "inp_mon_interval" "$value"
 	local now
 	printf -v now '%(%H:%M:%S)T' -1
@@ -516,11 +506,9 @@ on_monitor_refresh() {
 	_mon_refresh_all
 }
 
-_mon_tick() {
-	((_MON_TICK_COUNT++))
-	((_MON_TICK_COUNT % _MON_REFRESH_EVERY_TICKS == 0)) && _mon_refresh_all
-}
-_TUI_TICK_FN="_mon_tick"
+_mon_refresh_job() { _mon_refresh_all; }
 
 # Prime all four panes once the page is laid out (on_visit runs after final layout).
-on_monitor_visit() { _mon_refresh_all; }
+on_monitor_visit() { # the job's first run (next tick) primes the panes, so no explicit refresh here
+	tui.every "$_MON_REFRESH_S" _mon_refresh_job mon_refresh_job
+}

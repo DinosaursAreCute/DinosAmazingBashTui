@@ -19,6 +19,7 @@
 # Each copied node remembers the templates it came from in its __via attribute; that is the recursion check.
 # requires:
 
+declare -ga _TC_PICK=()
 declare -gA _TC_TPL=() # template/component name -> its node (detached from the tree, children are the body)
 
 # tui_compose.expand ROOT - register every template/component under ROOT, then expand directives in document order.
@@ -121,7 +122,9 @@ _tui_compose.use() {
 	_OP_PARAMS=()
 	tui_ops.params "$tpl" name src __file __line
 	tui_ops.params "$n" template id
-	tui_ops.clone_all "$prefix" ${_N_KIDS[$tpl]:-}
+	_TC_PICK=()
+	_tui_compose.pick ${_N_KIDS[$tpl]:-}
+	tui_ops.clone_all "$prefix" "${_TC_PICK[@]}"
 	roots=("${_OP_CLONES[@]}")
 	tui_ops.subst_all "${roots[@]}"
 	for k in "${roots[@]}"; do tui_ops.insert before "$n" "$k"; done
@@ -142,6 +145,34 @@ _tui_compose.use() {
 	done
 	tui_ops.remove "$n"
 	return 0
+}
+
+# _tui_compose.pick N... -> _TC_PICK[] : N... with every <if> whose test the current _OP_PARAMS settle replaced by the
+# branch it keeps, so a template of N alternatives clones one alternative per use instead of cloning all N and dropping
+# N-1. An <if> with an id, or a test that still holds an unresolved {{@...}}, stays for _tui_compose.if.
+_tui_compose.pick() {
+	local n test name
+	local -a keep other
+	for n in "$@"; do
+		if [[ "${_N_TYPE[$n]}" != if || -n "${_N_ID[$n]:-}" ]]; then
+			_TC_PICK+=("$n")
+			continue
+		fi
+		test=""
+		tui_node.attr_get "$n" test && test="$_N_ATTR_V"
+		for name in "${!_OP_PARAMS[@]}"; do test="${test//"{{@$name}}"/"${_OP_PARAMS[$name]}"}"; done
+		if [[ "$test" == *"{{@"* ]]; then
+			_TC_PICK+=("$n")
+			continue
+		fi
+		keep=()
+		other=()
+		for name in ${_N_KIDS[$n]:-}; do
+			if [[ "${_N_TYPE[$name]}" == else ]]; then other+=(${_N_KIDS[$name]:-}); else keep+=("$name"); fi
+		done
+		_tui_compose.truthy "$test" || keep=("${other[@]}")
+		((${#keep[@]})) && _tui_compose.pick "${keep[@]}"
+	done
 }
 
 # _tui_compose.fill USE SLOT NAME - SLOT is replaced by what USE supplies for NAME (a <fill slot=NAME>, or for the

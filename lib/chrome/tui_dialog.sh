@@ -827,7 +827,7 @@ _tui_dialog.toast_draw() {
 		*) x=$((_TUI_COLS - w + 1)) ;;
 	esac
 	((x < 1)) && x=1
-	if ((atbottom)); then y=$((_TUI_ROWS - _TUI_FOOTER_ON)); else y=1; fi
+	if ((atbottom)); then y=$((_TUI_ROWS - _TUI_FOOTER_ON - _TUI_DBG_ROWS)); else y=1; fi
 	for ((i = n - 1; i >= 0; i--)); do # newest at the edge, older ones stack inward
 		case "${_TST_LVL[i]}" in
 			success)
@@ -855,7 +855,7 @@ _tui_dialog.toast_draw() {
 			((top < 1)) && break
 		else
 			top=$y
-			((top + h - 1 > _TUI_ROWS - _TUI_FOOTER_ON)) && break
+			((top + h - 1 > _TUI_ROWS - _TUI_FOOTER_ON - _TUI_DBG_ROWS)) && break
 		fi
 		printf -v line '%*s' "$((w - 2))" ''
 		out+="${sgr}"$'\e['"${top};${x}H┌${line// /─}┐"

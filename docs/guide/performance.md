@@ -178,7 +178,7 @@ Text derived from a setting that changes rarely (a refresh interval, a label) do
 
 ## 7. Timers, ticks and background work
 
-- A tick callback runs every iteration of the main loop. Keep it to a few builtins, and do the real work every N ticks (`_mon_tick` refreshes every 20 ticks). Make the work fork-free (section 4).
+- **Prefer `tui.every SEC FN ID` over `_TUI_TICK_FN` or a tick counter.** A tick callback runs on every iteration of the main loop (20 times a second at the default poll), so "do the work every N ticks" pays a call per iteration just to count, ties the interval to the poll rate, and its widget updates are not batched. A `tui.every` job fires on wall-clock time, runs inside the batch that draws each touched widget once, and is removed when the page is left (pattern 14.1). Make the work fork-free (section 4).
 - `tui.every SEC FN ID` and `tui.after` are cheaper than a polling loop in a tick callback. Always cancel with `tui.every.cancel` when the page is left; a leaked timer is permanent idle cost.
 - **Slow work goes to `tui.job.run`.** It runs in a separate process, so it may fork as much as it likes; the main loop stays free for keys and the mouse, shows a spinner when the work passes 100 ms (`--delay` changes that) and calls your done function, the one place the result is drawn, when it is finished. Nothing appears half-finished. `tui.page.rebuild` is the same idea for a whole page.
 - Nothing should repaint while the app is idle. A clock that updates once per second is fine; a blinking cursor or an animation timer is not. Idle must stay under 2 repaints per second.
@@ -233,7 +233,7 @@ Before you ship a page, run the profiler on it and check:
 - [ ] Static output is memoised on every input that affects it; `declare -gA memo` without `=()`.
 - [ ] Nothing expensive at the top level of a `<script>` (it runs on every visit).
 - [ ] No `${expr}` text in widgets that redraw often; no `tui.style` in tick callbacks.
-- [ ] Timers started on visit are cancelled on leave; the page repaints nothing while idle.
+- [ ] Timers started on visit are cancelled on leave; the page repaints nothing while idle (a periodic refresh is a `tui.every` job, not a tick counter; recomputed values go through `tui.update_changed` or `tui.set_text`).
 - [ ] Pane count and nesting are no more than the layout needs; the menu width matches the other pages.
 - [ ] Old and new output compared byte for byte after any refactor of rendering code.
 - [ ] Before and after profiler numbers recorded for anything you call an optimisation.
@@ -280,7 +280,80 @@ A held key repeats about every 33 ms, so each press has a third of the 100 ms bu
 - **Measure held keys at the real repeat rate:** `tools/profiler/profile.sh --scenario held`. Lag is key sent to first output; judge the worst press.
 - **`tui.set` stores a value, `tui.update` stores it and redraws.** A visit callback that calls `tui.set` on a visible checkbox or input shows the old state until the next hover; use `tui.update`.
 
-## 10. A long transcript or log
+## 14. Copy-paste patterns
+
+Each pattern is the shape the demo callbacks use. They are small enough to paste and adapt; where one would be long to write by hand, the framework has a function for it.
+
+### 14.1 Refresh something every second
+
+```bash
+refresh_stats() {                       # called as: refresh_stats JOB_ID
+    tui.sys.cpu
+    tui.update_changed lbl_cpu "CPU ${TUI_SYS_CPU}%"
+}
+on_stats_visit() { tui.every 1 refresh_stats stats_job; }
+```
+
+- Not `_TUI_TICK_FN` with a counter (`((++n % 20 == 0)) && refresh`): that calls your function 20 times a second to count, and its updates are not batched.
+- The job runs on wall-clock time, so a slow poll rate does not stretch it. Updates inside it are drawn once, together, after it returns.
+- It is removed when the page is left. Calling `tui.every` again with the same ID changes the interval (the monitor page does this when you type a new interval); there is never a second job.
+- To stop it earlier, `tui.every.cancel stats_job`.
+
+### 14.2 Update only what changed
+
+```bash
+tick() {
+    tui.update_changed lbl_status "$text"   # widget: nothing is drawn when the value is the same
+    tui.set_text log_pane "$log"            # pane: same rule, built in
+}
+```
+
+`tui.update` always draws. A poll that recomputes the same text three times a second repaints three times a second for nothing. `tui.update_changed` costs one string comparison when nothing changed. Panes already skip unchanged text in `tui.set_text`. Use `tui.update` when the screen may be stale (the value was set with `tui.set`, which stores without drawing).
+
+### 14.3 Read values without a subshell
+
+```bash
+tui.get inp_name name                     # not: name="$(tui.get inp_name)"
+tui.config.get confirm.quit 0 current     # not: current="$(tui.config.get confirm.quit 0)"
+tui.capture state tui.plugin.get "$n" state   # any other command that prints one value
+```
+
+Every `$( )` in a click handler costs about 1.3 ms. Three of them in one handler (a plugin menu did this) is a visible hitch on a held key.
+
+### 14.4 Turn a condition into a word
+
+```bash
+state=off
+[[ ${ST[clock]} == 1 ]] && state=on
+tui.notify "clock $state" info 2
+# not: "clock $([[ ${ST[clock]} == 1 ]] && echo on || echo off)"
+```
+
+### 14.5 Keep counters and progress in variables
+
+```bash
+declare -gi _JOB_PCT=0
+job_step() {
+    ((_JOB_PCT += 4))
+    tui.progress.set prog "$_JOB_PCT"       # not: read the widget back, add 4, write it
+    ((_JOB_PCT >= 100)) && tui.every.cancel job_timer
+}
+```
+
+The widget is for the screen; the variable is the state. Reading the widget back costs a capture per step and ties your logic to what is drawn.
+
+### 14.6 Several lines of text without `printf '%s\n' | `
+
+```bash
+printf -v text '%s\n' "${lines[@]}"
+tui.output pane "${text%$'\n'}"            # one trailing newline off, as $( ) did
+```
+
+### 14.7 An idle page repaints nothing
+
+An animation (the Home page types its title and blinks a cursor) is a deliberate exception and should end when it is done. Everything else should show 0 repaints a second when no key is pressed: poll with `tui.every`, compare before drawing (14.2), and let a `tui.every` job end by `tui.every.cancel` when its work is finished.
+
+## 15. A long transcript or log
 
 `tui.md.show` renders **all** of the text every time it is called, so a view that is redrawn often gets slower as it grows. Measured in the Chatty app (a streamed answer redrawing the transcript, development machine):
 

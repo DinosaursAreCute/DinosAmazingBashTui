@@ -223,12 +223,16 @@ on_clock_toggle() {
 	tui.capture ST[clock] tui.get chk_clock
 	_st_save
 	_st_clock
-	_st_toast "clock $([[ ${ST[clock]} == 1 ]] && echo on || echo off)"
+	local state=off
+	[[ ${ST[clock]} == 1 ]] && state=on
+	_st_toast "clock $state"
 }
 on_notify_toggle() {
 	tui.capture ST[notify] tui.get chk_notify
 	_st_save
-	tui.notify "Notifications $([[ ${ST[notify]} == 1 ]] && echo on || echo off)" info 2
+	local state=off
+	[[ ${ST[notify]} == 1 ]] && state=on
+	tui.notify "Notifications $state" info 2
 }
 
 on_reset() { tui.confirm "Reset theme, border, padding, font and every other setting to its default?" st_do_reset --danger --yes Reset --no Keep --title "Reset settings"; }

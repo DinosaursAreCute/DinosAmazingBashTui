@@ -14,11 +14,12 @@ _plg_human() {
 }
 
 _plg_fill() {
-	local keep="${1:-0}" n st v src title
+	local keep="${1:-0}" n st v src title _plg_auth
 	local -a rows=()
 	local n_on=0
 	while IFS=$'\t' read -r n st v src title; do
-		rows+=("$n|$st|$v|$(tui.plugin.get "$n" author)|$src")
+		tui.capture _plg_auth tui.plugin.get "$n" author
+		rows+=("$n|$st|$v|$_plg_auth|$src")
 		[[ "$st" == enabled ]] && ((n_on++))
 	done < <(tui.plugin.list)
 	tui.table.set plg_table "Plugin|State|Ver|Author|From" "${rows[@]}"
@@ -27,7 +28,7 @@ _plg_fill() {
 }
 _plg_name() {
 	local r
-	r="$(tui.table.row plg_table)"
+	tui.capture r tui.table.row plg_table
 	printf '%s' "${r%%|*}"
 }
 
@@ -43,56 +44,71 @@ plg_goto_settings() { tui.action.goto_default settings; }
 
 # ── details: the kv renderer, one block per category ─────────────────────
 _plg_nl() { _NL="${1//\\n/$'\n'}"; } # renderers join lines with a literal \n; panes want real newlines
+# _plg_section TITLE BLOCK -> _NL: BLOCK under a divider labelled TITLE, as real lines
+_plg_section() {
+	local _plg_div
+	tui.capture _plg_div divider_string "$1"
+	_plg_nl "$_plg_div\n$2"
+}
 
 _plg_details() {
 	local n="$1" k v id
 	local -A st=()
 	while IFS='=' read -r k v; do st[$k]="$v"; done < <(tui.plugin.stats "$n")
 	local title ver auth req desc state src file root err
-	title="$(tui.plugin.get "$n" title)"
-	ver="$(tui.plugin.get "$n" version)"
-	auth="$(tui.plugin.get "$n" author)"
-	req="$(tui.plugin.get "$n" requires)"
-	desc="$(tui.plugin.get "$n" description)"
-	state="$(tui.plugin.get "$n" state)"
-	src="$(tui.plugin.get "$n" source)"
-	file="$(tui.plugin.get "$n" file)"
-	root="$(tui.plugin.root "$n")"
-	err="$(tui.plugin.get "$n" error)"
+	tui.capture title tui.plugin.get "$n" title
+	tui.capture ver tui.plugin.get "$n" version
+	tui.capture auth tui.plugin.get "$n" author
+	tui.capture req tui.plugin.get "$n" requires
+	tui.capture desc tui.plugin.get "$n" description
+	tui.capture state tui.plugin.get "$n" state
+	tui.capture src tui.plugin.get "$n" source
+	tui.capture file tui.plugin.get "$n" file
+	tui.capture root tui.plugin.root "$n"
+	tui.capture err tui.plugin.get "$n" error
 	_plg_human "${st[bytes]:-0}"
 	tui.pane_size plg_details
 	export TR_WIDTH=$((TUI_PANE_COLS > 12 ? TUI_PANE_COLS - 1 : 12))
 	local out="" blk
 	out+="$title  v$ver"$'\n'
 	_plg_wrap "$desc" "$TR_WIDTH" 0
-	out+="$(printf '%s\n' "${_WRAP[@]}")"$'\n'
+	printf -v blk '%s\n' "${_WRAP[@]}"
+	out+="${blk%"${blk##*[!$'\n']}"}"$'\n'
 
-	blk="$(kv_string "State: $state${err:+ ($err)}" "Source: $src$([[ $src == builtin ]] && echo ' (ships with DABT)')" "Version: $ver" "Author: ${auth:--}" "Requires: ${req:--}" -t dots)"
-	_plg_nl "$(divider_string Overview)\n$blk"
+	local src_note=""
+	[[ $src == builtin ]] && src_note=" (ships with DABT)"
+	tui.capture blk kv_string "State: $state${err:+ ($err)}" "Source: $src$src_note" "Version: $ver" "Author: ${auth:--}" "Requires: ${req:--}" -t dots
+	_plg_section Overview "$blk"
 	out+="$_NL"$'\n'
-	blk="$(kv_string "Files: ${st[files]:-0}" "Folders: ${st[dirs]:-0}" "Size: $_H" "Lines: ${st[lines]:-0}" "Functions: ${st[functions]:-0}" -t dots)"
-	_plg_nl "$(divider_string Contents)\n$blk"
+	tui.capture blk kv_string "Files: ${st[files]:-0}" "Folders: ${st[dirs]:-0}" "Size: $_H" "Lines: ${st[lines]:-0}" "Functions: ${st[functions]:-0}" -t dots
+	_plg_section Contents "$blk"
 	out+="$_NL"$'\n'
 	if [[ "$state" == enabled ]]; then
-		blk="$(kv_string "Commands: ${st[commands]:-0}" "Keybinds: ${st[binds]:-0}" "Hooks: ${st[hooks]:-0}" "Timers: ${st[timers]:-0}" "Overlays: ${st[overlays]:-0}" -t dots)"
+		tui.capture blk kv_string "Commands: ${st[commands]:-0}" "Keybinds: ${st[binds]:-0}" "Hooks: ${st[hooks]:-0}" "Timers: ${st[timers]:-0}" "Overlays: ${st[overlays]:-0}" -t dots
 	else blk="(nothing while disabled)"; fi
-	_plg_nl "$(divider_string Registered)\n$blk"
+	_plg_section Registered "$blk"
 	out+="$_NL"$'\n'
-	blk="$(kv_string "Folder: ${root/#$HOME/~}" "Main file: ${file##*/}" "Id: $n" -t dots)"
-	_plg_nl "$(divider_string Location)\n$blk"
+	tui.capture blk kv_string "Folder: ${root/#$HOME/~}" "Main file: ${file##*/}" "Id: $n" -t dots
+	_plg_section Location "$blk"
 	out+="$_NL"$'\n'
 	local -a cfg=()
-	for k in $(tui.config.keys 2>/dev/null); do [[ "$k" == plugin.$n.* ]] && cfg+=("${k#plugin.$n.}: $(tui.config.get "$k")"); done
+	local cfg_keys cfg_val
+	tui.capture cfg_keys tui.config.keys 2>/dev/null
+	for k in $cfg_keys; do
+		[[ "$k" == plugin.$n.* ]] || continue
+		tui.config.get "$k" "" cfg_val
+		cfg+=("${k#plugin.$n.}: $cfg_val")
+	done
 	if ((${#cfg[@]})); then
-		blk="$(kv_string "${cfg[@]}" -t dots)"
-		_plg_nl "$(divider_string 'Saved settings')\n$blk"
+		tui.capture blk kv_string "${cfg[@]}" -t dots
+		_plg_section 'Saved settings' "$blk"
 		out+="$_NL"$'\n'
 	fi
 	local -a cmds=()
 	for id in "${!_TUI_CMD_PLUGIN[@]}"; do [[ "${_TUI_CMD_PLUGIN[$id]}" == "$n" ]] && cmds+=("${_TUI_CMD_TITLE[$id]}: $id"); done
 	if ((${#cmds[@]})); then
-		blk="$(kv_string "${cmds[@]}" -t dots)"
-		_plg_nl "$(divider_string 'Command bar')\n$blk"
+		tui.capture blk kv_string "${cmds[@]}" -t dots
+		_plg_section 'Command bar' "$blk"
 		out+="$_NL"$'\n'
 	fi
 	unset TR_WIDTH
@@ -172,17 +188,17 @@ _plg_tree() {
 
 plg_selected() {
 	local n
-	n="$(_plg_name)"
+	tui.capture n _plg_name
 	[[ -n "$n" ]] || return 0
 	[[ "$n" == "$_PLG_NAME" ]] && return 0
 	_PLG_NAME="$n"
 	_PLG_CLOSED=()
-	_PLG_ROOT="$(tui.plugin.root "$n")"
+	tui.capture _PLG_ROOT tui.plugin.root "$n"
 	_plg_details "$n"
 	_plg_tree "$_PLG_ROOT" 0
 	# show the plugin's main file straight away
 	local i f main
-	main="$(tui.plugin.get "$n" file)"
+	tui.capture main tui.plugin.get "$n" file
 	for i in "${!_PLG_PATH[@]}"; do [[ "${_PLG_PATH[i]}" == "$main" ]] && {
 		tui.list.select plg_files "$i"
 		break
@@ -192,36 +208,47 @@ plg_selected() {
 # Enter / double-click on a plugin: its menu (what you can do with THAT plugin)
 declare -g _PLG_MENU=""
 plg_enter() {
-	local n st desc info toggle
-	n="$(_plg_name)"
+	local n st desc info toggle ver src title
+	tui.capture n _plg_name
 	[[ -n "$n" ]] || return 0
 	_PLG_MENU="$n"
-	st="$(tui.plugin.get "$n" state)"
-	desc="$(tui.plugin.get "$n" description)"
+	tui.capture st tui.plugin.get "$n" state
+	tui.capture desc tui.plugin.get "$n" description
 	local -A stt=()
 	local k v
 	while IFS='=' read -r k v; do stt[$k]="$v"; done < <(tui.plugin.stats "$n")
-	info="$desc"$'\n\n'"$st, v$(tui.plugin.get "$n" version), from $(tui.plugin.get "$n" source)"$'\n'"${stt[files]} files, ${stt[lines]} lines, ${stt[functions]} functions"
+	tui.capture ver tui.plugin.get "$n" version
+	tui.capture src tui.plugin.get "$n" source
+	info="$desc"$'\n\n'"$st, v$ver, from $src"$'\n'"${stt[files]} files, ${stt[lines]} lines, ${stt[functions]} functions"
 	[[ "$st" == enabled ]] && info+=$'\n'"registered: ${stt[commands]} commands, ${stt[binds]} keybinds, ${stt[hooks]} hooks, ${stt[timers]} timers"
 	[[ "$st" == enabled ]] && toggle="Disable" || toggle="Enable"
-	tui.choose "$(tui.plugin.get "$n" title)" plg_menu_pick "$toggle" "Reload" "Scan for vulnerabilities" "Browse its files" "Show its main file" "Remove" --message "$info" --width 60
+	tui.capture title tui.plugin.get "$n" title
+	tui.choose "$title" plg_menu_pick "$toggle" "Reload" "Scan for vulnerabilities" "Browse its files" "Show its main file" "Remove" --message "$info" --width 60
 }
 plg_menu_pick() {
+	local file
 	case "$2" in
 		Enable | Disable) plg_toggle ;;
 		Reload) plg_reload ;;
 		"Scan for vulnerabilities") plg_scan ;;
 		"Browse its files") tui.focus plg_files ;;
-		"Show its main file") _plg_show "$(tui.plugin.get "$_PLG_MENU" file)" ;;
+		"Show its main file")
+			tui.capture file tui.plugin.get "$_PLG_MENU" file
+			_plg_show "$file"
+			;;
 		Remove) plg_remove ;;
 	esac
 }
 plg_rescan() {
+	local sel names
 	tui.plugin.scan
 	_PLG_NAME=""
-	_plg_fill "$(tui.table.selected plg_table)"
+	tui.capture sel tui.table.selected plg_table
+	_plg_fill "$sel"
 	plg_selected
-	tui.notify "Scanned: $(tui.plugin.list | wc -l) plugins" info 2
+	tui.capture names tui.plugin.list
+	names="${names//[^$'\n']/}" # one newline per line break: count = breaks + 1
+	tui.notify "Scanned: $((${#names} + 1)) plugins" info 2
 }
 
 declare -g _PLG_SHOWN=""
@@ -251,23 +278,26 @@ _plg_show() {
 		done
 	done
 	((n >= 600)) && out+=("" "... (first 600 lines)")
-	tui.output plg_content "$(printf '%s\n' "${out[@]}")"
+	printf -v text '%s\n' "${out[@]}"
+	tui.output plg_content "${text%$'\n'}"
 	tui.relayout plg_content
 }
 # the pane got a different width: wrap again
 plg_rewrap() {
-	[[ -n "$(tui.get.type plg_content 2>/dev/null)" && -n "$_PLG_SHOWN" ]] && _plg_show "$_PLG_SHOWN"
+	local type
+	tui.capture type tui.get.type plg_content 2>/dev/null
+	[[ -n "$type" && -n "$_PLG_SHOWN" ]] && _plg_show "$_PLG_SHOWN"
 	return 1
 }
 plg_file_selected() {
 	local i
-	i="$(tui.list.selected plg_files)"
+	tui.capture i tui.list.selected plg_files
 	((i >= 0)) || return 0
 	[[ "${_PLG_DIR[i]}" == 0 ]] && _plg_show "${_PLG_PATH[i]}"
 }
 plg_toggle_dir() { # Enter / double-click on a row: collapse or expand a folder
 	local i
-	i="$(tui.list.selected plg_files)"
+	tui.capture i tui.list.selected plg_files
 	((i >= 0)) || return 0
 	[[ "${_PLG_DIR[i]}" == 1 ]] || return 0
 	local p="${_PLG_PATH[i]}"
@@ -278,11 +308,12 @@ plg_toggle_dir() { # Enter / double-click on a row: collapse or expand a folder
 # ── actions ─────────────────────────────────────────────────────────────
 plg_toggle() {
 	local n sel
-	n="$(_plg_name)"
-	sel="$(tui.table.selected plg_table)"
+	tui.capture n _plg_name
+	tui.capture sel tui.table.selected plg_table
 	[[ -n "$n" ]] || return 0
 	if tui.plugin.toggle "$n"; then
-		tui.notify "$n: $(tui.plugin.get "$n" state)" info 2
+		tui.capture state tui.plugin.get "$n" state
+		tui.notify "$n: $state" info 2
 	else tui.notify "$n: ${TUI_PLUGIN_ERROR:-failed}" error 6; fi
 	_PLG_NAME=""
 	_plg_fill "$sel"
@@ -290,8 +321,8 @@ plg_toggle() {
 }
 plg_reload() {
 	local n sel
-	n="$(_plg_name)"
-	sel="$(tui.table.selected plg_table)"
+	tui.capture n _plg_name
+	tui.capture sel tui.table.selected plg_table
 	[[ -n "$n" ]] || return 0
 	tui.plugin.reload "$n"
 	tui.notify "$n reloaded" success 2
@@ -301,13 +332,13 @@ plg_reload() {
 }
 plg_remove() {
 	local n
-	n="$(_plg_name)"
+	tui.capture n _plg_name
 	[[ -n "$n" ]] || return 0
 	tui.confirm "Remove plugin '$n'?"$'\n'"A plugin you installed is deleted from disk; a built-in or app plugin is only unregistered." plg_do_remove --danger --yes Remove --no Keep --title "Remove plugin"
 }
 plg_do_remove() {
 	local n
-	n="$(_plg_name)"
+	tui.capture n _plg_name
 	tui.plugin.remove "$n"
 	tui.notify "Removed $n" warn 3
 	_PLG_NAME=""
@@ -328,9 +359,9 @@ plg_do_install() {
 # ── security scan: the selected plugin's files, result in a scrollable modal (tui.scan.*, lib/apps/tui_scan.sh) ──
 plg_scan() {
 	local n root verdict title report line
-	n="$(_plg_name)"
+	tui.capture n _plg_name
 	[[ -n "$n" ]] || return 0
-	root="$(tui.plugin.root "$n")"
+	tui.capture root tui.plugin.root "$n"
 	[[ -e "$root" ]] || {
 		tui.notify "$n: nothing to scan (no files)" error 4
 		return 0

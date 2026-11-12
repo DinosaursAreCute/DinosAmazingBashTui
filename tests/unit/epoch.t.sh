@@ -36,3 +36,32 @@ t_epoch_bump_rejects_an_unknown_kind() {
 	out=$(_tui.epoch_bump nonsense 2>&1)
 	ok '[[ "$out" == *"unknown kind"* ]]'
 }
+
+# a layout setter that writes the value already there moves no layout input, so it must not invalidate the memo
+# (a replayed page whose on_visit re-applies its pads would otherwise force a relayout on every visit)
+t_pane_setters_keep_the_generation_when_the_value_is_unchanged() {
+	tui.pane_pad root 2 1
+	tui.pane_gap root 3
+	tui.pane_maxsize root 40 10
+	tui.pane_border root rounded
+	local g=$_TUI_LY_GEN
+	tui.pane_pad root 2 1
+	tui.pane_pad root 2
+	tui.pane_gap root 3
+	tui.pane_maxsize root 40 10
+	tui.pane_border root rounded
+	eq "$g" "$_TUI_LY_GEN"
+}
+
+t_pane_setters_advance_the_generation_when_the_value_changes() {
+	tui.pane_pad root 2 1
+	tui.pane_gap root 3
+	tui.pane_maxsize root 40 10
+	tui.pane_border root rounded
+	local g=$_TUI_LY_GEN
+	tui.pane_pad root 3
+	tui.pane_gap root 2
+	tui.pane_maxsize root 41
+	tui.pane_border root single
+	eq $((g + 4)) "$_TUI_LY_GEN"
+}

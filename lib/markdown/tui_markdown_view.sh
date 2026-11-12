@@ -69,16 +69,36 @@ _tui_md.store_more() {
 }
 
 # _tui_md.mark_row ROW QUERY -> _MARKED - ROW with every occurrence of QUERY (case-insensitive, plain text) in reverse video.
+# A row without a match returns before any setup; the lowercased unstyled text of a styled row is memoised (pure in ROW, bounded),
+# since every search step re-tests all rows.
+declare -gA _TUI_MD_LOW=()
+declare -gi _TUI_MD_LOW_N=0
 _tui_md.mark_row() {
-	local row=$1 q=${2,,} plain pl out="" i=0 p=0 len in=0 seq rest off=0 pre si=0 nextstart endpos=-1 ql=${#2}
-	local -a starts=()
-	tui.md.strip "$row" plain
-	pl=${plain,,}
+	local row=$1 q=${2,,} pl
+	if [[ "$row" != *$'\e['* ]]; then
+		pl=${row,,}
+	elif [[ -n "${_TUI_MD_LOW[$row]+x}" ]]; then
+		pl=${_TUI_MD_LOW[$row]}
+	else
+		tui.md.strip "$row" pl
+		pl=${pl,,}
+		if ((_TUI_MD_LOW_N >= 4096)); then _TUI_MD_LOW=() _TUI_MD_LOW_N=0; fi
+		_TUI_MD_LOW[$row]=$pl
+		_TUI_MD_LOW_N+=1
+	fi
 	if [[ -z "$q" || "$pl" != *"$q"* ]]; then
 		_MARKED=$row
 		return 0
 	fi
-	rest=$pl
+	_tui_md.mark_matches "$row" "$q" "${#2}" "$pl"
+}
+
+# _tui_md.mark_matches ROW LOWER_QUERY QUERY_LEN LOWER_PLAIN -> _MARKED - the marking of a row known to match. Matches are located
+# on the unstyled text, then ROW is copied in whole chunks: a plain row in one slice per match, a styled row in one slice per run
+# between style sequences. A match that spans a style sequence is re-opened after a reset (SGR 0).
+_tui_md.mark_matches() {
+	local row=$1 q=$2 ql=$3 rest=$4 out="" p=0 in=0 off=0 pre si=0 nextstart endpos=-1 text seq n len
+	local -a starts=()
 	while [[ "$rest" == *"$q"* ]]; do
 		pre=${rest%%"$q"*}
 		starts+=($((off + ${#pre})))
@@ -86,29 +106,43 @@ _tui_md.mark_row() {
 		rest=${rest#*"$q"}
 	done
 	nextstart=${starts[0]}
-	len=${#row}
-	while ((i < len)); do
-		if [[ "${row:i:2}" == $'\e[' ]]; then
-			seq=${row:i}
-			seq=${seq%%m*}m
+	rest=$row
+	while [[ -n "$rest" ]]; do
+		if [[ "$rest" == $'\e['* ]]; then
+			seq=${rest%%m*}m
 			out+=$seq
-			((i += ${#seq}))
+			rest=${rest:${#seq}}
 			((in)) && [[ "$seq" == $'\e[0m' ]] && out+=$'\e[7m'
 			continue
 		fi
-		if ((!in && p == nextstart)); then
-			out+=$'\e[7m'
-			in=1
-			endpos=$((p + ql))
-			((si++))
-			nextstart=${starts[si]:--1}
-		fi
-		out+=${row:i:1}
-		((i++, p++))
-		if ((in && p == endpos)); then
-			out+=$'\e[27m'
-			in=0
-		fi
+		text=${rest%%$'\e['*}
+		rest=${rest:${#text}}
+		while [[ -n "$text" ]]; do
+			len=${#text}
+			if ((in)); then
+				n=$((endpos - p))
+				((n > len)) && n=$len
+				out+=${text:0:n}
+				text=${text:n}
+				((p += n))
+				if ((p == endpos)); then
+					out+=$'\e[27m'
+					in=0
+				fi
+			elif ((nextstart >= p && nextstart < p + len)); then
+				n=$((nextstart - p))
+				out+=${text:0:n}$'\e[7m'
+				text=${text:n}
+				((p += n))
+				in=1
+				endpos=$((p + ql))
+				nextstart=${starts[++si]:--1}
+			else
+				out+=$text
+				((p += len))
+				text=""
+			fi
+		done
 	done
 	((in)) && out+=$'\e[27m'
 	_MARKED=$out

@@ -328,7 +328,8 @@ declare -ga _TUI_PAGE_HISTORY=()
 declare -g _TUI_GOING_BACK=""
 
 tui.goto() {
-	local file="$1" resolved
+	local file="$1" resolved _gt_t0=0
+	((TUI_DEBUG)) && _gt_t0=${EPOCHREALTIME//[!0-9]/}
 	resolved="$file"
 	[[ "$resolved" != /* ]] && resolved="${_TUI_MARKUP_DIR:-.}/${file}"
 
@@ -396,6 +397,8 @@ tui.goto() {
 		mode.sync_end
 	fi
 	tui.hook.fire page "$resolved"
+	((TUI_DEBUG)) && _tui_debug.switch "$resolved" "$_gt_t0"
+	return 0
 }
 
 # tui.start FILE - full lifecycle for a config-driven TUI: init, load, run, and

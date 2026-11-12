@@ -2624,3 +2624,58 @@ t_md_heading_spans_keep_the_heading_colors() {
 	[[ "${TUI_MD_ROWS[0]}" == *$'\e[3m'b* ]] || eq "italic only" "${TUI_MD_ROWS[0]@Q}"
 	[[ "${TUI_MD_ROWS[0]}" != *48\;2\;1\;2\;3* ]] || eq "no em background" "${TUI_MD_ROWS[0]@Q}"
 }
+
+# ── search marking ────────────────────────────────────────────────────
+
+t_md_mark_row_reverses_every_plain_match() {
+	_tui_md.mark_row "hello world" o
+	eq $'hell\e[7mo\e[27m w\e[7mo\e[27mrld' "$_MARKED"
+}
+
+t_md_mark_row_ignores_case_and_keeps_the_rows_own_case() {
+	_tui_md.mark_row "Foo Bar" FO
+	eq $'\e[7mFo\e[27mo Bar' "$_MARKED"
+}
+
+t_md_mark_row_without_a_match_returns_the_row() {
+	_tui_md.mark_row "abc" zzz
+	eq abc "$_MARKED"
+	_tui_md.mark_row $'\e[1mabc\e[0m' zzz
+	eq $'\e[1mabc\e[0m' "$_MARKED"
+}
+
+t_md_mark_row_takes_the_query_literally() {
+	_tui_md.mark_row 'x.y*z' '.*'
+	eq 'x.y*z' "$_MARKED"
+	_tui_md.mark_row 'x.y*z' '.'
+	eq $'x\e[7m.\e[27my*z' "$_MARKED"
+}
+
+t_md_mark_row_matches_do_not_overlap() {
+	_tui_md.mark_row aaa aa
+	eq $'\e[7maa\e[27ma' "$_MARKED"
+}
+
+t_md_mark_row_keeps_style_sequences_outside_the_match() {
+	_tui_md.mark_row $'\e[1mfoo\e[0m bar' oo
+	eq $'\e[1mf\e[7moo\e[27m\e[0m bar' "$_MARKED"
+	_tui_md.mark_row $'\e[31mred\e[0m' d
+	eq $'\e[31mre\e[7md\e[27m\e[0m' "$_MARKED"
+}
+
+t_md_mark_row_match_may_span_style_sequences() {
+	_tui_md.mark_row $'ab\e[1mcd\e[0mef' bcde
+	eq $'a\e[7mb\e[1mcd\e[0m\e[7me\e[27mf' "$_MARKED"
+}
+
+t_md_mark_row_marks_matches_that_start_after_a_sequence() {
+	_tui_md.mark_row $'\e[1mab\e[0m\e[2mab\e[0m' ab
+	eq $'\e[1m\e[7mab\e[27m\e[0m\e[2m\e[7mab\e[27m\e[0m' "$_MARKED"
+}
+
+t_md_mark_row_repeated_styled_row_gives_the_same_marking_for_each_query() {
+	local row=$'\e[1mfoo\e[0m bar'
+	_tui_md.mark_row "$row" oo; eq $'\e[1mf\e[7moo\e[27m\e[0m bar' "$_MARKED"
+	_tui_md.mark_row "$row" BAR; eq $'\e[1mfoo\e[0m \e[7mbar\e[27m' "$_MARKED"
+	_tui_md.mark_row "$row" oo; eq $'\e[1mf\e[7moo\e[27m\e[0m bar' "$_MARKED"
+}

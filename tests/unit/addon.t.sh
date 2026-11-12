@@ -99,3 +99,19 @@ t_addon_folder_of_a_plugin_goes_when_the_plugin_is_released() {
 	tui.addon.undir /y/addons
 	eq "" "${_TUI_ADDON_DIRS[*]}"
 }
+
+# a page's cache signature covers only the addon files that can apply to it: rewriting one page's addon must not
+# invalidate every other page
+ti_addon_deps_for_a_page_skip_files_targeting_other_pages() {
+	_ad_run "$_ad_page" '<addon id="x" target="other.xml"/>' '<addon id="y" target="pg.xml"/>'
+	local -a d=()
+	tui_addon.deps d "$_T_ROOT/pg.xml"
+	eq "$_T_ROOT/addons $_T_ROOT/addons/b.xml" "${d[*]}"
+}
+
+ti_addon_deps_for_a_page_keep_wildcard_and_untargeted_files() {
+	_ad_run "$_ad_page" '<addon id="x" target="*"/>' '<addon id="y"/>'
+	local -a d=()
+	tui_addon.deps d "$_T_ROOT/pg.xml"
+	eq "$_T_ROOT/addons $_T_ROOT/addons/a.xml $_T_ROOT/addons/b.xml" "${d[*]}"
+}

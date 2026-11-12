@@ -124,3 +124,20 @@ ti_compose_if_branches_may_share_an_id() {
 	ok '[[ -n "${_N_BY_ID[x]:-}" ]]'
 	eq "${_N_BY_ID[x]}" "${_N_KIDS[$_P_ROOT]}"
 }
+
+ti_compose_use_clones_only_the_branch_its_params_pick() {
+	local before
+	printf '%s' '<template name="t"><if test="{{@k}}==a"><label id="a"/></if><if test="{{@k}}==b"><label id="b"/><label id="b2"/></if><if test="{{@k}}==c"><label id="c"/></if></template><use template="t" k="a"/>' >"$_T_ROOT/cmp.xml"
+	tui.parse.file "$_T_ROOT/cmp.xml"
+	before=$_N_NEXT
+	tui_compose.expand "$_P_ROOT"
+	eq 1 $((_N_NEXT - before)) # one label cloned; the other branches of the template body never are
+	_cmp_dump
+	eq "document(label#a)" "$_CX"
+}
+
+ti_compose_use_picks_else_and_nested_branches() {
+	_cmp_page '<template name="t"><if test="{{@k}}==a"><label id="a"/><else><if test="{{@k}}==b"><label id="b"/><else><label id="o"/></else></if></else></if></template><use template="t" id="x" k="b"/><use template="t" id="y" k="z"/>'
+	_cmp_dump
+	eq "document(label#x_b,label#y_o)" "$_CX"
+}

@@ -31,6 +31,7 @@ except ImportError:
     sys.exit(f"needs rich + pyte:  python3 -m venv {VENV} && {VENV}/bin/pip install rich pyte textual")
 
 from harness import apps as apps_mod, loader, report_html, report_term, reporter, runner, scenario as scn_mod, stats, sysinfo, term, watch  # noqa: E402
+from harness.governor import Performance  # noqa: E402
 from harness.inhibit import KeepAwake  # noqa: E402
 
 
@@ -102,6 +103,11 @@ def emit(res, out, no_html, rep):
 
 
 def cmd_run(a):
+    with Performance() as gov:  # governor -> performance for the whole run; restored on any exit
+        _run(a, gov)
+
+
+def _run(a, gov):
     cols, rows = (int(x) for x in a.size.split("x")) if a.size else (None, None)
     for name in a.scenario or ["session"]:
         if name not in scn_mod.SCENARIOS:
@@ -127,6 +133,8 @@ def cmd_run(a):
             term.WATCH = watch.open_viewer(scn.rows, scn.cols)
             warnings.append("--watch mirrors every output chunk into a viewer window: timings of this run are NOT comparable.")
         warnings_skew = [w for w in warnings if not w.startswith("only ")]  # machine noise, pinning, --watch: everything except "few rounds" (that one widens the CIs, it does not skew)
+        if gov.note:
+            warnings.append(f"CPU governor not set to performance: {gov.note}.")
         rep = reporter.make(a.reporter, a.events)
         meta = {"scenario": scn.name, "title": scn.title, "rows": scn.rows, "cols": scn.cols, "rounds": a.rounds, "warmup": a.warmup,
                 "apps": [{"name": x.name, "label": x.label, "color": x.color, "version": x.version() if x.version else ""} for x in apps]}

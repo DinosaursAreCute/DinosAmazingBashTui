@@ -19,22 +19,32 @@ on_load_scroll_data() {
 	scroll_fit_rows
 }
 
-# The form's generated rows are a <for id="gen_groups"> in scrolling.xml: one group is 10 widgets, ~19 lines. The default
-# of 12 groups is ~240 lines, over 4 x a 45-row terminal. On a taller terminal an addon raises the count to cover 4 x the
-# terminal height; refresh rebuilds the pane.
+# The form's generated rows are a <for id="gen_groups"> in scrolling.xml: one group is 10 widgets, ~19 lines. The markup
+# holds the floor (SCROLL_GROUPS_DEFAULT, kept equal to its count); an addon raises the count to cover 4 x the terminal
+# height, so the pane scrolls on any terminal.
 SCROLL_LINES_PER_GROUP=19
-SCROLL_GROUPS_DEFAULT=12
-: "${SCROLL_GROUPS_SET:=$SCROLL_GROUPS_DEFAULT}" # the file is sourced on every page load
-scroll_fit_rows() {
-	local rows cols need addon="${TUI_APP_CONF:-}/addons/scroll_rows.xml"
-	[[ -n "${TUI_APP_CONF:-}" ]] || return 0
-	read -r rows cols < <(tui.get.terminal)
-	need=$(((rows * 4 + SCROLL_LINES_PER_GROUP - 1) / SCROLL_LINES_PER_GROUP))
-	((need > SCROLL_GROUPS_SET)) || return 0
+SCROLL_GROUPS_DEFAULT=2
+
+# scroll_write_rows ROWS - writes the addon for a ROWS-tall terminal when it needs more groups than the file holds (or
+# than the default, with no file). rc 0 = the file changed, so a page built before it is stale; rc 1 = nothing to do.
+# Needs no running app: the launcher calls it before the first load, so the page is built once, at its final size.
+scroll_write_rows() {
+	local need addon="${TUI_APP_CONF:-}/addons/scroll_rows.xml" cur="" have=$SCROLL_GROUPS_DEFAULT xml
+	[[ -n "${TUI_APP_CONF:-}" ]] || return 1
+	need=$((($1 * 4 + SCROLL_LINES_PER_GROUP - 1) / SCROLL_LINES_PER_GROUP))
+	[[ -r "$addon" ]] && { IFS= read -r -d "" cur <"$addon" || true; }
+	[[ "$cur" =~ value=\"([0-9]+)\" ]] && have=$((BASH_REMATCH[1] > have ? BASH_REMATCH[1] : have))
+	((need > have)) || return 1
+	printf -v xml '<addon id="scroll_rows" target="scrolling.xml" prefix="false">\n  <set ref="#gen_groups" attr="count" value="%d"/>\n</addon>\n' "$need"
 	mkdir -p "${addon%/*}"
-	printf '<addon id="scroll_rows" target="scrolling.xml" prefix="false">\n  <set ref="#gen_groups" attr="count" value="%d"/>\n</addon>\n' "$need" >"$addon"
-	SCROLL_GROUPS_SET=$need
-	tui.page.refresh
+	printf '%s' "$xml" >"$addon"
+}
+# scroll_fit_rows - on_visit: a terminal taller than the addon covers rebuilds the pane once
+scroll_fit_rows() {
+	local rows cols
+	read -r rows cols < <(tui.get.terminal)
+	scroll_write_rows "$rows" && tui.page.refresh
+	return 0
 }
 noop() { :; }
 # tui.scroll.to takes a widget or a pane id and a position

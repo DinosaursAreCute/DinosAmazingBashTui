@@ -30,3 +30,32 @@ ti_demo_pages_using_the_templates_pass_the_validator() {
 		eq "0" "$TUI_V_ERRORS"
 	done
 }
+
+ti_scroll_rows_addon_is_written_once_per_height_and_never_shrinks() {
+	source "$REPO/share/demo/scroll_callbacks.sh"
+	TUI_APP_CONF="$_T_ROOT/app"
+	local addon="$TUI_APP_CONF/addons/scroll_rows.xml"
+	ok '! scroll_write_rows 1' # a terminal the markup's floor already covers needs no addon
+	ok 'scroll_write_rows 80'
+	ok 'grep -q "value=\"17\"" "$addon"'
+	ok '! scroll_write_rows 80' # up to date: not rewritten, so no refresh
+	ok '! scroll_write_rows 60' # a smaller terminal keeps the larger addon
+}
+
+ti_console_page_shows_the_filtered_log_and_clearing_hides_earlier_lines() {
+	source "$REPO/share/demo/debug_console_callbacks.sh"
+	local out="" file="$_T_ROOT/c.log"
+	tui.capture() { printf -v "$1" '%s' "$_T_ROOT/c.log"; }
+	tui.set_text() {
+		[[ "$1" == console_out ]] && out="$2"
+		return 0
+	}
+	tui.scroll.to() { :; }
+	printf '[10:00:00] [debug] d1\n[10:00:01] [warn] w1\n[10:00:02] [error] e1\n' >"$file"
+	_CON_LEVEL=warn
+	_console_refresh
+	eq $'[10:00:01] [warn] w1\n[10:00:02] [error] e1' "$out"
+	_CON_LEVEL=debug _CON_CLEARED=2
+	_console_refresh
+	eq "[10:00:02] [error] e1" "$out"
+}

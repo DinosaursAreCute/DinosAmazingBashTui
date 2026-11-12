@@ -35,6 +35,12 @@ _dset_pretty() { # hello_kitty -> Hello kitty
 	local t=${1//_/ }
 	printf '%s' "${t^}"
 }
+# _dset_pretty_v NAME -> _DSET_PRETTY: _dset_pretty without the command-substitution fork (a fork per theme on every visit)
+declare -g _DSET_PRETTY=""
+_dset_pretty_v() {
+	_DSET_PRETTY=${1//_/ }
+	_DSET_PRETTY=${_DSET_PRETTY^}
+}
 
 # _dset_binds - one row per bound command (yours, the app's, the defaults), with every key it has, straight from the binding
 # tables: a key bound in keybinds.xml or by tui.bind shows up here without this page knowing about it.
@@ -75,7 +81,8 @@ _dset_build() {
 	_dset_add appearance theme. "Page default" radio "Each page keeps its own theme."
 	while IFS=$'\t' read -r n f; do
 		[[ -n "$n" ]] || continue
-		_dset_add appearance "theme.$n" "$(_dset_pretty "$n")" radio "Restyles every page. Themes come from DABT's themes directory and the app's."
+		_dset_pretty_v "$n"
+		_dset_add appearance "theme.$n" "$_DSET_PRETTY" radio "Restyles every page. Themes come from DABT's themes directory and the app's."
 		DSET_THEME_FILE[$n]=$f
 	done < <(tui.theme.list)
 
@@ -128,7 +135,7 @@ _dset_build() {
 
 	while IFS=$'\t' read -r n st v src title; do
 		[[ -n "$n" ]] || continue
-		_dset_add plugins "plg.$n" "${title:-$n}" toggle "$(tui.plugin.get "$n" description)"
+		_dset_add plugins "plg.$n" "${title:-$n}" toggle "${_TPL_DESC[$n]:-}"
 	done < <(tui.plugin.list)
 	_dset_add plugins plg.browser "Plugin browser ..." action "Files and contents of every detected plugin."
 }
@@ -147,15 +154,23 @@ _dset_value() {
 		retain) _dset_onoff "$TUI_INPUT_RETAIN_ON_SUBMIT" ;;
 		coalesce) _dset_onoff "$TUI_INPUT_COALESCE" ;;
 		pointer) _dset_onoff "$TUI_POINTER_SHAPE" ;;
-		confirmq) _dset_onoff "$(tui.config.get confirm.quit 0)" ;;
-		tsfree) _dset_onoff "$(tui.config.get plugin.terminal_shortcuts.auto_free 0)" ;;
+		confirmq)
+			tui.config.get confirm.quit 0 f
+			_dset_onoff "$f"
+			;;
+		tsfree)
+			tui.config.get plugin.terminal_shortcuts.auto_free 0 f
+			_dset_onoff "$f"
+			;;
 		chord.suspend) _DSET_V="$TUI_KEYS_SUSPEND_KEY" ;;
 		chord.terminal) _DSET_V="$TUI_PASSTHROUGH_KEY" ;;
 		bind.*) _DSET_V=${DSET_BIND_KEYS[${k#bind.}]} ;;
-		grp.*) _dset_onoff "$([[ -n "${_TUI_DEF_OFF[${k#grp.}]:-}" ]] && echo 0 || echo 1)" ;;
-		npos) _DSET_V="$(tui.notify.position)" ;;
+		grp.*)
+			if [[ -n "${_TUI_DEF_OFF[${k#grp.}]:-}" ]]; then _dset_onoff 0; else _dset_onoff 1; fi
+			;;
+		npos) tui.capture _DSET_V tui.notify.position ;;
 		nsec)
-			f="$(tui.notify.seconds)"
+			tui.capture f tui.notify.seconds
 			[[ "$f" == 0 ]] && _DSET_V="until dismissed" || _DSET_V="${f} s"
 			;;
 		md.profile) [[ "$TUI_MD_PROFILE" == theme ]] && _DSET_V="Theme default" || _DSET_V="DABT default" ;;
@@ -171,7 +186,7 @@ _dset_value() {
 		md.st.*) tui.md.style_spec_of "${k#md.st.}" _DSET_V ;;
 		plg.browser | kb.editor) _DSET_V="" ;;
 		plg.*)
-			_DSET_V=$(tui.plugin.get "${k#plg.}" state)
+			tui.capture _DSET_V tui.plugin.get "${k#plg.}" state
 			[[ "$_DSET_V" == enabled ]] && _DSET_V=on
 			[[ "$_DSET_V" == disabled ]] && _DSET_V=off
 			;;
@@ -265,7 +280,7 @@ _dset_apply() {
 _dset_flip() { [[ "${1:-0}" == 1 ]] && _DSET_N=0 || _DSET_N=1; }
 
 _dset_toggle() { # KEY
-	local k=$1 on g off
+	local k=$1 on g off cur
 	case "$k" in
 		retain)
 			_dset_flip "$TUI_INPUT_RETAIN_ON_SUBMIT"
@@ -293,7 +308,8 @@ _dset_toggle() { # KEY
 			tui.config.set pointer.shape "$on"
 			;;
 		confirmq)
-			_dset_flip "$(tui.config.get confirm.quit 0)"
+			tui.config.get confirm.quit 0 cur
+			_dset_flip "$cur"
 			on=$_DSET_N
 			tui.config.set confirm.quit "$on"
 			;;
@@ -302,7 +318,8 @@ _dset_toggle() { # KEY
 				tui.notify "Enable the 'Terminal shortcuts' plugin first (Settings > Plugins)" warn 5
 				return
 			fi
-			_dset_flip "$(tui.config.get plugin.terminal_shortcuts.auto_free 0)"
+			tui.config.get plugin.terminal_shortcuts.auto_free 0 cur
+			_dset_flip "$cur"
 			on=$_DSET_N
 			tui.plugin.config terminal_shortcuts auto_free "$on"
 			if [[ "$on" == 1 ]]; then tui.cmd.run ts.free; else tui.cmd.run ts.restore; fi
@@ -358,7 +375,9 @@ _dset_show() {
 		_dset_value "${S_KEY[i]}"
 		val=$_DSET_V
 		case "${S_KIND[i]}" in
-			toggle) val="[$([[ "$val" == on ]] && echo x || echo ' ')] $val" ;;
+			toggle)
+				if [[ "$val" == on ]]; then val="[x] $val"; else val="[ ] $val"; fi
+				;;
 			radio) val="($val)" ;;
 			choice) val="< $val >" ;;
 			action) val="..." ;;
@@ -406,7 +425,7 @@ _dset_details() {
 	case "$k" in
 		plg.browser | kb.editor | chord.* | md.imgproto) ;;
 		plg.*)
-			info=$(tui.plugin.info "${k#plg.}" 2>/dev/null)
+			tui.capture info tui.plugin.info "${k#plg.}" 2>/dev/null
 			text+=$'\n'"${info//$'\n'/  $'\n'}"$'\n'
 			;;
 		md.*) text+=$'\n---\n\n'"$DSET_SAMPLE" ;;
@@ -520,7 +539,8 @@ dset_activate() {
 			name=${k#theme.}
 			DSET_KEEP_SEL=$sel
 			tui.theme.pick "$name" # applies, remembers and reloads this page ("" = page default)
-			tui.notify "Theme: $(_dset_pretty "${name:-page default}")" success 2.5
+			_dset_pretty_v "${name:-page default}"
+			tui.notify "Theme: $_DSET_PRETTY" success 2.5
 			;;
 		action) _dset_act "$k" ;;
 	esac
@@ -565,7 +585,7 @@ _dset_ms_target() {
 
 # _dset_ms_fill - shows the current style of DSET_MS_CLASS in the modal's widgets
 _dset_ms_fill() {
-	local spec color mods m
+	local spec color mods m is_on
 	tui.md.style_spec_of "$DSET_MS_CLASS" spec
 	color=${spec%%:*}
 	mods=""
@@ -581,7 +601,9 @@ _dset_ms_fill() {
 	tui.update ms_elem_lbl "Style of: $DSET_MS_CLASS"
 	tui.update ms_bgmode 0
 	for m in "${TUI_MD_MODS[@]}"; do
-		tui.update "ms_$m" "$([[ ",$mods," == *",$m,"* ]] && echo 1 || echo 0)"
+		is_on=0
+		[[ ",$mods," == *",$m,"* ]] && is_on=1
+		tui.update "ms_$m" "$is_on"
 	done
 	DSET_MS_FILLING=0
 	_dset_ms_target

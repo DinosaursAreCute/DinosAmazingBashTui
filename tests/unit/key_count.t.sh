@@ -3,7 +3,9 @@
 
 # the _WX* widget tables are not in the runner snapshot: start every test clean
 _kc_reset() {
-	_WXSEL=() _WXTOP=() _WXA=()
+	_WXSEL=() _WXTOP=()
+	unset -n _WXA 2>/dev/null
+	unset _WXA 2>/dev/null # a plain array here would block the nameref _tui_wx.arr declares
 	_TUI_FOCUS_ID="" _TUI_MODAL="" _TUI_MODAL_COUNT_KEYS="" _TUI_PENDING_INPUT="" _TUI_L_TRAP="" _TUI_REPEAT=1 TUI_EVENT_COUNT=1
 	TUI_INPUT_COALESCE=1
 	_TUI_P_ROW[kcp]=1 _TUI_P_COL[kcp]=1 _TUI_P_H[kcp]=8 _TUI_P_W[kcp]=20

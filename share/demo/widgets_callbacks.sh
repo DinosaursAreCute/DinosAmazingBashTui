@@ -32,7 +32,7 @@ wx_status_tick() {
 	local id
 	tui.capture id tui.get.focused
 	[[ "$id" == wx_text ]] || {
-		tui.update wx_stat1 "click into the notes to edit"
+		tui.update_changed wx_stat1 "click into the notes to edit"
 		return 0
 	}
 	local pos sel len lines
@@ -40,7 +40,7 @@ wx_status_tick() {
 	tui.capture sel tui.text.selection wx_text
 	tui.capture len tui.get wx_text
 	tui.capture lines tui.text.line_count wx_text
-	tui.update wx_stat1 "Ln ${pos% *}, Col ${pos#* }   selected ${#sel}   ${#len} chars   $lines lines"
+	tui.update_changed wx_stat1 "Ln ${pos% *}, Col ${pos#* }   selected ${#sel}   ${#len} chars   $lines lines"
 }
 wx_text_changed() { :; }
 
@@ -64,16 +64,16 @@ wx_mode_picked() {
 	tui.notify "Mode: $mode" info 2
 }
 
+declare -gi _WX_JOB_PCT=0
 wx_run_job() {
+	_WX_JOB_PCT=0
 	tui.progress.set wx_prog 0
 	tui.every 0.1 wx_job_step wx_job_timer
 }
 wx_job_step() {
-	local v
-	tui.capture v tui.get wx_prog
-	((v += 4))
-	tui.progress.set wx_prog "$v"
-	((v >= 100)) && {
+	((_WX_JOB_PCT += 4))
+	tui.progress.set wx_prog "$_WX_JOB_PCT"
+	((_WX_JOB_PCT >= 100)) && {
 		tui.every.cancel wx_job_timer
 		tui.notify "Job finished" success
 	}

@@ -15,7 +15,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 
 ## Widgets
 
-<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.variant tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.pin tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
+<!-- api: tui.label tui.button tui.input tui.checkbox tui.checkbox.toggle tui.get tui.set tui.update tui.update_changed tui.set_label tui.get.label tui.on_action tui.on_submit tui.align tui.valign tui.variant tui.minsize tui.maxsize tui.width tui.height tui.pad tui.label_align tui.label_width tui.expand tui.pin tui.input.retain tui.input.blur_on_submit tui.input.sticky tui.focus -->
 
 | Function | Summary |
 |---|---|
@@ -27,6 +27,7 @@ Every widget callback gets the widget id first, so one function can serve severa
 | [`tui.get`](widgets/tui.get.md) | Prints a widget's value, without a trailing newline, or with `VAR` stores it in the variable `VAR`. |
 | [`tui.set`](widgets/tui.set.md) | Sets a widget's value without redrawing it. |
 | [`tui.update`](widgets/tui.update.md) | Sets a widget's value and redraws the widget. |
+| [`tui.update_changed`](widgets/tui.update_changed.md) | Sets a widget's value and redraws it like [`tui.update`](/api/widgets/tui.update.html), but returns without drawing when the widget already holds `TEXT`. |
 | [`tui.set_label`](widgets/tui.set_label.md) | Changes the caption of a button or checkbox, or the text of a label, and redraws it. |
 | [`tui.get.label`](widgets/tui.get.label.md) | Prints the caption of a widget: button text, checkbox label, input label or label text. |
 | [`tui.on_action`](widgets/tui.on_action.md) | Sets or replaces the action function of a widget. Buttons, lists and tables call it as `FN ID`; checkboxes as `FN ID VALUE`. |
@@ -65,6 +66,8 @@ Every widget callback gets the widget id first, so one function can serve severa
 {% include_relative widgets/tui.set.md %}
 
 {% include_relative widgets/tui.update.md %}
+
+{% include_relative widgets/tui.update_changed.md %}
 
 {% include_relative widgets/tui.set_label.md %}
 

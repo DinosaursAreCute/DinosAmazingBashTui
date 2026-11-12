@@ -18,5 +18,6 @@
     <tab id="tab_dbg_events" text="Events &amp; hover" action="dbg_tab_here" default="true"/>
     <tab id="tab_dbg_input"  text="Keyboard &amp; mouse" action="dbg_goto_input"/>
     <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
+    <tab id="tab_dbg_console" text="Console"             action="dbg_goto_console"/>
   </tabs>
 </tui>

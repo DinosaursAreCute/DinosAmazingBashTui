@@ -212,7 +212,7 @@ def chart_hero(res, apps, steps, extra, metric):
         vals = {}
         for lab in labs:
             xs = [by_name[n][lab] for n in names if n in by_name and by_name[n][lab] is not None]
-            vals[lab] = statistics.median(xs) if xs else None
+            vals[lab] = statistics.mean(xs) if xs else None
         if any(v is not None for v in vals.values()):
             clusters.append((title, vals, "ms"))
     clusters.append(("IDLE CPU", {l: extra[l]["cpu"] for l in labs}, "%"))
@@ -223,7 +223,7 @@ def chart_hero(res, apps, steps, extra, metric):
     base = 110 + 22 + plot_h
     H = base + 76
     svg = frame(W, H, "FEELS INSTANT", "")
-    svg[-1] = f'<text x="32" y="74" font-size="13" fill="{MUT}">{esc(res["meta"]["scenario"])} &#183; median time until the screen is final &#183; lower is better &#183; each group scaled to its slowest</text>'
+    svg[-1] = f'<text x="32" y="74" font-size="13" fill="{MUT}">{esc(res["meta"]["scenario"])} &#183; mean time until the screen is final &#183; lower is better &#183; each group scaled to its slowest</text>'
     for i, (title, vals, unit) in enumerate(clusters):
         x = left + i * (cw + cg)
         top_v = max((v for v in vals.values() if v), default=0)

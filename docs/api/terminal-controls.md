@@ -282,8 +282,8 @@ Stateless helpers that print escape sequences (`echo -ne`). They are usable on t
 | `mode.blink_cursor_off` |  | Steady cursor |
 | `mode.focus_on` |  | Report focus in/out events |
 | `mode.focus_off` |  | Stop reporting focus |
-| `mode.sync_start` |  | Begin synchronized update |
-| `mode.sync_end` |  | End synchronized update |
+| `mode.sync_start` |  |  |
+| `mode.sync_end` |  |  |
 | `mode.alt_screen` |  | Alt screen buffer (saves cursor) |
 | `mode.main_screen` |  | Main screen buffer (restores cursor) |
 | `mode.alt_simple` |  | Alt buffer without save/restore |

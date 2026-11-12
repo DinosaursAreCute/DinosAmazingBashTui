@@ -1,10 +1,12 @@
 ### `tui.perf.mean_render_ms`
 
 ```bash
-tui.perf.mean_render_ms SECONDS
+tui.perf.mean_render_ms SECONDS [VAR]
 ```
 
 Prints the mean frame render time in milliseconds over the last `SECONDS`.
+
+With `VAR` the value is stored in that variable instead of printed, so the call needs no subshell.
 
 **Output:** an integer, or nothing when tracking is off or no frame fell in the window.
 

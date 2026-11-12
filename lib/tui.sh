@@ -203,6 +203,7 @@ tui.init() {
 	# first render (see _tui._apply_resize below).
 	trap 'tui.on_resize' WINCH
 	tui.config.apply # saved framework settings (theme overlay, default-key groups, input behaviour)
+	((TUI_DEBUG)) && tui.debug.init
 	_TUI_OLD_STTY=$(stty -g 2>/dev/null)
 	# Every key belongs to the app, none is interpreted by the tty driver:
 	#   -isig    ctrl+c / ctrl+z / ctrl+\ arrive as keys (copy, undo...) instead of SIGINT / SIGTSTP / SIGQUIT
@@ -674,6 +675,7 @@ tui.pane_title() {
 	return 0
 }
 tui.pane_border() {
+	[[ "${_TUI_P_BORDER[$1]:-}" == "$2" && "${_TUI_P_BORDER_EXPL[$1]:-}" == 1 ]] && return 0 # unchanged: no layout input moved
 	_ps.panes.set "$1" border "$2"
 	_ps.panes.set "$1" border_expl 1
 	_tui.epoch_bump layout # border changes _tui._inset, which shifts every child's rect
@@ -682,9 +684,11 @@ tui.pane_border() {
 # gap between the frame and the children. Leaf panes: shrinks the area
 # widgets and tui.output* may use.
 tui.pane_pad() {
-	[[ -n "$2" ]] && _TUI_P_HPAD[$1]="$2"
-	[[ -n "$3" ]] && _TUI_P_VPAD[$1]="$3"
-	_tui.epoch_bump layout
+	local _ch=0
+	[[ -n "$2" && "${_TUI_P_HPAD[$1]:-}" != "$2" ]] && _TUI_P_HPAD[$1]="$2" _ch=1
+	[[ -n "$3" && "${_TUI_P_VPAD[$1]:-}" != "$3" ]] && _TUI_P_VPAD[$1]="$3" _ch=1
+	((_ch)) && _tui.epoch_bump layout
+	return 0
 }
 tui.pad() {
 	[[ -n "$2" ]] && _TUI_W_HPAD[$1]="$2"
@@ -692,8 +696,11 @@ tui.pad() {
 }
 # tui.pane_gap ID GAP - cells left blank between ID's children on its split axis (2A).
 tui.pane_gap() {
-	[[ -n "$2" ]] && _TUI_P_GAP[$1]="$2"
-	_tui.epoch_bump layout
+	[[ -n "$2" && "${_TUI_P_GAP[$1]:-}" != "$2" ]] && {
+		_TUI_P_GAP[$1]="$2"
+		_tui.epoch_bump layout
+	}
+	return 0
 }
 
 # _tui._eff_border ID - sets _TB to the border style actually drawn.
@@ -774,9 +781,11 @@ tui.pane_minsize() {
 	[[ -n "$3" ]] && _TUI_P_MINH[$1]="$3"
 }
 tui.pane_maxsize() {
-	[[ -n "$2" ]] && _TUI_P_MAXW[$1]="$2"
-	[[ -n "$3" ]] && _TUI_P_MAXH[$1]="$3"
-	_tui.epoch_bump layout # unlike min_*, max_* feeds real arrange math (fast-path check + _LY_MAXS)
+	local _ch=0
+	[[ -n "$2" && "${_TUI_P_MAXW[$1]:-}" != "$2" ]] && _TUI_P_MAXW[$1]="$2" _ch=1
+	[[ -n "$3" && "${_TUI_P_MAXH[$1]:-}" != "$3" ]] && _TUI_P_MAXH[$1]="$3" _ch=1
+	((_ch)) && _tui.epoch_bump layout # unlike min_*, max_* feeds real arrange math (fast-path check + _LY_MAXS)
+	return 0
 }
 
 tui.pane_scroll() {
@@ -1042,6 +1051,13 @@ tui.update() {
 
 	_ps.widgets.set "$1" value "$2"
 	_tui._draw_or_queue "$1"
+}
+
+# tui.update_changed ID TEXT - tui.update that returns without drawing when ID already holds TEXT. For tick and poll callbacks
+# that recompute a value every run: an unchanged value costs one comparison, not a draw and a flush.
+tui.update_changed() {
+	[[ -n "${_TUI_W_TYPE[$1]:-}" && "${_TUI_W_VALUE[$1]-}" == "$2" ]] && return 0
+	tui.update "$1" "$2"
 }
 
 # _tui._draw_or_queue ID - redraws ID now, or (inside _tui.batch_call) queues it for the batch's single flush
@@ -2131,12 +2147,13 @@ _tui._flush() {
 	fi
 }
 
-# tui.perf.mean_render_ms SECONDS - mean duration (ms) of every tracked
+# tui.perf.mean_render_ms SECONDS [VAR] - mean duration (ms) of every tracked
 # frame flushed within the trailing SECONDS window. Empty string if
 # tracking is off or nothing fell in the window (a caller can treat that
-# the same as "no data yet").
+# the same as "no data yet"). With VAR the value is stored there instead of printed (no fork).
 tui.perf.mean_render_ms() {
 	local window="$1"
+	[[ -n "${2:-}" ]] && printf -v "$2" ""
 	((_TUI_PERF_TRACKING)) || return
 	local n=${#_TUI_RENDER_LOG_T[@]}
 	((n == 0)) && return
@@ -2150,7 +2167,7 @@ tui.perf.mean_render_ms() {
 		((count++))
 	done
 	((count == 0)) && return
-	printf '%s' "$((sum / count))"
+	if [[ -n "${2:-}" ]]; then printf -v "$2" '%s' "$((sum / count))"; else printf '%s' "$((sum / count))"; fi
 }
 
 # tui.frame.request - asks for a full relayout + repaint at the end of the current

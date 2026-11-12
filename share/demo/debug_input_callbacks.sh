@@ -60,7 +60,7 @@ _dbg_layout() {
 	done
 	tui.fixed "$frame" "$unit" "$kh" "${specs[@]}"
 
-	local w text pad
+	local w text pad cls
 	for row in "${rows[@]}"; do
 		read -ra toks <<<"${row#!}"
 		for tok in "${toks[@]}"; do
@@ -81,7 +81,8 @@ _dbg_layout() {
 			pad=$(((w - ${#label}) / 2))
 			printf -v text '%*s%s' "$pad" "" "$label"
 			tui.output "$_DBG_ID" "$text"
-			tui.class "$_DBG_ID" "$([[ $dim == 1 ]] && echo key_dim || echo key)"
+			((dim)) && cls=key_dim || cls=key
+			tui.class "$_DBG_ID" "$cls"
 		done
 	done
 }

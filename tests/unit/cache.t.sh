@@ -256,7 +256,7 @@ ti_cache_replay_skips_the_relayout_at_the_recorded_size_and_keeps_the_geometry()
 	tui.reset_ui
 	_TUI_ROWS=24 _TUI_COLS=80
 	tui.cache.replay "$_CF"
-	eq "24 80 0" "$_TUI_SNAP_SIZE"
+	eq "24 80 0 0" "$_TUI_SNAP_SIZE"
 	g_skip="${_TUI_P_COL[a]} ${_TUI_P_W[a]} ${_TUI_P_COL[b]} ${_TUI_P_W[b]} ${_TUI_P_H[root]}"
 	_tui_cache_relayout
 	g_full="${_TUI_P_COL[a]} ${_TUI_P_W[a]} ${_TUI_P_COL[b]} ${_TUI_P_W[b]} ${_TUI_P_H[root]}"

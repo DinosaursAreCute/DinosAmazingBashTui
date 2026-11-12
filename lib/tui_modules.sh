@@ -25,6 +25,12 @@ source "${SCRIPT_DIR}/markup/tui_compose.sh"
 source "${SCRIPT_DIR}/tui_configuration.sh"
 # shellcheck source=perf.sh
 source "${SCRIPT_DIR}/perf.sh"
+# shellcheck source=debug.sh
+source "${SCRIPT_DIR}/debug.sh"
+# shellcheck source=chrome/tui_debugbar.sh
+source "${SCRIPT_DIR}/chrome/tui_debugbar.sh"
+# shellcheck source=chrome/tui_devtools.sh
+source "${SCRIPT_DIR}/chrome/tui_devtools.sh"
 # shellcheck source=chrome/tui_dialog.sh
 source "${SCRIPT_DIR}/chrome/tui_dialog.sh"
 # shellcheck source=render/tui_emit.sh

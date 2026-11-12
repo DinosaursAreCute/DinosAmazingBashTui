@@ -243,6 +243,7 @@ Browse the [documentation site](https://dinosamazingbashtui.duckdns.org/), or st
 | [Writing Your First Plugin](docs/tutorials/writing-your-first-plugin.md) | commands, keys, timers, settings |
 | [Markup](docs/guide/markup.md) | the XML page format |
 | [Widgets](docs/guide/widgets.md) | inputs, lists, tables, text editing |
+| [Debugging](docs/guide/debugging.md) | `dabt --debug`, the status strip, the dev-tools dock |
 | [API reference](docs/api/reference.md) | every function in one table |
 | [Install & update](docs/guide/install-and-update.md) | installer, config home, conflicts |
 

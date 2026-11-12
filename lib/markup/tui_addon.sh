@@ -52,15 +52,24 @@ _tui_addon.dirs() {
 	done
 }
 
-# tui_addon.deps ARRAYNAME - appends every addon directory and *.xml file to the array (a nameref): the page
-# cache covers them, and a directory's mtime changes when a file is added or removed.
+# tui_addon.deps ARRAYNAME [PAGE_FILE] - appends every addon directory and *.xml file to the array (a nameref): the
+# page cache covers them, and a directory's mtime changes when a file is added or removed. With PAGE_FILE only the
+# files that can apply to that page: one without a target attribute, with target="*", or naming the page's file name.
+# An app that rewrites an addon for one page (a size-fitted row count) then leaves every other page's cache valid.
 tui_addon.deps() {
 	local -n _ad_deps="$1"
-	local _ad_dir _ad_file
+	local _ad_dir _ad_file _ad_base="${2##*/}" _ad_txt
 	_tui_addon.dirs
 	for _ad_dir in "${_TA_DIRS[@]}"; do
 		_ad_deps+=("$_ad_dir")
-		for _ad_file in "$_ad_dir"/*.xml; do [[ -r "$_ad_file" ]] && _ad_deps+=("$_ad_file"); done
+		for _ad_file in "$_ad_dir"/*.xml; do
+			[[ -r "$_ad_file" ]] || continue
+			if [[ -n "$_ad_base" ]]; then
+				IFS= read -r -d '' _ad_txt <"$_ad_file" || true
+				[[ "$_ad_txt" != *target=* || "$_ad_txt" == *'target="*"'* || "$_ad_txt" == *"target='*'"* || "$_ad_txt" == *"$_ad_base"* ]] || continue
+			fi
+			_ad_deps+=("$_ad_file")
+		done
 	done
 }
 

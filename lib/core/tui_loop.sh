@@ -154,6 +154,7 @@ tui.run() {
 		fi
 		((_TUI_ERR_ON)) && _tui_errors.drain # stderr only fills while code runs: after the input, ticks and jobs of this pass, not on a timer of its own
 		_tui.frame_present
+		((TUI_DEBUG)) && _tui_debug.input_end
 	done
 
 	_master_cleanup

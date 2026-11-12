@@ -569,10 +569,18 @@ Read-only. Pane getters return `1` for an unknown pane.
 
 ## Logging and perf
 
-<!-- api: tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.level tui.log.file tui.perf.mean_render_ms tui.perf.report tui.perf.reset -->
+<!-- api: tui.debug.bar tui.debug.segment tui.debug.segment.toggle tui.debug.init tui.debug.devtools tui.debug.event tui.debug.enable tui.debug.reset tui.log tui.log.debug tui.log.info tui.log.warn tui.log.error tui.log.level tui.log.file tui.perf.mean_render_ms tui.perf.report tui.perf.reset -->
 
 | Function | Summary |
 |---|---|
+| [`tui.debug.bar`](core/tui.debug.bar.md) | Shows or hides the debug status strip above the footer and gives its row back to the page when hidden. |
+| [`tui.debug.segment`](core/tui.debug.segment.md) | Registers a segment of the debug strip; `FN` sets `_DBG_SEG` to its text, and an empty text hides it. |
+| [`tui.debug.segment.toggle`](core/tui.debug.segment.toggle.md) | Switches one debug-strip segment on or off. |
+| [`tui.debug.init`](core/tui.debug.init.md) | Starts the debug strip and binds F12 and a command-palette entry to its toggle; `tui.init` calls it when `TUI_DEBUG` is set. |
+| [`tui.debug.devtools`](core/tui.debug.devtools.md) | Opens or closes the dev-tools dock above the debug strip, or moves the keyboard to or from it; `dabt --debug` binds F11 to it. |
+| [`tui.debug.event`](core/tui.debug.event.md) | Counts the event NAME and appends it to the debug ring buffer; does nothing unless debugging is on (`dabt --debug`). |
+| [`tui.debug.enable`](core/tui.debug.enable.md) | Turns debugging on, and perf tracking with it. |
+| [`tui.debug.reset`](core/tui.debug.reset.md) | Clears the debug ring buffer and the event counters. |
 | [`tui.log`](core/tui.log.md) | Appends a line to the app's log file. stdout is the screen, so logs go to a file. |
 | [`tui.log.debug`](core/tui.log.debug.md) | Same as `tui.log MSG debug`; dropped without any work when the log level is above `debug` ([`tui.log.level`](/api/core/tui.log.level.html)). See [`tui.log`](/api/core/tui.log.html). |
 | [`tui.log.info`](core/tui.log.info.md) | Same as `tui.log MSG info`; dropped without any work when the log level is above `info` ([`tui.log.level`](/api/core/tui.log.level.html)). See [`tui.log`](/api/core/tui.log.html). |
@@ -585,6 +593,22 @@ Read-only. Pane getters return `1` for an unknown pane.
 | [`tui.perf.reset`](core/tui.perf.reset.md) | Clears every tracked span and counter. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.debug.bar.md %}
+
+{% include_relative core/tui.debug.segment.md %}
+
+{% include_relative core/tui.debug.segment.toggle.md %}
+
+{% include_relative core/tui.debug.init.md %}
+
+{% include_relative core/tui.debug.devtools.md %}
+
+{% include_relative core/tui.debug.event.md %}
+
+{% include_relative core/tui.debug.enable.md %}
+
+{% include_relative core/tui.debug.reset.md %}
 
 {% include_relative core/tui.log.md %}
 

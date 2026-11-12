@@ -81,14 +81,10 @@ declare -g _DEBUG_TICK_COUNT=0
 _debug_tick() {
 	((_DEBUG_TICK_COUNT++))
 
-	if [[ "$_TUI_HOVERED_WIDGET" != "$_DEBUG_LAST_HOVER_W" || "$_TUI_FOCUS_ID" != "$_DEBUG_LAST_FOCUS" ]]; then
+	# one refresh per tick: on a hover or focus change, else twice a second for the perf readout
+	if [[ "$_TUI_HOVERED_WIDGET" != "$_DEBUG_LAST_HOVER_W" || "$_TUI_FOCUS_ID" != "$_DEBUG_LAST_FOCUS" ]] || ((_DEBUG_TICK_COUNT % 10 == 0)); then
 		_DEBUG_LAST_HOVER_W="$_TUI_HOVERED_WIDGET"
 		_DEBUG_LAST_FOCUS="$_TUI_FOCUS_ID"
-		_debug_refresh_status
-	fi
-
-	# Perf readout: refresh roughly twice a second rather than every tick.
-	if ((_DEBUG_TICK_COUNT % 10 == 0)); then
 		_debug_refresh_status
 	fi
 }

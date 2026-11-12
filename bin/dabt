@@ -16,6 +16,7 @@ Options:
   -d, --details    installed version, locations and status
   -v, --version    print the version
       --demo       run the demo application
+      --debug[=CATS]   record debug events (cache misses, ...); CATS is a comma list, e.g. --debug=cache
       --ignore-invalid-xml   start an application even when its pages have configuration errors
                              (they are logged to ~/.config/DABT/apps/<app>/logs/ and shown as a notification)
 
@@ -149,7 +150,15 @@ _details() {
 
 # --ignore-invalid-xml may sit anywhere (dabt --demo --ignore-invalid-xml, dabt app run NAME --ignore-invalid-xml)
 _args=()
-for _a in "$@"; do [[ "$_a" == --ignore-invalid-xml ]] && export TUI_IGNORE_INVALID_XML=1 || _args+=("$_a"); done
+# --debug[=CATEGORIES] likewise: turns on the debug event bus (lib/debug.sh); CATEGORIES is a comma list, empty = all
+for _a in "$@"; do
+    case "$_a" in
+        --ignore-invalid-xml) export TUI_IGNORE_INVALID_XML=1 ;;
+        --debug) export TUI_DEBUG=1 ;;
+        --debug=*) export TUI_DEBUG=1 TUI_DEBUG_CATS="${_a#--debug=}" ;;
+        *) _args+=("$_a") ;;
+    esac
+done
 set -- "${_args[@]}"
 unset _args _a
 

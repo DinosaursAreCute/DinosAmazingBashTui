@@ -88,7 +88,7 @@ _tui_cache_snapshot() {
 	done <<<"$dump"
 	# the terminal size the geometry in this snapshot was laid out for (tui.load ends with a layout): a replay at the
 	# same size and footer needs no relayout, see tui.cache.replay
-	printf '%sdeclare -g _TUI_SNAP_SIZE="%s %s %s"' "$out" "$_TUI_ROWS" "$_TUI_COLS" "$_TUI_FOOTER_ON"
+	printf '%sdeclare -g _TUI_SNAP_SIZE="%s %s %s %s"' "$out" "$_TUI_ROWS" "$_TUI_COLS" "$_TUI_FOOTER_ON" "$_TUI_DBG_ROWS"
 }
 declare -g _TUI_SNAP_SIZE=""
 
@@ -453,11 +453,11 @@ tui.cache.record() {
 
 	local -a deps=()
 	tui.cache.deps_of "$file" deps
-	tui_addon.deps deps
+	tui_addon.deps deps "$file"
 	tui_plugin.deps deps
 	if [[ -n "$_rec_shell" ]]; then # changing the shell invalidates every page that uses it
 		tui.cache.deps_of "$_rec_shell" deps
-		tui_addon.deps deps
+		tui_addon.deps deps "$_rec_shell"
 	fi
 	_TUI_CACHE_SIG["$file"]="$(tui.cache.signature "${deps[@]}")"
 }
@@ -473,6 +473,7 @@ tui.cache.forget() {
 # 1 once tui.start_cached has validated and warmed every page: source files are then assumed not to change while the
 # app runs, so tui.cache.valid and the theme memo stop checking mtimes (one stat call per page switch gone). Edits made
 # while the app runs take effect on the next start. TUI_CACHE_TRUST=0 keeps the live checks (developing a page).
+declare -gi _TUI_CACHE_TOTAL=0 _TUI_CACHE_STALE=0 _TUI_CACHE_ON_DISK=0 # start_cached: pages known, built this start, found valid on disk
 declare -gi _TUI_CACHE_TRUSTED=0
 declare -gi TUI_CACHE_TRUST="${TUI_CACHE_TRUST:-1}"
 
@@ -602,7 +603,7 @@ tui.cache.replay() {
 			_tui._layout "$_TUI_OUTLET"
 		fi
 		((_TUI_L_N)) && _tui_layer.layout # the recorded rectangles of the layers belong to the recording's screen
-	elif [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON" ]] && ((_TUI_LY_GEN == _ly_gen)); then
+	elif [[ "$_TUI_SNAP_SIZE" == "$_TUI_ROWS $_TUI_COLS $_TUI_FOOTER_ON $_TUI_DBG_ROWS" ]] && ((_TUI_LY_GEN == _ly_gen)); then
 		_tui_perf.count relayout_skipped
 	else
 		_tui_cache_relayout
@@ -629,15 +630,21 @@ tui.load_cached() {
 	_TUI_MARKUP_DIR="$dir"
 	_TUI_MARKUP_FILE="$resolved"
 
-	local _lc_valid=no
+	local _lc_valid=no _lc_t0=0
+	((TUI_DEBUG)) && _lc_t0=${EPOCHREALTIME//[!0-9]/}
 	tui.cache.valid "$resolved" && _lc_valid=yes
 	tui.log.debug "tui.load_cached: $resolved valid=$_lc_valid overlay=${_TUI_THEME_OVERLAY:-<none>}"
 	if [[ "$_lc_valid" == yes ]] && tui.cache.replay "$resolved"; then
 		_tui_perf.count cache_hit
+		((TUI_DEBUG)) && _tui_debug.visit "$resolved" hit "$_lc_t0"
 		return 0
 	fi
 	_tui_perf.count cache_miss
+	((TUI_DEBUG)) && tui.debug.event cache.page.miss "$resolved"
 	tui.cache.record "$resolved"
+	local _lc_rc=$?
+	((TUI_DEBUG)) && _tui_debug.visit "$resolved" miss "$_lc_t0"
+	return $_lc_rc
 }
 
 # ── cache (de)serialization - crosses the precompute worker's process
@@ -1412,6 +1419,7 @@ tui.start_cached() {
 		tui.cache.valid "$p" || stale+=("$p")
 	done
 	_TUI_CACHE_MTIME_FRESH=0
+	_TUI_CACHE_TOTAL=${#pages[@]} _TUI_CACHE_STALE=${#stale[@]} _TUI_CACHE_ON_DISK=$((${#pages[@]} - ${#stale[@]}))
 	# measured before any worker forks: they inherit _TERM_SIZE and build every page for this size. Cached pages fitted to
 	# another size are re-fitted by the background pool, so they are ready for this terminal when visited.
 	local -a resized=()

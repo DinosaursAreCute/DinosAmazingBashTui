@@ -62,8 +62,11 @@ _tui_footer.reset() {
 	tui.layer.fn_remove _tui_footer.draw
 }
 
-# the outermost pane leaves the last row to the footer
-_tui._root_h() { _TUI_P_H[root]=$((_TUI_ROWS - _TUI_FOOTER_ON)); }
+# the outermost pane leaves the last row to the footer, and the one above it to the debug strip
+_tui._root_h() {
+	((_TUI_DTL_ON)) && _tui_devtools.fit # the dock's height follows the terminal
+	_TUI_P_H[root]=$((_TUI_ROWS - _TUI_FOOTER_ON - _TUI_DBG_ROWS))
+}
 
 # root's own width, from the live terminal - never from a cached snapshot.
 # _TUI_P_W (like every other _TUI_P_* array) is inside tui.cache.record's

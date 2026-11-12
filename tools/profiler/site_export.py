@@ -55,6 +55,7 @@ REVISIONS = [
     ("scroll2", "Scrolling 2: placement cache", "20261107-170116", "The widget placement cache no longer keys on the scroll offset; the offset, pin and clip are applied after the lookup (scroll scenario, traced).", True),
     ("scroll4", "Scrolling 3: hit zones", "20261107-170910", "The hit index skips widgets that cannot be hit above or below the viewport instead of placing and clipping all of them (scroll scenario, traced).", True),
     ("scroll5", "Scrolling 4: pin and measure", "20261107-171651", "The pinned-widget search walks only the pins; the content measure drops per-widget locals and the regex (scroll scenario, traced).", True),
+    ('r20261112-213012', 'Performance Optimizations', '20261112-213012', 'Performance Optimizations', True),
 ]
 
 

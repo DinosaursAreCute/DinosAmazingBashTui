@@ -1,0 +1,32 @@
+<tui shell="_shell.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../tui.xsd" on_visit="console_visit">
+  <script src="debug_tabs.sh"/>
+  <script src="debug_console_callbacks.sh"/>
+
+  <pane id="main" split="v" border="none">
+    <pane id="tabs_header" weight="5" border="none"/>
+    <pane id="body" split="h" weight="95" border="none">
+      <pane id="console_out" weight="70" title="Console - today's app log (live)" border="single" class="panel" hpad="1" scroll="both"/>
+      <pane id="side" split="v" weight="30" border="none">
+        <pane id="console_ctl" weight="60" title="Controls" border="single" class="panel" hpad="1">
+          <button id="cn_lvl" text="[ Cycle minimum level ]" action="console_cycle_level" class="info_button" align="fill"/>
+          <button id="cn_pause" text="[ Pause / resume ]" action="console_toggle_pause" class="warning_button" align="fill"/>
+          <button id="cn_follow" text="[ Follow newest on/off ]" action="console_toggle_follow" class="info_button" align="fill"/>
+          <button id="cn_clear" text="[ Clear view ]" action="console_clear" class="danger_button" align="fill"/>
+          <label  id="cn_h" row="5" text="Write a sample line" class="brand"/>
+          <button id="cn_d" row="6" text="[ debug ]" action="console_log_debug" class="info_button" align="fill"/>
+          <button id="cn_i" row="7" text="[ info ]" action="console_log_info" class="success_button" align="fill"/>
+          <button id="cn_w" row="8" text="[ warn ]" action="console_log_warn" class="warning_button" align="fill"/>
+          <button id="cn_e" row="9" text="[ error ]" action="console_log_error" class="danger_button" align="fill"/>
+        </pane>
+        <pane id="console_state" weight="40" title="State" border="single" class="panel" hpad="1" scroll="both"/>
+      </pane>
+    </pane>
+  </pane>
+
+  <tabs id="con_tabs" header_pane="tabs_header" content_pane="body" style="compact">
+    <tab id="tab_dbg_events" text="Events &amp; hover"   action="dbg_goto_events"/>
+    <tab id="tab_dbg_input"  text="Keyboard &amp; mouse" action="dbg_goto_input"/>
+    <tab id="tab_dbg_lab"    text="Feature lab"          action="dbg_goto_lab"/>
+    <tab id="tab_dbg_console" text="Console"             action="dbg_tab_here" default="true"/>
+  </tabs>
+</tui>

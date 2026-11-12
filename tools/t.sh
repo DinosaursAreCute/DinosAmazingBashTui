@@ -67,7 +67,7 @@ source "$REPO/lib/tui.sh"
 # ~300 of those (mostly static config/lookup tables, never mutated by tests)
 # blows the speed budget for no correctness gain. Extend the pattern below
 # as later stages add mutable state modules with their own tests.
-_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_HZ|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_FL_|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP|_TUI_SHELL|_TUI_OUTLET|_TUI_PAGE_IDS|_TUI_PAGE_UNDO|_TUI_ADDON_DIRS|TUI_APP_CONF$|_?TUI_MD_)') 2>/dev/null; }
+_t_snapshot() { declare -p $(compgen -v | grep -E '^(_TUI_P_|_TUI_W_|_TUI_FOCUS|_TUI_HZ|_TUI_TABS_|_TUI_RC|_TUI_ROWCACHE|_TUI_BASE|_TUI_OVL_FLUSHES|_TUI_FL_|_TUI_MODAL|_TUI_CACHE_TRUSTED|_TUI_FTR|_REVK|_TUI_SNAP|_TUI_SHELL|_TUI_OUTLET|_TUI_PAGE_IDS|_TUI_PAGE_UNDO|_TUI_ADDON_DIRS|TUI_APP_CONF$|_?TUI_MD_|_TUI_DBG_|_TUI_DTL_|TUI_DEBUG)') 2>/dev/null; }
 _T_SNAPSHOT="$(_t_snapshot)"
 # declare -p never emits -g (same gotcha tui_cache.sh's own _tui_cache_restore
 # works around): eval-ing the dump as-is inside this function would declare
@@ -89,7 +89,10 @@ _t_restore_prepare() {
 	done <<<"$_T_SNAPSHOT"
 }
 _t_restore_prepare
-_t_restore() { eval "$_T_RESTORE_SRC"; }
+# Tests share one shell, so a stub a test defines (tui.notify() { :; }) outlives it: the functions tests commonly stub are
+# put back with the variables, or a later test meets the stub instead of the real thing.
+_T_FN_SRC="$(declare -f tui.notify _tui._draw_widget _tui._draw_batch_now _tui_wx.redraw _tui_text.redraw)"
+_t_restore() { eval "$_T_RESTORE_SRC"$'\n'"$_T_FN_SRC"; }
 
 # _t_fixture NAME FUNC: build an expensive page once per run, replay it per call.
 # First call runs FUNC and records every _TUI_*/TUI_*/_<FILE>_ global it left behind

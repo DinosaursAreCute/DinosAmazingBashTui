@@ -14,5 +14,10 @@ _saved_theme="$(sed -n 's/^theme=//p' "$TUI_APP_CONF/settings.conf" 2>/dev/null)
 [[ -n "$_saved_theme" && "$_saved_theme" != default && -r "$DEMO_DIR/themes/$_saved_theme.css" ]] &&
 	_TUI_THEME_OVERLAY="$DEMO_DIR/themes/$_saved_theme.css"
 
+# The Scrolling page's row count follows the terminal height through an addon file; writing it before the first load builds
+# that page once, at its final size, instead of once and again on its first visit.
+source "$DEMO_DIR/scroll_callbacks.sh"
+read -r _rows _ < <(stty size 2>/dev/null) && scroll_write_rows "${_rows:-0}"
+
 tui.cmd.load "$DEMO_DIR/commands.xml"                    # app commands for the palette (ctrl+p)
 tui.start_cached "$DEMO_DIR/${DABT_DEMO_PAGE:-home}.xml" # DABT_DEMO_PAGE=components starts on another page (the profiler does: Home is the heaviest)

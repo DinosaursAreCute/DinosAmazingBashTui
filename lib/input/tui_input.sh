@@ -362,14 +362,24 @@ tui.bind.table() {
     done
     _TBL="${out%$'\n'}"
 }
-# _tui_input.sorted_ids ARRAYNAME -> _SIDS: the array's keys, sorted (insertion sort: tables are small, no fork)
+# _tui_input.sorted_ids ARRAYNAME -> _SIDS: the array's keys, sorted (bottom-up merge sort: no fork, O(n log n)).
+# The old insertion sort rebuilt the whole result array per key: 10 ms for 77 keys, 5 ms now.
 _tui_input.sorted_ids() {
-    local -n _t="$1"; local k i j
-    _SIDS=()
-    for k in "${!_t[@]}"; do
-        for (( i = 0; i < ${#_SIDS[@]}; i++ )); do [[ "$k" < "${_SIDS[i]}" ]] && break; done
-        _SIDS=("${_SIDS[@]:0:i}" "$k" "${_SIDS[@]:i}")
+    local -n _t="$1"; local -a _a=("${!_t[@]}") _b; local _n=${#_a[@]} _w _lo _mid _hi _l _r _k
+    for (( _w = 1; _w < _n; _w *= 2 )); do
+        for (( _lo = 0; _lo < _n; _lo += 2 * _w )); do
+            _mid=$(( _lo + _w )); _hi=$(( _lo + 2 * _w ))
+            (( _mid > _n )) && _mid=$_n; (( _hi > _n )) && _hi=$_n
+            _l=$_lo _r=$_mid _k=$_lo
+            while (( _l < _mid && _r < _hi )); do
+                if [[ "${_a[_r]}" < "${_a[_l]}" ]]; then _b[_k++]=${_a[_r++]}; else _b[_k++]=${_a[_l++]}; fi
+            done
+            while (( _l < _mid )); do _b[_k++]=${_a[_l++]}; done
+            while (( _r < _hi )); do _b[_k++]=${_a[_r++]}; done
+        done
+        _a=("${_b[@]}")
     done
+    _SIDS=("${_a[@]}")
 }
 
 # tui.get.raw_input - the bytes the terminal sent for the last key or mouse press (pointer motion excluded), control
@@ -463,6 +473,7 @@ _tui_input.key_event() {
     if [[ -n "$char" ]]; then _TUI_LAST_RAW="$char"; _tui_input.name_char "$char"; else _TUI_LAST_RAW=$'\e'"$seq"; _tui_input.name_seq "$seq"; fi
     local name="$_KEY"
     [[ -z "$name" ]] && return 1
+    ((TUI_DEBUG)) && _tui_debug.input_begin "key $name"
     # Terminal-control mode: only the chord is heard; everything else is swallowed.
     if [[ "$name" == "$_TUI_PT_NAME" ]]; then tui.passthrough toggle; return 0; fi
     (( _TUI_PASSTHROUGH )) && return 0
@@ -518,6 +529,7 @@ _tui_input.mouse_event() {
     TUI_EVENT_COUNT=$_TUI_REPEAT; _TUI_REPEAT=1
     if [[ -n "$_TUI_ON_KEY_EVENT" ]]; then "$_TUI_ON_KEY_EVENT" "${name:-move}" "$TUI_EVENT_COUNT"; fi
     [[ -z "$name" ]] && return 1
+    ((TUI_DEBUG)) && _tui_debug.input_begin "$name"
     [[ -n "$_TUI_CAPTURE_FN" ]] && _tui_input.captured "$name" "$3" "$4" && return 0
     # A modal owns the pointer too: its handler gets the event, everything else is ignored.
     if [[ -n "$_TUI_MODAL" ]]; then [[ -n "$_TUI_MODAL_MOUSEFN" ]] && "$_TUI_MODAL_MOUSEFN" "$name" "$3" "$4"; return 0; fi

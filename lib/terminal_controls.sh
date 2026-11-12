@@ -76,8 +76,9 @@ erase.chars() { echo -ne "\e[${1:-1}X"; } # Erase N chars from cursor
 erase.all() {
 	echo -ne "\e[2J\e[3J\e[H"
 	declare -F tui.paint.reset >/dev/null && tui.paint.reset
-	_TUI_BASE_GEN=-1    # the saved base frame (tui_modal.sh) no longer matches the screen
-	_TUI_FTR_PAINTED="" # nor does the footer row (tui_footer.sh)
+	_TUI_BASE_GEN=-1                        # the saved base frame (tui_modal.sh) no longer matches the screen
+	_TUI_FTR_PAINTED=""                     # nor does the footer row (tui_footer.sh)
+	_TUI_DBG_PAINTED="" _TUI_DTL_PAINTED="" # nor the debug strip and dev-tools dock (tui_debugbar.sh, tui_devtools.sh)
 }
 
 # ─────────────────────────────────────────────

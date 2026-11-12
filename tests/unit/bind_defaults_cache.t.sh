@@ -51,8 +51,8 @@ ti_bind_defaults_reparses_a_file_that_changed() {
 	touch -d '+5 seconds' "$_BD_F" # newer than the snapshot, whatever the clock resolution
 	_bd_count_parses tui.bind.defaults "$_BD_F"
 	eq "2" "$_BD_PARSES"
-	eq "x.a2" "${_TUI_BIND_DEF[ctrl + a]}"
-	eq "x.z" "${_TUI_BIND_DEF[ctrl + z]}"
+	eq "x.a2" "${_TUI_BIND_DEF["ctrl+a"]}"
+	eq "x.z" "${_TUI_BIND_DEF["ctrl+z"]}"
 	tui.bind.defaults
 }
 
@@ -62,8 +62,8 @@ ti_bind_defaults_keeps_files_apart() {
 	tui.bind.defaults "$_T_ROOT/bd3a.xml"
 	tui.bind.defaults "$_T_ROOT/bd3b.xml"
 	tui.bind.defaults "$_T_ROOT/bd3a.xml"
-	eq "x.a" "${_TUI_BIND_DEF[ctrl + a]}"
-	eq "" "${_TUI_BIND_DEF[ctrl + b]:-}"
+	eq "x.a" "${_TUI_BIND_DEF["ctrl+a"]}"
+	eq "" "${_TUI_BIND_DEF["ctrl+b"]:-}"
 	tui.bind.defaults
 }
 
@@ -74,7 +74,7 @@ ti_bind_defaults_works_without_a_cache_home() {
 	_bd_count_parses tui.bind.defaults "$_BD_F"
 	_bd_count_parses tui.bind.defaults "$_BD_F"
 	eq "1" "$_BD_PARSES" # nothing to keep a snapshot in: parsed again, and loaded
-	eq "x.a" "${_TUI_BIND_DEF[ctrl + a]}"
+	eq "x.a" "${_TUI_BIND_DEF["ctrl+a"]}"
 	TUI_HOME="$saved_home"
 	tui.bind.defaults
 }

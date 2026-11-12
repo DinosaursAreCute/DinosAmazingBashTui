@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.30] - 2026-11-12
+
 ### News
 - **`dabt --debug` shows what the app is doing: a live status strip and a dev-tools dock inside the terminal.**
 - **F12 toggles the status strip, F11 the dock with its Events, Pages, Perf and Counters tabs.**

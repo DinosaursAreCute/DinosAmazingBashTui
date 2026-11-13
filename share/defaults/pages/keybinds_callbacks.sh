@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# keybinds_callbacks.sh - DABT default 	return 0
-}binds page. Only public tui.* calls.
+# keybinds_callbacks.sh - DABT default Keybinds page. Only public tui.* calls.
 tui.require terminal_renderer
 
 _dkb_refresh() {

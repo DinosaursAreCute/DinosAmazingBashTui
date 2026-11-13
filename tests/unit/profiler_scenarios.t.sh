@@ -1,11 +1,11 @@
-# profiler_scenarios.t.sh - the profiler's scenario list (tools/profiler/scenarios/demo.py, loaded by tools/profiler/dprof/scenarios.py) stays consistent.
-# Only reads the definitions with python3; it starts no app and measures nothing (that is tools/profiler/profile.sh).
+# profiler_scenarios.t.sh - the profiler's scenario list (tools/benchmarks/profiler/scenarios/demo.py, loaded by tools/benchmarks/profiler/dprof/scenarios.py) stays consistent.
+# Only reads the definitions with python3; it starts no app and measures nothing (that is tools/benchmarks/profiler/profile.sh).
 
 ti_profiler_every_scenario_group_has_a_title_and_a_budget_and_steps() {
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(
-		cd "$REPO/tools/profiler" && python3 - <<'PY'
+		cd "$REPO/tools/benchmarks/profiler" && python3 - <<'PY'
 from dprof import scenarios as sc
 sc.load()
 bad = []
@@ -32,7 +32,7 @@ ti_profiler_scroll_features_each_have_an_overall_group_and_the_same_budget() {
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(
-		cd "$REPO/tools/profiler" && python3 - <<'PY'
+		cd "$REPO/tools/benchmarks/profiler" && python3 - <<'PY'
 from dprof import scenarios as sc
 sc.load()
 parents = sorted(set(sc.GROUP_PARENT.values()))
@@ -60,7 +60,7 @@ ti_profiler_scrollbar_is_found_from_the_cells_the_app_drew_and_a_parent_sums_its
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(
-		cd "$REPO/tools/profiler" && python3 - <<'PY'
+		cd "$REPO/tools/benchmarks/profiler" && python3 - <<'PY'
 from dprof import scenarios as sc
 from dprof.session import Session
 from dprof.analyze import latency_groups
@@ -87,7 +87,7 @@ PY
 ti_profiler_compose_scenario_exists_and_probes_the_refresh() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import scenarios as sc, session
 sc.load()
 names = [n for n, _, _ in sc.SCENARIOS]
@@ -101,7 +101,7 @@ print(" ".join(sorted(need)))')"
 ti_profiler_compose_groups_have_the_page_switch_budget() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import scenarios as sc
 sc.load()
 bad = [g for g in ("compose.add", "compose.tab", "compose.cond", "compose.addons") if sc.GROUP_INFO[g][2] != 100]
@@ -112,7 +112,7 @@ print(" ".join(bad))')"
 ti_profiler_locate_matches_whole_words_so_default_is_not_defaults() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof.session import Session
 class S(Session):
     def __init__(self, raw): self.raw = bytearray(raw)
@@ -124,7 +124,7 @@ print(S(page).locate("default"), S(b"\x1b[18;1H[ Reset to defaults ]").locate("d
 ti_profiler_failed_steps_become_warnings_and_a_failed_group_is_never_rated_good() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import analyze, runner, scenarios as sc
 sc.load()
 class UI:
@@ -144,7 +144,7 @@ print(len(w), g["rating"], g["failed"], su["total_ms"], su["start_ms"])')"
 ti_profiler_compose_open_must_land_on_the_page() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import scenarios as sc
 sc.load()
 st = sc.steps(45, 150, False, {"compose.open"})
@@ -156,7 +156,7 @@ ti_profiler_units_are_independent_setup_then_measure_blocks() {
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(
-		cd "$REPO/tools/profiler" && python3 - <<'PY'
+		cd "$REPO/tools/benchmarks/profiler" && python3 - <<'PY'
 from dprof import scenarios as sc
 sc.load()
 bad, seen = [], {}
@@ -184,7 +184,7 @@ PY
 ti_profiler_machine_info_has_specs_only_and_the_sampler_reports_load() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import getpass, json, os, socket, time
 from dprof import sysinfo
 m = sysinfo.machine(45, 150)
@@ -206,7 +206,7 @@ ti_profiler_explorer_data_is_generated_for_every_run_without_manual_steps() {
 	echo '{"meta":{"when":"x","commit":"abc","scenario":"full"},"latency":[{"id":"nav.first","value":12.5,"rating":"good","n":3,"budget_ms":150}],"startup":{"warm":{"ready_ms":300}},"insights":[{"sev":"crit"}]}' >"$d/20260101-010101/report.json"
 	echo '{"meta":{"when":"y"},"latency":[]}' >"$d/20260102-020202/report.json"
 	ln -s 20260102-020202 "$d/latest"
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import json, os, sys
 import explore
 d = sys.argv[1]
@@ -223,7 +223,7 @@ ti_profiler_flags_noisy_runs_and_the_html_report_script_parses() {
 	command -v python3 >/dev/null || return 0
 	local out
 	out="$(
-		cd "$REPO/tools/profiler" && python3 - <<'PY'
+		cd "$REPO/tools/benchmarks/profiler" && python3 - <<'PY'
 import json, re, subprocess, tempfile
 from dprof import analyze, report_html, report_term
 bad = []
@@ -271,7 +271,7 @@ def steps(rows, cols, quick=False, wanted=None):
     if want("x.idle"): S.append(Step("x.idle", "1 s", "idle", 1.0))
     return S
 PY
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import sys
 from dprof import scenarios as sc
 sc.load()
@@ -291,7 +291,7 @@ ti_profiler_a_scenario_file_with_missing_or_inconsistent_tables_is_refused_with_
 	d="$(mktemp -d)"
 	printf 'GROUP_INFO = {}\n' >"$d/missing.py"
 	printf 'from dprof.scenarios import Step\nGROUP_INFO = {"a": ("A", "nav", 1)}\nSCENARIOS = [("s", "d", {"b"})]\nUNIT_GROUPS = [("u", ["a"]), ("v", ["a"])]\ndef steps(r, c, q=False, w=None): return []\n' >"$d/bad.py"
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import sys
 from dprof import scenarios as sc
 for f in sys.argv[1:]:
@@ -302,7 +302,7 @@ for f in sys.argv[1:]:
 	rm -rf "$d"
 	eq "missing SCENARIOS, UNIT_GROUPS, steps (see the docstring of scenarios/demo.py)
 scenario s: group b is not in GROUP_INFO; group a is in units u and v
-scenario file '$d/none.py' not found (looked for it as a path and in $REPO/tools/profiler/scenarios)" "$out"
+scenario file '$d/none.py' not found (looked for it as a path and in $REPO/tools/benchmarks/profiler/scenarios)" "$out"
 }
 
 ti_profiler_an_app_that_does_not_source_the_library_the_expected_way_is_an_error_not_an_unprobed_run() {
@@ -310,7 +310,7 @@ ti_profiler_an_app_that_does_not_source_the_library_the_expected_way_is_an_error
 	local out d
 	d="$(mktemp -d)"
 	printf '#!/usr/bin/env bash\nsource "$HOME/lib/tui.sh"\n' >"$d/app.sh"
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import sys
 from dprof import scenarios as sc
 sc.load()
@@ -327,7 +327,7 @@ except RuntimeError as e:
 ti_profiler_perflab_scenario_file_is_consistent_and_every_rung_is_a_unit_with_its_own_size() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import scenarios as sc
 sc.load("perflab")
 bad = []
@@ -352,7 +352,7 @@ print("\n".join(bad))')"
 ti_profiler_ladders_take_set_overrides_and_scale_and_sweeps_default_to_latency_only() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import scenarios as sc
 sc.set_options(["table.rows=7,70", "scale=0.5"])
 sc.load("perflab")
@@ -365,7 +365,7 @@ print(rows, ticks, sc.parse_group("table.rows.7.open"), sc.parse_group("nav.firs
 ti_profiler_limits_name_the_largest_n_inside_the_budget_the_first_over_and_the_rung_that_never_ran() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import analyze, scenarios as sc
 sc.load("perflab")
 def g(n, v, failed=0):
@@ -379,7 +379,7 @@ print(r["within"], r["first_over"], r["hard"], round(r["slope"], 2), r["slope_at
 ti_profiler_perflab_generates_one_page_per_wanted_button_rung_with_its_callbacks() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import os
 from dprof import scenarios as sc
 sc.set_options(["buttons.count=3,5"])
@@ -403,7 +403,7 @@ ti_profiler_perflab_static_pages_pass_the_validator() {
 ti_profiler_the_same_group_traced_twice_adds_up_and_floor_wants_five_passes_quick_one() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 from dprof import analyze, scenarios as sc
 a = {"stacks": {(("f",), "sh"): [100, 2]}, "lines": {"x:1": [1, 2, 3, 4]}, "calls": {"f": 1}, "edges": {}, "forks": {}, "focus": {}, "execs": {}, "tot": {"sh": 10, "ex": 1}, "nlines": 5, "pids": 2}
 b = {"stacks": {(("f",), "sh"): [50, 1], (("g",), "sh"): [7, 1]}, "lines": {"x:1": [1, 1, 1, 1]}, "calls": {"f": 2, "g": 1}, "edges": {}, "forks": {}, "focus": {}, "execs": {}, "tot": {"sh": 5, "ex": 0}, "nlines": 3, "pids": 3}
@@ -418,9 +418,10 @@ print(m["stacks"][(("f",), "sh")], m["stacks"][(("g",), "sh")], m["lines"]["x:1"
 ti_profiler_parallel_units_print_as_one_block_each_and_problems_come_back_at_the_end() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import io
-from dprof import scenarios as sc, term
+from dprof import scenarios as sc
+from reporting import term
 sc.load()
 from dprof.live import LiveUI
 term.init(False)
@@ -458,7 +459,7 @@ print(max(ia) - min(ia) == 1, max(ib) - min(ib) >= 1, "\x1b" not in plain, "1 pr
 ti_profiler_an_app_still_gets_its_probe_pipe_when_the_parent_pipe_already_sits_on_fd_8() {
 	command -v python3 >/dev/null || return 0
 	local out
-	out="$(cd "$REPO/tools/profiler" && python3 -c '
+	out="$(cd "$REPO/tools/benchmarks/profiler" && python3 -c '
 import os
 from dprof.session import inherit_pipes
 held = []

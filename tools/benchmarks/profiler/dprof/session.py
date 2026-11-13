@@ -1,0 +1,617 @@
+"""One live run of a DABT app inside a pseudo-terminal.
+
+The session is the profiler's "user": it types, moves the mouse, resizes the window and
+measures how the app answers. Latency comes from probe events the app writes on fd 8
+(see probe_shim.sh), not from watching the screen: the app repaints its footer ~20x/s
+when idle, so "output went quiet" is not a usable settle signal.
+"""
+import fcntl
+import os
+import pty
+import select
+import signal
+import struct
+import tempfile
+import re
+import termios
+import time
+import shutil
+
+from . import scenarios
+
+CLK_TCK = os.sysconf("SC_CLK_TCK")
+PAGE_KB = os.sysconf("SC_PAGE_SIZE") // 1024
+HERE = os.path.dirname(os.path.abspath(__file__))
+PROFILER_DIR = os.path.dirname(HERE)
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(PROFILER_DIR)))
+WATCH = None   # a reporting.watch.Watch mirroring the app's output into a viewer window (profile.sh --watch), else None
+
+# name:kind - w/p/a = user-visible work (nesting depth), s = span only, f = one flushed frame
+WRAP = [
+    ("_tui_input.key_event", "w"), ("_tui._handle_mouse", "w"), ("_tui._flush_pending_render", "p"),
+    ("_tui._apply_resize", "w"), ("_tui_layer.draw_all", "a"), ("tui.render", "w"),
+    ("tui.goto", "w"), ("tui.hook.fire", "w"), ("_master_cleanup", "w"),
+    ("_tui._flush", "f"),
+    ("_tui_validate.gate", "w"), ("tui.cache.load_dir", "w"), ("tui.cache.warm_with_spinner", "w"),
+    ("tui.cache.dump_dir", "w"), ("tui.init", "w"), ("tui.load_cached", "w"),
+    ("_tui_validate.notify", "w"), ("tui.run", "s"),
+    # start-up phases between the big ones (span only: they are part of the start, not of a click)
+    ("_tui_cache_warm_prelude", "s"), ("_tui_cache_warm_worker", "s"), ("_tui_cache_lazy.start", "s"),
+    ("_tui_cache_lazy.announce", "s"), ("_tui_cache_lazy.finish", "s"), ("_tui_validate.begin", "s"), ("_tui_validate.finish", "s"),
+    ("_tui_store.restore_page", "s"), ("_tui_store.enter_focus", "s"),
+    ("tui.cache.replay", "s"), ("_tui_cache_run_on_visit", "s"), ("_tui._draw_pane_buf", "n"),
+    # tui.page.refresh (lib/markup/tui_refresh.sh) and background jobs (lib/tui_job.sh). _tui_job.tick runs on every loop
+    # pass while a job is pending and is deliberately not probed. _tui_job.finish is a span only: a job lands when it is
+    # done, not as part of the click that started it, so it must not stretch that click's settle time.
+    # one time slice of a Markdown render that is finished in the background: work, even when it paints nothing
+    ("_tui_md.more_pane", "w"), ("_tui_md.bg_collect", "w"),
+    ("tui.page.refresh", "w"), ("tui.job.run", "w"), ("_tui_job.finish", "s"), ("_tui_job.spinner_draw", "s"),
+]
+WORK_FNS = {n for n, k in WRAP if k in "wpa"}
+WRAPPED = {n for n, _ in WRAP}
+_TOKEN = re.compile(r"\x1b\[(\d+);(\d*)H|\x1b(?:\[[0-9;?<>=]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[78=>])|([^\x1b\r\n]+)")
+# a vertical scrollbar cell as the framework draws it (lib/layout/tui_scroll.sh): the thumb is a reverse-video space, the
+# track a dim box-drawing bar; the border's own cells are neither
+_BAR_CELL = re.compile(r"\x1b\[(\d+);(\d+)H(?:\x1b\[[0-9;]*m)*\x1b\[(7m \x1b\[0m|2m\u2502\x1b\[0m)")
+XTVERSION_REPLY = b"\x1bP>|xterm(388)\x1b\\"
+
+
+ACTIVE = []   # live sessions, so an abort can kill every app we started
+
+
+def kill_all():
+    for s in list(ACTIVE):
+        try:
+            os.kill(s.pid, signal.SIGKILL)
+        except (OSError, TypeError):
+            pass
+
+
+def now():
+    return time.time()
+
+
+def _click(x, y):
+    return b"\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x, y, x, y)
+
+
+# SGR mouse reports: move (no button), press, drag (left held), release, wheel down / up
+_MOUSE = {"m": (35, "M"), "p": (0, "M"), "d": (32, "M"), "r": (0, "m"), "w": (65, "M"), "W": (64, "M"), "L": (66, "M"), "R": (67, "M")}
+
+
+def _mouse(code, x, y):
+    b, end = _MOUSE[code]
+    return b"\x1b[<%d;%d;%d%s" % (b, x, y, end.encode())
+
+
+def us_to_s(us):
+    return us / 1e6
+
+
+class Event:
+    __slots__ = ("kind", "name", "t0", "t1", "arg", "chain")
+
+    def __init__(self, kind, name, t0, t1=0.0, arg=0, chain=""):
+        self.kind, self.name, self.t0, self.t1, self.arg, self.chain = kind, name, t0, t1, arg, chain
+
+
+def _pane_costs(evs):
+    """{pane id: [draws, wall ms]} for the _tui._draw_pane_buf spans inside one action."""
+    out = {}
+    for e in evs:
+        if e.kind == "E" and e.name == "_tui._draw_pane_buf" and e.chain:
+            o = out.setdefault(e.chain, [0, 0.0])
+            o[0] += 1
+            o[1] += (e.t1 - e.t0) * 1000
+    return out
+
+
+def inherit_pipes(probe_w, trace_w):
+    """In a forked child, before exec: the probe pipe becomes fd 8, the trace pipe fd 9 (None = none) and nothing else
+    above stderr is inherited. With units starting side by side the parent's pipes can already sit on 8 or 9: dup2(8, 8)
+    does nothing and leaves close-on-exec set, so the app would run without its probes and never be seen ready. Both are
+    moved out of the way first."""
+    hi_probe = fcntl.fcntl(probe_w, fcntl.F_DUPFD, 100)
+    hi_trace = fcntl.fcntl(trace_w, fcntl.F_DUPFD, 100) if trace_w is not None else None
+    os.dup2(hi_probe, 8)
+    if hi_trace is not None:
+        os.dup2(hi_trace, 9)
+    for f in range(3, 256):
+        if f in (8, 9):
+            continue
+        try:
+            os.close(f)
+        except OSError:
+            pass
+
+
+class Session:
+    def __init__(self, home, rows=45, cols=150, trace_w=None, app=None, forward=None, probes=True, env=None):
+        """home: throw-away HOME dir. trace_w: write end of the xtrace pipe (or None).
+        forward: callable(msg) receiving driver->aggregator messages (or None)."""
+        self.home, self.rows, self.cols = home, rows, cols
+        self.extra_env = dict(env or {})   # per-unit environment, on top of the scenario file's
+        self.probes = probes      # False while tracing: wrappers would hide the real file:line of what they wrap
+        self.remembered = {}      # needle -> position, see where()
+        self.bar_cells = {}       # (col, row) -> "thumb" | "track": the scrollbar cells as last drawn (the raw tail forgets panes not redrawn lately)
+        self._bar_carry = ""      # the end of the previous read: an escape sequence may be split across two reads
+        self.raw = bytearray()    # tail of the terminal output, for locate()
+        self.trace_w = trace_w
+        self.app = app or os.path.join(REPO, scenarios.DEFAULTS["app"] or os.path.join("bin", "DABT_demo.sh"))
+        self.forward = forward
+        self.events = []          # every probe event, in arrival order
+        self.worker_events = []   # the cache-build workers' spans (forked processes: kept apart from the main shell's events)
+        self.open_work = 0        # currently open work wrappers
+        self.last_work_end = 0.0
+        self.out_bytes = 0
+        self.last_out = 0.0
+        self.out_times = []   # arrival time of every pty read: the ground truth for "painted", direct draws included
+        self.first_out = 0.0
+        self.main_pid = None
+        self.alive = False
+        self.pid = None
+        self.t_spawn = 0.0
+        self._pbuf = b""
+        self._hb_at = 0.0
+        self._tmp = tempfile.mkdtemp(prefix="dprof-app-")
+
+    # ── lifecycle ────────────────────────────────────────────────────────────
+    def _write_app_copy(self):
+        """Copy of the app script that sources the probe shim instead of lib/tui.sh, with
+        $(dirname "$0") pinned to the real bin dir so every relative path still resolves."""
+        with open(self.app) as f:
+            text = f.read()
+        bindir = os.path.dirname(os.path.abspath(self.app))
+        shim = os.path.join(PROFILER_DIR, "probe_shim.sh")
+        pattern = scenarios.DEFAULTS["shim_pattern"]
+        if pattern not in text:   # without the swap the app runs unprobed: timings with no attribution, silently
+            raise RuntimeError(f"{self.app} does not contain {pattern}: the profiler cannot put its probes in. "
+                               "Source the library that way, or set SHIM_PATTERN in the scenario file.")
+        text = text.replace(pattern, f'"{shim}"')
+        text = text.replace('$(dirname "$0")', bindir)
+        path = os.path.join(self._tmp, "app.sh")
+        with open(path, "w") as f:
+            f.write(text)
+        return path
+
+    def start(self):
+        probe_r, probe_w = os.pipe()
+        self.probe_r = probe_r
+        app_copy = self._write_app_copy()
+        wrap = " ".join(f"{n}:{k}" for n, k in WRAP) if self.probes else ""
+        env = dict(os.environ)
+        env.update(
+            HOME=self.home, XDG_CONFIG_HOME=self.home + "/.config", XDG_CACHE_HOME=self.home + "/.cache",
+            XDG_DATA_HOME=self.home + "/.local/share", XDG_STATE_HOME=self.home + "/.local/state",
+            TERM="xterm-256color", COLORTERM="truecolor", LC_ALL="C.UTF-8", LANG="C.UTF-8", TZ="UTC",
+            PROF_REPO=REPO, PROF_WRAP=wrap, PROF_TRACE="1" if self.trace_w is not None else "0",
+        )
+        env.update(scenarios.ENV)
+        env.update(self.extra_env)
+        self.t_spawn = now()
+        pid, fd = pty.fork()
+        if pid == 0:
+            try:
+                inherit_pipes(probe_w, self.trace_w)
+                os.chdir(REPO)
+                os.execvpe("bash", ["bash", app_copy], env)
+            finally:
+                os._exit(127)
+        os.close(probe_w)
+        self.pid, self.pty = pid, fd
+        ACTIVE.append(self)
+        self.alive = True
+        self.resize(self.rows, self.cols, signal_app=False)
+        if WATCH:
+            WATCH.size(self.rows, self.cols)
+        return self
+
+    def resize(self, rows, cols, signal_app=True):
+        self.rows, self.cols = rows, cols
+        fcntl.ioctl(self.pty, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        if signal_app and self.alive:
+            os.kill(self.pid, signal.SIGWINCH)
+            if WATCH:
+                WATCH.size(rows, cols)
+
+    def send(self, data):
+        try:
+            os.write(self.pty, data)
+        except OSError:
+            self.alive = False
+
+    def exit_info(self):
+        """Human-readable exit status once the app is gone, else None."""
+        try:
+            pid, st = os.waitpid(self.pid, os.WNOHANG)
+        except (OSError, ChildProcessError):
+            return getattr(self, "_exit", None)
+        if pid:
+            self._exit = (f"exit {os.WEXITSTATUS(st)}" if os.WIFEXITED(st) else f"signal {os.WTERMSIG(st)}")
+        return getattr(self, "_exit", None)
+
+    def close(self):
+        if self.alive:
+            try:
+                os.kill(self.pid, signal.SIGTERM)
+            except OSError:
+                pass
+            self.pump(0.3, until=lambda: not self.alive)
+        for fd in (getattr(self, "pty", None), getattr(self, "probe_r", None)):
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        try:
+            os.waitpid(self.pid, os.WNOHANG)
+        except (OSError, ChildProcessError):
+            pass
+        if self in ACTIVE:
+            ACTIVE.remove(self)
+        shutil.rmtree(self._tmp, ignore_errors=True)
+
+    # ── event pump ───────────────────────────────────────────────────────────
+    def pump(self, seconds, until=None, tick=0.004):
+        """Reads the pty and probe pipe for up to `seconds`, or until `until()` is true."""
+        end = now() + seconds
+        while True:
+            if until is not None and until():
+                return True
+            t = now()
+            if t >= end:
+                return False
+            try:
+                r, _, _ = select.select([self.pty, self.probe_r], [], [], min(tick, end - t))
+            except (OSError, ValueError):
+                self.alive = False
+                return False
+            for fd in r:
+                if fd == self.pty:
+                    self._read_pty()
+                else:
+                    self._read_probe()
+            self._heartbeat(t)
+            if not self.alive:
+                self._read_probe()
+                return until() if until else False
+
+    def _heartbeat(self, t):
+        if self.forward and t - self._hb_at > 0.02:
+            self._hb_at = t
+            self.forward(("hb", t - 0.06))
+
+    def _read_pty(self):
+        try:
+            d = os.read(self.pty, 65536)
+        except OSError:
+            self.alive = False
+            return
+        if not d:
+            self.alive = False
+            return
+        if not self.out_bytes:
+            self.first_out = now()
+        self.raw += d
+        txt = self._bar_carry + d.decode("utf-8", "replace")
+        for m in _BAR_CELL.finditer(txt):
+            self.bar_cells[(int(m.group(2)), int(m.group(1)))] = "thumb" if m.group(3).startswith("7") else "track"
+        self._bar_carry = txt[-40:]
+        if len(self.raw) > 400000:
+            del self.raw[:-200000]
+        self.out_bytes += len(d)
+        self.last_out = now()
+        self.out_times.append(self.last_out)
+        if b"\x1b[>0q" in d:
+            self.send(XTVERSION_REPLY)
+        if WATCH:   # last, after every timestamp is taken
+            WATCH.write(d)
+
+    def _read_probe(self):
+        try:
+            d = os.read(self.probe_r, 65536)
+        except OSError:
+            return
+        if not d:
+            return
+        self._pbuf += d
+        *lines, self._pbuf = self._pbuf.split(b"\n")
+        for ln in lines:
+            self._on_probe(ln.decode("ascii", "replace"))
+
+    def _is_main(self, pid):
+        return self.main_pid is None or pid == self.main_pid
+
+    def _on_probe(self, ln):
+        p = ln.split("|")
+        try:
+            if p[0] == "B":
+                ev = Event("B", p[1], us_to_s(int(p[2])))
+                main = self._is_main(p[3])
+                if main and p[1] in WORK_FNS:
+                    self.open_work += 1
+            elif p[0] == "E":
+                t0, t1 = int(p[2]), int(p[3])
+                ev = Event("E", p[1], us_to_s(t0), us_to_s(t1), int(p[4]) if p[4].lstrip("-").isdigit() else 0)
+                if len(p) > 6:
+                    ev.chain = p[6]   # _tui._flush: callers, innermost first, joined by '<'; n-kind spans: first argument
+                if p[1] == "shim_start" and self.main_pid is None:
+                    self.main_pid = p[5]
+                main = self._is_main(p[5])
+                if main and p[1] in WORK_FNS:
+                    self.open_work = max(0, self.open_work - 1)
+                    self.last_work_end = max(self.last_work_end, ev.t1)
+                if not main:
+                    if p[1] == "_tui_cache_warm_worker":   # forked builds are not the main shell's work, but their durations are the point
+                        self.worker_events.append(ev)
+                    return
+            else:
+                return
+        except (IndexError, ValueError):
+            return
+        self.events.append(ev)
+
+    def where(self, text):
+        """locate(), except that a needle starting with "~" is remembered by the "remember" step: an animation that keeps
+        writing pushes the page's text out of the output tail locate() reads, but the text has not moved."""
+        if not text.startswith("~"):
+            return self.locate(text)
+        return self.locate(text[1:]) or self.remembered.get(text[1:])
+
+    def scrollbar(self, text):
+        """The vertical scrollbar of the pane that shows `text`: {"col", "thumb": [rows], "track": [rows]}, or None.
+        Read from the cursor-addressed output (the latest state of every cell wins). Among the bars right of the text and
+        spanning its row (a title on the border above the bar counts), the nearest column is the pane's (stacked panes share a column but not rows)."""
+        pos = self.where(text)
+        if pos is None:
+            return None
+        cells = self.bar_cells
+        cols = {}
+        for (col, row), kind in cells.items():
+            cols.setdefault(col, []).append(row)
+        best = None
+        for col, rows in cols.items():
+            rows.sort()
+            run = [rows[0]]
+            for r in rows[1:] + [None]:   # contiguous runs: one per pane
+                if r is not None and r == run[-1] + 1:
+                    run.append(r)
+                    continue
+                if col >= pos[0] and run[0] - 1 <= pos[1] <= run[-1] and (best is None or (col, len(run)) < best[0]):
+                    best = ((col, len(run)), col, list(run))
+                run = [r] if r is not None else []
+        if best is None:
+            return None
+        _, col, run = best
+        return {"col": col, "thumb": [r for r in run if cells[(col, r)] == "thumb"], "track": [r for r in run if cells[(col, r)] == "track"]}
+
+    def locate(self, text):
+        """(col, row) of the last on-screen occurrence of `text`, read from the cursor-addressed output.
+        A word edge of the needle must also be a word edge on screen: 'default' is not found in 'defaults'."""
+        found, row, col = None, 1, 1
+        needle = text
+        edge = lambda c: c.isalnum() or c == "_"
+        for m in _TOKEN.finditer(self.raw.decode("utf-8", "replace")):
+            cup, chunk = m.group(1), m.group(3)
+            if cup is not None:
+                row, col = int(cup), int(m.group(2) or 1)
+            elif chunk:
+                i = chunk.find(needle)
+                while i >= 0:
+                    j = i + len(needle)
+                    if not ((edge(needle[0]) and i and edge(chunk[i - 1])) or (edge(needle[-1]) and j < len(chunk) and edge(chunk[j]))):
+                        found = (col + i, row)
+                    i = chunk.find(needle, i + 1)
+                col += len(chunk)
+        return found
+
+    # ── measurements ─────────────────────────────────────────────────────────
+    def cpu_seconds(self):
+        """utime+stime of the app and every child it has reaped, in seconds."""
+        try:
+            with open(f"/proc/{self.pid}/stat") as f:
+                rest = f.read().rsplit(")", 1)[1].split()
+            return sum(int(rest[i]) for i in (11, 12, 13, 14)) / CLK_TCK
+        except (OSError, IndexError, ValueError):
+            return 0.0
+
+    def tree_stats(self):
+        """(cpu seconds, rss kB, process count) of the app and every descendant still alive (the Home rain painter is
+        one: cpu_seconds only counts children already reaped)."""
+        kids, stat = {}, {}
+        for d in os.listdir("/proc"):
+            if not d.isdigit():
+                continue
+            try:
+                with open(f"/proc/{d}/stat") as f:
+                    rest = f.read().rsplit(")", 1)[1].split()
+                with open(f"/proc/{d}/statm") as f:
+                    pages = int(f.read().split()[1])
+            except (OSError, IndexError, ValueError):
+                continue
+            kids.setdefault(int(rest[1]), []).append(int(d))
+            stat[int(d)] = (sum(int(rest[i]) for i in (11, 12)) / CLK_TCK, pages * PAGE_KB)
+        todo, cpu, rss, n = [self.pid], 0.0, 0, 0
+        while todo:
+            p = todo.pop()
+            if p in stat:
+                cpu, rss, n = cpu + stat[p][0], rss + stat[p][1], n + 1
+            todo += kids.get(p, [])
+        return cpu, rss, n
+
+    def rss_kb(self):
+        try:
+            with open(f"/proc/{self.pid}/status") as f:
+                for ln in f:
+                    if ln.startswith("VmRSS:"):
+                        return int(ln.split()[1])
+        except OSError:
+            pass
+        return 0
+
+    def measure_since(self, mark, t_send):
+        """Latency facts for the events that arrived after index `mark`."""
+        evs = self.events[mark:]
+        works = [e for e in evs if e.kind == "E" and e.name in WORK_FNS]
+        flushes = [e for e in evs if e.kind == "E" and e.name == "_tui._flush"]
+        if not works:
+            return None
+        works.sort(key=lambda e: e.t0)
+        first = works[0]
+        # union of work intervals = time the app was busy on behalf of this action
+        busy, cur_s, cur_e = 0.0, None, None
+        for w in works:
+            if cur_e is None or w.t0 > cur_e:
+                if cur_e is not None:
+                    busy += cur_e - cur_s
+                cur_s, cur_e = w.t0, w.t1
+            else:
+                cur_e = max(cur_e, w.t1)
+        busy += cur_e - cur_s
+        spans = {}
+        for e in evs:
+            if e.kind == "E" and e.name in WRAPPED:
+                spans[e.name] = spans.get(e.name, 0.0) + (e.t1 - e.t0) * 1000
+        inside = [f for f in flushes if any(w.t0 <= f.t0 and f.t1 <= w.t1 + 1e-6 for w in works)]
+        paint = min((f.t1 for f in inside), default=None)
+        return {
+            "queue_ms": max(0.0, (first.t0 - t_send) * 1000),
+            "paint_ms": (paint - t_send) * 1000 if paint else None,
+            "settle_ms": (max(w.t1 for w in works) - t_send) * 1000,
+            # the page is on screen when the input's own work ended; a queued render that a timer job started after it is only settling
+            "shown_ms": (max((w.t1 for w in works if w.name != "_tui._flush_pending_render"), default=max(w.t1 for w in works)) - t_send) * 1000,
+            "busy_ms": busy * 1000,
+            "frames": len(inside),
+            "bytes": sum(f.arg for f in inside),
+            "timeline": [(e.name, (e.t0 - t_send) * 1000, (e.t1 - e.t0) * 1000) for e in evs
+                         if e.kind == "E" and e.name in WRAPPED and e.name != "_tui._draw_pane_buf"][:120],
+            "frame_src": [(f.chain, f.arg) for f in inside],
+            "panes": _pane_costs(evs),
+            "spans": spans,   # real wall ms per wrapped function: ground truth for the calibration check
+        }
+
+    def perform(self, step):
+        """Runs one scenario step; returns a metrics dict (see measure_since)."""
+        if self.forward:
+            self.forward(("label", step.group, int(now() * 1e6), step.all_work))
+        mark = len(self.events)
+        cpu0 = self.cpu_seconds()
+        t_send = now()
+        res = {"group": step.group, "detail": step.detail, "t_send": t_send}
+        kind, payload = step.kind, step.payload
+        if kind == "forget":   # the scrollbar cells of the page being left: a page switch is about to redraw them
+            self.bar_cells.clear()
+            res.update(settle_ms=0.0, busy_ms=0.0, frames=0, bytes=0, ok=True)
+            return res
+        if kind == "remember":
+            for needle in payload:
+                pos = self.locate(needle)
+                if pos:
+                    self.remembered[needle] = pos
+            res.update(settle_ms=0.0, busy_ms=0.0, frames=0, bytes=0, ok=True)
+            return res
+        if kind == "idle":
+            cpu0, _, _ = self.tree_stats()
+            out0 = self.out_bytes
+            self.pump(payload)
+            cpu1, rss, procs = self.tree_stats()
+            fl = [e for e in self.events[mark:] if e.kind == "E" and e.name == "_tui._flush"]
+            dt = now() - t_send
+            res.update(idle_s=dt, frames=len(fl), bytes=sum(f.arg for f in fl), frame_src=[(f.chain, f.arg) for f in fl], settle_ms=dt * 1000,
+                       busy_ms=sum((f.t1 - f.t0) for f in fl) * 1000, queue_ms=0.0, paint_ms=None,
+                       tree_cpu_ms=(cpu1 - cpu0) * 1000, tree_rss_kb=rss, procs=procs, out_bytes=self.out_bytes - out0)
+        else:
+            if kind == "click_text":
+                pos = self.where(payload)
+                if pos is None:
+                    res.update(ok=False, note=f"'{payload}' not on screen")
+                    return res
+                payload = _click(pos[0] + 1, pos[1])
+            t_last, out0, presses = t_send, self.out_bytes, []
+            if kind == "resize":
+                self.resize(*payload)
+            elif kind == "pointer":
+                # mouse events placed relative to an on-screen text (the layout moves with the terminal size): the needle
+                # is located now, each event is one terminal write, then the pump keeps reading like a terminal would
+                needle, evs, gap = payload
+                pos = self.where(needle)
+                if pos is None:
+                    res.update(ok=False, note=f"'{needle}' not on screen")
+                    return res
+                for code, dx, dy in evs:
+                    t_last = now()
+                    self.send(_mouse(code, pos[0] + dx, pos[1] + dy))
+                    self.pump(gap, until=lambda: not self.alive)
+            elif kind == "bar":
+                # wheel events on the scrollbar of the pane that shows `needle`: on its thumb (handle) or on the empty track
+                needle, part, code, count, gap = payload
+                bar = self.scrollbar(needle)
+                rows = bar and bar[part]
+                if not rows:
+                    res.update(ok=False, note=f"scrollbar {part} of the pane with '{needle}' not on screen")
+                    return res
+                # the middle of the thumb; on the track the cell farthest from the thumb (the track is only ever the rest)
+                row = rows[len(rows) // 2] if part == "thumb" else max(rows, key=lambda r: min((abs(r - t) for t in bar["thumb"]), default=0))
+                for _ in range(count):
+                    t_last = now()
+                    self.send(_mouse(code, bar["col"], row))
+                    self.pump(gap, until=lambda: not self.alive)
+            elif kind == "repeat":
+                # a held key: one press per repeat interval; the pause keeps reading the app's output like a terminal
+                key, count, gap = payload
+                for i in range(count):
+                    t_last = now()
+                    presses.append(t_last)
+                    self.send(key)
+                    self.pump(gap, until=lambda: not self.alive)
+            else:
+                self.send(payload)
+            if self.probes:
+                done = lambda: (not self.alive) or (
+                    self.open_work == 0 and len(self.events) > mark and self.last_work_end >= t_send - 0.001
+                    and now() - self.last_work_end >= step.quiet and (kind not in ("repeat", "pointer", "bar") or now() - self.last_out >= step.quiet))
+                ok = self.pump(step.timeout, until=done)
+                m = self.measure_since(mark, t_send) or {}
+                if kind == "repeat" and m:
+                    # per press: sent -> handled by the loop (queue) -> first output the terminal receives after it was handled
+                    # (paint). A press the app coalesced into a later one is paired with the handler that took it.
+                    handled = sorted((e for e in self.events[mark:] if e.kind == "E" and e.name == "_tui_input.key_event"), key=lambda e: e.t0)
+                    flushes = sorted(e.t1 for e in self.events[mark:] if e.kind == "E" and e.name == "_tui._flush")
+                    arrivals = [t for t in self.out_times if t >= t_send]   # widgets such as lists and inputs draw outside _tui._flush
+                    queue, lag = [], []
+                    for i, tp in enumerate(presses):
+                        h = handled[min(i, len(handled) - 1)] if handled else None
+                        if h is None:
+                            continue
+                        painted = next((t for t in arrivals if t >= h.t0), h.t1)
+                        queue.append(max(0.0, h.t0 - tp) * 1000)
+                        lag.append(max(0.0, painted - tp) * 1000)
+                    tail = max(0.0, (self.last_out - t_last) * 1000)
+                    if lag:
+                        lag.sort()
+                        m.update(press_n=len(lag), handled_n=len(handled), queue_ms=sum(queue) / len(queue),
+                                 lag_med_ms=lag[len(lag) // 2], lag_max_ms=lag[-1], tail_ms=tail)
+                        m["settle_ms"] = lag[-1]
+                    # render cadence: mean gap between consecutive frames of the hold (the repeat interval when it keeps up)
+                    m["frame_gap_ms"] = ((flushes[-1] - flushes[0]) / (len(flushes) - 1) * 1000) if len(flushes) > 1 else None
+                    m["out_bytes"] = self.out_bytes - out0
+                res.update(m)
+                res.setdefault("out_bytes", self.out_bytes - out0)   # what the terminal received, direct draws included
+                res["ok"] = bool(m) and ok
+                res["went"] = any(e.kind == "E" and e.name == "tui.goto" for e in self.events[mark:])
+                if step.group == "shutdown":
+                    dt = (now() - t_send) * 1000
+                    res.update(settle_ms=dt, busy_ms=dt, queue_ms=0.0, paint_ms=None, ok=not self.alive)
+            else:
+                # traced: no probes, so wait a multiple of what the untraced run needed
+                self.pump(step.wait, until=lambda: not self.alive)
+                res["ok"] = True
+        if step.expect and res.get("ok") is not False and self.locate(step.expect) is None:
+            res.update(ok=False, note=f"expected '{step.expect}' on screen after the step, not found")
+        res["cpu_ms"] = (self.cpu_seconds() - cpu0) * 1000
+        res["rss_kb"] = self.rss_kb()
+        res["alive"] = self.alive
+        res["t_end"] = now()
+        if self.forward:
+            self.forward(("label_end", int(now() * 1e6)))
+        return res

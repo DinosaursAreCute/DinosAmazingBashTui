@@ -39,6 +39,14 @@ XML
   </pane>
 </tui>
 XML
+	cat >"$d/pf.xml" <<'XML'
+<tui shell="_shell.xml">
+  <pane id="pf_main" border="single">
+    <button id="pf_first" text="1"/>
+    <button id="pf_auto" text="2" autofocus="true"/>
+  </pane>
+</tui>
+XML
 	cat >"$d/pn.xml" <<'XML'
 <tui>
   <pane id="root" border="single">
@@ -85,6 +93,25 @@ ti_shell_pages_build_into_the_outlet_and_swap_without_touching_the_shell() {
 	eq "search pa_btn pa_in quit" "${_TUI_W_ORDER[*]}"
 	eq "typed" "${_TUI_W_VALUE[pa_in]}"
 	eq "" "$(<"$_SHD/err")"
+}
+
+ti_shell_a_page_widget_marked_autofocus_gets_focus_when_no_shell_widget_keeps_it() {
+	_sh_setup
+	_sh_go pa.xml
+	_sh_go pf.xml
+	eq pf_auto "$_TUI_FOCUS_ID"
+	_sh_go pb.xml
+	eq pb_btn "$_TUI_FOCUS_ID"
+}
+
+ti_shell_a_shell_widget_that_had_focus_keeps_it_over_a_pages_autofocus() {
+	_sh_setup
+	_sh_go pa.xml
+	_tui_focus.ensure
+	_TUI_FOCUS_ID=search
+	_TUI_FOCUS_IDX="${_TUI_FOCUS_POS[search]}"
+	_sh_go pf.xml
+	eq search "$_TUI_FOCUS_ID"
 }
 
 ti_shell_a_page_without_a_shell_rebuilds_from_scratch() {

@@ -4,7 +4,7 @@ Status: Concept. This document surveys rendering optimization strategies employe
 
 ## 1. Performance Baseline
 
-Profiling data from `tools/profiler` on a 150x45 terminal with the demo application:
+Profiling data from `tools/benchmarks/profiler` on a 150x45 terminal with the demo application:
 
 | action | frames | bytes written | time |
 |---|---|---|---|

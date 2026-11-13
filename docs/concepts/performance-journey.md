@@ -51,7 +51,7 @@ xychart-beta
 
 ### Held keys
 
-Holding an arrow key repeats it about every 33 ms, so each press has to be cheap, not just the first. `tools/profiler/profile.sh --scenario held` sends held keys at that rate (holds of 0.1 to 1 s) and measures, per press, the time from the key sent to the first output the terminal receives. Two changes: `tui.focus` draws the widgets it knows changed as one raw frame without the row diff (change 21), and arrow-key focus search reads the hit index instead of recomputing every widget's position (change 22; 80 → 8 ms per hold action on the Scrolling page).
+Holding an arrow key repeats it about every 33 ms, so each press has to be cheap, not just the first. `tools/benchmarks/profiler/profile.sh --scenario held` sends held keys at that rate (holds of 0.1 to 1 s) and measures, per press, the time from the key sent to the first output the terminal receives. Two changes: `tui.focus` draws the widgets it knows changed as one raw frame without the row diff (change 21), and arrow-key focus search reads the hit index instead of recomputing every widget's position (change 22; 80 → 8 ms per hold action on the Scrolling page).
 
 | Held key (nav bar), same build | Before | After |
 |---|---|---|
@@ -194,7 +194,7 @@ Compose "add task" should go from about 226 to about 100 ms and "change conditio
 
 ## How it was measured
 
-The profiler drives the real demo in a hidden pseudo-terminal with a scripted user session (start, navigation, keys, mouse, scrolling, palette, themes, resize, idle, quit), five rounds for a deep run. Latency comes from probes around about twenty functions; attribution comes from a second, traced pass. It needs only bash 5 and Python 3: `tools/profiler/profile.sh`, with `--quick`, `--deep` and `--scenario` to choose what to measure.
+The profiler drives the real demo in a hidden pseudo-terminal with a scripted user session (start, navigation, keys, mouse, scrolling, palette, themes, resize, idle, quit), five rounds for a deep run. Latency comes from probes around about twenty functions; attribution comes from a second, traced pass. It needs only bash 5 and Python 3: `tools/benchmarks/profiler/profile.sh`, with `--quick`, `--deep` and `--scenario` to choose what to measure.
 
 ## Explore the data
 

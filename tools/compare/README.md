@@ -1,7 +1,7 @@
 # DABT vs Textual comparison
 
 Two small apps with the same four pages and a black-box harness that drives both through a hidden pseudo-terminal.
-Dev tool only: Python is allowed here (like `tools/profiler`), the DABT runtime stays pure bash.
+Dev tool only: Python is allowed here (like `tools/benchmarks/profiler`), the DABT runtime stays pure bash.
 
 | page | widgets |
 |---|---|
@@ -43,5 +43,5 @@ Per step (page switch by menu click, button click, typing, list keys, resize, 2 
 
 - Both apps are written by the same author; the Textual app follows its documented patterns but is not tuned.
 - Inputs are identical (same clicks and keys), but each framework decides how much it redraws per input.
-- Per-function attribution exists for DABT only (`tools/profiler`); this harness cannot see inside either app.
+- Per-function attribution exists for DABT only (`tools/benchmarks/profiler`); this harness cannot see inside either app.
 - Page switches in Textual use `switch_screen` with a new screen per visit, matching DABT's page-per-file loading.

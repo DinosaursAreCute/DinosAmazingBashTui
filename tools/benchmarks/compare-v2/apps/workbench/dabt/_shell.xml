@@ -1,0 +1,14 @@
+<!-- The chrome every page shares, built once: the menu and the outlet the pages build into. Callbacks, theme and the page keys live here, so a page switch only replaces the outlet. -->
+<tui>
+  <script src="callbacks.sh"/>
+  <theme src="look_dark.css"/>
+
+  <pane id="root" split="h" border="none">
+    <pane id="nav" weight="18" title="Menu" border="single" class="panel">
+      <include src="_nav.xml"/>
+    </pane>
+    <outlet id="page_outlet" weight="82" split="h" border="none"/>
+  </pane>
+
+  <include src="_keys.xml"/>
+</tui>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# perflab.sh - the fixture app of the profiler's perflab scenario file (tools/profiler/scenarios/perflab.py).
+# perflab.sh - the fixture app of the profiler's perflab scenario file (tools/benchmarks/profiler/scenarios/perflab.py).
 # It starts on a page with one button; the profiler's steps press it, and the button opens the page named by
 # PERFLAB_PAGE, sized by PERFLAB_N / PERFLAB_COLS. Nothing here changes with the demo: the pages are frozen on purpose.
 TUI_APP_NAME=perflab

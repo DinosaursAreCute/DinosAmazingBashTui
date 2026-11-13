@@ -166,7 +166,7 @@ tui.canvas.patch() {
 # ── scheduler ────────────────────────────────────────────────────────────
 
 _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
-	local id="$1"
+	local id="$1" _due_before=$_TA_DUE_NOW
 	_tui_api._ms "$3"
 	if [[ -z "${_TA_FN[$id]:-}" ]]; then _TA_IDS+=("$id"); fi
 	_TA_FN[$id]="$2"
@@ -174,12 +174,14 @@ _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
 	_TA_ONCE[$id]="$4"
 	_TA_ALIGN[$id]="${5:-}"
 	_TA_NEXT[$id]=0
+	_TA_DUE_NOW=1
 	unset '_TA_PAUSED[$id]'
 	_tui_plugin.own every "$id"
 	_tui_api._fast_update
 	if [[ -n "$4" ]]; then
 		_tui_api._now
 		_TA_NEXT[$id]=$((_TA_NOW + _TA_MS))
+		_TA_DUE_NOW=$_due_before
 	fi # tui.after: first run is SEC from now, not on the next tick
 	tui.tick.add "_tui_api._tick"
 }
@@ -188,6 +190,9 @@ _tui_api._job_add() { # ID FN SEC ONCE [ALIGN]
 # While it is set tui.run polls for no longer than the next job is due and ticks at that rate (see _tui_api.poll_wait): an
 # animation can reach 20+ frames a second, and every other page keeps its slow, idle-friendly poll.
 declare -gi _TA_FAST_MS=0
+# 1 while a job is waiting for its first run (tui.every, tui.every.resume): tui.run then polls for the short settle timeout and ticks at
+# once, so the page that started the job is not left waiting out the usual 50 ms poll. Cleared by the tick that ran it.
+declare -gi _TA_DUE_NOW=0
 declare -g _TA_POLL="0.050"
 _tui_api._fast_update() {
 	local id m=0
@@ -229,6 +234,7 @@ _tui_api._maybe_idle() {
 }
 
 _tui_api._tick() {
+	_TA_DUE_NOW=0 # a job added by one of the jobs below sets it again
 	_tui_api._now
 	local id
 	if ((${#_TA_IDS[@]} > 0)); then
@@ -261,6 +267,7 @@ tui.every.pause() { _TA_PAUSED[$1]=1; }
 tui.every.resume() {
 	unset '_TA_PAUSED[$1]'
 	_TA_NEXT[$1]=0
+	_TA_DUE_NOW=1
 }
 tui.every.clear() {
 	local id

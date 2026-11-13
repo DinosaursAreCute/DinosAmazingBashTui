@@ -4,7 +4,7 @@ How to write pages and callbacks that stay under the perceived-instant budgets. 
 
 ## 1. Budgets
 
-A page switch under 100 ms and input feedback under 50 ms feel instant. These are the lines the profiler (`tools/profiler`) rates against:
+A page switch under 100 ms and input feedback under 50 ms feel instant. These are the lines the profiler (`tools/benchmarks/profiler`) rates against:
 
 | interaction | budget |
 |---|---|
@@ -42,8 +42,8 @@ Never tune by feel.
 
 ```bash
 tools/bench/page_switch.sh 40          # headless: render, layout, flush spans, bytes per switch
-tools/profiler/profile.sh --scenario nav --rounds 5     # the real app in a pty: latency per interaction
-tools/profiler/profile.sh --deep       # also a per-function trace, forks per call site
+tools/benchmarks/profiler/profile.sh --scenario nav --rounds 5     # the real app in a pty: latency per interaction
+tools/benchmarks/profiler/profile.sh --deep       # also a per-function trace, forks per call site
 ```
 
 In your own app: `_tui_perf.begin NAME` / `_tui_perf.end NAME` around a phase, `tui.perf.report`, or `TUI_PERF_LOG=FILE`. The profiler report lists **forks per call site** (`attr.forks`) and **time per function and per page**; read those two first. Compare against the run before your change, not against a feeling. There is no public span call yet (`_tui_perf.*` is the documented exception). For a quick number in app code, take `${EPOCHREALTIME//[!0-9]/}` before and after a phase and log the difference with `tui.log.info`, behind an environment switch.
@@ -247,7 +247,7 @@ Measured on the trivial pages (home, layout, case study), where no page code run
 - **Key a cache on what the result depends on, then count the hits.** A fragment cache keyed on a counter that every page switch bumped never hit across pages (57 stores per switch) while a repeat-render benchmark looked fine. A key made of the real inputs (geometry, text, the style strings) lets identical elements on different pages share one entry.
 - **Do the rewrite once, where the data is produced.** The page snapshot was reformatted line by line on every replay; moving that step to record time cut the restore from 9.5 to 2.6 ms. Look for transformations of data that never changes.
 - **Do not repeat work whose inputs did not change.** The footer row, its key-hint map, the terminal size and the layout of a replayed page are all functions of inputs that rarely change; each is now skipped (or rebuilt) when its inputs differ, compared by content.
-- **Price a suspect untraced before you fix it.** `xtrace` inflates in-shell time unevenly: it blamed 6 ms on re-sourcing page scripts that costs 0.5 ms. Use the trace to find candidates, a timed loop to price them, and `tools/profiler/profile.sh --scenario floor` to see the breakdown of one switch.
+- **Price a suspect untraced before you fix it.** `xtrace` inflates in-shell time unevenly: it blamed 6 ms on re-sourcing page scripts that costs 0.5 ms. Use the trace to find candidates, a timed loop to price them, and `tools/benchmarks/profiler/profile.sh --scenario floor` to see the breakdown of one switch.
 
 ## 12. What an addon or a refresh costs
 
@@ -277,7 +277,7 @@ A held key repeats about every 33 ms, so each press has a third of the 100 ms bu
 
 - **A focus move knows its dirty set.** The old and new widget (and the pane borders only when the keyboard pane changes) are drawn as one raw frame, without the row diff.
 - **Search structures read the hit index, not per-widget geometry.** Arrow-key focus search reads the rects the hit index already holds (`_TUI_HZ_WR/WC/WW`) instead of one `_tui._widget_pos` per focusable per press: 80 -> 8 ms per hold action on the Scrolling page.
-- **Measure held keys at the real repeat rate:** `tools/profiler/profile.sh --scenario held`. Lag is key sent to first output; judge the worst press.
+- **Measure held keys at the real repeat rate:** `tools/benchmarks/profiler/profile.sh --scenario held`. Lag is key sent to first output; judge the worst press.
 - **`tui.set` stores a value, `tui.update` stores it and redraws.** A visit callback that calls `tui.set` on a visible checkbox or input shows the old state until the next hover; use `tui.update`.
 
 ## 14. Copy-paste patterns

@@ -384,7 +384,7 @@ _tui_shell.geometry() {
 }
 
 # _tui_shell.enter_focus KEEP_ID KEEP_CURSOR CARRIED - focus after a page swap in a shell: a shell widget that had it keeps
-# it (unless the page names a focus_on_enter); otherwise the page's choice, else the first focusable widget of the page.
+# it (unless the page names a focus_on_enter); otherwise the page's choice, else its first autofocus widget, else the first focusable widget of the page.
 _tui_shell.enter_focus() {
 	local keep="$1" cur="$2" carry="$3" had=0 id
 	_tui_focus.ensure
@@ -402,11 +402,17 @@ _tui_shell.enter_focus() {
 	fi
 	_tui_store.enter_focus "$carry"
 	[[ -n "$_TUI_FOCUS_ID" ]] && return 0
+	local first=""
 	for id in "${_TUI_FOCUSABLE[@]}"; do
 		[[ -n "${_TUI_PAGE_IDS[$id]:-}" ]] || continue
-		_TUI_FOCUS_ID="$id"
-		_TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$id]}"
-		break
+		first="${first:-$id}"
+		[[ "${_TUI_W_AUTOFOCUS[$id]:-}" == true ]] && {
+			first="$id"
+			break
+		}
 	done
+	[[ -n "$first" ]] || return 0
+	_TUI_FOCUS_ID="$first"
+	_TUI_FOCUS_IDX="${_TUI_FOCUS_POS[$first]}"
 	return 0
 }

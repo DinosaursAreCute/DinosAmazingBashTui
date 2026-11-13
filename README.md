@@ -199,7 +199,7 @@ a good mile behind bubbletea :( \
 Memory is the lowest of the three. Idle CPU is not, and we are working on it. \
 We will not beat Bubble Tea (or will we?), and the fact a shell script that gets within shouting distance of it is kinda funny.
 
-Numbers are from one run of [`tools/compare-v2`](tools/compare-v2/README.md), so treat them as a mood, not a verdict. Re-run it on your own machine, or [read the harness](tools/compare-v2/) and tell us what we got wrong.
+Numbers are from one run of [`tools/benchmarks/compare-v2`](tools/benchmarks/compare-v2/README.md), so treat them as a mood, not a verdict. Re-run it on your own machine, or [read the harness](tools/benchmarks/compare-v2/) and tell us what we got wrong.
 
 ## Screenshots
 

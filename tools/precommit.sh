@@ -19,7 +19,7 @@
 #   2 tests       unit suite (tools/t.sh), bats (tests/ and tests/dapk/), golden frames, generated files in sync
 #   3 bench       bench/run.sh --compare baseline.txt   (--baseline then rewrites it)
 #   4 profile     profile.sh --deep|--quick --scenario full, machine.txt (cores, model, commit) next to the report
-#   5 explorer    adds the report to REVISIONS in tools/profiler/site_export.py and exports the explorer page
+#   5 explorer    adds the report to REVISIONS in tools/benchmarks/profiler/site_export.py and exports the explorer page
 #   6 summary     what changed in the tree, and what only a human can do
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$REPO" || exit 1
@@ -236,16 +236,16 @@ fi
 # ── 4 profile, 5 explorer ───────────────────────────────────────────────────
 if ((run_profile)); then
 	_step "profiler --$profile --scenario full ($(nproc 2>/dev/null || echo '?') cores, machine kept awake)" \
-		tools/profiler/profile.sh "--$profile" --scenario full
-	latest="tools/profiler/reports/latest"
+		tools/benchmarks/profiler/profile.sh "--$profile" --scenario full
+	latest="tools/benchmarks/profiler/reports/latest"
 	if [[ -e "$latest" ]]; then
 		ts="$(basename "$(readlink -f "$latest")")"
 		model="$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2)"
 		printf 'cores: %s\nmodel:%s\nbash: %s\ncommit: %s\nprofile: %s\n' \
 			"$(nproc 2>/dev/null || echo '?')" "$model" "$BASH_VERSION" "$(git rev-parse --short HEAD 2>/dev/null)" "$profile" \
-			>"tools/profiler/reports/$ts/machine.txt"
+			>"tools/benchmarks/profiler/reports/$ts/machine.txt"
 
-		if ! grep -q "\"$ts\"" tools/profiler/site_export.py; then
+		if ! grep -q "\"$ts\"" tools/benchmarks/profiler/site_export.py; then
 			if [[ -z "$label" && -t 0 ]]; then
 				read -rp "Explorer label for run $ts (what changed since the last run): " label
 			fi
@@ -253,16 +253,16 @@ if ((run_profile)); then
 			python3 -I - "$ts" "$label" "$profile" <<'PY'
 import sys
 ts, label, profile = sys.argv[1:4]
-path = "tools/profiler/site_export.py"
+path = "tools/benchmarks/profiler/site_export.py"
 src = open(path, encoding="utf-8").read()
 end = src.index("\n]\n", src.index("REVISIONS = ["))
 entry = '\n    (%r, %r, %r, %r, %s),' % ("r" + ts, label[:40], ts, label, "True" if profile == "deep" else "False")
 open(path, "w", encoding="utf-8").write(src[:end] + entry + src[end:])
 PY
 		fi
-		_step "explorer export" python3 tools/profiler/site_export.py
+		_step "explorer export" python3 tools/benchmarks/profiler/site_export.py
 	else
-		_fail "explorer export" "no tools/profiler/reports/latest: the profiler produced no report"
+		_fail "explorer export" "no tools/benchmarks/profiler/reports/latest: the profiler produced no report"
 	fi
 fi
 
@@ -278,7 +278,7 @@ cat <<'EOF'
    - VERSION / README news: bump and write them when this is a release
    - README headings changed or added:   tools/gen_headers.sh
    - files added, renamed or removed:    tools/gen_tree.sh (paste into README "Project structure")
-   - new profiler report is git-ignored: git add -f tools/profiler/reports/<timestamp> if it should be kept
+   - new profiler report is git-ignored: git add -f tools/benchmarks/profiler/reports/<timestamp> if it should be kept
    - bench: if a regression above is intended, rerun with --baseline and commit tools/bench/baseline.txt
 EOF
 

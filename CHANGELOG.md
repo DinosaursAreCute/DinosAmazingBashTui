@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+- **A `tui.every` job's first run no longer waits out the 50 ms poll.** A job that is due at once (`tui.every`, `tui.every.resume`) makes the main loop poll for the short settle timeout and tick right away, so a page that fills itself from a timer (the Monitor page) is complete about 20 ms sooner.
+- **Profiler: the nav tables show `shown` next to `done`.** `shown` is when the input's own work ended and the page was up; `done` stays the last visible change, so a timer job's first run is visible between the two.
+- **Profiler: `nav.arrows` measures a page switch by Enter on a focused menu button** (alt+n, Down to the page's button, Enter), next to the click and the alt+N key.
+- **Profiler: the page-switch floor uses Enter in the menu and the fastest pages** (Terminal, Docs, Widgets) instead of clicking Layout, Case Study and Debug.
+- **The workbench benchmark app runs on a shell** (`_shell.xml`: menu, theme, callbacks and the alt+N keys), so a page switch replaces only the outlet; its settings toast stays until the benchmark dismisses it (alt+k) so its timer cannot land in a later timed step.
+
+- **New: `tools/benchmarks/renderers/profile.sh` profiles every renderer of `lib/terminal_renderer.sh`** on several datasets and argument sets: time per call, output size and processes started, rated against a budget, with scenario selectors, rounds, jobs, a trace of where the time goes inside a renderer, a diff against the previous run and `--watch` (the renderers' output in a second window).
+- **The benchmark tools now live in `tools/benchmarks/`:** `profiler/`, `compare-v2/` and the new `renderers/`, with the reporter they share in `tools/benchmarks/reporting/` (terminal toolkit, statistics, default report, live view, viewer window). The profiler's report is unchanged.
+
+### Fixed
+- **A page of a shell honours `autofocus`.** A switch inside a shell focused the page's first widget and ignored the one marked `autofocus`; a shell widget that had focus still keeps it.
+- **Alt plus a digit or punctuation key (`alt+1`, `alt+/`, ...) no longer waits 10 ms for a sequence terminator.** Only CSI, OSC-style strings and a doubled ESC read on; any other byte after ESC is a complete alt+key.
+
 ## [0.0.30] - 2026-11-12
 
 ### News

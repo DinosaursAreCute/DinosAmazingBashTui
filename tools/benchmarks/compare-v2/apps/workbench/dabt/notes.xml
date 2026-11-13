@@ -1,0 +1,12 @@
+<tui shell="_shell.xml" on_visit="wb_notes_visit">
+  <pane id="main" width="fill" split="h" border="none">
+    <pane id="edit" width="50%" title="Editor" border="single" class="panel" hpad="1">
+      <label row="0"    id="lbl_page"  text="Page 3: Notes"/>
+      <label row="1"    id="lbl_words" text="Words: 0"/>
+      <textarea row="2" id="txt_notes" autofocus="true" rows="0" mode="markdown" on_change="wb_notes_changed"/>
+    </pane>
+    <pane id="preview" width="fill" title="Preview" border="single" class="panel" hpad="1" scroll="v"/>
+  </pane>
+
+  <bind key="alt+e" action="tui.focus txt_notes" desc="Editor"/>
+</tui>

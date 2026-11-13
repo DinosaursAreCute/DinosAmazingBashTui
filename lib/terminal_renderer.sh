@@ -94,8 +94,15 @@ _tr_visible_len() {
 
 # Word-wrap a string to a max width, results in _TR_WRAPPED array
 _tr_wordwrap() {
+	local ln raw word
 	local text="$1" max="$2"
 	_TR_WRAPPED=()
+
+	# Fast path: one short line with no escapes needs no expansion or splitting.
+	if [[ "$text" != *[\\$'\n']* ]] && ((${#text} <= max)); then
+		_TR_WRAPPED=("$text")
+		return
+	fi
 
 	local expanded
 	printf -v expanded '%b' "$text"
@@ -175,14 +182,31 @@ _tr_colors_or_default() {
 # regardless of how many samples the caller actually has (fewer samples
 # get stretched, more get thinned) - first/last points always map through
 # unchanged. Input in _TR_RESAMPLE_IN, output in _TR_RESAMPLE_OUT.
+# NAME STRING: fill array NAME with the lines of STRING (a $(...) result, so without trailing newlines).
+# mapfile reads a pipe or here-string a byte at a time,
+# so a renderer captures awk's output into a string first and splits it here by word splitting
+# (a \x01 guard in front of every line keeps blank lines from vanishing).
+_tr_set_lines() {
+	local - LC_ALL=C IFS=$'\n'
+	local -n _tsl=$1
+	local s=$2
+	_tr_out=
+	_tsl=()
+	[[ -z "$s" ]] && return 0
+	set -f
+	s=${s//$'\n'/$'\n\x01'}
+	_tsl=($'\x01'$s)
+	_tsl=("${_tsl[@]#$'\x01'}")
+}
+
 _tr_resample() {
 	local target="$1"
-	local -a in=("${_TR_RESAMPLE_IN[@]}")
-	local n=${#in[@]}
+	local -n src=_TR_RESAMPLE_IN
+	local n=${#src[@]}
 	_TR_RESAMPLE_OUT=()
 	((n == 0 || target <= 0)) && return
 	if ((target == n)); then
-		_TR_RESAMPLE_OUT=("${in[@]}")
+		_TR_RESAMPLE_OUT=("${src[@]}")
 		return
 	fi
 	local i idx
@@ -192,7 +216,39 @@ _tr_resample() {
 		else
 			idx=$((i * (n - 1) / (target - 1)))
 		fi
-		_TR_RESAMPLE_OUT+=("${in[$idx]}")
+		_TR_RESAMPLE_OUT+=("${src[$idx]}")
+	done
+}
+
+# NAME FILE DELIM HEADER: fill array NAME with "first:second" for every CSV row (the first row is
+# skipped when HEADER is 1). Returns 1 when the file has no rows.
+_tr_csv_entries() {
+	local -n _tce=$1
+	local file=$2 delim=$3 header=$4 i row rest sep=$'\x01'
+	if [[ -f "$file" && "$delim" == [!$' \t'] ]]; then
+		_tr_out=$(awk -v D="$delim" -v HDR="$header" '
+		$0 == "" { next }
+		{ n = split($0, f, D); if (n > 0 && f[n] == "") n--
+		  for (i = 1; i <= 2; i++) gsub(/^[[:space:]]+|[[:space:]]+$/, "", f[i])
+		  rows++
+		  if (rows == 1 && HDR + 0) next
+		  print (n >= 1 ? f[1] : "") ":" (n >= 2 ? f[2] : "") }
+		END { print "\002" rows + 0 }' "$file")
+		_tr_set_lines "$1" "$_tr_out"
+		# the last line carries the row count: a file without rows is an error, header-only is just empty
+		((${#_tce[@]})) || return 1
+		local cnt=${_tce[-1]#$'\002'}
+		unset "_tce[-1]"
+		((cnt)) || return 1
+		return 0
+	fi
+	_tr_csv_parse "$file" "$delim" || return 1
+	_tce=()
+	for ((i = header ? 1 : 0; i < ${#_TR_CSV_ROWS[@]}; i++)); do
+		row=${_TR_CSV_ROWS[i]}
+		rest=${row#*"$sep"}
+		[[ "$rest" == "$row" ]] && rest=""
+		_tce+=("${row%%"$sep"*}:${rest%%"$sep"*}")
 	done
 }
 
@@ -204,21 +260,32 @@ _tr_csv_parse() {
 	_TR_CSV_ROWS=()
 	[[ -f "$file" ]] || return 1
 
-	local line
+	# A one-character, non-blank delimiter is parsed in one awk pass (same rows as the loop below).
+	if [[ "$delim" == [!$' \t'] ]]; then
+		_tr_out=$(awk -v D="$delim" '
+		$0 == "" { next }
+		{ n = split($0, f, D); if (n > 0 && f[n] == "") n--   # a trailing delimiter adds no field
+		  out = ""
+		  for (i = 1; i <= n; i++) { v = f[i]; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); out = out (i > 1 ? "\001" : "") v }
+		  print out }' "$file")
+		_tr_set_lines _TR_CSV_ROWS "$_tr_out"
+		((${#_TR_CSV_ROWS[@]})) || return 1
+		return 0
+	fi
+
+	local line i f joined sep=$'\x01'
+	local -a fields=()
 	while IFS= read -r line || [[ -n "$line" ]]; do
 		[[ -z "$line" ]] && continue
-		local -a fields=()
 		IFS="$delim" read -ra fields <<<"$line"
 		for i in "${!fields[@]}"; do
-			local f="${fields[$i]}"
+			f="${fields[$i]}"
 			f="${f#"${f%%[![:space:]]*}"}"
 			f="${f%"${f##*[![:space:]]}"}"
 			fields[i]="$f"
 		done
-		_TR_CSV_ROWS+=("$(
-			IFS=$'\x01'
-			printf '%s' "${fields[*]}"
-		)")
+		printf -v joined "%s$sep" "${fields[@]}"
+		_TR_CSV_ROWS+=("${joined%"$sep"}")
 	done <"$file"
 
 	[[ ${#_TR_CSV_ROWS[@]} -eq 0 ]] && return 1
@@ -232,6 +299,7 @@ _tr_csv_parse() {
 #  Min width 40, max terminal width, word-wraps long lines.
 
 _box_build() {
+	local ln # loop variables stay out of the caller's scope
 	local input="$1"
 	TR_RESULT=()
 	[[ -z "$input" ]] && return 1
@@ -437,6 +505,7 @@ alert_string() {
 #  First argument is the header row. Delimiter defaults to |.
 
 _table_build() {
+	local c cells row # loop variables stay out of the caller's scope
 	local delim="|" raw=0
 	local rows=()
 
@@ -464,10 +533,44 @@ _table_build() {
 	TR_RESULT=()
 	[[ ${#rows[@]} -eq 0 ]] && return 1
 
+	# Big single-line tables with a one-character, non-blank delimiter are laid out in one awk pass.
+	if ((${#rows[@]} >= 30)) && [[ "$delim" == [!$' \t'] ]]; then
+		local _tb_all
+		printf -v _tb_all '%s\n' "${rows[@]}"
+		# Rows holding a newline (multi-line cells) take the loop below.
+		local _tb_one=1 _tb_r
+		for _tb_r in "${rows[@]}"; do [[ "$_tb_r" == *$'\n'* ]] && {
+			_tb_one=0
+			break
+		}; done
+		if ((_tb_one)); then
+			_tr_out=$(awk -v D="$delim" -v RAW="$raw" '
+				function dbl(t,   o, i) { o = ""; while ((i = index(t, "\\")) > 0) { o = o substr(t, 1, i - 1) "\\\\"; t = substr(t, i + 1) } return o t }
+				function rep(c, n,   t) { t = ""; while (n-- > 0) t = t c; return t }
+				{ n = split($0, f, D); if (n > 0 && f[n] == "") n--
+				  nc[NR] = n; if (n > cols) cols = n
+				  for (i = 1; i <= n; i++) { v = f[i]; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); C[NR, i] = v; if (length(v) > w[i]) w[i] = length(v) } }
+				END {
+					for (i = 1; i <= cols; i++) { if (w[i] < 3) w[i] = 3; sg = rep("─", w[i] + 2); sh = rep("═", w[i] + 2)
+						bt = bt (i > 1 ? "┬" : "┌") sg; bm = bm (i > 1 ? "┼" : "├") sg; bb = bb (i > 1 ? "┴" : "└") sg; bh = bh (i > 1 ? "╪" : "╞") sh }
+					print bt "┐"
+					for (r = 1; r <= NR; r++) {
+						line = ""
+						for (i = 1; i <= cols; i++) { v = (r, i) in C ? C[r, i] : ""; pad = w[i] - length(v); if (RAW) v = dbl(v); line = line "│ " v rep(" ", pad) " " }
+						print line "│"
+						if (r == 1) print bh "╡"; else if (r < NR) print bm "┤"
+					}
+					print bb "┘"
+				}' <<<"${_tb_all%$'\n'}")
+			_tr_set_lines TR_RESULT "$_tr_out"
+			((${#TR_RESULT[@]})) && return 0
+		fi
+	fi
+
 	# Parse into 2D - find column widths
 	local -a col_widths=()
-	local -a all_cells=()
-	local num_cols=0
+	local -a rowml=()
+	local num_cols=0 nrows=0 cell clen # trimmed cells of row N live in the local array _tb_rowN
 
 	for row in "${rows[@]}"; do
 		# A row containing newlines has multi-line cells (row height = tallest cell).
@@ -478,27 +581,38 @@ _table_build() {
 		fi
 		local nc=${#cells[@]}
 		((nc > num_cols)) && num_cols=$nc
-		for ((c = 0; c < nc; c++)); do
-			# Trim whitespace
-			local cell="${cells[$c]}"
-			cell="${cell#"${cell%%[![:space:]]*}"}"
-			cell="${cell%"${cell##*[![:space:]]}"}"
-			cells[c]="$cell"
-			local clen=${#cell}
-			if [[ "$cell" == *$'\n'* ]]; then
-				clen=0
-				while IFS= read -r ln; do ((${#ln} > clen)) && clen=${#ln}; done <<<"$cell"
-			fi
-			if ((c >= ${#col_widths[@]})); then
-				col_widths+=("$clen")
-			elif ((clen > col_widths[c])); then
-				col_widths[c]=$clen
-			fi
-		done
-		all_cells+=("$(
-			IFS=$'\x01'
-			printf '%s' "${cells[*]}"
-		)")
+		if [[ "$row" != *$'\n'* ]]; then
+			# Single-line row: trim only cells with an edge blank, then widen the columns.
+			for ((c = 0; c < nc; c++)); do
+				cell="${cells[c]}"
+				if [[ "$cell" == [[:space:]]* || "$cell" == *[[:space:]] ]]; then
+					cell="${cell#"${cell%%[![:space:]]*}"}"
+					cell="${cell%"${cell##*[![:space:]]}"}"
+					cells[c]="$cell"
+				fi
+				((${#cell} > ${col_widths[c]:-0})) && col_widths[c]=${#cell}
+			done
+		else
+			rowml[nrows]=1
+			for ((c = 0; c < nc; c++)); do
+				# Trim whitespace
+				cell="${cells[$c]}"
+				cell="${cell#"${cell%%[![:space:]]*}"}"
+				cell="${cell%"${cell##*[![:space:]]}"}"
+				cells[c]="$cell"
+				clen=${#cell}
+				if [[ "$cell" == *$'\n'* ]]; then
+					clen=0
+					while IFS= read -r ln; do ((${#ln} > clen)) && clen=${#ln}; done <<<"$cell"
+				fi
+				((clen > ${col_widths[c]:-0})) && col_widths[c]=$clen
+			done
+		fi
+		local -a "_tb_row$nrows=()"
+		local -n _tb_ref="_tb_row$nrows"
+		_tb_ref=("${cells[@]}")
+		unset -n _tb_ref
+		((nrows++))
 	done
 
 	# Enforce minimum col width of 3
@@ -534,15 +648,34 @@ _table_build() {
 
 	TR_RESULT+=("$bar_top")
 
-	local row_idx=0
-	for row_data in "${all_cells[@]}"; do
-		if [[ "$row_data" == *$'\n'* ]]; then
-			IFS=$'\x01' read -r -d '' -a cells <<<"$row_data"
-			cells[-1]="${cells[-1]%$'\n'}" # herestring's own trailing newline
-		else
-			IFS=$'\x01' read -ra cells <<<"$row_data"
+	local row_idx maxw=0 blanks line pad
+	for ((c = 0; c < num_cols; c++)); do ((col_widths[c] > maxw)) && maxw=${col_widths[c]}; done
+	_tr_repeat_v " " "$maxw"
+	blanks=$_TRV
+	local -A cell_lines=()
+	for ((row_idx = 0; row_idx < nrows; row_idx++)); do
+		local -n _tb_ref="_tb_row$row_idx"
+		if [[ -z "${rowml[row_idx]}" ]]; then
+			# Single-line row: no per-cell line table needed.
+			line=""
+			for ((c = 0; c < num_cols; c++)); do
+				cell="${_tb_ref[c]:-}"
+				pad=$((col_widths[c] - ${#cell}))
+				((raw)) && cell="${cell//\\/\\\\}"
+				line+="│ $cell${blanks:0:pad} "
+			done
+			unset -n _tb_ref
+			TR_RESULT+=("$line│")
+			if ((row_idx == 0)); then
+				TR_RESULT+=("$bar_hdr")
+			elif ((row_idx < nrows - 1)); then
+				TR_RESULT+=("$bar_mid")
+			fi
+			continue
 		fi
-		local -A cell_lines=()
+		cells=("${_tb_ref[@]}")
+		unset -n _tb_ref
+		cell_lines=()
 		local height=1 nl l
 		for ((c = 0; c < num_cols; c++)); do
 			local cell="${cells[$c]:-}"
@@ -562,8 +695,7 @@ _table_build() {
 				local cell="${cell_lines[$c,$l]:-}"
 				local pad=$((col_widths[c] - ${#cell}))
 				((raw)) && cell="${cell//\\/\\\\}"
-				printf -v _trl '│ %s%*s ' "$cell" "$pad" ""
-				line+=$_trl
+				line+="│ $cell${blanks:0:pad} "
 			done
 			line+="│"
 			TR_RESULT+=("$line")
@@ -571,10 +703,9 @@ _table_build() {
 
 		if ((row_idx == 0)); then
 			TR_RESULT+=("$bar_hdr")
-		elif ((row_idx < ${#all_cells[@]} - 1)); then
+		elif ((row_idx < nrows - 1)); then
 			TR_RESULT+=("$bar_mid")
 		fi
-		((row_idx++))
 	done
 
 	TR_RESULT+=("$bar_bot")
@@ -597,6 +728,7 @@ table_string() {
 #  Styles: dots (default), plain, dashes  - set with -t flag.
 
 _kv_build() {
+	local entry i # loop variables stay out of the caller's scope
 	local delim=": " style="dots"
 	local entries=()
 
@@ -695,6 +827,7 @@ kv_string() {
 #  particular call happens to have - see linechart/vbar for the same idea.
 
 _hbar_build() {
+	local entry i
 	local delim=":" max_val="" min_val=0 bar_width=0 label_width=0 color_arg=""
 	local entries=()
 
@@ -740,6 +873,47 @@ _hbar_build() {
 	TR_RESULT=()
 	[[ ${#entries[@]} -eq 0 ]] && return 1
 
+	# Many entries with a one-character delimiter: the whole chart is laid out in one awk pass.
+	if ((${#entries[@]} >= 40)) && ((${#delim} == 1)); then
+		local _hb_feed _hb_c _hb_rs _hb_tw
+		local -a _hb_cols=()
+		_tr_term_width_v
+		_hb_tw=$_TRV
+		printf -v _hb_rs '%b' "$RESET"
+		_hb_feed="R	$_hb_rs"$'\n'
+		[[ -n "$color_arg" ]] && IFS=',' read -ra _hb_cols <<<"$color_arg"
+		for _hb_c in "${_hb_cols[@]}"; do
+			_tr_resolve_color_v "$_hb_c"
+			printf -v _hb_c '%b' "$_TRV"
+			_hb_feed+="C	$_hb_c"$'\n'
+		done
+		for entry in "${entries[@]}"; do _hb_feed+="E	$entry"$'\n'; done
+		_tr_out=$(awk -v D="$delim" -v MX="$max_val" -v MN="$min_val" -v BW="$bar_width" -v LW="$label_width" -v TW="$_hb_tw" '
+		function rep(c, n,   t) { t = ""; while (n-- > 0) t = t c; return t }
+		/^R\t/ { rs = substr($0, 3); next }
+		/^C\t/ { nc++; col[nc] = substr($0, 3); next }
+		/^E\t/ { e = substr($0, 3); k = index(e, D); if (k) { l = substr(e, 1, k - 1); v = substr(e, k + 1) } else { l = e; v = e }
+			n++; L[n] = l; V[n] = v; if (length(l) > ml) ml = length(l); if (n == 1 || v + 0 > am) am = v + 0 }
+		END {
+			mx = (MX == "") ? am : MX + 0; mn = MN + 0
+			if (mx == mn) mx = mn + 1
+			if (LW + 0 > 0) ml = LW + 0
+			bw = BW + 0
+			if (bw == 0) { bw = TW - ml - 10; if (bw < 10) bw = 10; if (bw > 60) bw = 60 }
+			full = rep("█", bw); empty = rep("░", bw); span = mx - mn
+			for (i = 1; i <= n; i++) {
+				l = L[i]; if (LW + 0 > 0 && length(l) > LW + 0) l = substr(l, 1, LW + 0)
+				c = V[i] + 0; if (c < mn) c = mn; if (c > mx) c = mx
+				f = int((c - mn) * bw / span)
+				lab = l rep(" ", ml - length(l)) " "
+				if (nc > 0) print lab col[(i - 1) % nc + 1] substr(full, 1, f) rs substr(empty, 1, bw - f) " " V[i]
+				else print lab substr(full, 1, f) substr(empty, 1, bw - f) " " V[i]
+			}
+		}' <<<"$_hb_feed")
+		_tr_set_lines TR_RESULT "$_tr_out"
+		((${#TR_RESULT[@]})) && return 0
+	fi
+
 	local -a labels=() values=()
 	local max_label=0
 	local auto_max=""
@@ -772,6 +946,12 @@ _hbar_build() {
 	[[ -n "$color_arg" ]] && IFS=',' read -ra colors <<<"$color_arg"
 
 	local span=$((max_val - min_val))
+	# Full-width bar strings built once; each row slices them.
+	local full_bar empty_bar
+	_tr_repeat_v "█" "$bar_width"
+	full_bar=$_TRV
+	_tr_repeat_v "░" "$bar_width"
+	empty_bar=$_TRV
 	for ((i = 0; i < ${#labels[@]}; i++)); do
 		local l="${labels[$i]}" v="${values[$i]}"
 		((label_width > 0 && ${#l} > label_width)) && l="${l:0:label_width}"
@@ -782,12 +962,7 @@ _hbar_build() {
 		local filled=$(((clamped - min_val) * bar_width / span))
 		local empty=$((bar_width - filled))
 
-		local bar_full
-		_tr_repeat_v "█" "$filled"
-		bar_full=$_TRV
-		local bar_empty
-		_tr_repeat_v "░" "$empty"
-		bar_empty=$_TRV
+		local bar_full=${full_bar:0:filled} bar_empty=${empty_bar:0:empty}
 
 		if [[ ${#colors[@]} -gt 0 ]]; then
 			local colval
@@ -980,23 +1155,35 @@ _sparkline_build() {
 		values=("${_TR_RESAMPLE_OUT[@]}")
 	fi
 
-	local levels=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
-	local min="$min_val" max="$max_val"
-	for v in "${values[@]}"; do
-		[[ -z "$min" || "$v" -lt "$min" ]] && min=$v
-		[[ -z "$max" || "$v" -gt "$max" ]] && max=$v
-	done
-	local range=$((max - min))
-	((range == 0)) && range=1
+	local out="" idx v
+	if ((${#values[@]} > 300)); then
+		# Long series: one awk pass beats a bash loop per point.
+		out=$(printf '%s\n' "${values[@]}" | awk -v MN="$min_val" -v MX="$max_val" '
+		{ x[NR] = $1 + 0; if (NR == 1 || x[NR] < lo) lo = x[NR]; if (NR == 1 || x[NR] > hi) hi = x[NR] }
+		END {
+			if (MN != "") lo = MN + 0; if (MX != "") hi = MX + 0
+			range = hi - lo; if (range == 0) range = 1
+			split("▁ ▂ ▃ ▄ ▅ ▆ ▇ █", L, " ")
+			for (i = 1; i <= NR; i++) { v = x[i]; if (v < lo) v = lo; if (v > hi) v = hi; o = o L[int((v - lo) * 7 / range) + 1] }
+			printf "%s", o }')
+	else
+		local levels=(▁ ▂ ▃ ▄ ▅ ▆ ▇ █)
+		local min="$min_val" max="$max_val" v
+		for v in "${values[@]}"; do
+			((${#min} == 0 || v < min)) && min=$v
+			((${#max} == 0 || v > max)) && max=$v
+		done
+		local range=$((max - min))
+		((range == 0)) && range=1
 
-	local out=""
-	for v in "${values[@]}"; do
-		local clamped=$v
-		((clamped < min)) && clamped=$min
-		((clamped > max)) && clamped=$max
-		local idx=$(((clamped - min) * (${#levels[@]} - 1) / range))
-		out+="${levels[$idx]}"
-	done
+		local out="" idx
+		for v in "${values[@]}"; do
+			((v < min)) && v=$min
+			((v > max)) && v=$max
+			idx=$(((v - min) * 7 / range))
+			out+=${levels[idx]}
+		done
+	fi
 
 	if [[ -n "$color" ]]; then
 		local colval
@@ -1036,6 +1223,7 @@ sparkline_string() {
 #  the data/labels happen to look that particular call.
 
 _vbar_build() {
+	local l r v # loop variables stay out of the caller's scope
 	local delim=":" height=8 max_val="" min_val=0 color_arg="" total_width=0 col_width_arg=0
 	local entries=()
 
@@ -1085,6 +1273,51 @@ _vbar_build() {
 	TR_RESULT=()
 	[[ ${#entries[@]} -eq 0 ]] && return 1
 
+	# Many columns with a one-character delimiter: the whole chart is laid out in one awk pass.
+	if ((${#entries[@]} >= 40)) && ((${#delim} == 1)); then
+		local _vb_feed _vb_c _vb_rs
+		_tr_colors_or_default "$color_arg"
+		printf -v _vb_rs '%b' "$RESET"
+		_vb_feed="R	$_vb_rs"$'\n'
+		for _vb_c in "${_TR_COLORS[@]}"; do
+			_tr_resolve_color_v "$_vb_c"
+			printf -v _vb_c '%b' "$_TRV"
+			_vb_feed+="C	$_vb_c"$'\n'
+		done
+		for entry in "${entries[@]}"; do _vb_feed+="E	$entry"$'\n'; done
+		_tr_out=$(awk -v D="$delim" -v MX="$max_val" -v MN="$min_val" -v H="$height" -v TWD="$total_width" -v CWA="$col_width_arg" '
+		function rep(c, n,   t) { t = ""; while (n-- > 0) t = t c; return t }
+		function center(t, cw,   p, lp) { p = cw - length(t); if (p < 0) p = 0; lp = int(p / 2); return rep(" ", lp) t rep(" ", p - lp) }
+		/^R\t/ { rs = substr($0, 3); next }
+		/^C\t/ { nc++; col[nc] = substr($0, 3); next }
+		/^E\t/ { e = substr($0, 3); k = index(e, D); if (k) { l = substr(e, 1, k - 1); v = substr(e, k + 1) } else { l = e; v = e }
+			n++; L[n] = l; V[n] = v; if (length(l) > mw) mw = length(l); if (length(v) > mw) mw = length(v); if (n == 1 || v + 0 > am) am = v + 0 }
+		END {
+			mx = (MX == "") ? am : MX + 0; mn = MN + 0
+			if (mx == mn) mx = mn + 1
+			cw = CWA + 0
+			if (cw <= 0) { if (TWD + 0 > 0) { cw = int((TWD - (n - 1)) / n); if (cw < 1) cw = 1 } else { cw = mw; if (cw < 3) cw = 3 } }
+			span = mx - mn; full = rep("█", cw); blank = rep(" ", cw); dash = rep("─", cw)
+			for (i = 1; i <= n; i++) {
+				c = V[i] + 0; if (c < mn) c = mn; if (c > mx) c = mx
+				h = int((c - mn) * H / span); if (h == 0 && c > mn) h = 1
+				ht[i] = h
+				cell[i] = (col[(i - 1) % nc + 1] != "") ? col[(i - 1) % nc + 1] full rs : full
+			}
+			for (r = H; r >= 1; r--) { row = ""; for (i = 1; i <= n; i++) row = row (i > 1 ? " " : "") (ht[i] >= r ? cell[i] : blank); print row }
+			base = ""; lbl = ""; val = ""
+			for (i = 1; i <= n; i++) {
+				sep = (i > 1) ? " " : ""
+				base = base sep dash
+				l = L[i]; if (length(l) > cw) l = substr(l, 1, cw); lbl = lbl sep center(l, cw)
+				v = V[i]; if (length(v) > cw) v = substr(v, 1, cw); val = val sep center(v, cw)
+			}
+			print base; print lbl; print val
+		}' <<<"$_vb_feed")
+		_tr_set_lines TR_RESULT "$_tr_out"
+		((${#TR_RESULT[@]})) && return 0
+	fi
+
 	local -a labels=() values=()
 	local auto_max=""
 	for entry in "${entries[@]}"; do
@@ -1125,63 +1358,52 @@ _vbar_build() {
 		heights+=("$h")
 	done
 
+	# Per-column cells and the blank/underline runs are built once; every row only concatenates them.
+	local blank full dash colval
+	_tr_repeat_v " " "$col_width"
+	blank=$_TRV
+	_tr_repeat_v "█" "$col_width"
+	full=$_TRV
+	_tr_repeat_v "─" "$col_width"
+	dash=$_TRV
+	local -a fullcell=()
+	for ((i = 0; i < n; i++)); do
+		_tr_resolve_color_v "${colors[$((i % ${#colors[@]}))]}"
+		colval=$_TRV
+		if [[ -n "$colval" ]]; then printf -v fullcell[i] '%b%s%b' "$colval" "$full" "$RESET"; else fullcell[i]=$full; fi
+	done
+
+	local row base lbl_row val_row l v pad lp
 	for ((r = height; r >= 1; r--)); do
-		local row=""
+		row=""
 		for ((i = 0; i < n; i++)); do
-			local colval
-			_tr_resolve_color_v "${colors[$((i % ${#colors[@]}))]}"
-			colval=$_TRV
-			local cell
-			if ((heights[i] >= r)); then
-				_tr_repeat_v "█" "$col_width"
-				cell=$_TRV
-				[[ -n "$colval" ]] && printf -v cell '%b%s%b' "$colval" "$cell" "$RESET"
-			else
-				_tr_repeat_v " " "$col_width"
-				cell=$_TRV
-			fi
 			((i > 0)) && row+=" "
-			row+="$cell"
+			if ((heights[i] >= r)); then row+=${fullcell[i]}; else row+=$blank; fi
 		done
 		TR_RESULT+=("$row")
 	done
 
-	local base=""
+	base="" lbl_row="" val_row=""
 	for ((i = 0; i < n; i++)); do
-		((i > 0)) && base+=" "
-		_tr_repeat_v "─" "$col_width"
-		base+=$_TRV
-	done
-	TR_RESULT+=("$base")
-
-	local lbl_row=""
-	for ((i = 0; i < n; i++)); do
-		((i > 0)) && lbl_row+=" "
-		local l="${labels[$i]}"
+		((i > 0)) && {
+			base+=" "
+			lbl_row+=" "
+			val_row+=" "
+		}
+		base+=$dash
+		l="${labels[$i]}"
 		((${#l} > col_width)) && l="${l:0:col_width}"
-		local pad=$((col_width - ${#l}))
-		local lp=$((pad / 2)) rp=$((pad - pad / 2))
-		_tr_repeat_v " " "$lp"
-		lbl_row+="${_TRV}${l}"
-		_tr_repeat_v " " "$rp"
-		lbl_row+="$_TRV"
-	done
-	TR_RESULT+=("$lbl_row")
-
-	local val_row=""
-	for ((i = 0; i < n; i++)); do
-		((i > 0)) && val_row+=" "
-		local v="${values[$i]}"
+		pad=$((col_width - ${#l}))
+		lp=$((pad / 2))
+		lbl_row+=${blank:0:lp}${l}${blank:0:pad-lp}
+		v="${values[$i]}"
 		((${#v} > col_width)) && v="${v:0:col_width}"
-		local pad=$((col_width - ${#v}))
+		pad=$((col_width - ${#v}))
 		((pad < 0)) && pad=0
-		local lp=$((pad / 2)) rp=$((pad - pad / 2))
-		_tr_repeat_v " " "$lp"
-		val_row+="${_TRV}${v}"
-		_tr_repeat_v " " "$rp"
-		val_row+="$_TRV"
+		lp=$((pad / 2))
+		val_row+=${blank:0:lp}${v}${blank:0:pad-lp}
 	done
-	TR_RESULT+=("$val_row")
+	TR_RESULT+=("$base" "$lbl_row" "$val_row")
 }
 
 vbar() {
@@ -1251,89 +1473,49 @@ _linechart_build() {
 	_tr_colors_or_default "$color_arg"
 	local -a colors=("${_TR_COLORS[@]}")
 
-	local -a parsed=()
-	local width=0
-	for vals in "${series_data[@]}"; do
-		local -a arr=()
-		IFS=',' read -ra arr <<<"$vals"
-		if ((plot_width > 0)); then
-			_TR_RESAMPLE_IN=("${arr[@]}")
-			_tr_resample "$plot_width"
-			arr=("${_TR_RESAMPLE_OUT[@]}")
-		fi
-		((${#arr[@]} > width)) && width=${#arr[@]}
-		parsed+=("$(
-			IFS=$'\x01'
-			printf '%s' "${arr[*]}"
-		)")
-	done
-	((width == 0)) && return 1
-
-	local gmin="" gmax=""
-	for pd in "${parsed[@]}"; do
-		local -a arr=()
-		IFS=$'\x01' read -ra arr <<<"$pd"
-		for v in "${arr[@]}"; do
-			[[ -z "$gmin" || "$v" -lt "$gmin" ]] && gmin=$v
-			[[ -z "$gmax" || "$v" -gt "$gmax" ]] && gmax=$v
-		done
-	done
-	[[ -n "$min_val" ]] && gmin=$min_val
-	[[ -n "$max_val" ]] && gmax=$max_val
-	((gmax == gmin)) && gmax=$((gmin + 1))
-
-	local rows=$height
-	local total=$((rows * width))
-	local -a grid=() gridcolor=()
-	for ((k = 0; k < total; k++)); do
-		grid[k]=" "
-		gridcolor[k]=""
-	done
-
-	local marker="●"
-	for ((s = 0; s < ${#parsed[@]}; s++)); do
-		local -a arr=()
-		IFS=$'\x01' read -ra arr <<<"${parsed[$s]}"
-		local colval
+	# The plot itself is one awk pass (resample, scale, grid, rows); bash only prepares the series, the
+	# ready-made coloured marker cells and the legend.
+	local marker="●" cell s colval feed=""
+	for ((s = 0; s < ${#series_labels[@]}; s++)); do
 		_tr_resolve_color_v "${colors[$((s % ${#colors[@]}))]}"
 		colval=$_TRV
-		for ((x = 0; x < ${#arr[@]}; x++)); do
-			local v="${arr[$x]}"
-			local row=$(((gmax - v) * (rows - 1) / (gmax - gmin)))
-			((row < 0)) && row=0
-			((row >= rows)) && row=$((rows - 1))
-			local idx=$((row * width + x))
-			grid[idx]="$marker"
-			gridcolor[idx]="$colval"
-		done
+		printf -v cell '%b%s%b' "$colval" "$marker" "$RESET"
+		[[ -z "$colval" ]] && cell=$marker
+		feed+="C	$cell"$'\n'"S	${series_data[$s]}"$'\n'
 	done
-
-	local label_width=${#gmax}
-	((${#gmin} > label_width)) && label_width=${#gmin}
-
-	for ((r = 0; r < rows; r++)); do
-		local yval=""
-		((r == 0)) && yval=$gmax
-		((r == rows - 1)) && yval=$gmin
-		local line
-		printf -v line '%*s │' "$label_width" "$yval"
-		for ((x = 0; x < width; x++)); do
-			local idx=$((r * width + x))
-			local ch="${grid[$idx]}" cv="${gridcolor[$idx]}"
-			if [[ -n "$cv" && "$ch" != " " ]]; then
-				printf -v _trl '%b%s%b' "$cv" "$ch" "$RESET"
-				line+=$_trl
-			else
-				line+="$ch"
-			fi
-		done
-		TR_RESULT+=("$line")
-	done
-
-	_tr_repeat_v " " "$label_width"
-	local _y="$_TRV"
-	_tr_repeat_v "─" "$width"
-	TR_RESULT+=("${_y} └${_TRV}")
+	_tr_out=$(awk -F'\t' -v PW="$plot_width" -v H="$height" -v MN="$min_val" -v MX="$max_val" '
+	function fmt(x) { return x == int(x) ? sprintf("%d", x) : x "" }
+	function rep(c, n,   t) { t = ""; while (n-- > 0) t = t c; return t }
+	$1 == "C" { nc++; cell[nc] = $2; next }
+	$1 == "S" {
+		ns++; m = split($2, A, ",")
+		if (PW > 0 && m > 0) {
+			for (i = 0; i < PW; i++) { idx = (PW == 1 || m == 1) ? 0 : int(i * (m - 1) / (PW - 1)); V[ns, i] = A[idx + 1] + 0 }
+			m = PW
+		} else for (i = 0; i < m; i++) V[ns, i] = A[i + 1] + 0
+		len[ns] = m; if (m > width) width = m
+		for (i = 0; i < m; i++) { v = V[ns, i]; if (!seen || v < gmin) gmin = v; if (!seen || v > gmax) gmax = v; seen = 1 }
+	}
+	END {
+		if (width == 0) exit 1
+		if (MN != "") gmin = MN + 0; if (MX != "") gmax = MX + 0
+		if (gmax == gmin) gmax = gmin + 1
+		for (x = 0; x < width; x++) for (s = 1; s <= ns; s++) if (x < len[s]) {
+			row = int((gmax - V[s, x]) * (H - 1) / (gmax - gmin))
+			if (row < 0) row = 0; if (row >= H) row = H - 1
+			at[row, x] = s
+		}
+		lw = length(fmt(gmax)); if (length(fmt(gmin)) > lw) lw = length(fmt(gmin))
+		for (r = 0; r < H; r++) {
+			y = (r == 0) ? fmt(gmax) : ((r == H - 1) ? fmt(gmin) : "")
+			line = sprintf("%*s │", lw, y)
+			for (x = 0; x < width; x++) line = line (((r, x) in at) ? cell[at[r, x]] : " ")
+			print line
+		}
+		print rep(" ", lw) " └" rep("─", width)
+	}' <<<"$feed")
+	_tr_set_lines TR_RESULT "$_tr_out"
+	((${#TR_RESULT[@]})) || return 1
 
 	local legend=""
 	for ((s = 0; s < ${#series_labels[@]}; s++)); do
@@ -1419,16 +1601,8 @@ _csv_hbar_build() {
 
 	TR_RESULT=()
 	[[ -z "$file" ]] && return 1
-	_tr_csv_parse "$file" "$delim" || return 1
-
 	local -a entries=()
-	local start=0
-	((header)) && start=1
-	for ((i = start; i < ${#_TR_CSV_ROWS[@]}; i++)); do
-		local -a f=()
-		IFS=$'\x01' read -ra f <<<"${_TR_CSV_ROWS[$i]}"
-		entries+=("${f[0]}:${f[1]}")
-	done
+	_tr_csv_entries entries "$file" "$delim" "$header" || return 1
 
 	_hbar_build "${extra[@]}" "${entries[@]}"
 }
@@ -1489,16 +1663,8 @@ _csv_vbar_build() {
 
 	TR_RESULT=()
 	[[ -z "$file" ]] && return 1
-	_tr_csv_parse "$file" "$delim" || return 1
-
 	local -a entries=()
-	local start=0
-	((header)) && start=1
-	for ((i = start; i < ${#_TR_CSV_ROWS[@]}; i++)); do
-		local -a f=()
-		IFS=$'\x01' read -ra f <<<"${_TR_CSV_ROWS[$i]}"
-		entries+=("${f[0]}:${f[1]}")
-	done
+	_tr_csv_entries entries "$file" "$delim" "$header" || return 1
 
 	_vbar_build "${extra[@]}" "${entries[@]}"
 }
@@ -1513,6 +1679,7 @@ csv_vbar_string() {
 }
 
 _csv_linechart_build() {
+	local c
 	local file="" delim=","
 	local -a extra=()
 
@@ -1551,6 +1718,25 @@ _csv_linechart_build() {
 
 	TR_RESULT=()
 	[[ -z "$file" ]] && return 1
+	[[ -f "$file" ]] || return 1
+
+	# A one-character, non-blank delimiter: one awk pass reads the file and emits one "label:v1,v2,..." per series.
+	if [[ "$delim" == [!$' \t'] ]]; then
+		local -a series_args=()
+		_tr_out=$(awk -v D="$delim" '
+		$0 == "" { next }
+		{ n = split($0, f, D); if (n > 0 && f[n] == "") n--
+		  for (i = 1; i <= n; i++) gsub(/^[[:space:]]+|[[:space:]]+$/, "", f[i])
+		  rows++
+		  if (rows == 1) { nc = n; for (i = 2; i <= n; i++) S[i] = f[i] ":"; next }
+		  for (i = 2; i <= nc; i++) S[i] = S[i] (rows > 2 ? "," : "") ((i <= n && f[i] != "") ? f[i] : 0) }
+		END { if (rows < 2 || nc < 2) exit 1; for (i = 2; i <= nc; i++) print S[i] }' "$file")
+		_tr_set_lines series_args "$_tr_out"
+		((${#series_args[@]})) || return 1
+		_linechart_build "${extra[@]}" "${series_args[@]}"
+		return
+	fi
+
 	_tr_csv_parse "$file" "$delim" || return 1
 	((${#_TR_CSV_ROWS[@]} < 2)) && return 1
 
@@ -1604,12 +1790,9 @@ csv_linechart_string() {
 declare -g _TR_BRAILLE=""
 _tr_braille_init() {
 	[[ -n "$_TR_BRAILLE" ]] && return 0
-	local i hex ch
-	for ((i = 0; i < 256; i++)); do
-		printf -v hex '%04x' $((0x2800 + i))
-		printf -v ch '%b' "\\u$hex"
-		_TR_BRAILLE+="$ch "
-	done
+	local fmt
+	printf -v fmt '\\u28%02x ' {0..255}
+	printf -v _TR_BRAILLE "$fmt"
 }
 
 # awk helpers shared by the charts below: number formatting that adapts to magnitude, clamping, padding.
@@ -1707,7 +1890,10 @@ _scatter_build() {
 		if (n == 1 || px[n] < ax0) ax0 = px[n]; if (n == 1 || px[n] > ax1) ax1 = px[n]
 		if (n == 1 || py[n] < ay0) ay0 = py[n]; if (n == 1 || py[n] > ay1) ay1 = py[n]; next }
 	function dot(gx, gy, s,   cx, cy) { if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) return
-		D[gx, gy] = 1; cx = int(gx / 2); cy = int(gy / 4); C[cy, cx] = s }
+		cx = int(gx / 2); cy = int(gy / 4)
+		if (!((gx, gy) in D)) { D[gx, gy] = 1; M[cy, cx] += BIT[gx % 2, gy % 4] }   # braille dot mask, kept per cell
+		C[cy, cx] = s }
+	BEGIN { BIT[0, 0] = 1; BIT[0, 1] = 2; BIT[0, 2] = 4; BIT[0, 3] = 64; BIT[1, 0] = 8; BIT[1, 1] = 16; BIT[1, 2] = 32; BIT[1, 3] = 128 }
 	function seg(x0, y0, x1, y1, s,   dx, dy, st, k, t) { dx = x1 - x0; dy = y1 - y0
 		st = (dx < 0 ? -dx : dx); if ((dy < 0 ? -dy : dy) > st) st = (dy < 0 ? -dy : dy)
 		if (st == 0) { dot(x0, y0, s); return }
@@ -1731,10 +1917,7 @@ _scatter_build() {
 			lab = r == 0 ? fmt(y1) : (r == H - 1 ? fmt(y0) : (r == mid ? fmt((y0 + y1) / 2) : ""))
 			line = padl(lab, lw) " \342\224\202"; cur = ""
 			for (c = 0; c < PW; c++) {
-				m = 0
-				if (D[2*c, 4*r])     m += 1;  if (D[2*c, 4*r+1])   m += 2;  if (D[2*c, 4*r+2]) m += 4
-				if (D[2*c+1, 4*r])   m += 8;  if (D[2*c+1, 4*r+1]) m += 16; if (D[2*c+1, 4*r+2]) m += 32
-				if (D[2*c, 4*r+3])   m += 64; if (D[2*c+1, 4*r+3]) m += 128
+				m = ((r, c) in M) ? M[r, c] : 0
 				want = m ? col[C[r, c]] : ""
 				if (want != cur) { line = line (cur != "" ? RS_ : "") want; cur = want }
 				line = line (m ? B[m + 1] : " ")
@@ -1995,7 +2178,7 @@ _heatmap_build() {
 	done
 	TR_RESULT=()
 	((${#rows[@]} > 1)) || return 1
-	mapfile -t TR_RESULT < <(printf '%s\n' "${rows[@]}" | awk -F'|' -v CW="$cw" -v DEC="$dec" -v MX="$mx" -v LW="$lw" -v W="$width" \
+	_tr_out=$(printf '%s\n' "${rows[@]}" | awk -F'|' -v CW="$cw" -v DEC="$dec" -v MX="$mx" -v LW="$lw" -v W="$width" \
 		-v RS_="$RESET" "$_TR_AWK_LIB"'
 	NR == 1 { nc = NF - 1; next }
 	{ nr++; lab[nr] = $1; if (length($1) > ml) ml = length($1)
@@ -2024,6 +2207,7 @@ _heatmap_build() {
 		}
 		print rep(" ", L) sprintf("scale: %s \342\200\246 %s", fmt(-S), fmt(S))
 	}')
+	_tr_set_lines TR_RESULT "$_tr_out"
 	((${#TR_RESULT[@]}))
 }
 heatmap() {
@@ -2079,7 +2263,7 @@ _histogram_build() {
 		esac
 	done
 	TR_RESULT=()
-	[[ -n "${data//[$delim]/}" ]] || return 1
+	[[ "$data" == *[!"$delim"]* ]] || return 1
 	((width > 0)) || {
 		_tr_term_width_v
 		width=$_TRV
@@ -2092,11 +2276,13 @@ _histogram_build() {
 		_tr_resolve_color_v "${mcol:-YELLOW}"
 		feed+="M	$val	$name	$_TRV"$'\n'
 	done
-	feed+="V	${data//"$delim"/$'\t'}"$'\n'
-	mapfile -t TR_RESULT < <(awk -F'\t' -v W="$width" -v H="$height" -v MN="$mn" -v MX="$mx" -v BC="$bar_col" \
+	# A one-character delimiter is split inside awk; longer ones are rewritten to tabs here.
+	if ((${#delim} == 1)); then feed+="V	$data"$'\n'; else feed+="V	${data//"$delim"/$'\t'}"$'\n'; fi
+	mapfile -t TR_RESULT < <(awk -F'\t' -v D="${delim:0:1}" -v ND="${#delim}" -v W="$width" -v H="$height" -v MN="$mn" -v MX="$mx" -v BC="$bar_col" \
 		-v RS_="$RESET" "$_TR_AWK_LIB"'
 	$1 == "M" { nm++; mv[nm] = $2; mn_[nm] = $3; mc[nm] = $4; next }
-	$1 == "V" { for (j = 2; j <= NF; j++) if (isnum($j)) { n++; x[n] = $j + 0; if (n == 1 || x[n] < lo) lo = x[n]; if (n == 1 || x[n] > hi) hi = x[n] } }
+	$1 == "V" { if (ND == 1) { nf = split(substr($0, 3), F, D) } else { nf = NF - 1; for (j = 1; j <= nf; j++) F[j] = $(j + 1) }
+		for (j = 1; j <= nf; j++) if (isnum(F[j])) { n++; x[n] = F[j] + 0; if (n == 1 || x[n] < lo) lo = x[n]; if (n == 1 || x[n] > hi) hi = x[n] } }
 	END {
 		if (n == 0) exit 1
 		if (isnum(MN)) lo = MN + 0; if (isnum(MX)) hi = MX + 0; if (hi == lo) hi = lo + 1
@@ -2510,6 +2696,7 @@ banner_string() {
 #  Indent with 2 spaces per level. Or pipe indented text.
 
 _tree_build() {
+	local arg # loop variables stay out of the caller's scope
 	local lines=()
 
 	if [[ $# -gt 0 ]]; then
@@ -2662,24 +2849,28 @@ _columns_build() {
 	fi
 
 	# Each group of ncols bodies = one row; cells word-wrapped to col_width
-	local base c r max_rows line cell
+	local base c r max_rows line cell blanks
+	_tr_repeat_v " " "$col_width"
+	blanks=$_TRV
+	for ((c = 0; c < ncols; c++)); do local -a "_cl_col$c=()"; done
 	for ((base = 0; base < ${#bodies[@]}; base += ncols)); do
-		local -a cw=()
 		max_rows=0
 		for ((c = 0; c < ncols; c++)); do
 			_tr_wordwrap "${bodies[$((base + c))]:-}" "$col_width"
-			cw[c]=$(printf '%s\x01' "${_TR_WRAPPED[@]}")
+			local -n _cl_ref="_cl_col$c"
+			_cl_ref=("${_TR_WRAPPED[@]}")
+			unset -n _cl_ref
 			((${#_TR_WRAPPED[@]} > max_rows)) && max_rows=${#_TR_WRAPPED[@]}
 		done
 		for ((r = 0; r < max_rows; r++)); do
 			line=""
 			for ((c = 0; c < ncols; c++)); do
-				local -a col_rows=()
-				IFS=$'\x01' read -ra col_rows <<<"${cw[c]}"
-				cell="${col_rows[$r]:-}"
+				local -n _cl_ref="_cl_col$c"
+				cell="${_cl_ref[r]:-}"
+				unset -n _cl_ref
 				((c > 0)) && line+="$sep"
-				printf -v _trl '%-*s' "$col_width" "$cell"
-				line+=$_trl
+				line+=$cell
+				((${#cell} < col_width)) && line+=${blanks:0:col_width-${#cell}}
 			done
 			TR_RESULT+=("$line")
 		done
@@ -2747,6 +2938,7 @@ badges_string() {
 #         list "Top level" "  Nested item" "    Deep nested"
 
 _list_build() {
+	local d item wln # loop variables stay out of the caller's scope
 	local style="bullet" bullet="•"
 	local items=()
 

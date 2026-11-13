@@ -1,5 +1,28 @@
 # Developer API
 
+## Table of Contents
+
+<details>
+
+   <summary>Contents</summary>
+
+1. [1. Start an app](#1-start-an-app)
+1. [2. Build layout in code (instead of, or next to, XML)](#2-build-layout-in-code-instead-of-or-next-to-xml)
+1. [3. Widgets and forms](#3-widgets-and-forms)
+   1. [Text editing and data widgets](#text-editing-and-data-widgets)
+1. [4. Put content in panes](#4-put-content-in-panes)
+1. [5. Live, continuously updating things](#5-live-continuously-updating-things)
+1. [6. Read state](#6-read-state)
+1. [7. Style and themes](#7-style-and-themes)
+1. [8. Keys, mouse, actions](#8-keys-mouse-actions)
+1. [9. Command bar, modals, dialogs, footer](#9-command-bar-modals-dialogs-footer)
+   1. [Dialogs and toasts](#dialogs-and-toasts)
+1. [10. Pages, history, persisted settings](#10-pages-history-persisted-settings)
+1. [11. Plugins](#11-plugins)
+1. [12. Renderers without the TUI](#12-renderers-without-the-tui)
+
+</details>
+
 The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic directory, the way a Javadoc package-summary page mirrors a Java package. Every function also has a page of its own (`api/<module>/<function>`), linked from the summary table on its module page; the module page shows the same entries one after another. Use the search in the header (or press `/`) to find a function by name across every page at once; it's pre-scoped to "This section" when you're already inside `api/`, with an "Everywhere" toggle to search the whole site. For how the pieces fit together see the [documentation index](../README.md).
 
 | Module | Covers | Mirrors |

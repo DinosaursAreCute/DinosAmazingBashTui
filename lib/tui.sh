@@ -2558,6 +2558,12 @@ _tui._read_escape_seq() {
 		case "$c" in
 			[A-Za-z~Mm]) break ;;
 		esac
+		# the byte after ESC decides the shape: only CSI, OSC-like strings and a doubled ESC go on; any other byte is
+		# alt+that byte, complete now (waiting for a terminator that never comes cost a full per-byte timeout)
+		case "$_TUI_SEQ_BUF" in
+			"[" | "]" | "^" | "_" | $'\e') ;;
+			?) break ;;
+		esac
 	done
 }
 

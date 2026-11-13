@@ -70,7 +70,7 @@ Granular invalidation (per-key deletion) adds unnecessary complexity: style appl
 
 ## 4. Implementation Phases (Test-Driven per DABT Standards)
 
-1. **Baseline Profiling**: Execute `tools/profiler/profile.sh --deep` and retain results. Record call counts and self-time for `_sgr_from` and `_style_v`, Style layer overhead per scenario, and baseline measurements from `tools/bench/run.sh` for `full_render`, `hover_redraw`, and `focus_move`.
+1. **Baseline Profiling**: Execute `tools/benchmarks/profiler/profile.sh --deep` and retain results. Record call counts and self-time for `_sgr_from` and `_style_v`, Style layer overhead per scenario, and baseline measurements from `tools/bench/run.sh` for `full_render`, `hover_redraw`, and `focus_move`.
 
 2. **Unit Tests** (tests/unit, host-independent, isolated):
    - Verify `_sgr_from` cache hits produce byte-identical output to uncached calls across hex colors, named colors, modifiers-only, empty styles, and mixed inputs.
@@ -90,7 +90,7 @@ Granular invalidation (per-key deletion) adds unnecessary complexity: style appl
 
 7. **Documentation**: Add function headers per docstrings.md; instrument performance tracking with `_tui_perf.count sgr_hit` and `sgr_miss` inside `_style_v` (implemented as a single conditional test when tracking is disabled).
 
-8. **Verification**: Run `tools/profiler/profile.sh --deep` and compare against baseline (automatic differential analysis).
+8. **Verification**: Run `tools/benchmarks/profiler/profile.sh --deep` and compare against baseline (automatic differential analysis).
 
 ## 5. Acceptance Criteria
 

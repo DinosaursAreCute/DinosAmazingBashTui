@@ -100,7 +100,7 @@ A page's signature is the modification time of every file it depends on: the pag
 - `tests/unit/refresh.t.sh`: the central property. A page refreshed from "none" to "all five addons" and back equals a full load in both directions (a sorted dump of all pane and widget arrays plus the widget order); the Generated page refreshed equals a full load and keeps what was typed outside the regenerated pane; focus on a removed widget is cleared; a change outside the panes falls back to a rebuild; a no-change refresh rebuilds nothing; the compute part stays under 100 ms.
 - `tests/unit/job.t.sh`: results, exit status, cancel, replacement, the spinner's lifecycle and that it is gone before DONEFN.
 - `tests/unit/docs_examples.t.sh`: the page examples in the guides validate.
-- `tools/profiler/profile.sh --scenario addons` and `--scenario generated` rate the real app against the 100 ms budget.
+- `tools/benchmarks/profiler/profile.sh --scenario addons` and `--scenario generated` rate the real app against the 100 ms budget.
 
 ## 8. Limits and the next steps
 

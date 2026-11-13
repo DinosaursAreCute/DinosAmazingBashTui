@@ -415,4 +415,4 @@ The page's top-level panes are built inside the outlet (`id` defaults to `outlet
 | `dabt --demo` | the bundled demo; its pages are the best examples of everything above (templates, conditions and addons: the Compose page, `alt+-`) |
 | `share/tui.xsd` | schema for editor completion |
 | `tools/frame.sh PAGE [COLSxROWS]` | renders a page to text without a terminal (`--sgr` keeps the styles) |
-| `tools/profiler/profile.sh` | times page switches, input and the addon scenarios against the 100 ms budget |
+| `tools/benchmarks/profiler/profile.sh` | times page switches, input and the addon scenarios against the 100 ms budget |

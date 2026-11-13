@@ -76,6 +76,10 @@ tui.run() {
 				_tick_eff_us=1000 # the wait ends when the job is due: tick then, not one gate later
 			fi
 		fi
+		if ((_TA_DUE_NOW)); then # a job waits for its first run: do not sit out the slow poll
+			poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
+			_tick_eff_us=1000
+		fi
 		# A queued pane render (tui.output, scroll batching) is flushed once the input goes quiet; waiting the
 		# full poll timeout for that made every scroll step and page load ~50 ms slower than its work.
 		((${#_TUI_PENDING_OUTPUT[@]} || ${#_WX_CHG_PENDING[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"

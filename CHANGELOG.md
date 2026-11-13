@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.31] - 2026-11-13
+
 ### News
 - **The renderers take 33% less time per call on average (x1.9 geometric mean over 114 profiler cases).**
 - **82 of 114 cases are at least 5% faster, by 47% on average; the rest stay within a few percent.**

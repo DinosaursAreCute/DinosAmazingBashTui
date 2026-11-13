@@ -6,12 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+- **The renderers take 33% less time per call on average (x1.9 geometric mean over 114 profiler cases).**
+- **82 of 114 cases are at least 5% faster, by 47% on average; the rest stay within a few percent.**
+- **`csv_vbar` 207 to 10 ms, `csv_linechart` 165 to 8 ms and `csv_hbar` 154 to 12 ms per case on average.**
+- **`table` 65 to 7 ms on average; 200 rows x 8 columns 257 to 25 ms.**
+- **`linechart` 48 to 6 ms on average; 1000 points 159 to 12 ms.**
+- **`vbar` 21 to 4 ms and `columns` 20 to 3 ms on average.**
+- **`scatter` 42%, `histogram` 37%, `sparkline` 41%, `list` 30% and `hbar` 24% less time on average.**
+- **No process per row or cell: a 200 row `table` or CSV chart forks 2 to 4 times, down from about 201.**
+- **New: `tools/benchmarks/renderers/profile.sh` profiles every renderer of `lib/terminal_renderer.sh`** on 114 cases, with a diff against the previous run; it names every renderer correctly.
+- **The benchmark tools live in `tools/benchmarks/`:** `profiler/`, `compare-v2/` and `renderers/`.
+- **A `tui.every` job that is due at once no longer waits out the 50 ms poll.**
+- **Page switches by Enter on a focused menu button are profiled (`nav.arrows`), and the nav tables show `shown` next to `done`.**
+- **The workbench benchmark app runs on a shell, so a page switch replaces only the outlet.**
+- **A page of a shell honours `autofocus`.**
+- **Alt plus a digit or punctuation key no longer waits 10 ms for a sequence terminator.**
+
 ### Changed
 - **A `tui.every` job's first run no longer waits out the 50 ms poll.** A job that is due at once (`tui.every`, `tui.every.resume`) makes the main loop poll for the short settle timeout and tick right away, so a page that fills itself from a timer (the Monitor page) is complete about 20 ms sooner.
 - **Profiler: the nav tables show `shown` next to `done`.** `shown` is when the input's own work ended and the page was up; `done` stays the last visible change, so a timer job's first run is visible between the two.
 - **Profiler: `nav.arrows` measures a page switch by Enter on a focused menu button** (alt+n, Down to the page's button, Enter), next to the click and the alt+N key.
 - **Profiler: the page-switch floor uses Enter in the menu and the fastest pages** (Terminal, Docs, Widgets) instead of clicking Layout, Case Study and Debug.
 - **The workbench benchmark app runs on a shell** (`_shell.xml`: menu, theme, callbacks and the alt+N keys), so a page switch replaces only the outlet; its settings toast stays until the benchmark dismisses it (alt+k) so its timer cannot land in a later timed step.
+- **The renderers of `lib/terminal_renderer.sh` take 33% less time per call on average (114 profiler cases, ×1.9 geometric mean); 82 of the 114 cases are at least 5% faster, by 47% on average.** Renderer profiler, full runs before and after: the biggest wins are `csv_vbar` 207 to 10 ms per case on average (200 rows: 309 to 13 ms), `csv_linechart` 165 to 8 ms, `csv_hbar` 154 to 12 ms, `table` 65 to 7 ms (200 x 8: 257 to 25 ms), `linechart` 48 to 6 ms (1000 points: 159 to 12 ms), `vbar` 21 to 4 ms and `columns` 20 to 3 ms. The text renderers (`box`, `alert`, `quote`, `divider`, `banner`, `badges`) stay where they were, within a few percent. Output is byte-identical, except that `columns` pads non-ASCII text by characters instead of bytes.
+- **`table`, `columns`, `vbar`, `linechart` and the CSV charts start no process per row or cell.** A 200 row `table`, `csv_hbar` or `csv_vbar` forked about 201 times per call and a `csv_linechart` 204 times; they now fork 2 to 4 times (the awk passes), 98% fewer.
+- **Large inputs are laid out in one awk pass:** `table` (30 or more rows), `hbar` and `vbar` (40 or more entries), `linechart`, `sparkline` (over 300 points) and the CSV readers (`_tr_csv_parse`, the new `_tr_csv_entries`) when the delimiter is one character. Smaller inputs and other delimiters keep the bash path, which is faster for them.
+- **`scatter` keeps each braille cell's dot mask while plotting** instead of probing 8 dots per cell: 8 to 4 ms for a small chart (10.8 to 6.4 ms across the profiler's cases).
+- **`histogram` splits a one-character delimiter inside awk and tests for data with a glob:** 2000 values 25 to 9 ms (14.8 to 6.4 ms per case on average).
+- **`_tr_set_lines` splits awk's output without `mapfile`.** `mapfile` reads a pipe or here-string one byte at a time, which cost 10 to 15 ms for a 13 KB chart; word splitting takes about 1 ms. `boxplot`, `forest`, `histogram` and `scatter` still use `mapfile`, which is cheaper for their small output.
+- **`_tr_wordwrap` returns early for one short line without escapes**, `_tr_resample` reads its input through a nameref instead of copying it, and `_tr_braille_init` builds its table with two `printf` calls instead of 512.
 
 - **New: `tools/benchmarks/renderers/profile.sh` profiles every renderer of `lib/terminal_renderer.sh`** on several datasets and argument sets: time per call, output size and processes started, rated against a budget, with scenario selectors, rounds, jobs, a trace of where the time goes inside a renderer, a diff against the previous run and `--watch` (the renderers' output in a second window).
 - **The benchmark tools now live in `tools/benchmarks/`:** `profiler/`, `compare-v2/` and the new `renderers/`, with the reporter they share in `tools/benchmarks/reporting/` (terminal toolkit, statistics, default report, live view, viewer window). The profiler's report is unchanged.
@@ -19,6 +43,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - **A page of a shell honours `autofocus`.** A switch inside a shell focused the page's first widget and ignored the one marked `autofocus`; a shell widget that had focus still keeps it.
 - **Alt plus a digit or punctuation key (`alt+1`, `alt+/`, ...) no longer waits 10 ms for a sequence terminator.** Only CSI, OSC-style strings and a doubled ESC read on; any other byte after ESC is a complete alt+key.
+
+### Documentation
+- New design page: [the life cycle of an app](docs/design/lifecycle.md): start-up, page switch, run loop, resize, theme change, refresh, jobs and exit, with every cache, what reads and writes it and what makes it stale.
+- New design page: [the input state machine](docs/design/input-state-machine.md): bytes to event, the mode stack (modal, layers, passthrough, resize mode), mouse gesture states, routing order and edge cases.
 
 ## [0.0.30] - 2026-11-12
 

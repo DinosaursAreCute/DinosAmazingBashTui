@@ -134,6 +134,38 @@ RELEASES = [
         "pages_title": "HELD KEY LAG, PER WIDGET",
         "pages_sub": "key sent to first output received, median milliseconds &#183; a held key repeats every 33 ms",
     },
+    {
+        "slug": "v0-0-31",
+        "name": "v0.0.31",
+        # renderer profiler (tools/benchmarks/renderers), full runs 20261113-201108 -> 20261113-205524: 114 cases, median ms per call
+        "improvements": [
+            ("CSV_VBAR, 200 ROWS", 308.7, 12.9, "ms"),
+            ("CSV_LINECHART, 200 ROWS", 255.3, 10.5, "ms"),
+            ("TABLE, 200 X 8", 257.2, 24.6, "ms"),
+            ("CSV_HBAR, 200 ROWS", 233.6, 15.0, "ms"),
+            ("LINECHART, 1000 POINTS", 158.9, 11.6, "ms"),
+            ("VBAR, 64 COLUMNS", 72.8, 7.5, "ms"),
+            ("TABLE, 50 X 5", 51.0, 6.4, "ms"),
+            ("COLUMNS, 240 WORDS", 37.0, 5.4, "ms"),
+        ],
+        # processes started per call
+        "processes": [
+            ("TABLE, 200 X 8", 201, 2, "forks"),
+            ("CSV_HBAR, 200 ROWS", 201, 4, "forks"),
+            ("CSV_VBAR, 200 ROWS", 201, 4, "forks"),
+            ("CSV_LINECHART, 200 ROWS", 204, 4, "forks"),
+        ],
+        "processes_title": "NO MORE PROCESS PER ROW",
+        "processes_sub": "processes started per call: rows are read and laid out in one awk pass, not one subshell each",
+        "improvements_sub": "lower is better &#183; renderer profiler, median per call, the eight biggest wins of 114 cases",
+        "pages": [  # mean median per case, ms
+            ("csv_vbar", 206.8, 10.1), ("csv_linechart", 165.5, 8.3), ("csv_hbar", 153.6, 11.5), ("table", 64.5, 6.9),
+            ("linechart", 47.7, 6.1), ("vbar", 20.5, 3.6), ("columns", 19.7, 2.9), ("histogram", 14.8, 6.4),
+            ("scatter", 10.8, 6.4), ("sparkline", 8.4, 3.0), ("list", 6.6, 4.3), ("hbar", 6.1, 4.0),
+        ],
+        "pages_title": "EVERY RENDERER, FASTER",
+        "pages_sub": "average per case, median milliseconds per call &#183; 82 of 114 cases at least 5% faster, 33% less time on average",
+    },
 ]
 
 

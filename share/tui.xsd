@@ -10,6 +10,47 @@
        Roots: <tui> (a page), <binds> (keybind files), <cmds> (command palette files). <include> fragments with
        several top-level tags (e.g. _templates.xml) are not well-formed XML and can't be validated on their own. -->
 
+  <!-- layer placement: the words complete in the editor; a number (cells) or #id is also valid -->
+  <xs:simpleType name="layerAnchorType">
+    <xs:union>
+      <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="screen"/><xs:enumeration value="parent"/></xs:restriction></xs:simpleType>
+      <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="#.+"/></xs:restriction></xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="layerXType">
+    <xs:union>
+      <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="center"/><xs:enumeration value="right"/></xs:restriction></xs:simpleType>
+      <xs:simpleType><xs:restriction base="xs:nonNegativeInteger"/></xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="layerYType">
+    <xs:union>
+      <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="center"/><xs:enumeration value="bottom"/><xs:enumeration value="below"/><xs:enumeration value="above"/></xs:restriction></xs:simpleType>
+      <xs:simpleType><xs:restriction base="xs:nonNegativeInteger"/></xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+  <xs:simpleType name="idRefType">
+    <xs:restriction base="xs:string"><xs:pattern value="#.+"/></xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="navOrientationType">
+    <xs:restriction base="xs:string"><xs:enumeration value="v"/><xs:enumeration value="h"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="navActiveType">
+    <xs:restriction base="xs:string"><xs:enumeration value="auto"/><xs:enumeration value="none"/></xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="dataScopeType">
+    <xs:restriction base="xs:string"><xs:enumeration value="page"/><xs:enumeration value="session"/><xs:enumeration value="disk"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="chartType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sparkline"/><xs:enumeration value="histogram"/><xs:enumeration value="hbar"/><xs:enumeration value="vbar"/>
+      <xs:enumeration value="linechart"/><xs:enumeration value="boxplot"/><xs:enumeration value="forest"/><xs:enumeration value="table"/>
+      <xs:enumeration value="list"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="alignType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="left"/>
@@ -137,9 +178,9 @@
        A layer takes everything a pane takes (paneAttrs) as well. -->
   <xs:attributeGroup name="layerAttrs">
     <xs:attribute name="id" type="xs:string" use="required"/>
-    <xs:attribute name="anchor" type="xs:string"/>
-    <xs:attribute name="x" type="xs:string"/>
-    <xs:attribute name="y" type="xs:string"/>
+    <xs:attribute name="anchor" type="layerAnchorType"/>
+    <xs:attribute name="x" type="layerXType"/>
+    <xs:attribute name="y" type="layerYType"/>
     <xs:attribute name="float" type="boolType"/>
     <xs:attribute name="shadow" type="boolType"/>
     <xs:attribute name="closable" type="boolType"/>
@@ -281,6 +322,12 @@
       <xs:element ref="contextmenu"/>
       <xs:element ref="toast"/>
       <xs:element ref="tabs"/>
+      <xs:element ref="nav"/>
+      <xs:element ref="data"/>
+      <xs:element ref="spark"/>
+      <xs:element ref="gauge"/>
+      <xs:element ref="chart"/>
+      <xs:element ref="item"/>
       <xs:element ref="bind"/>
       <xs:element ref="footer"/>
       <xs:element ref="label"/>
@@ -303,6 +350,108 @@
       <xs:element ref="addon"/>
     </xs:choice>
   </xs:group>
+
+  <!-- nav: a pane of page buttons (one per item); the item of the current page wears active_class (tui_nav.sh).
+       Item ids default to NAVID_PAGENAME (the page file name without extension). -->
+  <xs:element name="nav">
+    <xs:complexType>
+      <xs:sequence minOccurs="0" maxOccurs="unbounded">
+        <xs:choice>
+          <xs:element ref="item"/>
+          <xs:element ref="for"/>
+          <xs:element ref="if"/>
+          <xs:element ref="use"/>
+        </xs:choice>
+      </xs:sequence>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="orientation" type="navOrientationType"/>
+      <xs:attribute name="item_class" type="xs:string"/>
+      <xs:attribute name="active_class" type="xs:string"/>
+      <xs:attribute name="active" type="navActiveType"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- item: one nav button. icon is put before the text and is what a collapse_to="rail" pane keeps unless collapsed_text is given;
+       badge is put after the text; shortcut is a key that opens the page -->
+  <xs:element name="item">
+    <xs:complexType>
+      <xs:attribute name="page" type="xs:string"/>
+      <xs:attribute name="text" type="xs:string"/>
+      <xs:attribute name="icon" type="xs:string"/>
+      <xs:attribute name="badge" type="xs:string"/>
+      <xs:attribute name="collapsed_text" type="xs:string"/>
+      <xs:attribute name="shortcut" type="xs:string"/>
+      <xs:attribute name="action" type="xs:string"/>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- from: the dataset (tui.data.*) the widget shows; col, last, max, width, format, type, label, args are the options of tui.data.bind -->
+  <xs:attributeGroup name="dataAttrs">
+    <xs:attribute name="from" type="xs:string"/>
+    <xs:attribute name="col" type="xs:string"/>
+    <xs:attribute name="last" type="xs:positiveInteger"/>
+    <xs:attribute name="max" type="xs:string"/>
+    <xs:attribute name="format" type="xs:string"/>
+    <xs:attribute name="show" type="xs:string"/>
+    <xs:attribute name="levels" type="xs:string"/>
+    <xs:attribute name="heat" type="xs:string"/>
+    <xs:attribute name="key" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <!-- data: declares a dataset; scope: page (dropped with the page), session, disk (also written under $TUI_HOME/state/data) -->
+  <xs:element name="data">
+    <xs:complexType>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="cols" type="xs:string"/>
+      <xs:attribute name="key" type="xs:string"/>
+      <xs:attribute name="max" type="xs:nonNegativeInteger"/>
+      <xs:attribute name="scope" type="dataScopeType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- spark: a label that shows the newest `last` values of column `col` as block glyphs -->
+  <xs:element name="spark">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
+      <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attributeGroup ref="dataAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- gauge: a label that shows the newest value of column `col` as a bar out of `max` -->
+  <xs:element name="gauge">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="pane" type="xs:string"/>
+      <xs:attribute name="row" type="xs:integer"/>
+      <xs:attribute name="class" type="xs:string"/>
+      <xs:attribute name="align" type="alignType"/>
+      <xs:attribute name="valign" type="valignType"/>
+      <xs:attribute name="width" type="xs:string"/>
+      <xs:attributeGroup ref="dataAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- chart: a pane that holds the output of tui.chart `type` over the dataset; args are renderer flags such as "-h 8 -c GREEN" -->
+  <xs:element name="chart">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="type" type="chartType"/>
+      <xs:attribute name="label" type="xs:string"/>
+      <xs:attribute name="args" type="xs:string"/>
+      <xs:attributeGroup ref="dataAttrs"/>
+      <xs:attributeGroup ref="paneAttrs"/>
+    </xs:complexType>
+  </xs:element>
 
   <xs:element name="footer">
     <xs:annotation><xs:documentation>One-row key-hint bar drawn on the last terminal row wherever it is declared. items = "KEY|Label[|WHEN_FN];..."; KEY may be "@tui.action.name" to show the key currently bound to that action.</xs:documentation></xs:annotation>
@@ -388,13 +537,14 @@
         <xs:group ref="pageContent"/>
       </xs:choice>
       <xs:attribute name="on_visit" type="xs:string"/>
+      <xs:attribute name="on_leave" type="xs:string"/>
       <!-- comma/space separated default keybind groups to switch off for this page, e.g. "-quit,-scroll" -->
       <xs:attribute name="defaults" type="xs:string"/>
       <xs:attribute name="focus_wrap" type="boolType"/>
       <!-- keep_state: every widget and pane of the page keeps value, cursor, scroll, selection, collapsed and size across page switches -->
       <xs:attribute name="keep_state" type="boolType"/>
       <xs:attribute name="persist" type="persistType"/>
-      <!-- focus_on_enter: first (default), keep (the id focused when the page was last left) or the id of a widget -->
+      <!-- focus_on_enter: first (the first widget in Tab order, unless one has autofocus), keep (the id focused when the page was last left) or the id of a widget; without it a page starts with nothing focused -->
       <xs:attribute name="focus_on_enter" type="xs:string"/>
       <!-- shell: a shell file (relative to this page) whose chrome stays while the user moves between its pages; the page builds into its <outlet/> -->
       <xs:attribute name="shell" type="xs:string"/>
@@ -471,6 +621,7 @@
         <xs:group ref="pageContent"/>
       </xs:choice>
       <xs:attributeGroup ref="layerAttrs"/>
+      <xs:attribute name="for" type="idRefType"/>
       <xs:attributeGroup ref="paneAttrs"/>
     </xs:complexType>
   </xs:element>
@@ -752,6 +903,7 @@
   <xs:element name="label">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attributeGroup ref="dataAttrs"/>
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="text" type="xs:string"/>
@@ -782,6 +934,7 @@
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
+      <xs:attribute name="text" type="xs:string"/>
       <xs:attribute name="placeholder" type="xs:string"/>
       <xs:attribute name="submit" type="xs:string"/>
       <xs:attribute name="on_change" type="xs:string"/>
@@ -854,6 +1007,7 @@
       <!-- text shown on a collapse_to="rail" pane while it is collapsed -->
       <xs:attribute name="collapsed_text" type="xs:string"/>
       <xs:attribute name="action" type="xs:string"/>
+      <xs:attribute name="shortcut" type="xs:string"/>
       <xs:attribute name="page" type="xs:string"/>
       <xs:attribute name="align" type="alignType"/>
       <xs:attribute name="valign" type="valignType"/>
@@ -893,6 +1047,7 @@
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
+      <xs:attribute name="text" type="xs:string"/>
       <xs:attribute name="checked" type="boolType"/>
       <xs:attribute name="action" type="xs:string"/>
       <xs:attribute name="align" type="alignType"/>
@@ -982,6 +1137,7 @@
   <xs:element name="list">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attributeGroup ref="dataAttrs"/>
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="action" type="xs:string"/>
@@ -1004,6 +1160,7 @@
   <xs:element name="table">
     <xs:complexType>
       <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attributeGroup ref="dataAttrs"/>
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="action" type="xs:string"/>
@@ -1030,6 +1187,7 @@
       <xs:attribute name="pane" type="xs:string"/>
       <xs:attribute name="row" type="xs:integer"/>
       <xs:attribute name="label" type="xs:string"/>
+      <xs:attribute name="text" type="xs:string"/>
       <xs:attribute name="action" type="xs:string"/>
       <xs:attribute name="items" type="xs:string"/>
       <xs:attribute name="value" type="xs:string"/>

@@ -4,7 +4,7 @@
   <footer items="@tui.action.quit"/>
 
   <pane id="root" split="v" border="none">
-    <pane id="head" height="4" title="Tasks" border="single" class="panel" hpad="1">
+    <pane id="head" height="4c" title="Tasks" border="single" class="panel" hpad="1">
       <label id="lbl_title" text="My tasks" class="brand"/>
       <label id="lbl_count" text="" class="muted_label"/>
     </pane>

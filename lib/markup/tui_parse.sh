@@ -138,6 +138,8 @@ _tui_parse.scan() {
 				_tui_parse.attr_valuev "$attrtext" src src
 				if [[ -n "$src" ]]; then
 					local resolved="$src" kids_before="${_N_KIDS[${stack[-1]}]:-}"
+					_tui_path_dabt "$src"
+					resolved="$_DP"
 					[[ "$resolved" != /* ]] && resolved="${dir}/${src}"
 					_tui_parse.include "$resolved" "${stack[-1]}"
 					_tui_parse.include_params "$attrtext" "${stack[-1]}" "$kids_before"

@@ -2,7 +2,7 @@
 # ╔════════════════════════════════════════════════════════════════════════╗
 # ║    tui_job.sh                                                           ║
 # ╚════════════════════════════════════════════════════════════════════════╝
-# tui.job.run [--delay MS] [--silent] [--label TEXT] ID WORKFN DONEFN [ARG...]
+# tui.job.run [--delay MS] [--silent|--quiet] [--label TEXT] ID WORKFN DONEFN [ARG...]
 #                     runs WORKFN ARG... in the background; the interface stays responsive. If it is still
 #                     running after MS milliseconds (default $TUI_JOB_SPINNER_MS = 100) a spinner with TEXT appears
 #                     in the top-right corner of the frame (--silent: never, for work nobody waits for). When WORKFN has
@@ -36,7 +36,7 @@ tui.job.run() {
 	local delay="$TUI_JOB_SPINNER_MS" label="Working..." silent=0
 	while [[ "${1:-}" == --* ]]; do
 		case "$1" in
-			--silent)
+			--silent | --quiet)
 				silent=1
 				shift
 				;;

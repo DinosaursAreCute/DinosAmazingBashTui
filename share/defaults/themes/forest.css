@@ -2,7 +2,7 @@
  * Selected on the Settings page (tui.theme.set) and applied app-wide. */
 
 /* progress bar glyphs */
-@import "../glyphs/dots.css";
+@import "dabt:glyphs/dots.css";
 
 .danger_button {
   fg: white;

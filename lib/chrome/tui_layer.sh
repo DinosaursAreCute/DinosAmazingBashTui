@@ -11,6 +11,9 @@
 #   width, height   cells, N% of the screen, or fill; the rectangle is clamped to the screen
 #   float    the header drags it, the bottom-right corner resizes it, a click raises it
 #   modal    Tab, clicks and keys stay inside it until it closes; focus returns to where it was
+#   <contextmenu id= for="#id"> opens by itself on mouse:right (tui.action.contextmenu) at the pointer. for names the widget
+#   or pane it answers to (a widget: only while the pointer is on it); without for it answers on the pane it sits in. With
+#   several in the path, the one closest to what is under the pointer opens. It starts hidden (open="true" overrides).
 # State (all page-scoped, part of the page cache):
 #   _TUI_L_ORDER         layer ids, bottom to top           _TUI_L_N   how many
 #   _TUI_P_LAYER[pane]   the layer a pane belongs to (the layer's own root pane included)
@@ -28,6 +31,7 @@ declare -gA _TUI_L_TIMEOUT=() _TUI_L_EXPIRES=()
 declare -gA _TUI_L_TIMEOUT=() _TUI_L_EXPIRES=() _TUI_L_ROW=() _TUI_L_COL=() _TUI_L_H=() _TUI_L_W=() _TUI_L_RANK=() _TUI_L_PANES=() _TUI_L_SAVED_FOCUS=()
 declare -gA _TUI_P_LAYER=() _TUI_P_DETACHABLE=() _TUI_P_DOCK_GROUP=() _TUI_P_LEAVE=() _TUI_P_ON_DETACH=() _TUI_P_ON_DOCK=() _TUI_P_LAYOUT_KEEP=()
 declare -gA _TUI_L_ORIGIN=() # a detached pane's way home: "PARENT INDEX SPEC"
+declare -gA _TUI_L_CM=() _TUI_L_CM_OF=() # right-click menus: owner widget/pane id -> menu layer; menu layer -> its owner
 declare -gi _TUI_L_DRAWING=0 # 1 while the layers are being drawn into a write that is on its way out (_tui._flush)
 declare -g _TUI_L_TRAP="" # the topmost visible modal layer: the focus scope
 declare -g _TUI_L_DRAG="" _TUI_L_DRAG_ARG="" _TUI_L_DX=0 _TUI_L_DY=0 # active drag: layer, move|size, pointer offset
@@ -80,6 +84,10 @@ _tui_layer.forget() {
 		'_TUI_L_ROW[$id]' '_TUI_L_COL[$id]' '_TUI_L_H[$id]' '_TUI_L_W[$id]' '_TUI_L_SAVED_FOCUS[$id]'
 	for k in ${_TUI_L_PANES[$id]:-}; do unset '_TUI_P_LAYER[$k]'; done
 	unset '_TUI_L_PANES[$id]'
+	if [[ -n "${_TUI_L_CM_OF[$id]:-}" ]]; then
+		[[ "${_TUI_L_CM[${_TUI_L_CM_OF[$id]}]:-}" == "$id" ]] && unset '_TUI_L_CM[${_TUI_L_CM_OF[$id]}]'
+		unset '_TUI_L_CM_OF[$id]'
+	fi
 	_tui_layer.sync
 }
 
@@ -87,7 +95,7 @@ _tui_layer.forget() {
 _tui_layer.clear() {
 	_TUI_L_ORDER=() _TUI_L_N=0 _TUI_L_TRAP="" _TUI_L_DRAG=""
 	_TUI_L_ANCHOR=() _TUI_L_PARENT=() _TUI_L_SX=() _TUI_L_SY=() _TUI_L_SW=() _TUI_L_SH=() _TUI_L_F=()
-	_TUI_L_ROW=() _TUI_L_COL=() _TUI_L_H=() _TUI_L_W=() _TUI_L_RANK=() _TUI_L_PANES=() _TUI_L_SAVED_FOCUS=() _TUI_P_LAYER=() _TUI_L_ORIGIN=()
+	_TUI_L_ROW=() _TUI_L_COL=() _TUI_L_H=() _TUI_L_W=() _TUI_L_RANK=() _TUI_L_PANES=() _TUI_L_SAVED_FOCUS=() _TUI_P_LAYER=() _TUI_L_ORIGIN=() _TUI_L_CM=() _TUI_L_CM_OF=()
 	_TUI_P_DETACHABLE=() _TUI_P_DOCK_GROUP=() _TUI_P_LEAVE=() _TUI_P_ON_DETACH=() _TUI_P_ON_DOCK=() _TUI_P_LAYOUT_KEEP=()
 }
 
@@ -729,6 +737,44 @@ _tui_layer.dismiss_key() {
 	tui.layer.hide "$top"
 }
 
+# _tui_layer.parent_of PANE -> _PAR: the pane PANE is a split child of ("" for the root and for a layer's own root pane); rc 1 when none
+_tui_layer.parent_of() {
+	local p
+	_PAR=""
+	for p in "${!_TUI_P_CHILDREN[@]}"; do
+		[[ " ${_TUI_P_CHILDREN[$p]} " == *" $1 "* ]] && { _PAR="$p"; return 0; }
+	done
+	return 1
+}
+
+# _tui_layer.menu_owner WIDGET PANE -> _CM: the right-click menu of the closest owner: WIDGET itself (a menu with for="#WIDGET"
+# only answers there), then WIDGET's pane (else PANE) and every pane above it. rc 1 when nothing on that path owns one
+_tui_layer.menu_owner() {
+	local p="$2"
+	_CM=""
+	[[ -n "$1" && -n "${_TUI_L_CM[$1]:-}" ]] && { _CM="${_TUI_L_CM[$1]}"; return 0; }
+	[[ -n "$1" ]] && p="${_TUI_W_PANE[$1]:-$p}"
+	while [[ -n "$p" ]]; do
+		[[ -n "${_TUI_L_CM[$p]:-}" ]] && { _CM="${_TUI_L_CM[$p]}"; return 0; }
+		_tui_layer.parent_of "$p" || return 1
+		p="$_PAR"
+	done
+	return 1
+}
+
+# tui.action.contextmenu - opens the <contextmenu> of the widget or pane under the pointer at the pointer; another open menu or
+# popup closes first. Default for mouse:right. Does nothing under a modal layer or when no <contextmenu> owns what is under it.
+tui.action.contextmenu() {
+	if ((_TUI_L_N)) && _tui_layer.blocked; then
+		[[ -n "${_TUI_L_F[$_LB_TOP.modal]:-}" ]] && return 0
+		tui.layer.hide "$_LB_TOP"
+	fi
+	_tui_layer.menu_owner "$TUI_EVENT_WIDGET" "$TUI_EVENT_PANE" || return 0
+	_tui_layer.is_visible "$_CM" && tui.layer.hide "$_CM"
+	tui.layer.show "$_CM"
+	tui.layer.move "$_CM" "$TUI_EVENT_Y" "$TUI_EVENT_X"
+}
+
 # _tui_layer.on_focus WIDGET - focus moving into a layer raises it
 _tui_layer.on_focus() {
 	local L="${_TUI_P_LAYER[${_TUI_W_PANE[$1]:-_}]:-}"
@@ -744,8 +790,9 @@ declare -gA _TUI_L_PRESET=([window]="float shadow closable" [modal]="modal shado
 
 # _tui_layer.tag NODE KIND - the handler of every layer tag: builds the pane, registers it as the topmost layer
 _tui_layer.tag() {
-	local node="$1" kind="$2" anchor x y w h open timeout flag v flags="" parent="$_TUI_BUILD_CTX_PANE"
+	local node="$1" kind="$2" anchor x y w h open timeout flag v flags="" parent="$_TUI_BUILD_CTX_PANE" menu_for
 	_tui_build.attrv "$node" anchor anchor
+	_tui_build.attrv "$node" for menu_for
 	_tui_build.attrv "$node" x x
 	_tui_build.attrv "$node" y y
 	_tui_build.attrv "$node" width w
@@ -765,11 +812,18 @@ _tui_layer.tag() {
 		_tui_build.attrv "$node" "$flag" v
 		[[ "$v" == true ]] && flags+="${flags:+ }$flag"
 	done
-	[[ "$open" == false ]] && flags+="${flags:+ }hidden"
+	[[ "$open" == false || ( "$kind" == contextmenu && "$open" != true ) ]] && flags+="${flags:+ }hidden"
 	_TUI_BUILD_LAST_ID="$id"
 	_tui_build.attrv "$node" persist v
 	[[ "$v" == layout ]] && _TUI_P_LAYOUT_KEEP[$id]=1
 	_tui_layer.add "$id" "${anchor:-screen}" "$parent" "$x" "$y" "$w" "$h" "$flags" "$timeout"
+	# a right-click menu belongs to the widget/pane named by for="#id", else to the pane the tag sits in; the first one declared wins
+	if [[ "$kind" == contextmenu ]]; then
+		owner="${menu_for#\#}"
+		owner="${owner:-${parent:-root}}"
+		[[ -n "${_TUI_L_CM[$owner]:-}" ]] || _TUI_L_CM[$owner]="$id"
+		_TUI_L_CM_OF[$id]="$owner"
+	fi
 }
 _tui_build.tag.window() { _tui_layer.tag "$1" window; }
 _tui_build.tag.modal() { _tui_layer.tag "$1" modal; }

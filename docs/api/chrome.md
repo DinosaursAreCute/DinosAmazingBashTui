@@ -225,3 +225,21 @@ Layers are panes that float above the page as overlays. They have independent re
 </div>
 
 <!-- /api -->
+
+## Navigation
+
+`<nav>` builds a pane of page buttons; the item of the current page wears the active class (see [Navigation](../guide/markup.md#navigation)).
+
+<!-- api: tui.nav.sync -->
+
+| Function | Summary |
+|---|---|
+| [`tui.nav.sync`](chrome/tui.nav.sync.md) | Re-applies the highlight of every `<nav>`: the item whose page is the current one gets the nav's `active_class`, the others their `item_class`, and the nav buttons are redrawn. |
+
+<div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative chrome/tui.nav.sync.md %}
+
+</div>
+
+<!-- /api -->

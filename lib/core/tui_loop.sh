@@ -82,7 +82,7 @@ tui.run() {
 		fi
 		# A queued pane render (tui.output, scroll batching) is flushed once the input goes quiet; waiting the
 		# full poll timeout for that made every scroll step and page load ~50 ms slower than its work.
-		((${#_TUI_PENDING_OUTPUT[@]} || ${#_WX_CHG_PENDING[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
+		((${#_TUI_PENDING_OUTPUT[@]} || ${#_WX_CHG_PENDING[@]} || ${#_TUI_PACED_IDS[@]})) && poll_timeout="$TUI_INPUT_SETTLE_TIMEOUT"
 		((_TUI_PASSTHROUGH)) && poll_timeout="$TUI_INPUT_IDLE_TIMEOUT" # frozen: nothing to tick
 
 		_tui._next_byte char "$poll_timeout" && got_char=1
@@ -149,6 +149,7 @@ tui.run() {
 			_tick_last_us=$_tick_now_us
 			[[ -n "${_TUI_TICK_FN:-}" ]] && "$_TUI_TICK_FN"
 		fi
+		((${#_TUI_PACED_IDS[@]})) && _tui.paced_flush # timer draws that waited for their frame
 		((_TUI_KEYS_SUSPENDED)) && _tui_input.draw_overlay
 		if ((_tick_last_us == _tick_now_us && ${#_TUI_TICK_LISTENERS[@]} > 0)); then
 			local _tick_listener

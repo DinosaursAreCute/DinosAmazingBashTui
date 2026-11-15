@@ -10,7 +10,7 @@
   <pane id="root" split="h" border="none">
     <pane id="side" weight="20" title="Settings" border="single" class="sidebar" collapsible="true" collapse_to="rail" default="expanded" resizable="x" handle="edge" keep_collapsed="true" keep_size="true"/>
     <pane id="main" split="v" weight="80" border="none">
-      <pane id="search" weight="15" height="5" title="Search all settings   / focuses" border="single" class="panel" hpad="1">
+      <pane id="search" height="5c" title="Search all settings   / focuses" border="single" class="panel" hpad="1">
         <input id="inp_search" placeholder="type to filter while you type" on_change="dset_search" submit="dset_search_enter"/>
       </pane>
       <pane id="body" split="h" weight="86" border="none">

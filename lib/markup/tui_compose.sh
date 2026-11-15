@@ -20,11 +20,13 @@
 # requires:
 
 declare -ga _TC_PICK=()
-declare -gA _TC_TPL=() # template/component name -> its node (detached from the tree, children are the body)
+declare -gA _TC_TPL=()      # template/component name -> its node (detached from the tree, children are the body)
+declare -gA _TC_NAV_ITEM=() # button id -> "PAGE_NAME BASE_CLASS ACTIVE_CLASS" for the items of every <nav>; the button build moves it to _TUI_W_NAV
 
 # tui_compose.expand ROOT - register every template/component under ROOT, then expand directives in document order.
 tui_compose.expand() {
 	_TC_TPL=()
+	_TC_NAV_ITEM=()
 	_tui_compose.collect "$1"
 	_tui_compose.kids "$1"
 }
@@ -50,6 +52,8 @@ _tui_compose.collect() {
 				tui_node.attr_get "$n" src && src="$_N_ATTR_V" || src=""
 				tui_node.attr_get "$n" __file && file="$_N_ATTR_V" || file=""
 				dir="${file%/*}"
+				_tui_path_dabt "$src"
+				src="$_DP"
 				[[ "$src" == /* || -z "$dir" ]] || src="$dir/$src"
 				[[ -n "$src" ]] && _tui_parse.include "$src" "$n"
 			fi
@@ -77,6 +81,7 @@ _tui_compose.kids() {
 		k="${kids[i]}"
 		if _tui_compose.directive "$k"; then continue; fi
 		_tui_compose.kids "$k"
+		[[ "${_N_TYPE[$k]}" == nav ]] && _tui_compose.nav "$k"
 		i=$((i + 1))
 	done
 }
@@ -265,4 +270,40 @@ _tui_compose.truthy() {
 		'' | false | 0) return 1 ;;
 		*) return 0 ;;
 	esac
+}
+
+# _tui_compose.nav N - a <nav> becomes a pane of buttons, one per <item>; its <for>/<if>/<use> are already expanded.
+#   nav:  id, class (the pane), orientation v|h (default v), item_class (default nav_button), active_class (default
+#         nav_active), active auto|none (auto: the item of the current page wears active_class, see tui_nav.sh)
+#   item: page (its name is the file name without extension), text, icon, badge, collapsed_text, shortcut (a key
+#         that opens the page), action, id (default NAVID_PAGENAME); any button attribute passes through.
+_tui_compose.nav() {
+	local n="$1" k nid item_class active_class active orient id page name text icon badge collapsed
+	tui_node.attr_get "$n" id && nid="$_N_ATTR_V" || nid=nav
+	tui_node.attr_get "$n" item_class && item_class="$_N_ATTR_V" || item_class=nav_button
+	tui_node.attr_get "$n" active_class && active_class="$_N_ATTR_V" || active_class=nav_active
+	tui_node.attr_get "$n" active && active="$_N_ATTR_V" || active=auto
+	tui_node.attr_get "$n" orientation && orient="$_N_ATTR_V" || orient=v
+	_N_TYPE[$n]=pane
+	tui_ops.set "$n" split "$orient"
+	for k in ${_N_KIDS[$n]:-}; do
+		[[ "${_N_TYPE[$k]}" == item ]] || continue
+		page="" icon="" badge="" text="" collapsed=""
+		tui_node.attr_get "$k" page && page="$_N_ATTR_V"
+		tui_node.attr_get "$k" text && text="$_N_ATTR_V"
+		tui_node.attr_get "$k" icon && icon="$_N_ATTR_V"
+		tui_node.attr_get "$k" badge && badge="$_N_ATTR_V"
+		tui_node.attr_get "$k" collapsed_text && collapsed="$_N_ATTR_V"
+		name="${page##*/}"
+		name="${name%.*}"
+		tui_node.attr_get "$k" id && id="$_N_ATTR_V" || id="${nid}_${name}"
+		_N_TYPE[$k]=button
+		tui_ops.set "$k" id "$id"
+		tui_ops.set "$k" collapsed_text "${collapsed:-${icon:-${text:0:2}}}" # what a collapse_to="rail" pane keeps
+		tui_ops.set "$k" text "${icon:+$icon }$text${badge:+ $badge}"
+		tui_node.attr_get "$k" class || tui_ops.set "$k" class "$item_class"
+		tui_node.attr_get "$k" align || tui_ops.set "$k" align fill
+		[[ "$active" != none && -n "$page" ]] && _TC_NAV_ITEM[$id]="$name $item_class $active_class"
+	done
+	return 0
 }

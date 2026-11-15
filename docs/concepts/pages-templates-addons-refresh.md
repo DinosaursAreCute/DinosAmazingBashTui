@@ -29,7 +29,7 @@ Nothing here forks. The parser walks the file with parameter expansion and one r
 | `select ROOT SEL` | `#id`, `.class`, `tag`, combined as `tag#id.class`, `A B` (below) and `A > B` (directly below). A lone `#id` is one lookup. |
 | `clone_all PREFIX N...` | deep copies, ids prefixed; one pass for any number of nodes |
 | `insert append/prepend/before/after`, `replace`, `remove`, `move`, `wrap`, `set` | |
-| `params`, `subst_all` | `{{@name}}` substitution; one pass; replacements are quoted so that a value containing `&` stays literal (bash 5.2 treats an unquoted `&` in `${v//a/b}` as "the matched text") |
+{% raw %}| `params`, `subst_all` | `{{@name}}` substitution; one pass; replacements are quoted so that a value containing `&` stays literal (bash 5.2 treats an unquoted `&` in `${v//a/b}` as "the matched text") |{% endraw %}
 
 ## 3. Reuse: templates, loops, addons
 

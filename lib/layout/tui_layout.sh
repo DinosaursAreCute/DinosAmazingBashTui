@@ -7,7 +7,7 @@
 #                        largest-remainder fr distribution, min/max clamp
 #                        with redistribution of space freed by a max.
 #
-# Units: N (cells), N% (of the available space), Nfr (share of the space left
+# Units: N (cells; as a size on a split child a bare N is a share, like Nfr), Nc (exactly N cells), N% (of the available space), Nfr (share of the space left
 # after fixed/%/auto children), auto (sizes to its min, content measurement
 # isn't wired up until the 2B paint pipeline lands), fill (alias for 1fr),
 # clamp(MIN,PREF,MAX) (each of MIN/PREF/MAX is itself one of the above,
@@ -77,6 +77,8 @@ _tui.layout_resolve() {
 		_LY_R=$pref
 	elif [[ "$spec" =~ ^[0-9]+%$ ]]; then
 		_LY_R=$((avail * ${spec%\%} / 100))
+	elif [[ "$spec" =~ ^[0-9]+c$ ]]; then # Nc: exactly N cells, the unit a bare number is not (a bare number is a share of the space)
+		_LY_R=${spec%c}
 	elif [[ "$spec" == auto || "$spec" == fill || "$spec" =~ ^[0-9]+(\.[0-9]+)?fr$ ]]; then
 		_LY_R=$avail
 	elif [[ "$spec" =~ ^-?[0-9]+$ ]]; then

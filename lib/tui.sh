@@ -1049,7 +1049,10 @@ tui.update() {
 		return 1
 	fi
 
+	# inside a callback an unchanged value costs one comparison; outside one, tui.update still repaints (a caller may rely on it)
+	((_TUI_BATCH_DEPTH)) && [[ "${_TUI_W_VALUE[$1]-}" == "$2" ]] && return 0
 	_ps.widgets.set "$1" value "$2"
+	case "${_TUI_W_TYPE[$1]}" in input | password) _TXC[$1]=${#2} _TXA[$1]=-1 ;; esac # a value set from code: typing continues after it, not before
 	_tui._draw_or_queue "$1"
 }
 
@@ -1088,17 +1091,43 @@ _tui._draw_batch_now() {
 }
 
 # _tui.batch_call FN ARGS... - runs a user callback; every widget it updates is drawn once, in one synchronized write, afterwards
-# (N updates in a callback cost one flush, not N). Only the outermost call flushes.
+# (N updates in a callback cost one flush, not N). Only the outermost call flushes. The dataset flush runs inside the batch so
+# bound widgets share that write. _TUI_BATCH_PACED=1 (timers, data ticks) hands the draw to _tui.paced_draw; input callbacks
+# leave it 0 and draw at once.
 _tui.batch_call() {
 	local rc=0
+	((TUI_DEBUG)) && tui.debug.event callback.call "$*" # the debug pane lists every callback the framework runs
 	((_TUI_BATCH_DEPTH++))
 	"$@" || rc=$?
+	((_TD_PENDING && _TUI_BATCH_DEPTH == 1)) && tui.data.flush
 	if ((--_TUI_BATCH_DEPTH == 0 && ${#_TUI_BATCH_IDS[@]})); then
 		local -a ids=("${_TUI_BATCH_IDS[@]}")
 		_TUI_BATCH_IDS=()
-		((_TUI_RUNNING)) && _tui._draw_batch_now "${ids[@]}"
+		if ((! _TUI_RUNNING)); then :; elif ((_TUI_BATCH_PACED)); then _tui.paced_draw "${ids[@]}"; else _tui._draw_batch_now "${ids[@]}"; fi
 	fi
 	return $rc
+}
+
+# Timer-driven draws are held to one flush per TUI_FRAME_BUDGET_US (60 fps): ids that arrive inside the budget wait in
+# _TUI_PACED_IDS and the loop flushes them when it is spent (_tui.paced_flush), so any number of live widgets cost at most
+# one write per frame.
+declare -gi _TUI_BATCH_PACED=0 _TUI_PACE_LAST_US=0
+declare -ga _TUI_PACED_IDS=()
+_tui.paced_draw() {
+	_TUI_PACED_IDS+=("$@")
+	_tui.paced_flush
+}
+_tui.paced_flush() {
+	((${#_TUI_PACED_IDS[@]})) || return 0
+	local now=${EPOCHREALTIME//[!0-9]/}
+	if ((now - _TUI_PACE_LAST_US < TUI_FRAME_BUDGET_US)); then
+		((_TUI_PERF_TRACKING)) && _tui_perf.count paced_deferred
+		return 0
+	fi
+	_TUI_PACE_LAST_US=$now
+	local -a ids=("${_TUI_PACED_IDS[@]}")
+	_TUI_PACED_IDS=()
+	_tui._draw_batch_now "${ids[@]}"
 }
 # tui.select ID [true|false] - marks a button selected (default true) so it draws its .class:selected look
 # even while another widget has focus (focus and hover still win). Redraws ID when the flag changes.
@@ -1430,7 +1459,7 @@ _tui._widget_pos() {
 		local scroll="${_TUI_P_SCROLL[$pane]:-none}"
 		[[ "$scroll" == "v" || "$scroll" == "both" ]] && _wp_sc=1
 	fi
-	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}"
+	local _wk="$pr $pc $pw $ph $_IV $_IH $wrow $whp $wvp|${_TUI_W_WIDTH[$1]:-}|${_TUI_W_HEIGHT[$1]:-}|${_TUI_W_EXPAND[$1]:-}|${_TUI_W_ROWSPAN[$1]:-}|${_TUI_W_MAXH[$1]:-}|${_TUI_W_MINH[$1]:-}|${_TUI_W_MAXW[$1]:-}|${_TUI_W_MINW[$1]:-}|${_TUI_W_VALIGN[$1]:-}|${_TUI_P_VALIGN[$pane]:-}|${_TUI_W_ALIGN[$1]:-}|${_TUI_P_ALIGN[$pane]:-}|${_TUI_W_TYPE[$1]:-}"
 	if ((_TUI_CACHES)) && [[ -n "${_TUI_WPC[$_wk]+x}" ]]; then
 		set -- "$1" ${_TUI_WPC[$_wk]}
 		_WSR=$2 _WSC=$3 _WSW=$4 _WSH=$5 _WSW_AVAIL=$6
@@ -1501,6 +1530,12 @@ _tui._widget_pos() {
 	if [[ -n "$maxw" ]] && ((_WSW > maxw)); then _WSW=$maxw; fi
 	if [[ -n "$minw" ]] && ((_WSW < minw)); then _WSW=$minw; fi
 	((_WSW < 1)) && _WSW=1
+	# a box narrower than its slot sits where align= puts it (width=/max_width= shrink it from the left edge)
+	if ((_WSW < _WSW_AVAIL)); then
+		_tui._widget_align_v "$1"
+		_tui._align_pad_v "$_R" "$_WSW" "$_WSW_AVAIL"
+		_WSC=$((_WSC + _R))
+	fi
 	# cache the unscrolled placement (a measured height can change with the widget's content, which the key does not cover)
 	if ((_TUI_CACHES)) && [[ -z "$_wt_measure" ]]; then
 		if ((_TUI_WPC_N >= 4096)); then _TUI_WPC=() _TUI_WPC_N=0; fi
@@ -2188,7 +2223,7 @@ tui.render() {
 	((_TUI_DEFER_RENDER)) && return 0
 	((_TUI_RENDER_SEQ++))
 	_TUI_FRAME_REQ=0
-	_TUI_BATCH_IDS=() # the full frame draws every widget as it is now: updates queued by a callback (_tui.batch_call) are in it
+	_TUI_BATCH_IDS=() _TUI_PACED_IDS=() # the full frame draws every widget as it is now: updates queued by a callback (_tui.batch_call) are in it
 	_tui.epoch_bump hit
 	((_TUI_FOCUS_AUTO)) && _tui_focus.autofocus
 	_tui_perf.begin render
@@ -2571,9 +2606,16 @@ _tui._read_escape_seq() {
 #  PANE OUTPUT - render arbitrary multi-line content into a pane
 # ═══════════════════════════════════════════════════════════════════════
 
+declare -gA _TUI_OUT_LAST=() # pane -> text tui.output last set (cleared by the other writers of the pane's content)
 tui.output() {
 	local pane="$1"
 	shift
+	if ((_TUI_RUNNING && $# > 0)); then # the same text again: no re-measure, no repaint
+		[[ "${_TUI_OUT_LAST[$pane]-}" == "$*" && -n "${_TUI_PANE_CONTENT[$pane]:-}" ]] && return 0
+		_TUI_OUT_LAST[$pane]="$*"
+	else
+		unset '_TUI_OUT_LAST[$pane]'
+	fi
 	_TUI_PANE_CONTENT[$pane]=1
 	declare -g -a "_TUI_PANE_CONTENT_${pane}"
 	declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
@@ -2598,6 +2640,7 @@ declare -g _TUI_OUTPUT_QUIET=0
 _tui.output_rows() {
 	local pane="$1"
 	local -n _or_rows="$2"
+	unset '_TUI_OUT_LAST[$pane]'
 	_TUI_PANE_CONTENT[$pane]=1
 	declare -g -a "_TUI_PANE_CONTENT_${pane}"
 	declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
@@ -2610,6 +2653,7 @@ _tui.output_rows() {
 tui.output_append() {
 	local pane="$1"
 	shift
+	unset '_TUI_OUT_LAST[$pane]'
 	_TUI_PANE_CONTENT[$pane]=1
 	declare -g -a "_TUI_PANE_CONTENT_${pane}"
 	declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"
@@ -2630,6 +2674,7 @@ tui.output_append() {
 
 tui.output_clear() {
 	local pane="$1"
+	unset '_TUI_OUT_LAST[$pane]'
 	_TUI_PANE_CONTENT[$pane]=""
 	declare -g -a "_TUI_PANE_CONTENT_${pane}"
 	declare -n pane_arr="_TUI_PANE_CONTENT_${pane}"

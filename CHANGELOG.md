@@ -6,6 +6,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+- `tui.set_label` draws inside a callback batch instead of flushing on its own.
+- `tui.set_label` does nothing when the label is unchanged.
+- `tui.output` does nothing when the text is unchanged.
+- `tui.update` does nothing inside a callback when the value is unchanged.
+- Dataset-bound widgets are drawn in the same batch as the timer callback.
+- Timer-driven draws are limited to one flush per `TUI_FRAME_BUDGET_US` (default 16666).
+- The main loop polls with `TUI_INPUT_SETTLE_TIMEOUT` while a timer draw is waiting.
+- A timer that is late by whole intervals skips those ticks.
+- A timer that runs longer than its interval waits as long as it ran before the next run.
+- `tools/t.sh` snapshot includes `_TUI_RUNNING`, `_TUI_BATCH_*`, `_TUI_PACE*`, `_TUI_OUT_LAST`.
+
+### Added
+- `TUI_FRAME_BUDGET_US` setting.
+- `tui.perf.report` counters `ticks_dropped`, `paced_deferred` and a `tick:ID` span per timer.
+- `tools/bench/live_updates.sh`.
+- Datasets: `tui.data.new`, `drop`, `append`, `set`, `replace`, `remove`, `clear`, `count`, `has`, `get`, `cell`, `rows`, `col`, `find`, `stat`, `sort`, `bind`, `unbind`, `flush`, `gen`, `save`, `load`; keyed rows, `--max` windows, scopes `page`, `session`, `disk`.
+- Markup `<data>`, `<spark>`, `<gauge>`, `<chart>` and `from=` on `<table>`, `<list>`, `<label>`.
+- `tui.chart KIND VAR` for every renderer, `--data` to chart a dataset; `tui.chart.spark`, `tui.chart.gauge`.
+- `show=` on a bound `<table>` and `tui.data.bind table` picks the columns; a `<chart>` may name several columns (`col="cpu,mem"`); `from=` is optional on `<spark>`, `<gauge>`, `<chart>`.
+- `key=` on a bound label or gauge: one row of a keyed dataset.
+- `width=fit`, `levels=`, `heat=` and `class=` options of bound widgets; `-w fit` / `-h fit` in a chart's `args`; `tui.chart --class`; default theme classes `.gauge_ok`, `.gauge_warn`, `.gauge_crit`.
+- Guide: Data. Tutorial: A live dashboard. Example: `examples/live-data`.
+- `<contextmenu for="#id">`; `mouse:right` opens the menu at the pointer (`tui.action.contextmenu`, default bind).
+- `<nav>` with `<item page text icon badge collapsed_text shortcut action>`; the item of the current page gets `active_class`. `tui.nav.sync`.
+- `shortcut` on `<button>`.
+- `<tui on_leave="fn">`, called as `fn NEXT_PAGE_PATH`.
+- `tui.get.page_name`.
+- `tui.exists ID`.
+- `tui.restyle ID CLASS`.
+- `dabt:` paths in `<theme src>`, `@import`, `<include src>`, `<component src>`, `tui.load_theme`, `tui.theme.set`.
+- Size unit `Nc` (exactly N cells).
+- `<tui focus_on_enter="first">`.
+- `text=` on `<input>`, `<checkbox>`, `<select>` (same as `label=`).
+- `--quiet` on `tui.job.run` (same as `--silent`).
+- Dev-tools tab `Console` (key `5`): the app log file as it is written.
+- Debug event `callback.call`.
+- Validator: `for` on `<contextmenu>`, `<theme src>` and its `@import` files, size tokens, bare-number sizes beside unsized or unit siblings, `<nav>`/`<item>`, `<tui on_leave>`.
+- Schema: `<nav>`, `<item>`, `for`, `on_leave`, `shortcut`, `text` on `input`/`checkbox`/`select`; typed `x`, `y`, `anchor`.
+- Default theme classes `.nav_button`, `.nav_active`.
+- Guide: Components and templates, Navigation, `dabt:` paths.
+
+### Changed
+- `tui.chart` of an empty dataset gives an empty string; the renderer no longer waits for stdin.
+- `tui.chart` turns a renderer's literal `\033` colours into escapes.
+- `tui.chart` refuses a size or scale flag whose value is not a number (`-w fit`): the renderers looped forever on one.
+- Layer tags take no row in their pane.
+- `tui.update` on an input moves the cursor to the end.
+- Theme load problems are logged once per requesting file, with the caller and a nearby or `dabt:` file when one exists.
+- `tui.theme.set` returns 1 and keeps the current theme for a file it cannot read.
+- The start-up check skips a file without a `<tui>` root that another page names in `src`.
+- Shipped themes import glyphs with `dabt:glyphs/…`.
+- `workspace.xml`, `settings.xml` and the first-app example use `Nc` sizes.
+
+### Fixed
+- `tui.job.run --silent` added to the API page.
+- `focus_on_enter="first"` focuses the first widget.
+
 ## [0.0.31] - 2026-11-13
 
 ### News

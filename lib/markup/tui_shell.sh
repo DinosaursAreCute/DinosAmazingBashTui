@@ -168,6 +168,7 @@ _tui_shell.before_script() {
 # ── leaving a page - removes exactly what the current page built (_TUI_PAGE_IDS: its panes and widgets, wherever
 # they sit) and what it started (timers, watchers, page binds, modals); the shell is untouched.
 _tui_shell.leave_page() {
+	_td.leave_page # page-scope datasets go with the page
 	local id k o="$_TUI_OUTLET"
 	local -a keep=() wl=() pl=() ids=()
 	local -A gone=()

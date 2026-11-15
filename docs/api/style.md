@@ -8,12 +8,13 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 
 ## Styling and themes
 
-<!-- api: tui.load_theme tui.class tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.paint.reset tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.glyph.get tui.glyph.set tui.glyph.user tui.glyph.available tui.variant.default tui.variant.list tui.cache.theme_clear -->
+<!-- api: tui.load_theme tui.class tui.restyle tui.style tui.ansi tui.class.ansi tui.paint tui.class.paint tui.paint.reset tui.style.sgr tui.class.style tui.class.sgr tui.class.names tui.glyph.get tui.glyph.set tui.glyph.user tui.glyph.available tui.variant.default tui.variant.list tui.cache.theme_clear -->
 
 | Function | Summary |
 |---|---|
 | [`tui.load_theme`](style/tui.load_theme.md) | Loads a stylesheet into the class table. `<theme src="…"/>` calls it. |
 | [`tui.class`](style/tui.class.md) | Applies a theme class to a widget or pane: its normal rules and every pseudo-state it defines (`:focus`, `:border`, `:title`, `:hover`, `:checked`, `:unchecked`). |
+| [`tui.restyle`](style/tui.restyle.md) | Gives a widget or pane the look of a theme class and redraws just it: the widget, or the pane's border, title and widgets. What the id had before is cleared first, so a `:hover` the old class had does not linger. |
 | [`tui.style`](style/tui.style.md) | Sets the style of a widget or pane directly, without a theme class. |
 | [`tui.ansi`](style/tui.ansi.md) | Prints the ANSI escape prefix of a widget or pane style (no reset). A state without rules falls back to `normal`. |
 | [`tui.class.ansi`](style/tui.class.ansi.md) | Prints the ANSI escape prefix of a theme class, without a widget. |
@@ -37,6 +38,8 @@ Functions that print (`tui.ansi`, `tui.paint`, ...) need a subshell when capture
 {% include_relative style/tui.load_theme.md %}
 
 {% include_relative style/tui.class.md %}
+
+{% include_relative style/tui.restyle.md %}
 
 {% include_relative style/tui.style.md %}
 

@@ -374,3 +374,29 @@ t_nav_button_to_the_current_page_does_nothing() {
 	eq 1 "$calls"
 	eval "$saved"
 }
+
+t_hit_set_rejects_malformed_values() {
+	_hit_pane
+	tui.button b1 p 0 "Go" ""
+	tui.hit.set b1 hitbox "1" 2>/dev/null && return 1
+	tui.hit.set b1 hitbox "0,0,3,10" 2>/dev/null && return 1
+	tui.hit.set b1 hit_pad "x" 2>/dev/null && return 1
+	_tui_hit.rebuild
+	_hit_at 5 5 # must not raise an arithmetic error
+	ok true
+}
+
+t_widget_pos_max_width_follows_align() {
+	_hit_pane
+	tui.button b1 p 0 "Go" ""
+	_TUI_W_MAXW[b1]=10
+	_TUI_W_ALIGN[b1]=center
+	_tui._widget_pos b1
+	eq "10 8" "$_WSW $_WSC" # slot starts at col 2, 22 wide: box 10 -> offset 6
+	_TUI_W_ALIGN[b1]=right
+	_tui._widget_pos b1
+	eq "14" "$_WSC"
+	_TUI_W_ALIGN[b1]=left
+	_tui._widget_pos b1
+	eq "2" "$_WSC"
+}

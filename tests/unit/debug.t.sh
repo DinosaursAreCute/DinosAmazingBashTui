@@ -115,3 +115,14 @@ t_debug_input_and_switch_are_ignored_when_off() {
 	_tui_debug.switch /a/x.xml 0
 	eq "" "$_TUI_DBG_LAST_INPUT$_TUI_DBG_LAST_SWITCH"
 }
+
+t_debug_callback_calls_are_recorded_with_their_arguments_only_in_debug_mode() {
+	_cb() { :; }
+	TUI_DEBUG=0
+	_tui.batch_call _cb btn_a
+	eq "0" "${#_TUI_DBG_RING[@]}"
+	TUI_DEBUG=1 TUI_DEBUG_CATS=""
+	_tui.batch_call _cb btn_a 1
+	eq "1" "${_TUI_DBG_COUNT[callback.call]}"
+	match "${_TUI_DBG_RING[0]}" ' callback\.call _cb btn_a 1$'
+}

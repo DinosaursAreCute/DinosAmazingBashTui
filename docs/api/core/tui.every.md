@@ -19,6 +19,8 @@ Calls `FN` repeatedly on a timer from the main loop.
 - Timers are removed on page change. Register them again from the page's `on_visit`.
 - After a terminal resize every timer runs on the next iteration, so size-dependent output re-fits at once.
 - `FN` runs inside the main loop: keep it fork-free ([`tui.set_text`](/api/core/tui.set_text.html), `tui.sys.*`). Slow work belongs in [`tui.watch`](/api/core/tui.watch.html).
+- Everything `FN` updates (`tui.update`, `tui.set_label`, bound datasets) is drawn once, in one write, after it returns, and at most once per frame (`TUI_FRAME_BUDGET_US`, default 16666 = 60 fps) however many timers fire. Values that did not change are not drawn. Button and key reactions are never held to the frame budget.
+- A timer that is late by whole intervals loses those ticks instead of catching up, and one that ran longer than its interval rests as long as it ran. With `_TUI_PERF_TRACKING=1`, [`tui.perf.report`](/api/core/tui.perf.report.html) shows `ticks_dropped`, `paced_deferred` and a `tick:ID` span per timer (the slowest one is the culprit).
 - Timers registered while a plugin loads are removed when that plugin is disabled.
 
 **Example**

@@ -79,7 +79,7 @@ def where_time_goes(rep, W):
     lines.append(legend)
     lines.append("")
     lines.append(pad(c("ms per action", "dim"), 30) + "".join(pad(c(SHORT[ly], LAYER_COLOR.get(ly, "dim")), cw, "r") for ly in cols)
-                 + pad(c("total", "dim"), cw + 1, "r"))
+                 + pad(c("forks", "dim"), cw, "r") + pad(c("total", "dim"), cw + 1, "r"))
     for gid, v in groups:
         t = v["total_ms"]
         cells = []
@@ -87,7 +87,7 @@ def where_time_goes(rep, W):
             ms = v["layers"].get(ly, 0.0)
             cells.append(_cell(f"{ms:.1f}" if ms >= 0.05 else "·", ms / t if t else 0, cw) if ms >= 0.05 else pad(c("·", "faint"), cw, "r"))
         name = title.get(gid, gid) if gid != "idle" else "Idle tick work (per 3 s)"
-        lines.append(pad(name, 30) + "".join(cells) + " " + pad(c(fmt_ms(t), "white", bold=True), cw, "r"))
+        lines.append(pad(name, 30) + "".join(cells) + pad(c(f"{v.get('forks', 0):.1f}" if v.get("forks", 0) >= 0.05 else "·", "red" if v.get("forks", 0) >= 1 else "faint"), cw, "r") + " " + pad(c(fmt_ms(t), "white", bold=True), cw, "r"))
     lines.append(c(f"cell colour = share of that row · times calibrated to untraced speed (shell ×{attr['global_k']:.2f})", "faint"))
     return lines
 

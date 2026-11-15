@@ -48,3 +48,12 @@ t_table_row_stores_the_selected_row_in_a_variable() {
 	tui.table.row gtt "" OUT
 	eq "b|2" "$OUT"
 }
+
+t_get_page_name_is_the_file_name_without_directory_and_extension() {
+	_TUI_MARKUP_FILE=/app/config/nav_1.xml
+	eq nav_1 "$(tui.get.page_name)"
+	_TUI_MARKUP_FILE=/app/config/my.page.xml
+	eq my.page "$(tui.get.page_name)"
+	_TUI_MARKUP_FILE=""
+	eq "" "$(tui.get.page_name)"
+}

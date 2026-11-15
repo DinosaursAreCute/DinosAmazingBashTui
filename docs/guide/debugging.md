@@ -58,17 +58,18 @@ The function runs on every strip repaint: no forks.
 | Pages | the page cache and the page loads |
 | Perf | span timings |
 | Counters | perf counters and event totals |
+| Console | the app log file as it is written: what `tui.log` and `tui.log.info` … `tui.log.error` wrote today, newest line at the bottom. Warnings and errors stand out, debug lines are dimmed. The header shows the file, the line count and the log level; lines below that level are never written, so raise it with `tui.log.level debug` (or `TUI_LOG_LEVEL=debug`) to see more |
 
 While the dock has focus, these keys are its own; every other key still reaches the app. They are unbound again on blur.
 
 | key | does |
 |---|---|
-| `←` `→` or `1`-`4` | switch tab |
-| `↑` `↓` `pgup` `pgdn` | scroll (Events: back in time) |
+| `←` `→` or `1`-`5` | switch tab |
+| `↑` `↓` `pgup` `pgdn` | scroll (Events and Console: back in time) |
 | `home` `end` | top, follow the newest |
 | `p` | pause or resume the Events tab |
 | `f` | cycle the Events category filter |
-| `c` | clear events |
+| `c` | clear events, or the Console view (the log file itself is untouched) |
 | `m` | maximise or restore the dock |
 | `esc` | give the keyboard back to the app; the dock stays open |
 
@@ -80,7 +81,7 @@ While the dock has focus, these keys are its own; every other key still reaches 
 
 `NAME` is `CATEGORY.what`; the text before the first dot is the category, and `--debug=CATS` keeps only those. Events are counted and kept in a ring buffer of the newest `TUI_DEBUG_RING_MAX` (default 500). Guard the call with `((TUI_DEBUG))` in hot code so a normal run skips the function call. `tui.debug.reset` clears the buffer and the counters.
 
-Events the framework records: `page.visit`, `page.switch`, `input.done`, `cache.page.miss`.
+Events the framework records: `page.visit`, `callback.call` (a widget action or bound command that ran, with its arguments), `page.switch`, `input.done`, `cache.page.miss`.
 
 ## 5. Theme classes
 

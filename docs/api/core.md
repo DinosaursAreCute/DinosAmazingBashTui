@@ -460,10 +460,11 @@ Timers, clocks, watches and the system samplers share one tick listener, cost no
 
 Read-only. Pane getters return `1` for an unknown pane.
 
-<!-- api: tui.get.dimensions tui.get.terminal tui.get.position tui.get.rect tui.get.content_area tui.get.border tui.get.title tui.get.pad tui.get.split tui.get.children tui.get.parent tui.get.panes tui.get.lines tui.get.scroll tui.get.style tui.get.widgets tui.get.type tui.get.pane tui.get.action tui.get.checked tui.get.focused tui.get.hovered tui.get.pane_focus tui.get.page tui.get.pages tui.get.event tui.get.classes tui.get.class.style tui.get.raw_input tui.errors.capture tui.errors.list tui.errors.count -->
+<!-- api: tui.exists tui.get.dimensions tui.get.terminal tui.get.position tui.get.rect tui.get.content_area tui.get.border tui.get.title tui.get.pad tui.get.split tui.get.children tui.get.parent tui.get.panes tui.get.lines tui.get.scroll tui.get.style tui.get.widgets tui.get.type tui.get.pane tui.get.action tui.get.checked tui.get.focused tui.get.hovered tui.get.pane_focus tui.get.page tui.get.page_name tui.get.pages tui.get.event tui.get.classes tui.get.class.style tui.get.raw_input tui.errors.capture tui.errors.list tui.errors.count -->
 
 | Function | Summary |
 |---|---|
+| [`tui.exists`](core/tui.exists.md) | Succeeds when a widget, a pane or a layer has that id. Prints nothing and does not fork, so it is safe in a callback that runs often. |
 | [`tui.get.dimensions`](core/tui.get.dimensions.md) | Prints the size of the terminal or of a pane. |
 | [`tui.get.terminal`](core/tui.get.terminal.md) | Prints the terminal size as `ROWS COLS`. |
 | [`tui.get.position`](core/tui.get.position.md) | Prints the top-left corner of a pane as `ROW COL` (1-based). Returns `1` for an unknown pane. |
@@ -488,6 +489,7 @@ Read-only. Pane getters return `1` for an unknown pane.
 | [`tui.get.hovered`](core/tui.get.hovered.md) | Prints the id of the widget (default) or pane under the mouse pointer (empty when none). |
 | [`tui.get.pane_focus`](core/tui.get.pane_focus.md) | Prints the keyboard pane: the scroll target with the highlighted border (empty when none). |
 | [`tui.get.page`](core/tui.get.page.md) | Prints the absolute path of the current page file (empty before a page is loaded). |
+| [`tui.get.page_name`](core/tui.get.page_name.md) | Prints the name of the current page: its file name without the directory and the extension (`nav_1` for `/app/config/nav_1.xml`). Empty before a page is loaded. [`tui.get.page`](/api/core/tui.get.page.html) prints the full path. |
 | [`tui.get.pages`](core/tui.get.pages.md) | Prints the pages linked by a `<button page="…">` so far, sorted, one per line as `PAGE<TAB>TITLE`. |
 | [`tui.get.event`](core/tui.get.event.md) | Prints the current input event on one line: `type=… key=… x=… y=… pane=… widget=… button=…`. |
 | [`tui.get.classes`](core/tui.get.classes.md) | Prints every key the loaded theme defines, sorted, one per line. |
@@ -498,6 +500,8 @@ Read-only. Pane getters return `1` for an unknown pane.
 | [`tui.errors.count`](core/tui.errors.count.md) | Prints how many distinct error messages were captured in this run. |
 
 <div class="api-entries" data-pagefind-ignore="all" markdown="1">
+
+{% include_relative core/tui.exists.md %}
 
 {% include_relative core/tui.get.dimensions.md %}
 
@@ -546,6 +550,8 @@ Read-only. Pane getters return `1` for an unknown pane.
 {% include_relative core/tui.get.pane_focus.md %}
 
 {% include_relative core/tui.get.page.md %}
+
+{% include_relative core/tui.get.page_name.md %}
 
 {% include_relative core/tui.get.pages.md %}
 

@@ -609,6 +609,7 @@ tui.cache.replay() {
 		_tui_cache_relayout
 	fi
 	_tui_cache_run_on_visit "${_TUI_CACHE_ON_VISIT[$file]:-}"
+	((${#_TUI_W_NAV[@]})) && _tui_nav.sync
 	[[ -n "$shell" ]] && _tui_shell.sync_page_ids # on_visit may have added widgets
 	return 0
 }

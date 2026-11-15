@@ -1,0 +1,26 @@
+<tui on_visit="monitor_visit">
+  <script src="home_callbacks.sh"/>
+  <footer items="@tui.action.quit,@tui.action.help"/>
+
+  <!-- the data: a rolling window of samples, and one row per service (the host is the key) -->
+  <data name="load"     cols="pct"                max="60"/>
+  <data name="services" cols="name|state|ms" key="name"/>
+
+  <pane id="root" split="v" border="none">
+    <pane id="top" split="h" height="9c" border="none">
+      <pane id="now" title="CPU" border="single" hpad="1">
+        <gauge id="g_load" from="load" col="pct" width="24"/>
+        <spark id="s_load" from="load" col="pct" last="40"/>
+        <label id="l_avg" text="average: -"/>
+      </pane>
+      <chart id="plot" border="none" from="load" type="linechart" col="pct" args="-w 36 -h 6 -n 0 -m 100"/>
+    </pane>
+    <pane id="svc" title="Services" border="single">
+      <table id="t_svc" from="services" rows="0"/>
+    </pane>
+    <pane id="bar" height="3c" border="none" hpad="1">
+      <button id="b_pause" text="[ Pause ]" action="on_pause" align="left"/>
+      <button id="b_sort"  text="[ Sort by ms ]" action="on_sort" align="left"/>
+    </pane>
+  </pane>
+</tui>

@@ -115,6 +115,7 @@ declare -gA _TUI_PENDING_OUTPUT=() # pane id -> content awaiting re-render
 declare -g _TUI_RENDER_TIMEOUT=-1
 declare -gi _TUI_SYNC_DEPTH=0   # open mode.sync_start calls: a write inside one must not end the update itself (_tui.write)
 declare -gi _TUI_RENDER_SEQ=0   # +1 for every full render: a caller that ran an action compares it to know whether the whole screen was repainted
+declare -g _TUI_P_ON_LEAVE=""   # the page's <tui on_leave> function; the _TUI_P_ prefix puts it in the page snapshot, so a replay restores it
 declare -gi _TUI_DEFER_RENDER=0 # 1 while tui.goto loads a page: tui.goto renders once afterwards, so tui.render calls made by on_visit code are skipped
 
 # ═══════════════════════════════════════════════════════════════════════

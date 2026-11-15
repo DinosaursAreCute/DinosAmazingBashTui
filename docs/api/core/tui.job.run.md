@@ -1,7 +1,7 @@
 ### `tui.job.run`
 
 ```bash
-tui.job.run [--delay MS] [--label TEXT] ID WORKFN DONEFN [ARG...]
+tui.job.run [--delay MS] [--silent] [--label TEXT] ID WORKFN DONEFN [ARG...]
 ```
 
 Runs `WORKFN ARG...` in the background and keeps the interface running. When it has finished, `DONEFN ID RC OUTFILE` is called in the main shell. If the work is still going after `MS` milliseconds, a spinner with `TEXT` shows in the top-right corner of the frame, so the user can see that something is happening.
@@ -9,6 +9,7 @@ Runs `WORKFN ARG...` in the background and keeps the interface running. When it 
 **Parameters**
 
 - `--delay MS`: how long to wait before the spinner appears. Default `$TUI_JOB_SPINNER_MS` (100). Work that finishes sooner shows no spinner. `0` shows it at once.
+- `--silent`: never show the spinner, for work nobody waits for (background polling). `--quiet` is the same.
 - `--label TEXT`: the words next to the spinner. Default `Working...`.
 - `ID`: names the job. Starting a job with an ID that is still pending cancels the earlier one first.
 - `WORKFN`: a function; it runs in a separate process.

@@ -53,13 +53,14 @@ A pane is a rectangle. It either **holds widgets** or **is split into child pane
 |---|---|
 | `2` or `2fr` | 2 **shares** of the free space. A bare number is a share, the same as `weight="2"`. |
 | `30%` | 30 % of the available space |
+| `6c` | exactly 6 **cells** (rows in a `v` split, columns in an `h` split) |
 | `fill` | the same as `1fr` |
 | `clamp(20,30%,50)` | prefer 30 %, never below 20 or above 50 **cells** |
 
-**Need an exact number of cells?** A bare number never means cells: `height="4"` next to `height="1fr"` is 4 shares against 1, not 4 rows. Write `clamp(4,4,4)`, or use `min_height` / `max_height` (`min_width` / `max_width`).
+**Need an exact number of cells?** Write `4c`. A bare number never means cells: `height="4"` next to `height="1fr"` is 4 shares against 1, not 4 rows (the validator warns when a bare number sits beside an unsized sibling or a unit). `clamp(4,4,4)` is the long form; `min_height` / `max_height` (`min_width` / `max_width`) bound a flexible size. Or use `min_height` / `max_height` (`min_width` / `max_width`).
 
 ```xml
-<pane id="head" height="clamp(4,4,4)"/>   <!-- exactly 4 rows -->
+<pane id="head" height="4c"/>             <!-- exactly 4 rows -->
 <pane id="body" height="1fr"/>            <!-- everything that is left -->
 ```
 
@@ -126,6 +127,7 @@ Attributes every widget has:
 |---|---|
 | `<script src="x.sh"/>` | sources a bash file (your callbacks). The path is relative to the file the tag is in. It is sourced on every page load. |
 | `<tui on_visit="fn">` | calls `fn` each time the page opens, once everything is built. Initialise things here. |
+| `<tui on_leave="fn">` | calls `fn NEXT_PAGE_PATH` just before another page replaces this one, while the page is still built. Save or stop things here. Not called when the same page reloads (theme switch). |
 | `action`, `submit`, `on_change` | the functions called by a widget, see [Callbacks](callbacks-and-viewports.md) |
 | `<button page="other.xml"/>` | goes to another page (`tui.goto`). `tui.action.back` returns. |
 | `<bind key="ctrl+e" action="fn" desc="Export"/>` | a key for this page |
@@ -148,7 +150,7 @@ A template is a named piece of markup with parameters. It is never drawn by itse
   <pane id="dabt_hdr" height="5" title="My App"/>
 </template>
 <template name="card" title="Untitled">
-  <pane id="box" title="{{@title}}" border="single">
+{% raw %}  <pane id="box" title="{{@title}}" border="single">{% endraw %}
     <slot/>
   </pane>
 </template>
@@ -164,11 +166,11 @@ A template is a named piece of markup with parameters. It is never drawn by itse
 </tui>
 ```
 
-- `{{@title}}` is replaced by the `title` given on `<use>`, or by the default written on `<template>`. Any attribute can be a parameter.
+{% raw %}- `{{@title}}` is replaced by the `title` given on `<use>`, or by the default written on `<template>`. Any attribute can be a parameter.{% endraw %}
 - A `<use>` with an `id` puts that id and an underscore in front of every id in its copy (`a_box`, `b_box`), so several uses can coexist. Without an `id` the ids stay as written.
 - `<slot/>` marks where the content of the `<use>` goes. Name it (`<slot name="body"/>`) and fill it with `<fill slot="body">…</fill>` when a template has several places. Content inside the `<slot>` is the default.
 - A template may `<use>` another template. One that ends up using itself is reported as an error and the `<use>` is dropped.
-- `<include src="f.xml" name="value"/>` splices another file in at parse time; extra attributes are parameters for the `{{@name}}` in it.
+{% raw %}- `<include src="f.xml" name="value"/>` splices another file in at parse time; extra attributes are parameters for the `{{@name}}` in it.{% endraw %}
 
 ### Components
 
@@ -181,20 +183,22 @@ A component is a template kept in its own file and used as a tag:
 
 `card.xml` holds the template body. The validator accepts `<card>` after the `<component>` line on that page.
 
+How to write a component or template (parameters, ids, slots, mistakes): [Components and templates](components.md).
+
 ### Loops and conditions
 
 ```xml
 <pane id="side">
   <for each="alpha beta gamma" as="name" index="i">
-    <button id="b_{{@name}}" text="{{@name}}" action="on_pick"/>
+{% raw %}    <button id="b_{{@name}}" text="{{@name}}" action="on_pick"/>{% endraw %}
   </for>
 </pane>
 <for count="3" index="i"> … </for>
 
-<if test="{{@mode}}==compact"> … <else> … </else></if>
+{% raw %}<if test="{{@mode}}==compact"> … <else> … </else></if>{% endraw %}
 ```
 
-- `<for each="…">` repeats its content once per word; `{{@name}}` (named by `as`, default `item`) is the word and `{{@i}}` (named by `index`) counts from 0. `count="N"` repeats N times.
+{% raw %}- `<for each="…">` repeats its content once per word; `{{@name}}` (named by `as`, default `item`) is the word and `{{@i}}` (named by `index`) counts from 0. `count="N"` repeats N times.{% endraw %}
 - `<if test="…">` keeps its content when the test holds, otherwise the content of `<else>`. A test is `A==B`, `A!=B`, or one value that is false when empty, `false` or `0`. Only one branch survives, but the page is checked before that, so the two branches must not use the same widget id.
 - Loops and conditions run once when the page loads, on values written in the file, passed as parameters, or set by an addon. For values that change while the app runs, see the runtime values below.
 
@@ -293,6 +297,31 @@ A widget with no `cursor` gets a default by type: buttons, checkboxes, selects, 
 
 Prefer a class over anything inline: classes are resolved once and cached, and a theme switch (`tui.theme.set`) restyles every page, cached ones included.
 
+### Paths into DABT's defaults: `dabt:`
+
+A path that starts with `dabt:` names a file of DABT's own defaults folder (`share/defaults`), wherever DABT is installed. Use it to build on a stock file without copying it:
+
+```xml
+<theme src="dabt:themes/dracula.css"/>
+```
+```css
+@import "dabt:glyphs/thin.css";   /* progress-bar glyphs of DABT */
+```
+```bash
+tui.theme.set "dabt:themes/nord.css"
+```
+
+It works in `<theme src>`, `@import`, `tui.load_theme`, `tui.theme.set`, `<include src>` and `<component src>`. Any other path is relative to the file that names it, as before. DABT's own themes import their glyphs this way, so a theme copied into an app keeps working.
+
+**When a theme cannot be read** the log says what, who asked and what to try, once per file that asks:
+
+```
+[error] theme: cannot read '…/config/theme.css' (tui.theme.set, requested by tui.theme.set at run.sh:21) - did you mean '…/config/themes/theme.css'?
+[warn]  theme: cannot read '…/glyphs/thin.css' (@import in …/themes/theme.css, requested by <theme src="themes/theme.css"> in _shell.xml:2) - DABT ships this file: use 'dabt:glyphs/thin.css'
+```
+
+`tui.theme.set` returns 1 for a file it cannot read and keeps the current theme. The validator checks every `<theme src>` and every `@import` in it, so `dabt` finds the problem before the app runs.
+
 ## Values that change while the app runs
 
 Widgets hold their values; read and write them from bash, not from the markup:
@@ -362,7 +391,7 @@ A layer is a pane that floats above the page instead of taking a share of a spli
 |---|---|---|
 | `<window>` | `float`, `shadow`, `closable` | a tool window the user can move and resize |
 | `<modal>`, `<dialog>` | `modal`, `shadow`, `closable` | a question that must be answered first |
-| `<popup>` | `shadow`, closes on an outside press or Esc | a menu under a button |
+| `<contextmenu>` | like `<popup>`, starts hidden | a menu at the pointer, opened by a right click. `for="#id"` ties it to one widget or pane, else it belongs to the pane it sits in (closest owner wins; a `for` menu answers only on that widget). `x`, `y` and `anchor` are ignored |
 | `<contextmenu>` | like `<popup>` | a menu at the pointer |
 | `<tooltip>` | never takes the pointer or the focus | a hint |
 | `<toast>` | `shadow`, hides itself after `timeout` seconds | a short notice |
@@ -375,6 +404,50 @@ A layer is a pane that floats above the page instead of taking a share of a spli
 - **Detach and dock.** A pane with `detachable="true"` gets a `⇱` button on its top border: a click floats it as a window and its siblings take the space (`leave="placeholder"` keeps an empty pane there instead). The window's `⇲` button (or `tui.layer.dock`) puts it back at its old place and size. `on_detach` and `on_dock` name callbacks (`FN PANE`). The pane keeps its ids and its widgets throughout.
 - **On a shell page** the layers of a page leave with it, and the layers of the shell stay.
 - A layer id is a pane id: it must not repeat another pane's. Layers are not part of a split, so they have no `weight`.
+
+## Navigation
+
+`<nav>` builds a pane of page buttons. It is put in a [shell](#shells), so it stays while the pages change, and the item of the page you are on is highlighted by itself:
+
+```xml
+<nav id="nav" title="Navigation" border="single" weight="1" class="panel">
+  <item page="home.xml" text="Home" icon="⌂" shortcut="alt+1"/>
+  <item page="mail.xml" text="Inbox" icon="✉" badge="(3)"/>
+</nav>
+```
+
+A nav is a pane and an item is a button (`<button page=…>`), so every pane and button attribute works. Each button gets the id `NAVID_PAGENAME` (`nav_home`, `nav_mail`), or the `id` you give the item.
+
+| `<nav>` attribute | Meaning |
+|---|---|
+| `orientation` | `v` (default, a column) or `h` (a row) |
+| `item_class` | theme class of the items, default `nav_button` |
+| `active_class` | theme class of the item of the current page, default `nav_active` |
+| `active` | `auto` (default) follows the page; `none` turns the highlight off |
+
+| `<item>` attribute | Meaning |
+|---|---|
+| `page` | the page to open (also what the highlight compares: the file name without extension) |
+| `text`, `icon`, `badge` | the label is `icon text badge` |
+| `collapsed_text` | what a `collapse_to="rail"` pane shows; defaults to the icon, else the first two letters |
+| `shortcut` | a key that opens the page, for example `alt+1` |
+| `action` | a function to run instead of opening a page |
+
+The highlight is checked after every page load, so it is right after a click, a shortcut, Back or a `tui.goto` from code. It swaps the theme class with `tui.class`; define both classes in your theme (the default theme has them). `shortcut` also works on any `<button>`.
+
+## Data and charts
+
+`<data>` declares a dataset and `from=` makes a widget follow it; the widget redraws when the dataset changes. See [Data](data.md) and [Charts](charts.md).
+
+| Tag or attribute | Means |
+|---|---|
+| `<data name="NAME" cols="A\|B" key="COL" max="N" scope="page\|session\|disk"/>` | declares a dataset (`tui.data.new`) |
+| `from="NAME"` on `<table>`, `<list>`, `<label>` | shows the dataset: the table with its `cols` as header, the list with one item per row (`col`), the label with the newest cell (`col`, `format`) |
+| `<spark id= from= col= last= width=/>` | a label with one block glyph per value |
+| `<gauge id= from= col= max= width=/>` | a label with the newest value as a bar and a percent |
+| `<chart id= from= type= col= label= last= args=/>` | a pane holding `tui.chart` of `type` (`linechart`, `hbar`, `vbar`, `sparkline`, `histogram`, `boxplot`, `forest`, `table`, `list`); `args` are the renderer's flags |
+
+`<table>` keeps `data=` for literal rows; `from=` is the dataset.
 
 ## Shells
 

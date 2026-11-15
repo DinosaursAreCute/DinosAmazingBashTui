@@ -185,11 +185,21 @@ def _copy_home(template):
     return home
 
 
+def prime_config(cfg, home):
+    """One throw-away start, then the page cache is deleted: the app writes its own config files on a first start (the demo's
+    addons), which changes the folders its cached pages depend on. Without this the 'warm' start finds that cache stale and
+    rebuilds most of it, which a real user with an existing config never sees. Cold stays cold: only the cache goes."""
+    sess, _ = start_app(cfg, home, "prime")
+    sess.close()
+    shutil.rmtree(os.path.join(home, ".config", "DABT", "cache"), ignore_errors=True)
+
+
 def warmed_template(cfg, ui, out, tag):
     """A throw-away HOME with a warmed cache: a cold start fills it, a second start proves it is warm. Both are
     measured (startup.cold / startup.warm) when the run wants them. Returns the HOME."""
     keep = lambda g: cfg.wanted is None or g in cfg.wanted
     home = tempfile.mkdtemp(prefix="dprof-template-")
+    prime_config(cfg, home)
     for which in ("cold", "warm"):
         name = "startup." + which
         ui.step_begin(f"{name} · {tag}" if keep(name) else f"{name} (setup)")
@@ -287,6 +297,7 @@ def traced_session(cfg, ui, cold):
     results = []
     template = tempfile.mkdtemp(prefix="dprof-template-")
     try:
+        prime_config(cfg, template)
         if cold:
             results.append(_traced(cfg, ui, template, "startup.cold", []))
             return results

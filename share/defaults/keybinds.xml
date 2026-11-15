@@ -80,9 +80,10 @@
   <bind key="g"         action="_tui_md.key_r_top"          group="markdown_reader" desc="To the top (reader mode)"/>
   <bind key="G"         action="_tui_md.key_r_bottom"       group="markdown_reader" desc="To the bottom (reader mode)"/>
 
-  <!-- click: left button on widgets and scrollbars -->
+  <!-- click: left button on widgets and scrollbars; right button opens the <contextmenu> under the pointer -->
   <bind key="mouse:left" action="tui.action.click"          group="click" desc="Click"/>
   <bind key="drag:left"  action="tui.action.click"          group="click" desc="Drag scrollbar"/>
+  <bind key="mouse:right" action="tui.action.contextmenu"   group="click" desc="Context menu"/>
 
   <!-- wheel: plain = 3 lines, shift = 5 chars sideways, ctrl = exactly 1 line, ctrl+shift = exactly 1 char -->
   <bind key="wheel:up"    action="tui.action.scroll up 3"    group="wheel" desc="Scroll up 3 lines"/>

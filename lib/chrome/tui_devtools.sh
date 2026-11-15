@@ -4,10 +4,11 @@
 #   tui.debug.devtools [open|close|toggle|focus|blur]   show, hide or move the keyboard to the dock (default toggle)
 #   F11 (bound by tui.debug.init): closed -> open and focused -> closed; open but not focused -> focused
 #
-# Tabs: Events (live event log), Pages (page cache and loads), Perf (spans), Counters (perf counters and event totals).
+# Tabs: Events (live event log), Pages (page cache and loads), Perf (spans), Counters (perf counters and event totals),
+# Console (the app log file as it is written: what tui.log wrote, at the log level in force).
 # While the dock has focus these keys are its own (bound on focus, unbound on blur; every other key still reaches the app):
-#   left right | 1-4   tab            up down pgup pgdn   scroll (Events: back in time)      home end   top / follow
-#   p   pause or resume the Events tab     c   clear events     f   cycle the Events category filter
+#   left right | 1-4   tab (1-5)       up down pgup pgdn   scroll (Events, Console: back in time)      home end   top / follow
+#   p   pause or resume the Events tab     c   clear events or the Console view (the file is untouched)     f   cycle the Events category filter
 #   m   maximise or restore the dock        esc  give the keyboard back to the app (the dock stays open)
 # Style: theme classes .devtools (body), .devtools_head, .devtools_tab, .devtools_tab_active, .devtools_warn, .devtools_dim;
 # built-in colours when absent.
@@ -18,9 +19,13 @@
 declare -gi _TUI_DTL_ON=0 _TUI_DTL_FOCUS=0 _TUI_DTL_MAX=0 _TUI_DTL_PAUSED=0 _TUI_DTL_SCROLL=0 _TUI_DTL_TAB=0 _TUI_DTL_TOTAL=0
 declare -g _TUI_DTL_FILTER="" _TUI_DTL_PAINTED="" _TUI_DTL_STAMP="" _TUI_DTL_OUT=""
 declare -ga _TUI_DTL_LINES=() _TUI_DTL_SEV=() _TUI_DTL_FROZEN=() _TUI_DTL_KEYS=() _TUI_DTL_CATS=()
-declare -ga _TUI_DTL_TABS=(Events Pages Perf Counters)
+declare -ga _TUI_DTL_TABS=(Events Pages Perf Counters Console)
 declare -gi _TUI_DTL_TICK_US=0
-declare -g _TUI_DTL_KEYLIST="left right up down pgup pgdn home end p c f m esc 1 2 3 4"
+declare -gi _TUI_DTL_CONSOLE=4                                         # the Console tab
+declare -gi _TUI_DTL_LOGFD=-1 _TUI_DTL_LOG_SEQ=0 _TUI_DTL_LOG_MAX=1000 # the Console tab: log file descriptor, lines read so far, ring size
+declare -g _TUI_DTL_LOGFILE=""
+declare -ga _TUI_DTL_LOG=()
+declare -g _TUI_DTL_KEYLIST="left right up down pgup pgdn home end p c f m esc 1 2 3 4 5"
 
 # ── open / close / focus ──────────────────────────────────────────────────
 
@@ -45,6 +50,7 @@ tui.debug.devtools() {
 			_tui_devtools.focus 0
 			_TUI_DTL_ON=0 _TUI_DBG_DOCK=0
 			_tui_debug.reserve
+			_tui_devtools.console_close
 			tui.layer.fn_remove _tui_devtools.draw
 			tui.tick.remove _tui_devtools.tick
 			_TUI_DTL_PAINTED="" _TUI_DTL_STAMP=""
@@ -101,15 +107,17 @@ _tui_devtools.key() {
 	case "$1" in
 		left) _tui_devtools.tab $((_TUI_DTL_TAB - 1)) ;;
 		right) _tui_devtools.tab $((_TUI_DTL_TAB + 1)) ;;
-		[1-4]) _tui_devtools.tab $(($1 - 1)) ;;
+		[1-5]) _tui_devtools.tab $(($1 - 1)) ;;
 		up) _tui_devtools.scroll -1 ;;
 		down) _tui_devtools.scroll 1 ;;
 		pgup) _tui_devtools.scroll $((-page)) ;;
 		pgdn) _tui_devtools.scroll "$page" ;;
-		home) _TUI_DTL_SCROLL=$((_TUI_DTL_TAB == 0 ? 1000000 : 0)) ;;
-		end) _TUI_DTL_SCROLL=$((_TUI_DTL_TAB == 0 ? 0 : 1000000)) ;;
+		home) _TUI_DTL_SCROLL=$((_TUI_DTL_TAB == 0 || _TUI_DTL_TAB == _TUI_DTL_CONSOLE ? 1000000 : 0)) ;;
+		end) _TUI_DTL_SCROLL=$((_TUI_DTL_TAB == 0 || _TUI_DTL_TAB == _TUI_DTL_CONSOLE ? 0 : 1000000)) ;;
 		p) _tui_devtools.pause ;;
-		c) _TUI_DBG_RING=() _TUI_DBG_COUNT=() _TUI_DTL_FROZEN=() _TUI_DTL_SCROLL=0 ;;
+		c)
+			if ((_TUI_DTL_TAB == _TUI_DTL_CONSOLE)); then _TUI_DTL_LOG=() _TUI_DTL_SCROLL=0; else _TUI_DBG_RING=() _TUI_DBG_COUNT=() _TUI_DTL_FROZEN=() _TUI_DTL_SCROLL=0; fi
+			;;
 		f) _tui_devtools.next_filter ;;
 		m)
 			_TUI_DTL_MAX=$((! _TUI_DTL_MAX))
@@ -133,7 +141,7 @@ _tui_devtools.tab() {
 
 # _tui_devtools.scroll DELTA - DELTA rows down the list; on the Events tab "down" is toward the newest event (scroll counts rows back from it).
 _tui_devtools.scroll() {
-	if ((_TUI_DTL_TAB == 0)); then _TUI_DTL_SCROLL=$((_TUI_DTL_SCROLL - $1)); else _TUI_DTL_SCROLL=$((_TUI_DTL_SCROLL + $1)); fi
+	if ((_TUI_DTL_TAB == 0 || _TUI_DTL_TAB == _TUI_DTL_CONSOLE)); then _TUI_DTL_SCROLL=$((_TUI_DTL_SCROLL - $1)); else _TUI_DTL_SCROLL=$((_TUI_DTL_SCROLL + $1)); fi
 	((_TUI_DTL_SCROLL < 0)) && _TUI_DTL_SCROLL=0
 }
 
@@ -308,12 +316,73 @@ _tui_devtools.build_counters() {
 	done
 }
 
+# ── Console: the app log file, read as it grows ───────────────────────────
+
+# _tui_devtools.console_close - closes the log descriptor
+_tui_devtools.console_close() {
+	((_TUI_DTL_LOGFD >= 0)) && exec {_TUI_DTL_LOGFD}<&-
+	_TUI_DTL_LOGFD=-1
+}
+
+# _tui_devtools.console_poll - appends the lines written to today's log since the last call to _TUI_DTL_LOG (a ring of
+# _TUI_DTL_LOG_MAX lines). Fork-free: the file stays open and read hits EOF at once when nothing is new. A new day opens the new file.
+_tui_devtools.console_poll() {
+	local line n=0
+	_tui_log.path
+	if [[ "$_TUI_LOG_PATH" != "$_TUI_DTL_LOGFILE" ]]; then
+		_tui_devtools.console_close
+		_TUI_DTL_LOGFILE="$_TUI_LOG_PATH"
+		_TUI_DTL_LOG=()
+		((_TUI_DTL_LOG_SEQ++))
+	fi
+	if ((_TUI_DTL_LOGFD < 0)); then
+		[[ -r "$_TUI_DTL_LOGFILE" ]] || return 0 # nothing logged yet
+		exec {_TUI_DTL_LOGFD}<"$_TUI_DTL_LOGFILE"
+	fi
+	while IFS= read -r -u "$_TUI_DTL_LOGFD" line; do
+		_TUI_DTL_LOG+=("$line")
+		((n++))
+	done
+	((n)) || return 0
+	((${#_TUI_DTL_LOG[@]} > _TUI_DTL_LOG_MAX * 2)) && _TUI_DTL_LOG=("${_TUI_DTL_LOG[@]: -_TUI_DTL_LOG_MAX}")
+	((_TUI_DTL_LOG_SEQ++))
+}
+
+# Console: like Events, the newest line at the bottom and _TUI_DTL_SCROLL counting rows back from it. A line is marked
+# by its level: warn and error stand out, debug is dimmed.
+_tui_devtools.build_console() {
+	local rows=$1 n=${#_TUI_DTL_LOG[@]} start end i line
+	_TUI_DTL_TOTAL=$n
+	((_TUI_DTL_SCROLL > n - rows)) && _TUI_DTL_SCROLL=$((n - rows > 0 ? n - rows : 0))
+	end=$((n - _TUI_DTL_SCROLL))
+	start=$((end - rows))
+	((start < 0)) && start=0
+	_TUI_DTL_LINES=() _TUI_DTL_SEV=()
+	for ((i = start; i < end; i++)); do
+		line="${_TUI_DTL_LOG[i]}"
+		_TUI_DTL_LINES+=("$line")
+		case "$line" in
+			*"] [warn"* | *"] [error]"*) _TUI_DTL_SEV+=(1) ;;
+			*"] [debug]"*) _TUI_DTL_SEV+=(2) ;;
+			*) _TUI_DTL_SEV+=(0) ;;
+		esac
+	done
+	((n)) || {
+		_TUI_DTL_LINES=("  no log yet: ${_TUI_DTL_LOGFILE:-$TUI_LOG_DIR}")
+		_TUI_DTL_SEV=(2)
+	}
+}
+
 # _tui_devtools.build ROWS - fills _TUI_DTL_LINES/_TUI_DTL_SEV for the current tab, clipped to the ROWS visible.
 _tui_devtools.build() {
 	local rows=$1 max
 	case $_TUI_DTL_TAB in
 		0)
 			_tui_devtools.build_events "$rows"
+			return
+			;;
+		4)
+			_tui_devtools.build_console "$rows"
 			return
 			;;
 		1) _tui_devtools.build_pages ;;
@@ -358,6 +427,10 @@ _tui_devtools.compose() {
 		right+="${_TUI_DTL_TOTAL} events  "
 		((_TUI_DTL_SCROLL)) && right+="(-$_TUI_DTL_SCROLL)  " || right+="follow  "
 	}
+	((_TUI_DTL_TAB == _TUI_DTL_CONSOLE)) && {
+		right+="${_TUI_DTL_LOGFILE##*/}  ${_TUI_DTL_TOTAL} lines  level:${TUI_LOG_LEVEL}  "
+		((_TUI_DTL_SCROLL)) && right+="(-$_TUI_DTL_SCROLL)  " || right+="follow  "
+	}
 	if ((_TUI_DTL_FOCUS)); then right+="←→ tab  p pause  f filter  c clear  m max  esc leave "; else right+="F11 focus "; fi
 	local pad=$((w - ${#plain} - ${#right}))
 	((pad < 0)) && {
@@ -386,7 +459,11 @@ _tui_devtools.draw() {
 	((_TUI_DTL_ON && _TUI_DBG_DOCK)) || return 0
 	local stamp now=${EPOCHREALTIME//[!0-9]/}
 	stamp="$_TUI_DTL_TAB:$_TUI_DTL_SCROLL:$_TUI_DTL_PAUSED:$_TUI_DTL_FILTER:$_TUI_DBG_SEQ:$_TUI_DBG_DOCK:$_TUI_ROWS:$_TUI_COLS:$_TUI_DTL_FOCUS:$_TUI_FOOTER_ON:$_TUI_DBG_BAR"
-	((_TUI_DTL_TAB)) && stamp+=":$((now / 500000))" # the other tabs read live state: rebuilt at most twice a second
+	((_TUI_DTL_TAB == _TUI_DTL_CONSOLE)) && {
+		_tui_devtools.console_poll
+		stamp+=":$_TUI_DTL_LOG_SEQ"
+	}
+	((_TUI_DTL_TAB && _TUI_DTL_TAB != _TUI_DTL_CONSOLE)) && stamp+=":$((now / 500000))" # the other tabs read live state: rebuilt at most twice a second
 	[[ "$stamp" == "$_TUI_DTL_STAMP" && -n "$_TUI_DTL_PAINTED" ]] && return 0
 	_TUI_DTL_STAMP="$stamp"
 	_tui_devtools.compose

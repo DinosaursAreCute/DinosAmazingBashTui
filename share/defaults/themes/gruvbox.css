@@ -6,7 +6,7 @@
  * Selected on the Settings page or from the command palette (Themes). */
 
 /* progress bar glyphs */
-@import "../glyphs/squares.css";
+@import "dabt:glyphs/squares.css";
 
 
 

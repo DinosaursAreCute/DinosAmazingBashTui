@@ -385,3 +385,45 @@
   bg: #61afef;
   mods: bold;
 }
+
+/* <nav> items: nav_active is the item of the page you are on, nav_button the others (tui_nav.sh) */
+.nav_button {
+  fg: #9fb0c9;
+  bg: #1c2136;
+}
+.nav_button:hover {
+  fg: #ffffff;
+  bg: #2f3557;
+}
+.nav_button:focus {
+  fg: #ffffff;
+  bg: #2f3557;
+  mods: bold;
+}
+.nav_active {
+  fg: #ffffff;
+  bg: #4c6ef5;
+  mods: bold;
+}
+.nav_active:hover {
+  fg: #ffffff;
+  bg: #4c6ef5;
+  mods: bold;
+}
+.nav_active:focus {
+  fg: #ffffff;
+  bg: #5c7cfa;
+  mods: bold;
+}
+
+/* a bound gauge (levels="60,85") wears one of these by its value (tui_data.sh) */
+.gauge_ok {
+  fg: #50fa7b;
+}
+.gauge_warn {
+  fg: #f1fa8c;
+}
+.gauge_crit {
+  fg: #ff5555;
+  mods: bold;
+}

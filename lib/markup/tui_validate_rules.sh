@@ -3,17 +3,22 @@
 # Add, drop or loosen a check here; nothing else needs to change. Apps/plugins can register more the same way.
 
 # -- vocabulary ----------------------------------------------------------
-tui.validate.container tui pane tabs details accordion window modal dialog popup tooltip contextmenu toast
-tui.validate.widget label input button checkbox password textarea list table select progress
-tui.validate.tag script theme include footer bind tab outlet markdown
+tui.validate.container tui pane tabs details accordion window modal dialog popup tooltip contextmenu toast nav
+tui.validate.widget label input button checkbox password textarea list table select progress spark gauge
+tui.validate.tag script theme include footer bind tab outlet markdown item data chart
 # composition (lib/markup/tui_compose.sh) and addons (tui_addon.sh): expanded away before the build
 tui.validate.container template use slot fill for if else addon append prepend before after replace
 tui.validate.tag component remove set wrap
-tui.validate.self_closing script theme include footer bind tab outlet markdown \
-	label input button checkbox password textarea list table select progress
+tui.validate.self_closing script theme include footer bind tab outlet markdown item data chart \
+		label input button checkbox password textarea list table select progress spark gauge
 
 # -- required attributes -------------------------------------------------
 tui.validate.require pane id
+tui.validate.require nav id
+tui.validate.require data name
+tui.validate.require spark id
+tui.validate.require gauge id
+tui.validate.require chart id
 tui.validate.require script src
 tui.validate.require theme src
 tui.validate.require markdown pane src
@@ -78,6 +83,10 @@ tui.validate.enum pane detachable "true|false"
 tui.validate.enum pane leave "collapse|placeholder"
 unset _tv_a _tv_b
 tui.validate.enum tabs style "framed|compact"
+tui.validate.enum nav orientation "v|h"
+tui.validate.enum nav active "auto|none"
+tui.validate.enum data scope "page|session|disk"
+tui.validate.enum chart type "sparkline|histogram|hbar|vbar|linechart|boxplot|forest|table|list"
 tui.validate.enum bind scope "global"
 tui.validate.enum '*' focus_nav "arrows|tab|both"
 for _tv_a in focusable tabbable focus_wrap autofocus; do tui.validate.enum '*' "$_tv_a" "true|false"; done
@@ -92,6 +101,7 @@ for _tv_a in min_width min_height max_width max_height hpad vpad label_width row
 tui.validate.int '*' row -9999
 tui.validate.int '*' tab_order -1
 for _tv_a in weight rows cols size_w size_h span; do tui.validate.int pane "$_tv_a" 1; done
+tui.validate.int data max 0
 tui.validate.int pane grid_row 0
 tui.validate.int pane grid_col 0
 unset _tv_a
@@ -338,8 +348,13 @@ _tui_vrule.files() {
 	esac
 	p="${_TV_A[$a]:-}"
 	[[ -n "$p" && "$p" != *'$'* ]] || return 0
+	_tui_path_dabt "$p"
+	p="$_DP"
 	[[ "$p" != /* ]] && p="$base/$p"
-	[[ -r "$p" ]] || tui.validate.error "$a=\"${_TV_A[$a]}\" on <$TUI_V_TAG> points to a file that does not exist ($p)" "$a"
+	if [[ ! -r "$p" ]]; then
+		_tui.theme_hint "$p"
+		tui.validate.error "$a=\"${_TV_A[$a]}\" on <$TUI_V_TAG> points to a file that does not exist ($p)${_TH:+ - $_TH}" "$a"
+	fi
 }
 tui.validate.rule element _tui_vrule.files
 
@@ -453,8 +468,31 @@ tui.validate.rule end _tui_vrule.shell_end
 
 # layers (lib/chrome/tui_layer.sh): anchor is screen, parent or #id of something on the page; x and y are cells or the
 # words the placement knows; a detachable pane must sit in an h or v split (the only splits a pane can leave and rejoin)
-declare -gA _TVR_LAYER_ANCHOR=()
+declare -gA _TVR_LAYER_ANCHOR=() # target id (for= targets as "for:ID") -> "position|layer id"
+declare -gA _TVR_CM_OWNER=()     # for= target -> the first contextmenu that claims it
 declare -g _TVR_LAYER_RE_X='^(center|right|[0-9]+)$' _TVR_LAYER_RE_Y='^(center|bottom|below|above|[0-9]+)$'
+
+# _tui_vrule.contextmenu - for= is #id of something on the page, one menu per owner; the pointer places the menu
+_tui_vrule.contextmenu() {
+	local f owner
+	if tui.validate.attr for; then
+		f="$REPLY"
+		if [[ "$f" != '#'?* ]]; then
+			tui.validate.error "contextmenu '${_TV_A[id]:-?}' has for=\"$f\" - use #id" for
+		else
+			owner="${f#\#}"
+			tui.validate.here for
+			_TVR_LAYER_ANCHOR[for:$owner]="$REPLY|${_TV_A[id]:-?}"
+			[[ -n "${_TVR_CM_OWNER[$owner]:-}" ]] &&
+				tui.validate.warn "contextmenu '${_TV_A[id]:-?}' and '${_TVR_CM_OWNER[$owner]}' both belong to $f - only the first opens" for
+			: "${_TVR_CM_OWNER[$owner]:=${_TV_A[id]:-?}}"
+		fi
+	fi
+	for f in x y anchor; do
+		tui.validate.attr "$f" && tui.validate.warn "contextmenu '${_TV_A[id]:-?}' ignores $f - it opens at the pointer" "$f"
+	done
+	return 0
+}
 _tui_vrule.layer() {
 	local a v
 	case "$TUI_V_TAG" in
@@ -470,6 +508,7 @@ _tui_vrule.layer() {
 					*) tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has anchor=\"$a\" - use screen, parent or #id" anchor ;;
 				esac
 			fi
+			[[ "$TUI_V_TAG" == contextmenu ]] && _tui_vrule.contextmenu
 			if tui.validate.attr x && [[ ! "$REPLY" =~ $_TVR_LAYER_RE_X ]]; then
 				tui.validate.error "${TUI_V_TAG} '${_TV_A[id]:-?}' has x=\"$REPLY\" - use cells, center or right" x
 			fi
@@ -488,12 +527,96 @@ _tui_vrule.layer() {
 tui.validate.rule element _tui_vrule.layer
 
 _tui_vrule.layer_end() {
-	local id
-	for id in "${!_TVR_LAYER_ANCHOR[@]}"; do
-		[[ -n "${TUI_V_PANES[$id]:-}${TUI_V_WIDGETS[$id]:-}" ]] ||
-			tui.validate.error_at "${_TVR_LAYER_ANCHOR[$id]%|*}" "layer '${_TVR_LAYER_ANCHOR[$id]##*|}' is anchored to #$id, which this page never declares"
+	local key id
+	for key in "${!_TVR_LAYER_ANCHOR[@]}"; do
+		id="${key#for:}"
+		[[ -n "${TUI_V_PANES[$id]:-}${TUI_V_WIDGETS[$id]:-}" ]] && continue
+		if [[ "$key" == for:* ]]; then
+			tui.validate.error_at "${_TVR_LAYER_ANCHOR[$key]%|*}" "contextmenu '${_TVR_LAYER_ANCHOR[$key]##*|}' has for=\"#$id\", which this page never declares"
+		else
+			tui.validate.error_at "${_TVR_LAYER_ANCHOR[$key]%|*}" "layer '${_TVR_LAYER_ANCHOR[$key]##*|}' is anchored to #$id, which this page never declares"
+		fi
 	done
-	_TVR_LAYER_ANCHOR=()
+	_TVR_LAYER_ANCHOR=() _TVR_CM_OWNER=()
 	return 0
 }
 tui.validate.rule end _tui_vrule.layer_end
+
+# <nav> (lib/chrome/tui_nav.sh): an item opens a page or runs an action, else it is a dead button
+_tui_vrule.nav_item() {
+	[[ "$TUI_V_TAG" == item ]] || return 0
+	tui.validate.attr page || tui.validate.attr action ||
+		tui.validate.warn "item '${_TV_A[text]:-?}' has no page and no action - it does nothing" page
+	return 0
+}
+tui.validate.rule element _tui_vrule.nav_item
+
+# <theme src> (lib/style/tui_style.sh): everything the stylesheet @imports must exist (the stylesheet itself is checked by _tui_vrule.files). A path is relative to the
+# page, or starts with dabt: for DABT's own defaults folder; the check shows what the loader would log at run time.
+_tui_vrule.theme() {
+	[[ "$TUI_V_TAG" == theme ]] || return 0
+	tui.validate.attr src || return 0
+	local src="$REPLY" file imp line dir import_re='^@import[[:space:]]+(url\()?"([^"]+)"\)?[[:space:]]*;?$'
+	_tui_path_dabt "$src"
+	file="$_DP"
+	[[ "$file" == /* ]] || file="${TUI_V_PAGE%/*}/$file"
+	[[ -r "$file" ]] || return 0 # _tui_vrule.files reports a missing theme
+	dir="${file%/*}"
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		line="${line#"${line%%[![:space:]]*}"}"
+		[[ "$line" =~ $import_re ]] || continue
+		_tui_path_dabt "${BASH_REMATCH[2]}"
+		imp="$_DP"
+		[[ "$imp" == /* ]] || imp="$dir/$imp"
+		[[ -r "$imp" ]] && continue
+		_tui.theme_hint "$imp"
+		tui.validate.error "theme '$src' imports '${BASH_REMATCH[2]}', which does not exist${_TH:+ - $_TH}" src
+	done <"$file"
+	return 0
+}
+tui.validate.rule element _tui_vrule.theme
+
+# size tokens (lib/layout/tui_layout.sh): height/width are N% , Nfr, N.Nfr, auto, fill, Nc (exactly N cells), clamp(MIN,PREF,MAX), or
+# a bare N, which is a SHARE of the space (like Nfr), not N cells. A bare N beside a sibling that is unsized or uses a unit
+# is the usual surprise, so it is reported at the end, once the siblings are known.
+declare -gA _TVR_SIZE=() # "file|depth|parent" -> "kind^loc^value;..." (kind: none|bare|unit)
+declare -g _TVR_SIZE_RE='^([0-9]+%|[0-9]+(\.[0-9]+)?fr|[0-9]+c|auto|fill|[0-9]+)$'
+_tui_vrule.size() {
+	local axis v key kind="none"
+	case "$TUI_V_TAG" in pane | row | col | group | details | accordion) ;; *) return 0 ;; esac
+	for axis in height width; do
+		tui.validate.attr "$axis" || continue
+		v="$REPLY"
+		[[ "$v" == *'$'* || "$v" == clamp\(*\) || "$v" =~ $_TVR_SIZE_RE ]] ||
+			tui.validate.error "$axis=\"$v\" on <$TUI_V_TAG> is not a size - use N%, Nfr, Nc (cells), auto, fill, clamp(MIN,PREF,MAX) or a bare N (a share)" "$axis"
+	done
+	case "$TUI_V_PARENT_SPLIT" in v) axis=height ;; h) axis=width ;; *) return 0 ;; esac
+	tui.validate.attr "$axis" && {
+		v="$REPLY"
+		if [[ "$v" =~ ^[0-9]+$ ]]; then kind=bare; else kind=unit; fi
+	}
+	tui.validate.here "$axis"
+	key="$TUI_V_FILE|$TUI_V_DEPTH|${TUI_V_PARENT_TAG}:${TUI_V_PARENT_ID}"
+	_TVR_SIZE[$key]+="$kind^$REPLY^${v:-};"
+}
+tui.validate.rule element _tui_vrule.size
+
+_tui_vrule.size_end() {
+	local key entry kind loc val axis has_other
+	for key in "${!_TVR_SIZE[@]}"; do
+		has_other=0
+		for entry in ${_TVR_SIZE[$key]//;/ }; do [[ "${entry%%^*}" == bare ]] || has_other=1; done
+		((has_other)) || continue
+		for entry in ${_TVR_SIZE[$key]//;/ }; do
+			kind="${entry%%^*}"
+			[[ "$kind" == bare ]] || continue
+			loc="${entry#*^}"
+			val="${loc##*^}"
+			loc="${loc%^*}"
+			tui.validate.warn_at "$loc" "size \"$val\" is $val shares of the space, not $val cells - use ${val}c for cells or ${val}fr for shares (a sibling is unsized or uses a unit)"
+		done
+	done
+	_TVR_SIZE=()
+	return 0
+}
+tui.validate.rule end _tui_vrule.size_end

@@ -233,29 +233,44 @@ _tui_api._maybe_idle() {
 	return 0
 }
 
+# _tui_api._tick - runs the jobs that are due. A job that is late by whole intervals loses those ticks (counted as
+# ticks_dropped, never queued), and one that ran longer than its interval rests as long as it ran, so a slow callback leaves
+# at least half of the loop to input and the other timers. Each run is a perf span "tick:ID" (tui.perf.report).
 _tui_api._tick() {
 	_TA_DUE_NOW=0 # a job added by one of the jobs below sets it again
 	_tui_api._now
-	local id
+	local id due fn t0 t1 dur_ms
+	_TUI_BATCH_PACED=1 # timer draws share the frame budget (_tui.paced_draw)
 	if ((${#_TA_IDS[@]} > 0)); then
 		for id in "${_TA_IDS[@]}"; do
 			[[ -z "${_TA_FN[$id]:-}" ]] && continue
 			[[ -n "${_TA_PAUSED[$id]:-}" ]] && continue
-			((_TA_NOW < ${_TA_NEXT[$id]:-0})) && continue
+			due=${_TA_NEXT[$id]:-0}
+			((_TA_NOW < due)) && continue
+			((_TUI_PERF_TRACKING && due && _TA_NOW - due >= _TA_INT[$id])) && _tui_perf.count ticks_dropped $(((_TA_NOW - due) / _TA_INT[$id]))
 			if [[ -n "${_TA_ALIGN[$id]:-}" ]]; then
 				_TA_NEXT[$id]=$((_TA_NOW - _TA_NOW % _TA_INT[$id] + _TA_INT[$id]))
 			else
 				_TA_NEXT[$id]=$((_TA_NOW + _TA_INT[$id]))
 			fi
+			fn="${_TA_FN[$id]}"
 			if [[ -n "${_TA_ONCE[$id]:-}" ]]; then
-				local fn="${_TA_FN[$id]}"
 				_tui_api._job_del "$id"
 				_tui.batch_call "$fn" "$id"
-			else
-				_tui.batch_call "${_TA_FN[$id]}" "$id"
+				continue
+			fi
+			t0=${EPOCHREALTIME//[!0-9]/}
+			_tui_perf.begin "tick:$id"
+			_tui.batch_call "$fn" "$id"
+			_tui_perf.end "tick:$id"
+			t1=${EPOCHREALTIME//[!0-9]/}
+			dur_ms=$(((t1 - t0) / 1000))
+			if [[ -n "${_TA_FN[$id]:-}" ]] && ((dur_ms > _TA_INT[$id])); then
+				_TA_NEXT[$id]=$((t1 / 1000 + dur_ms))
 			fi
 		done
 	fi
+	_TUI_BATCH_PACED=0
 	((${#_TA_WIDS[@]} > 0)) && _tui_api._watch_drain
 	return 0
 }
@@ -548,6 +563,7 @@ _tui_api._monitor_run() {
 #  tui.get.hovered [pane|widget]    hovered id (default widget)
 #  tui.get.terminal                 "ROWS COLS"
 #  tui.get.page                     current markup file
+#  tui.get.page_name                current page name: the file name without directory and extension
 
 tui.get.dimensions() {
 	local mode="" content=0 pane=""
@@ -661,6 +677,27 @@ tui.get.widgets() {
 		[[ -z "${1:-}" || "${_TUI_W_PANE[$w]:-}" == "$1" ]] && printf '%s\n' "$w"
 	done
 }
+# tui.restyle ID CLASS - gives a widget or pane the look of CLASS (what it had before is cleared first) and redraws just it: a widget alone,
+# a pane's border, title and widgets. rc 1 for an unknown id or no class. tui.class only bakes; this is bake plus draw.
+tui.restyle() {
+	local id="${1:-}" cls="${2:-}" w
+	[[ -n "$cls" ]] && tui.exists "$id" || return 1
+	_tui.style_clear "$id"
+	tui.class "$id" "$cls"
+	((_TUI_RUNNING)) || return 0
+	if [[ -n "${_TUI_W_TYPE[$id]:-}" ]]; then
+		_tui._draw_or_queue "$id"
+	else
+		_tui._draw_pane_borders_now "$id"
+		local -a ws=()
+		for w in "${_TUI_W_ORDER[@]}"; do [[ "${_TUI_W_PANE[$w]:-}" == "$id" ]] && ws+=("$w"); done
+		((${#ws[@]})) && _tui._draw_batch_now "${ws[@]}"
+	fi
+	return 0
+}
+
+# tui.exists ID - rc 0 when a widget, a pane or a layer has that id (fork-free, no output)
+tui.exists() { [[ -n "${1:-}" ]] && [[ -n "${_TUI_W_TYPE[$1]:-}" || -n "${_TUI_P_H[$1]+x}" || -n "${_TUI_P_DIR[$1]+x}" || -n "${_TUI_L_ANCHOR[$1]+x}" ]]; }
 tui.get.type() {
 	[[ -n "${_TUI_W_TYPE[$1]:-}" ]] || return 1
 	printf '%s\n' "${_TUI_W_TYPE[$1]}"
@@ -679,6 +716,10 @@ tui.get.hovered() {
 }
 tui.get.terminal() { printf '%s %s\n' "$_TUI_ROWS" "$_TUI_COLS"; }
 tui.get.page() { printf '%s\n' "${_TUI_MARKUP_FILE:-}"; }
+tui.get.page_name() {
+	local f="${_TUI_MARKUP_FILE##*/}"
+	printf '%s\n' "${f%.*}"
+}
 
 #  tui.get.classes                  every key the loaded theme defines (pseudo-states appear as CLASS_focus, CLASS_hover, ...)
 #  tui.get.class.style CLASS FIELD [STATE]   fg|bg|mods of a theme class (no pane needed)
@@ -743,8 +784,15 @@ tui.pane_size() {
 #  tui.theme.list        print every selectable overlay as NAME<TAB>FILE, sorted by name
 #  tui.theme.pick [NAME] apply overlay NAME and remember it (config key theme); no NAME = page default
 tui.theme.set() {
-	tui.log.debug "tui.theme.set: overlay -> $1"
-	_TUI_THEME_OVERLAY="$1"
+	local file
+	_tui_path_dabt "$1"
+	file="$_DP"
+	if [[ ! -r "$file" ]]; then # keep the theme in force: a typo must not blank the app
+		_TUI_THEME_CALLER="tui.theme.set at ${BASH_SOURCE[1]}:${BASH_LINENO[0]}" _tui.theme_report error "$file" "tui.theme.set"
+		return 1
+	fi
+	tui.log.debug "tui.theme.set: overlay -> $file"
+	_TUI_THEME_OVERLAY="$file"
 	tui.theme.reload
 }
 tui.theme.clear() {
@@ -866,9 +914,10 @@ _tui_api._repaint_pane() {
 # changes a widget's value, which buttons don't display) and redraw it.
 tui.set_label() {
 	[[ -n "${_TUI_W_TYPE[$1]:-}" ]] || return 1
+	[[ "${_TUI_W_LABEL[$1]-}" == "$2" ]] && return 0 # unchanged: nothing to repaint
 	_ps.widgets.set "$1" label "$2"
 	[[ "${_TUI_W_TYPE[$1]}" == label ]] && _TUI_W_VALUE[$1]="$2"
-	((_TUI_RUNNING)) && _tui._draw_widget "$1"
+	((_TUI_RUNNING)) && _tui._draw_or_queue "$1"
 	return 0
 }
 

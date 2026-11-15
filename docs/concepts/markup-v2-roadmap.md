@@ -73,7 +73,7 @@ Grouped by primitive. Items marked ⊂ are sugar for the primitive in their sect
   - `dock_group` limits which containers accept the node. Events: `on_detach`/`on_dock`. `persist="layout"` stores the arrangement.
 - ⊂ Every overlay is a layer with flags:
   - `<window>`, `<modal>` (focus trap, Esc), `<dialog>`
-  - `<popup anchor>`, `<tooltip for>`, `<contextmenu for>`, `<toast>`
+  - `<popup anchor>`, `<tooltip for>`, `<contextmenu for>`, `<toast>`  (`<contextmenu for>` done: right-click opens it via the default `mouse:right`)
   - maximize/zoom: a layer that covers its parent
 
   This replaces the special-cased `lib/chrome/tui_modal.sh` overlay registry.
@@ -106,7 +106,7 @@ Ops: `clone`, `insert (append|prepend|before|after)`, `replace`, `remove`, `set 
 Precedence, lowest first: `<defaults tag=…>` → CSS layers → `class` → `style=""` → reactive value → explicit markup attribute → runtime `tui.set`.
 - CSS: selectors `#id`, `tag`, `.a.b`, `>`; pseudo-states `:disabled`, `:active`, `:selected`, `:collapsed`; `var(--x)`; layout props (`border`, `padding`, `gap`, `size`…).
 - **Addon CSS:** `@layer app, theme, addon;`, `@extend`, per-property patches, and `tui.theme.add`/`remove` at runtime.
-- Reactive attributes: `{{a ?? 'x'}}` (`??` falls back when the value is unset, empty or `false`), `a ? b : c`, `! && || == !=` and `arr[key]`. Expressions compile once to a bash snippet at parse time. A dependency graph maps each var to the nodes using it, and `tui.state.set` marks them dirty.
+{% raw %}- Reactive attributes: `{{a ?? 'x'}}` (`??` falls back when the value is unset, empty or `false`), `a ? b : c`, `! && || == !=` and `arr[key]`. Expressions compile once to a bash snippet at parse time. A dependency graph maps each var to the nodes using it, and `tui.state.set` marks them dirty.{% endraw %}
 - `bind="var"` for two-way binding. `disabled`, `hidden`, `readonly` and `data-*` work on every node.
 
 ### L. Scripts and validation

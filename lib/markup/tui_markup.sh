@@ -24,6 +24,7 @@
 #   <footer [items="@tui.action.quit|Quit;ctrl+s|Save"]/>   one-row key-hint bar on the LAST terminal row (see tui_footer.sh)
 #   <bind key="q" action="fn [args]" [pane="p"] [scope="global"] [pass="true"] [always="true"] desc="…"/>   key/mouse binding, see tui_input.sh
 #   <tui on_visit="fn" defaults="-quit,-scroll">   switch default keybind groups off for this page (share/defaults/keybinds.xml)
+#   <tui on_leave="fn">   calls fn NEXT_PAGE_PATH just before another page replaces this one (not on a reload of the same page)
 #   <label  id="x" pane="p" row="N" text="…" align="…" valign="…" min_width="N" max_width="N" class="name"/>
 #   <input  id="x" pane="p" row="N" label="…" placeholder="…" submit="fn" align="…" valign="…"  retain_input_on_submit="true|false" sticky="true"
 #           min_width="N" max_width="N" label_align="left|center|right" label_width="N" class="name"/>
@@ -151,6 +152,7 @@ tui.load() {
 	# tui.goto back to a page already visited before.
 	[[ -n "$_ld_shell" ]] && _tui_shell.before_visit
 	_tui_cache_run_on_visit "$_TUI_BUILD_ON_VISIT"
+	((${#_TUI_W_NAV[@]})) && _tui_nav.sync
 	[[ -n "$_ld_shell" ]] && _tui_shell.sync_page_ids # on_visit may have added widgets
 	return 0
 }
@@ -210,6 +212,8 @@ tui.reset_ui() {
 	_TUI_P_FUSE=() _TUI_P_DIVIDER=() _TUI_P_DIVIDER_CLASS=() _TUI_P_TITLE_POS=() _TUI_P_TITLE_ALIGN=()
 	_tui_resize.clear
 	_tui_collapse.clear
+	_tui_nav.clear
+	_td.reset
 	((_TUI_L_N)) && _tui_layer.clear
 	_tui_store.clear
 	_TUI_SHELL_FILE="" _TUI_OUTLET="" _TUI_OUTLET_SPLIT="" _TUI_SHELL_AT=0 _TUI_SHELL_IDS=() _TUI_PAGE_IDS=() _TUI_PAGE_UNDO="" _SHL_LEFT=0
@@ -345,6 +349,12 @@ tui.goto() {
 		_tui_store.carry
 		carry="$_SF"
 	fi
+	# <tui on_leave="fn">: runs while the page is still built; cleared first so a goto made by the hook does not run it twice
+	if [[ -n "$_TUI_P_ON_LEAVE" && "$canon" != "${_TUI_MARKUP_FILE:-}" ]]; then
+		local _gt_leave="$_TUI_P_ON_LEAVE"
+		_TUI_P_ON_LEAVE=""
+		"$_gt_leave" "$canon"
+	fi
 	# page history for tui.action.back: remember where we came from (not on a same-page reload, not while going back)
 	if [[ "$canon" != "${_TUI_MARKUP_FILE:-}" && -n "${_TUI_MARKUP_FILE:-}" && -z "$_TUI_GOING_BACK" ]]; then
 		_TUI_PAGE_HISTORY+=("$_TUI_MARKUP_FILE")
@@ -424,4 +434,14 @@ tui.start() {
 	_tui_store.enter_focus
 	_tui_validate.notify
 	tui.run
+}
+
+# _tui_path_dabt PATH -> _DP: a leading "dabt:" stands for DABT's defaults folder ($TUI_DEFAULTS_DIR), so an app can name
+# a stock file (dabt:glyphs/thin.css, dabt:themes/dracula.css) without knowing where DABT is installed. Any other PATH
+# is returned unchanged. Used by <theme src>, @import, tui.load_theme, tui.theme.set, <include src> and <component src>.
+_tui_path_dabt() {
+	case "$1" in
+		dabt:*) _DP="${TUI_DEFAULTS_DIR:-}/${1#dabt:}" ;;
+		*) _DP="$1" ;;
+	esac
 }

@@ -31,6 +31,8 @@ declare -g TUI_INPUT_IDLE_TIMEOUT="${TUI_INPUT_IDLE_TIMEOUT:-0.2}"
 
 # Timeout while a pane render is queued (shorter = flush faster)
 declare -g TUI_INPUT_SETTLE_TIMEOUT="${TUI_INPUT_SETTLE_TIMEOUT:-0.01}"
+# Shortest time between two timer-driven flushes (16666 us = 60 fps); input feedback is never held to it
+declare -gi TUI_FRAME_BUDGET_US="${TUI_FRAME_BUDGET_US:-16666}"
 declare -gi TUI_CHANGE_DEBOUNCE_MAX="${TUI_CHANGE_DEBOUNCE_MAX:-8}" # a debounced on_change runs at least every this many events
 
 # Per-byte timeout while assembling escape sequence (arrow keys, SGR mouse)

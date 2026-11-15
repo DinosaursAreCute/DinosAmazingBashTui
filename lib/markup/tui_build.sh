@@ -65,6 +65,7 @@ tui_build.build() {
 	_TUI_BUILD_TITLE=()
 	_TUI_BUILD_BORDER=()
 	_TUI_BUILD_ON_VISIT=""
+	_TUI_P_ON_LEAVE=""
 	_TUI_BUILD_AUTO_N=0
 	_TUI_BUILD_CTX_PANE=""
 	_TUI_BUILD_CTX_ROW=0
@@ -135,9 +136,11 @@ _tui_build.focus_attrs() {
 
 _tui_build.tag.tui() {
 	local node="$1"
-	local visit
+	local visit leave
 	_tui_build.attrv "$node" on_visit visit
 	[[ -n "$visit" ]] && _TUI_BUILD_ON_VISIT="$visit"
+	_tui_build.attrv "$node" on_leave leave
+	[[ -n "$leave" ]] && _TUI_P_ON_LEAVE="$leave"
 	local ddef dg fwrap kstate kpers foe
 	local -a dgs=()
 	_tui_build.attrv "$node" focus_wrap fwrap
@@ -171,12 +174,15 @@ _tui_build.tag.script() {
 }
 
 _tui_build.tag.theme() {
-	local node="$1" tsrc tresolved
+	local node="$1" tsrc tresolved tfile tline
 	_tui_build.attrv "$node" src tsrc
 	[[ -z "$tsrc" ]] && return 0
-	tresolved="$tsrc"
+	_tui_path_dabt "$tsrc"
+	tresolved="$_DP"
 	[[ "$tresolved" != /* ]] && tresolved="${_TUI_MARKUP_DIR}/${tsrc}"
-	_tui_cache_theme "$tresolved"
+	tui_node.attr_get "$node" __file && tfile="$_N_ATTR_V" || tfile="${_TUI_MARKUP_FILE:-?}"
+	tui_node.attr_get "$node" __line && tline="$_N_ATTR_V" || tline=0
+	_TUI_THEME_CALLER="<theme src=\"$tsrc\"> in $tfile:$tline" _tui_cache_theme "$tresolved"
 }
 
 tui.register tag tui _tui_build.tag.tui
@@ -294,12 +300,13 @@ _tui_build.pane_kids() {
 	local id="$1" node="$2" split="$3" rows="$4" cols="$5" fit="$6" roww="$7" colw="$8" sizew="$9" sizeh="${10}" meta="${11:-0}"
 	tui_node.children "$node"
 	local -a kids=("${_N_CHILDREN[@]}")
+	local saved_ctx_pane="$_TUI_BUILD_CTX_PANE"
 	local k ctype pending="" row=0 span i # the first widget in a pane sits on its first line (rows count from 0, as in an explicit row="0")
 	for i in "${!kids[@]}"; do
 		k="${kids[i]}"
 		ctype="${_N_TYPE[$k]}"
 		case "$ctype" in
-			pane | row | col | spacer | divider | group | details | accordion | outlet)
+			pane | row | col | spacer | divider | group | details | accordion | outlet | chart)
 				_tui_build.dispatch "$k"
 				local cid="$_TUI_BUILD_LAST_ID"
 				if [[ "$split" == "grid" ]]; then
@@ -345,7 +352,11 @@ _tui_build.pane_kids() {
 				esac
 				_tui_build.dispatch "$k"
 				((span < 1)) && span=1
-				if ((meta)); then case "$ctype" in script | theme | bind | footer | tab) ;; *) ((row += span)) ;; esac else ((row += span)); fi
+				case "$ctype" in
+					window | modal | dialog | popup | tooltip | contextmenu | toast) ;; # layers float: no row
+					script | theme | bind | footer | tab) ((meta)) || ((row += span)) ;;
+					*) ((row += span)) ;;
+				esac
 				;;
 		esac
 	done
@@ -357,6 +368,7 @@ _tui_build.pane_kids() {
 	elif [[ -n "$pending" ]]; then
 		if [[ "$split" == "v" ]]; then tui.vsplit "$id" $pending; else tui.hsplit "$id" $pending; fi
 	fi
+	_TUI_BUILD_CTX_PANE="$saved_ctx_pane" # a sibling after this pane must not inherit the last widget's pane
 	((${#_TUI_P_COLLAPSIBLE[@]})) && _tui_collapse.init_children "$id" "$node"
 }
 
@@ -545,10 +557,19 @@ _tui_build.tag.label() {
 	_tui_build.attrv "$node" hpad lhpad
 	_tui_build.attrv "$node" vpad lvpad
 	tui.pad "$lid" "${lhpad:-$lpadding}" "${lvpad:-$lpadding}"
+	[[ "${_N_TYPE[$node]}" == label ]] && _td.node_bind "$node" "$lid" label # a <spark> or <gauge> reuses this handler and binds itself
 }
 tui.register tag label _tui_build.tag.label
 
+# _tui_build.label_from_text NODE - input, checkbox and select caption themselves with label=; text= (what a button and a label use) is accepted for it
+_tui_build.label_from_text() {
+	tui_node.attr_get "$1" label && return 0
+	tui_node.attr_get "$1" text && tui_node.attr_set "$1" label "$_N_ATTR_V"
+	return 0
+}
+
 _tui_build.tag.input() {
+	_tui_build.label_from_text "$1"
 	local node="$1"
 	local iid ipane irow ialign ivalign iminw imaxw ilalign ilwidth iclass
 	_tui_build.attrv "$node" id iid
@@ -616,7 +637,7 @@ _tui_build.tag.button() {
 	_tui_build.attrv "$node" min_width bminw
 	_tui_build.attrv "$node" max_width bmaxw
 	_tui_build.attrv "$node" class bclass
-	local bminh bmaxh bexpand bpin
+	local bminh bmaxh bexpand bpin bshortcut
 	_tui_build.attrv "$node" min_height bminh
 	_tui_build.attrv "$node" max_height bmaxh
 	_tui_build.attrv "$node" expand bexpand
@@ -629,6 +650,9 @@ _tui_build.tag.button() {
 	fi
 
 	tui.button "$bid" "$bpane" "$brow" "$btext" "$baction"
+	[[ -n "${_TC_NAV_ITEM[$bid]+x}" ]] && _TUI_W_NAV[$bid]="${_TC_NAV_ITEM[$bid]}" # <nav> item: _tui_nav.sync restyles it by the current page
+	_tui_build.attrv "$node" shortcut bshortcut
+	[[ -n "$bshortcut" && -n "$baction" ]] && _tui_build.bind_record "$bshortcut" "$baction" --page
 	tui.align "$bid" "$balign"
 	tui.valign "$bid" "$bvalign"
 	tui.minsize "$bid" "$bminw" "$bminh"
@@ -653,6 +677,7 @@ _tui_build.tag.button() {
 tui.register tag button _tui_build.tag.button
 
 _tui_build.tag.checkbox() {
+	_tui_build.label_from_text "$1"
 	local node="$1"
 	local kid kpane krow klabel kchecked kaction kalign kvalign kminw kmaxw kclass
 	_tui_build.attrv "$node" id kid
@@ -699,6 +724,7 @@ tui.register tag checkbox _tui_build.tag.checkbox
 # node's own attributes rather than duplicating its five widget bodies here.
 _tui_build.tag.wx() {
 	local node="$1" type="${_N_TYPE[$1]}" line="<$type" k v
+	[[ "$type" == select ]] && _tui_build.label_from_text "$node"
 	for v in ${_N_ANAMES[$node]:-}; do
 		[[ "$v" == __* ]] && continue
 		k="${_N_ATTR["$node.$v"]}"
@@ -711,6 +737,10 @@ _tui_build.tag.wx() {
 	[[ "$line" == *' pane='* ]] || line="${line/<$type/<$type pane=\"$pane\"}"
 	[[ "$line" == *' row='* ]] || line="${line/ pane=/ row=\"$row\" pane=}"
 	_markup_wx "$type" "$line"
+	[[ "$type" == @(table|list) ]] && {
+		_tui_build.attrv "$node" id k
+		_td.node_bind "$node" "$k" "$type"
+	}
 }
 tui.register tag password _tui_build.tag.wx
 tui.register tag textarea _tui_build.tag.wx
@@ -743,15 +773,19 @@ _tui_build.tag.bind() {
 	[[ "$bpass" == true ]] && bflags+=(--pass)
 	[[ "$balways" == true ]] && bflags+=(--always)
 	[[ -n "$bdesc" ]] && bflags+=(--desc "$bdesc")
-	# A cache replay skips tag dispatch, so the bind is recorded with the page's other replayed calls
-	# (see _tui_cache_define_goto); without it a cached page has none of its <bind>s.
+	_tui_build.bind_record "$bkey" "$bact" "${bflags[@]}"
+}
+
+# _tui_build.bind_record KEY ACTION [FLAG...] - tui.bind, also recorded for a cache replay (it skips tag dispatch, so
+# the page's binds are replayed with its other calls, see _tui_cache_define_goto)
+_tui_build.bind_record() {
 	local _rec="tui.bind" _q _a
-	for _a in "$bkey" "$bact" "${bflags[@]}"; do
+	for _a in "$@"; do
 		printf -v _q '%q' "$_a"
 		_rec+=" $_q"
 	done
 	_TUI_CACHE_REC_GOTOS+=("$_rec")
-	tui.bind "$bkey" "$bact" "${bflags[@]}"
+	tui.bind "$@"
 }
 tui.register tag bind _tui_build.tag.bind
 

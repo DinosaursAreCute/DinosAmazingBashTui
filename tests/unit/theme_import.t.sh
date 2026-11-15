@@ -102,8 +102,12 @@ ti_import_every_shipped_stylesheet_import_resolves_inside_share_defaults() {
 		dir="${f%/*}"
 		while IFS= read -r line; do
 			[[ "$line" =~ ^@import[[:space:]]+(url\()?\"([^\"]+)\" ]] || continue
-			imp="$(cd "$dir" && realpath -m "${BASH_REMATCH[2]}")"
-			imp="${imp#"$REPO"/share/}"
+			if [[ "${BASH_REMATCH[2]}" == dabt:* ]]; then
+				imp="defaults/${BASH_REMATCH[2]#dabt:}"
+			else
+				imp="$(cd "$dir" && realpath -m "${BASH_REMATCH[2]}")"
+				imp="${imp#"$REPO"/share/}"
+			fi
 			[[ "$listed" == *$'\n'"$imp"$'\n'* ]] || bad+="${f##*/}->${BASH_REMATCH[2]} "
 		done <"$f"
 	done < <(printf '%s\n' "$REPO"/share/defaults/*.css "$REPO"/share/defaults/*/*.css)

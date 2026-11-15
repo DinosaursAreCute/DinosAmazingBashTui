@@ -299,9 +299,22 @@ _tui_hit.scrollbar_drag() {
 # tui.hit.set ID hit_pad|hitbox VALUE - widen the area that counts as a hit on widget ID
 # state:direct
 tui.hit.set() {
+	# malformed values would reach arithmetic on every mouse move: reject them here
 	case "$2" in
-		hit_pad) _TUI_W_HITPAD[$1]="$3" ;;
-		hitbox) _TUI_W_HITBOX[$1]="$3" ;;
+		hit_pad)
+			[[ "$3" =~ ^-?[0-9]+( -?[0-9]+)?$ ]] || {
+				echo "tui.hit.set: hit_pad needs \"N\" or \"V H\", got '$3'" >&2
+				return 1
+			}
+			_TUI_W_HITPAD[$1]="$3"
+			;;
+		hitbox)
+			[[ "$3" =~ ^-?[0-9]+( -?[0-9]+){3}$ ]] || {
+				echo "tui.hit.set: hitbox needs \"DY DX H W\", got '$3'" >&2
+				return 1
+			}
+			_TUI_W_HITBOX[$1]="$3"
+			;;
 		*)
 			echo "tui.hit.set: unknown attribute '$2' (hit_pad|hitbox)" >&2
 			return 1

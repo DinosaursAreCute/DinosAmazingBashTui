@@ -30,6 +30,44 @@ Pin the scale and the size, or the chart rescales and jumps with every new value
 linechart_string "rate:$series" -m 600 -n 0 -w 38 -h 6      # max, min, width, rows
 ```
 
+## Charts from data
+
+`tui.chart KIND VAR ...` renders any renderer into a variable, and can take its numbers from a [dataset](data.md) so there is nothing to collect by hand:
+
+```bash
+tui.data.new latency --cols "ms" --max 60
+tui.chart linechart plot --data latency --col ms -w 40 -h 8      # lines in $plot
+tui.output pane_plot "$plot"
+tui.chart hbar bars --data hosts --col load --label host -w 40   # LABEL:VALUE per row
+```
+
+| `KIND` with `--data` | Takes |
+|---|---|
+| `sparkline`, `histogram` | the values of `--col` |
+| `hbar`, `vbar` | `LABEL:VALUE` per row (`--label`, default column 0) |
+| `linechart`, `boxplot`, `forest` | one series per `--col` (repeat the flag) |
+| `table`, `list` | the dataset's rows, or one column |
+
+`--last N` limits to the newest rows. The other kinds (`box`, `alert`, `banner`, `tree`, `scatter`, ...) take the renderer's own arguments: `tui.chart banner big "OK" block5`.
+
+Two chart helpers need no renderer file and do not fork, so a timer may call them:
+
+```bash
+tui.chart.spark line -w 24 "${samples[@]}"     # ▁▃▅▇█▅▂ , the newest 24 values
+tui.chart.gauge bar 67 100 -w 12               # ████████░░░░ 67%
+```
+
+In markup, a chart that follows a dataset is a tag, and nothing else has to be written:
+
+```xml
+<data name="latency" cols="ms" max="60"/>
+<spark id="trend" from="latency" col="ms" last="30"/>        <!-- one line, a label -->
+<gauge id="now"   from="latency" col="ms" max="200"/>        <!-- a bar and a percent -->
+<chart id="plot"  from="latency" type="linechart" col="ms" args="-w 40 -h 8"/>   <!-- a pane -->
+```
+
+The chart is redrawn when the dataset changed and the text would differ. `args` holds the renderer's flags (`-w`, `-h`, `-c GREEN`, `-m`, `-n`). `tui.hist.push` and `tui.hist.get` keep working; a dataset with `--max` does the same with columns, keys and widgets that follow it.
+
 ## Quirks
 
 - `gauge`, `sparkline`, `linechart`, `hbar` and `vbar` use **integer** math. Scale decimals up (words per second times ten) and say so in the legend. `scatter`, `boxplot`, `forest`, `heatmap` and `histogram` accept decimals.

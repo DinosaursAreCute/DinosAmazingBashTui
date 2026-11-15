@@ -51,30 +51,18 @@ When someone clicks the header of a detached tab, raise its window instead: `tui
 
 ## 3. Right-click menu
 
-Bind the right button, read where it happened, fill a `<contextmenu>` and show it at the pointer.
+Declare a `<contextmenu>`; the default `mouse:right` binding opens it at the pointer. No handler, no bind.
 
 ```xml
-<contextmenu id="menu" x="0" y="0" width="30" height="8" open="false" border="single">
-  <button id="m0" text="" action="on_menu" align="left"/>
-  <button id="m1" text="" action="on_menu" align="left"/>
+<contextmenu id="menu" for="#btn_test" width="30" height="3" border="single">
+  <button id="m0" text="Detach" action="on_menu" align="left"/>
+  <button id="m1" text="Close" action="on_menu" align="left"/>
 </contextmenu>
 ```
 
-```bash
-tui.bind mouse:right on_right --always
-on_right() {
-  local x y widget
-  tui.get.event                                # sets TUI_EVENT_X, _Y, _PANE, _WIDGET
-  x=$TUI_EVENT_X y=$TUI_EVENT_Y widget=$TUI_EVENT_WIDGET
-  tui.set_label m0 " Detach"                   # the items depend on what was clicked
-  tui.set_label m1 ""
-  tui.layer.size menu 3 30                     # HEIGHT WIDTH
-  tui.layer.show menu                          # show first ...
-  tui.layer.move menu "$y" "$x"                # ... then move: ROW COL
-}
-```
+`for="#id"` ties the menu to one widget or pane and it answers only there. Without `for`, the menu belongs to the pane it sits in, and to the panes inside it; the closest owner wins. The menu starts hidden (`open="true"` overrides), takes no row in its pane, and ignores `x`, `y` and `anchor`. Another open menu or popup closes first. A modal layer swallows the click. The menu closes on an outside click or Esc, and a click on a button runs its action.
 
-`TUI_EVENT_WIDGET` is the clicked tab header's id (for example `t_speed`), so one handler can build a different menu for a tab, the transcript or a list. The menu closes on an outside click or Esc. A click on a button runs its action.
+To change the items per click, bind your own handler to `mouse:right` (`tui.get.event` gives `TUI_EVENT_WIDGET`, `_PANE`, `_X`, `_Y`), fill the labels, then `tui.layer.show` and `tui.layer.move menu "$y" "$x"` (ROW then COL).
 
 ## Quirks
 

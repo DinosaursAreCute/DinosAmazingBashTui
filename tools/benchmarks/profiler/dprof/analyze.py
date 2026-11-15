@@ -399,7 +399,8 @@ def attribution(traces, latency_list, repo_files):
         k, real = _calibration(gid, latency, n_actions, b, global_k) if kind == "w" else (global_k, None)
         gv = out["groups"].setdefault(gid, {})
         view = {"k": k, "real_ms": real, "n_actions": n, "traced_ms": {kk: v / 1000 for kk, v in b["tot"].items()},
-                "lines": b["nlines"], "pids": b["pids"]}
+                "lines": b["nlines"], "pids": b["pids"],
+                "forks": sum(b["forks"].values()) / n}
         layers = {}
         stacks = []
         self_ms = {}

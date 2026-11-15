@@ -445,15 +445,20 @@ tui.validate.log() {
 declare -g _TV_NOTIFY="" _TV_PENDING=0 _TV_JOB_PID="" _TV_JOB_FILE=""
 declare -ga _TV_PAGES=()
 _tui_validate.begin() {
-	local async="$1" f l dir
+	local async="$1" f l dir base q
 	shift
 	_TV_PENDING=0 _TV_JOB_PID="" _TV_JOB_FILE=""
 	[[ "${TUI_VALIDATE:-1}" == 0 ]] && return 0
+	local all=""
+	for f; do [[ -r "$f" ]] && { IFS= read -r -d "" l <"$f"; all+="$l"$'\n'; }; done # every page's text: a file that one of them names in src="…" is a fragment
 	_TV_PAGES=()
-	for f; do # <binds>/<cmds> files sit next to pages (a *.xml sweep finds them) but are not pages
+	for f; do # <binds>/<cmds> files sit next to pages (a *.xml sweep finds them) but are not pages; neither is a component body or an include (a file with no <tui> root that another page names in src="…")
 		l=""
 		[[ -r "$f" ]] && while IFS= read -r l; do [[ "$l" == *\<[a-zA-Z]* && "$l" != *\<!--* ]] && break; done <"$f"
-		[[ "$l" == *\<binds[\ \>]* || "$l" == *\<cmds[\ \>]* ]] || _TV_PAGES+=("$f")
+		[[ "$l" == *\<binds[\ \>]* || "$l" == *\<cmds[\ \>]* ]] && continue
+		base="${f##*/}" q='"'
+		[[ "$l" != *\<tui[\ \>\/]* && ( "$all" == *"/$base$q"* || "$all" == *"$q$base$q"* ) ]] && continue
+		_TV_PAGES+=("$f")
 	done
 	_tui_validate.fresh "${_TV_PAGES[@]}" && return 0
 	_TV_PENDING=1

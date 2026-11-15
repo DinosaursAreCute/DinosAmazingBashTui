@@ -32,6 +32,8 @@ The public surface of D.A.B.T, one page per module - each mirrors a `lib/` topic
 | **[Input](input.md)** | Key/mouse bindings, built-in actions | `lib/input/` |
 | **[Markdown](markdown.md)** | Markdown rendering, styling and source-line mapping | `lib/markdown/` |
 | **[Widgets](widgets.md)** | Widget constructors, richer widgets & text editing | `lib/widgets/` |
+| **[Data](data.md)** | Datasets (append, change, remove, sort, stats) and widgets bound to them | `lib/state/tui_data.sh` |
+| **[Charts](charts.md)** | Charts as strings: sparkline, gauge, every renderer from data | `lib/render/tui_chart.sh` |
 | **[Chrome](chrome.md)** | Command palette, modal/overlay, dialogs & toasts, footer | `lib/chrome/` |
 | **[Markup](markup.md)** | Pages, cache & validation | `lib/markup/` |
 | **[Config](config.md)** | Persisted settings | `lib/config/` |

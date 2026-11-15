@@ -20,7 +20,9 @@
 #
 #   .type.variant { ... }      a named design of a widget type (markup: variant="NAME"); inherits the base
 #                               `.type` rule, so it only states what differs.
-#   @import "other.css";       applies other.css here (path relative to this file); rules after it override it.
+#   @import "other.css";       applies other.css here (path relative to this file, or dabt:glyphs/thin.css for a file of DABT's
+#                              defaults folder); rules after it override it. A file that cannot be read is logged once per
+#                              requester, with who asked and a hint (_tui.theme_report).
 #   .type { fill: "█"; }       glyph properties: a quoted single-cell glyph per slot of _TUI_G_DEFAULT.
 #
 #   .classname { cursor: pointer; }   mouse pointer shape while over a widget of the class (CSS names: pointer, text, not-allowed, grab, ...;
@@ -228,6 +230,45 @@ _tui.theme_glyph_decl() {
 	_TP_G[$cls.$key]="$val"
 }
 
+# Who asked for the theme being loaded, for the log: "<theme src=\"x\"> in page.xml:3", "tui.theme.set at run.sh:21". Set by
+# the code that asks (tui_build.sh <theme>, tui.theme.set); a direct tui.load_theme call uses its own caller.
+declare -g _TUI_THEME_CALLER=""
+declare -gA _TUI_THEME_WARNED=() # "path|requester" -> 1: a file that cannot be read is reported once per requester
+
+# _tui.theme_hint PATH -> _TH: what to try instead of the unreadable PATH (empty when nothing is found). Only runs on the
+# failure path: a file of that name in a folder next to PATH or its parent, then DABT's own copy as a dabt: path.
+_tui.theme_hint() {
+	local base="${1##*/}" dir="${1%/*}" c d
+	_TH=""
+	[[ "$1" == */* ]] || dir=.
+	_tui_path_canon "$dir"
+	dir="$_CANON"
+	for c in "$dir"/*/"$base" "${dir%/*}"/*/"$base" "${dir%/*}/$base"; do
+		[[ "$c" != "$1" && -r "$c" ]] && {
+			_TH="did you mean '$c'?"
+			return 0
+		}
+	done
+	[[ -n "${TUI_DEFAULTS_DIR:-}" ]] || return 0
+	for d in "" glyphs/ themes/; do
+		[[ -r "$TUI_DEFAULTS_DIR/$d$base" ]] && {
+			_TH="DABT ships this file: use 'dabt:$d$base'"
+			return 0
+		}
+	done
+	return 0
+}
+
+# _tui.theme_report LEVEL PATH WHERE - logs "theme: cannot read PATH (WHERE)" with the requester and a hint, once per PATH and
+# requester (a page that loads again would repeat it on every visit; another file asking is news).
+_tui.theme_report() {
+	local key="$2|${_TUI_THEME_CALLER:-}"
+	[[ -n "${_TUI_THEME_WARNED[$key]:-}" ]] && return 0
+	_TUI_THEME_WARNED[$key]=1
+	_tui.theme_hint "$2"
+	tui.log "theme: cannot read '$2' ($3${_TUI_THEME_CALLER:+, requested by $_TUI_THEME_CALLER})${_TH:+ - $_TH}" "$1"
+}
+
 # _tui.theme_parse FILE - parses FILE (and what it imports) into the _TP_* staging tables.
 _tui.theme_parse() {
 	_TP_FG=()
@@ -261,12 +302,14 @@ _tui.theme_parse_into() {
 		[[ -z "$line" || "$line" == /\** ]] && continue
 		if [[ "$line" =~ $import_re ]]; then
 			imp="${BASH_REMATCH[2]}"
+			_tui_path_dabt "$imp"
+			imp="$_DP"
 			[[ "$imp" == /* ]] || imp="$dir/$imp"
 			if [[ -r "$imp" ]]; then
 				_TP_DEPS+=("$imp")
 				_tui.theme_parse_into "$imp" $((depth + 1))
 			else
-				tui.log.warn "theme: @import '$imp' in $file cannot be read"
+				_tui.theme_report warn "$imp" "@import in $file"
 			fi
 		elif [[ "$line" =~ $open_re ]]; then
 			cur="${BASH_REMATCH[1]/:/_}"
@@ -330,10 +373,12 @@ _tui.theme_load_file() {
 }
 
 tui.load_theme() {
-	local file="$1"
+	local file="$1" _TUI_THEME_CALLER="${_TUI_THEME_CALLER:-tui.load_theme at ${BASH_SOURCE[1]}:${BASH_LINENO[0]}}" # local: the caller of this load only
+	_tui_path_dabt "$file"
+	file="$_DP"
 	tui.log.debug "tui.load_theme: file=$file overlay=${_TUI_THEME_OVERLAY:-<none>}"
 	[[ -r "$file" ]] || {
-		tui.log.warn "tui.load_theme: cannot read '$file'"
+		_tui.theme_report error "$file" "tui.load_theme"
 		echo "tui.load_theme: cannot read '$file'" >&2
 		return 1
 	}
@@ -343,7 +388,7 @@ tui.load_theme() {
 	# page stylesheet so it stays in force across page changes.
 	if [[ -n "${_TUI_THEME_OVERLAY:-}" && "$file" != "$_TUI_THEME_OVERLAY" ]]; then
 		tui.log.debug "tui.load_theme: re-applying overlay $_TUI_THEME_OVERLAY on top of $file"
-		tui.load_theme "$_TUI_THEME_OVERLAY"
+		_TUI_THEME_CALLER="the theme overlay (tui.theme.set)" tui.load_theme "$_TUI_THEME_OVERLAY"
 	fi
 }
 # _tui._find_theme_collisions - scans the just-loaded theme for classes

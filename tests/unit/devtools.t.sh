@@ -80,7 +80,7 @@ t_devtools_tabs_wrap_with_arrows_and_jump_with_digits() {
 	eq "1" "$_TUI_DTL_TAB"
 	_tui_devtools.key left
 	_tui_devtools.key left
-	eq "3" "$_TUI_DTL_TAB"
+	eq "4" "$_TUI_DTL_TAB" # 0 wraps to the last tab, Console
 	_tui_devtools.key 3
 	eq "2" "$_TUI_DTL_TAB"
 }
@@ -239,4 +239,63 @@ t_devtools_snapshot_signature_changes_with_the_reserved_rows() {
 	eq "8" "$_TUI_DBG_ROWS"
 	_dtl_end
 	eq "0" "$_TUI_DBG_ROWS"
+}
+
+# the Console tab shows the log file as it is written
+_dtl_log_restore() { TUI_LOG_DIR="$_DTL_LOGDIR_ORIG"; TUI_APP_NAME="$_DTL_APP_ORIG"; _TUI_LOG_LV=$_DTL_LV_ORIG; _TUI_LOG_DIR_OK=""; _tui_devtools.console_close; _TUI_DTL_LOGFILE="" _TUI_DTL_LOG=(); }
+_dtl_log_setup() {
+	_dtl_setup
+	[[ -v _DTL_LOGDIR_ORIG ]] || { _DTL_LOGDIR_ORIG="$TUI_LOG_DIR" _DTL_APP_ORIG="$TUI_APP_NAME" _DTL_LV_ORIG=$_TUI_LOG_LV; }
+	TUI_LOG_DIR="$_T_ROOT/dtl_log_$RANDOM" TUI_APP_NAME=dtl
+	_TUI_LOG_DIR_OK="" _TUI_LOG_LV=1
+	_tui_devtools.console_close
+	_TUI_DTL_LOGFILE="" _TUI_DTL_LOG=()
+}
+
+t_devtools_console_tab_is_the_fifth_and_key_5_opens_it() {
+	_dtl_setup
+	eq "5" "${#_TUI_DTL_TABS[@]}"
+	_tui_devtools.key 5
+	eq "4 Console" "$_TUI_DTL_TAB ${_TUI_DTL_TABS[4]}"
+}
+
+t_devtools_console_shows_the_log_lines_and_follows_new_ones() {
+	_dtl_log_setup
+	tui.log "first line"
+	tui.log "oops" warn
+	_TUI_DTL_TAB=4
+	_tui_devtools.console_poll
+	eq "2" "${#_TUI_DTL_LOG[@]}"
+	match "${_TUI_DTL_LOG[0]}" '\[info\] first line$'
+	tui.log "later line" error
+	_tui_devtools.console_poll
+	eq "3" "${#_TUI_DTL_LOG[@]}"
+	match "${_TUI_DTL_LOG[2]}" '\[error\] later line$'
+	_tui_devtools.build_console 10
+	eq "1" "${_TUI_DTL_SEV[2]}" # warnings and errors are marked
+	eq "0" "${_TUI_DTL_SEV[0]}"
+	_dtl_log_restore
+}
+
+t_devtools_console_says_so_when_there_is_no_log_yet() {
+	_dtl_log_setup
+	_TUI_DTL_TAB=4
+	_tui_devtools.console_poll
+	_tui_devtools.build_console 10
+	match "${_TUI_DTL_LINES[0]}" 'no log'
+	_dtl_log_restore
+}
+
+t_devtools_console_scrolls_back_from_the_newest_line() {
+	_dtl_log_setup
+	local i
+	for ((i = 1; i <= 20; i++)); do tui.log "line $i"; done
+	_TUI_DTL_TAB=4
+	_tui_devtools.console_poll
+	_tui_devtools.build_console 5
+	match "${_TUI_DTL_LINES[4]}" 'line 20$'
+	_TUI_DTL_SCROLL=3
+	_tui_devtools.build_console 5
+	match "${_TUI_DTL_LINES[4]}" 'line 17$'
+	_dtl_log_restore
 }

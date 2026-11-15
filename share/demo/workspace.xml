@@ -29,7 +29,7 @@
         <label id="ws_d_slo" text="SLO"/>
       </pane>
     </pane>
-    <pane id="prompt" height="1" border="none">
+    <pane id="prompt" height="1c" border="none">
       <input id="ws_cmd" label=">" label_width="2" placeholder="help | status | logs svc | restart svc | ack svc | clear" submit="on_ws_submit" retain_input_on_submit="true" class="field"/>
     </pane>
     <bind key="r" action="on_ws_restart" desc="Restart the selected service"/>

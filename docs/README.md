@@ -47,15 +47,18 @@ This page is the map: how the framework is put together, and where to look for w
 |---|---|
 | **New here?**  Build a working app step by step | [tutorials/writing-your-first-app.md](tutorials/writing-your-first-app.md) |
 | **New here?**  Write a plugin step by step | [tutorials/writing-your-first-plugin.md](tutorials/writing-your-first-plugin.md) |
+| **New here?**  Build a live dashboard with datasets, gauges and charts | [tutorials/live-dashboard.md](tutorials/live-dashboard.md) |
 | Structure, package and ship an application (technical guide) | [guide/writing-an-app.md](guide/writing-an-app.md) |
 | Build a page from XML (panes, widgets, templates, addons, themes) | [guide/markup.md](guide/markup.md) |
 | Understand grids and tabs in depth | [guide/grid-layouts-and-tabs.md](guide/grid-layouts-and-tabs.md) |
+| Build reusable components and templates | [guide/components.md](guide/components.md) |
 | Write callbacks, hover/focus feedback and scrolling viewports | [guide/callbacks-and-viewports.md](guide/callbacks-and-viewports.md) |
 | Make pages and callbacks fast: budgets, fork-free callbacks, memoising, what the caches do | [guide/performance.md](guide/performance.md) |
 | Watch the framework while the app runs: `dabt --debug`, the status strip and the dev-tools dock | [guide/debugging.md](guide/debugging.md) |
 | Animate: timers, `tui.set_canvas`, background painters, why overlays do not flicker | [guide/animation.md](guide/animation.md) |
 | Fold, tab and detach panes; right-click menus | [guide/collapsible-panes.md](guide/collapsible-panes.md), [guide/tabs-detach-menus.md](guide/tabs-detach-menus.md) |
 | Show live output: processes, streams, charts and number series | [guide/live-output.md](guide/live-output.md), [guide/charts.md](guide/charts.md) |
+| Keep rows in datasets that widgets follow: append, change, remove, sort, stats | [guide/data.md](guide/data.md) |
 | Bind keys and mouse, use the command bar, footer, default pages | [guide/input-bindings.md](guide/input-bindings.md) |
 | Text editing, textarea, list, table, select, progress | [guide/widgets.md](guide/widgets.md) |
 | Show Markdown: the renderer, Settings > Markdown, themes, links, search, images | [guide/markdown.md](guide/markdown.md) |

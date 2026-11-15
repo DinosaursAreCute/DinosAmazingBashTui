@@ -38,9 +38,15 @@ tui.log.level "${TUI_LOG_LEVEL:-info}" 2>/dev/null || tui.log.level info
 
 # tui.log.file -> stdout : today's log file; the name follows the date, so a run past midnight rolls over
 tui.log.file() {
+	_tui_log.path
+	printf '%s\n' "$_TUI_LOG_PATH"
+}
+# _tui_log.path - _TUI_LOG_PATH = today's log file (no fork: the dev-tools Console tab asks every tick)
+declare -g _TUI_LOG_PATH=""
+_tui_log.path() {
 	local d
 	printf -v d '%(%Y-%m-%d)T' -1
-	printf '%s\n' "$TUI_LOG_DIR/${d}_${TUI_APP_NAME}.log"
+	_TUI_LOG_PATH="$TUI_LOG_DIR/${d}_${TUI_APP_NAME}.log"
 }
 
 # tui.log MSG [LEVEL] - appends to tui.log.file. Fork-free once the folder exists. A level the filter does not know

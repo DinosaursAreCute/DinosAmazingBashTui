@@ -256,7 +256,7 @@ stateDiagram-v2
 | Command bar | `ctrl+p` (always), `:` (palette) | `tui.palette.open`: opens a modal | overlay on top of the page | layer cover, appended to the same write |
 | Wheel | `wheel:up/down/left/right`, with `shift`/`ctrl` | `tui.action.scroll` (wheel) | widget wheel first (`_tui_wx.wheel`), else pane under the pointer | bursts merged, one repaint |
 | Click | `mouse:left` (click) | `tui.action.click` | see machine C | per widget kind |
-| Right / middle / side buttons | `mouse:right`... | no default; user binds, `contextmenu` layers | whatever the bind does | |
+| Right / middle / side buttons | `mouse:right`... | `tui.action.contextmenu`: opens the `<contextmenu>` owning the spot; a user bind overrides | whatever the bind does | |
 | Markdown keys | `alt+j/k/l`, `alt+left/right` (markdown) | link nav, history | link focus, document | markdown caches |
 | Paste | bracketed paste | `tui.action.paste` | inserts into the focused text widget (single-line: newlines become spaces, controls dropped) | the widget |
 | Terminal resize | `SIGWINCH` | `tui.on_resize` sets a flag | whole screen | [lifecycle §5.1](lifecycle.md#51-resize) |

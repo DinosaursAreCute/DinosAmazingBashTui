@@ -113,3 +113,21 @@ ti_button_release_skips_the_unpress_redraw_after_a_full_render() {
 	_TUI_RUNNING=0
 	eval "$saved"
 }
+
+ti_goto_runs_the_leaving_pages_on_leave_hook_once_with_the_next_page() {
+	local d="$_T_ROOT/leave_$RANDOM"
+	mkdir -p "$d"
+	printf '%s' '<tui on_leave="lv_hook"><pane id="root"/></tui>' >"$d/a.xml"
+	printf '%s' '<tui><pane id="root"/></tui>' >"$d/b.xml"
+	LV_CALLS=()
+	lv_hook() { LV_CALLS+=("$1"); }
+	tui.reset_ui >/dev/null
+	_TUI_MARKUP_DIR="$d"
+	tui.goto "$d/a.xml" >/dev/null 2>&1
+	eq "lv_hook" "$_TUI_P_ON_LEAVE"
+	tui.goto "$d/a.xml" >/dev/null 2>&1 # a reload of the same page is not a leave
+	eq "0" "${#LV_CALLS[@]}"
+	tui.goto "$d/b.xml" >/dev/null 2>&1
+	eq "$d/b.xml" "${LV_CALLS[*]}"
+	eq "" "$_TUI_P_ON_LEAVE" # b declares none
+}

@@ -9,7 +9,8 @@
 #   focus_nav  arrows|tab|both   (any member; default tab) arrows: one Tab stop per group, arrow keys move inside it
 #   focus_wrap true|false   (any member) whether arrows wrap at the group's ends (default true)
 #   focus_next ID / focus_prev ID   explicit successor / predecessor, overrides the order
-#   autofocus  true         focused once when the page is first drawn
+#   autofocus  true         focused once when the page is first drawn; <tui focus_on_enter="first"> also focuses the first widget in Tab order when none is marked
+#                           (only on a page with <tui focus_on_enter="first">; otherwise a page starts unfocused)
 #
 # _TUI_FOCUSABLE (document order, all focusable) and _TUI_FOCUS_TAB (Tab order) are derived by _tui_focus.rebuild,
 # _TUI_FOCUS_POS maps id -> index in _TUI_FOCUS_TAB. _TUI_FOCUS_DIRTY marks them stale (_tui_w.changed, tui.focus.set);
@@ -269,4 +270,6 @@ _tui_focus.autofocus() {
 			return 0
 		}
 	done
+	# nothing marked and <tui focus_on_enter="first">: the first widget in Tab order (without the attribute a page starts unfocused)
+	case "$_TUI_P_FOCUS_ON_ENTER" in first) ((${#_TUI_FOCUS_TAB[@]})) && _tui_focus.set "${_TUI_FOCUS_TAB[0]}" ;; esac
 }

@@ -339,6 +339,110 @@ ti_layer_detached_pane_layout_persists_too() {
 	eq "10 30" "${_TUI_L_ROW[a]} ${_TUI_L_COL[a]}"
 }
 
+# ── context menus ─────────────────────────────────────────────────────────
+
+_LY_MENUS='<tui>
+  <pane id="root" split="v">
+    <pane id="a" border="single">
+      <button id="a_btn" text="one"/>
+      <contextmenu id="m_btn" for="#a_btn" width="12" height="4"><button id="m_btn_i" text="x"/></contextmenu>
+      <button id="a_other" text="two"/>
+      <contextmenu id="m_a" width="12" height="4"><button id="m_a_i" text="y"/></contextmenu>
+    </pane>
+    <pane id="b" border="single">
+      <pane id="b_in" border="single"><button id="b_btn" text="z"/></pane>
+    </pane>
+  </pane>
+  <contextmenu id="m_root" width="12" height="4"><button id="m_root_i" text="r"/></contextmenu>
+</tui>'
+
+# _ly_rclick WIDGET PANE [ROW COL] - the state a right press leaves, then the default action
+_ly_rclick() {
+	TUI_EVENT_WIDGET="$1" TUI_EVENT_PANE="$2" TUI_EVENT_Y="${3:-5}" TUI_EVENT_X="${4:-10}"
+	_HIT_KIND="" _HIT_ID="" _HIT_PANE="$2"
+	tui.action.contextmenu
+}
+
+ti_contextmenu_starts_hidden_and_belongs_to_its_for_target_else_to_the_pane_it_sits_in() {
+	_ly_load "$_LY_MENUS"
+	eq "" "$(<"$_LYD/err")"
+	ok '! _tui_layer.is_visible m_btn'
+	eq "m_btn m_a m_root" "${_TUI_L_CM[a_btn]} ${_TUI_L_CM[a]} ${_TUI_L_CM[root]}"
+}
+
+ti_contextmenu_layer_tag_takes_no_row_of_the_pane_it_sits_in() {
+	_ly_load "$_LY_MENUS"
+	eq "0 1" "${_TUI_W_ROW[a_btn]} ${_TUI_W_ROW[a_other]}"
+}
+
+ti_contextmenu_of_a_widget_opens_only_while_the_pointer_is_on_that_widget() {
+	_ly_load "$_LY_MENUS"
+	_ly_rclick a_other a
+	ok '! _tui_layer.is_visible m_btn'
+	ok '_tui_layer.is_visible m_a'
+	tui.layer.hide m_a
+	_ly_rclick a_btn a
+	ok '_tui_layer.is_visible m_btn'
+	ok '! _tui_layer.is_visible m_a'
+}
+
+ti_contextmenu_opens_at_the_pointer() {
+	_ly_load "$_LY_MENUS"
+	_ly_rclick a_btn a 7 20
+	eq "7 20" "${_TUI_L_ROW[m_btn]} ${_TUI_L_COL[m_btn]}"
+}
+
+ti_contextmenu_closest_owner_wins_and_the_page_level_menu_is_the_fallback() {
+	_ly_load "$_LY_MENUS"
+	_ly_rclick b_btn b_in
+	ok '_tui_layer.is_visible m_root'
+	ok '! _tui_layer.is_visible m_a'
+}
+
+ti_contextmenu_without_an_owner_in_the_path_does_nothing() {
+	_ly_load '<tui>
+  <pane id="root" split="v">
+    <pane id="a" border="single"><button id="a_btn" text="one"/></pane>
+    <pane id="b" border="single"><button id="b_btn" text="two"/></pane>
+  </pane>
+  <contextmenu id="m_btn" for="#a_btn" width="12" height="4"><button id="m_i" text="x"/></contextmenu>
+</tui>'
+	_ly_rclick b_btn b
+	ok '! _tui_layer.is_visible m_btn'
+}
+
+ti_contextmenu_right_click_elsewhere_closes_the_open_one_and_opens_the_new_one() {
+	_ly_load "$_LY_MENUS"
+	_ly_rclick a_btn a
+	_HIT_KIND="" _HIT_PANE=b_in
+	_ly_rclick b_btn b_in
+	ok '! _tui_layer.is_visible m_btn'
+	ok '_tui_layer.is_visible m_root'
+}
+
+ti_contextmenu_right_click_on_the_open_menu_leaves_it_open() {
+	_ly_load "$_LY_MENUS"
+	_ly_rclick a_btn a
+	TUI_EVENT_WIDGET=m_btn_i TUI_EVENT_PANE=m_btn
+	_HIT_KIND="" _HIT_PANE=m_btn
+	tui.action.contextmenu
+	ok '_tui_layer.is_visible m_btn'
+}
+
+ti_contextmenu_is_ignored_under_a_modal_layer() {
+	_ly_load '<tui>
+  <pane id="root" split="v"><pane id="a" border="single"><button id="a_btn" text="one"/></pane></pane>
+  <modal id="mod" x="center" y="center" width="20" height="5"><button id="mod_i" text="ok"/></modal>
+  <contextmenu id="m_a" for="#a_btn" width="12" height="4"><button id="m_i" text="x"/></contextmenu>
+</tui>'
+	_ly_rclick a_btn a 2 2
+	ok '! _tui_layer.is_visible m_a'
+}
+
+ti_contextmenu_default_binding_is_mouse_right() {
+	eq "tui.action.contextmenu" "${_TUI_BIND_DEF[mouse:right]:-}"
+}
+
 # ── validator ─────────────────────────────────────────────────────────────
 
 _ly_validate() { # XML -> _LYV: the findings of one page
@@ -379,6 +483,20 @@ ti_layer_validator_reports_a_bad_anchor_placement_and_a_detachable_pane_in_the_w
 	ok '[[ "$_LYV" == *"x=\"left\""* && "$_LYV" == *"y=\"middle\""* ]]'
 	ok '[[ "$_LYV" == *"float"* ]]'
 	ok '[[ "$_LYV" == *"detachable but sits in a"* ]]'
+}
+
+ti_layer_validator_checks_the_contextmenu_for_target_owner_and_ignored_placement() {
+	_ly_validate '<tui>
+  <pane id="root"><button id="b" text="x"/></pane>
+  <contextmenu id="m1" for="#b"/>
+  <contextmenu id="m2" for="#b" x="3" anchor="screen"/>
+  <contextmenu id="m3" for="b"/>
+  <contextmenu id="m4" for="#ghost"/>
+</tui>'
+	ok '[[ "$_LYV" == *"for=\"#ghost\""* ]]'
+	ok '[[ "$_LYV" == *"for=\"b\" - use #id"* ]]'
+	ok '[[ "$_LYV" == *"m2"*"m1"*"both belong to #b"* ]]'
+	ok '[[ "$_LYV" == *"ignores x"* && "$_LYV" == *"ignores anchor"* ]]'
 }
 
 ti_layer_dock_finds_its_place_after_the_siblings_floated_and_docked_in_another_order() {

@@ -27,6 +27,10 @@ source "${SCRIPT_DIR}/tui_configuration.sh"
 source "${SCRIPT_DIR}/perf.sh"
 # shellcheck source=debug.sh
 source "${SCRIPT_DIR}/debug.sh"
+# shellcheck source=state/tui_data.sh
+source "${SCRIPT_DIR}/state/tui_data.sh"
+# shellcheck source=render/tui_chart.sh
+source "${SCRIPT_DIR}/render/tui_chart.sh"
 # shellcheck source=chrome/tui_debugbar.sh
 source "${SCRIPT_DIR}/chrome/tui_debugbar.sh"
 # shellcheck source=chrome/tui_devtools.sh
@@ -101,6 +105,8 @@ source "${SCRIPT_DIR}/markup/tui_refresh.sh"
 source "${SCRIPT_DIR}/tui_registry.sh"
 # shellcheck source=markup/tui_build.sh
 source "${SCRIPT_DIR}/markup/tui_build.sh"
+# shellcheck source=markup/tui_data_tags.sh
+source "${SCRIPT_DIR}/markup/tui_data_tags.sh"
 # shellcheck source=chrome/tui_layer.sh
 source "${SCRIPT_DIR}/chrome/tui_layer.sh"
 # shellcheck source=chrome/tui_modal.sh
@@ -119,6 +125,8 @@ source "${SCRIPT_DIR}/state/tui_store.sh"
 source "${SCRIPT_DIR}/style/tui_style.sh"
 # shellcheck source=markup/tui_cache.sh
 source "${SCRIPT_DIR}/markup/tui_cache.sh"
+# shellcheck source=chrome/tui_nav.sh
+source "${SCRIPT_DIR}/chrome/tui_nav.sh"
 # shellcheck source=apps/tui_sync.sh
 source "${SCRIPT_DIR}/apps/tui_sync.sh"
 # shellcheck source=widgets/tui_text.sh

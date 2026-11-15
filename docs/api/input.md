@@ -137,7 +137,7 @@ Every key and mouse event is decoded into a name (`ctrl+s`, `pgdn`, `wheel:up`, 
 
 Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` or `tui.cmd.add`. All are bound by default and rebindable. More actions live with their modules: [`tui.action.text_keys`](widgets/tui.action.text_keys.md), [`tui.action.update`](apps/tui.action.update.md), [`tui.palette.open`](chrome/tui.palette.open.md).
 
-<!-- api: tui.action.quit tui.action.quit_now tui.action.focus_next tui.action.focus_prev tui.action.focus_dir tui.action.unfocus tui.action.activate tui.action.click tui.action.scroll tui.action.page tui.action.scroll_top tui.action.scroll_bottom tui.action.pane_next tui.action.pane_prev tui.action.pane_dir tui.action.focus_pane tui.action.resize_mode tui.action.collapse_toggle tui.action.page_reset tui.action.page_reset_field tui.action.page_reset_all tui.action.scroll_or_pane tui.action.paste tui.action.goto tui.action.goto_default tui.action.back tui.action.reload_page tui.action.redraw -->
+<!-- api: tui.action.quit tui.action.quit_now tui.action.focus_next tui.action.focus_prev tui.action.focus_dir tui.action.unfocus tui.action.activate tui.action.click tui.action.contextmenu tui.action.scroll tui.action.page tui.action.scroll_top tui.action.scroll_bottom tui.action.pane_next tui.action.pane_prev tui.action.pane_dir tui.action.focus_pane tui.action.resize_mode tui.action.collapse_toggle tui.action.page_reset tui.action.page_reset_field tui.action.page_reset_all tui.action.scroll_or_pane tui.action.paste tui.action.goto tui.action.goto_default tui.action.back tui.action.reload_page tui.action.redraw -->
 
 | Function | Summary |
 |---|---|
@@ -149,6 +149,7 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 | [`tui.action.unfocus`](input/tui.action.unfocus.md) | Removes focus from the focused widget (`esc`). |
 | [`tui.action.activate`](input/tui.action.activate.md) | Acts on the focused widget as Enter does: presses a button, toggles a checkbox, submits a text widget, opens a select, or runs a list/table action. |
 | [`tui.action.click`](input/tui.action.click.md) | Handles a left press or drag: jumps a scrollbar (the pointer is in a scrollbar hit zone, 3 cells wide), else acts on the widget under the pointer (a button runs on release, if the pointer is still on it), else removes focus. |
+| [`tui.action.contextmenu`](input/tui.action.contextmenu.md) | Opens the `<contextmenu>` that owns what is under the pointer, at the pointer. Bound to `mouse:right` by default. |
 | [`tui.action.scroll`](input/tui.action.scroll.md) | Scrolls the target pane by `N` lines (up/down, default 3) or columns (left/right, default 5). |
 | [`tui.action.page`](input/tui.action.page.md) | Scrolls the target pane by one screen (its height minus 3 rows). |
 | [`tui.action.scroll_top`](input/tui.action.scroll_top.md) | Scrolls the target pane to the top left. |
@@ -187,6 +188,8 @@ Use as `COMMAND` in `tui.bind`, `<bind action="…">`, `<button action="…">` o
 {% include_relative input/tui.action.activate.md %}
 
 {% include_relative input/tui.action.click.md %}
+
+{% include_relative input/tui.action.contextmenu.md %}
 
 {% include_relative input/tui.action.scroll.md %}
 

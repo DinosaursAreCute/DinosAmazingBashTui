@@ -1,0 +1,44 @@
+# Keeps the Codeberg copy of this repository in sync: every branch and tag pushed here is pushed there too.
+# Codeberg has pull mirrors disabled, so GitHub pushes instead. The Codeberg repo is a read-only copy; never push to it directly.
+#   push (any branch/tag) -> Codeberg branches/tags updated, deleted ones pruned
+#   manual run            -> full re-sync
+#
+# Repository settings (GitHub: Settings -> Secrets and variables -> Actions):
+#   secret   CODEBERG_TOKEN   Codeberg access token with repository read+write
+#   variable CODEBERG_REPO    optional, "<user>/<repo>" on Codeberg (default: DinosaursAreCute/DinosAmazingBashTui)
+name: Sync to Codeberg
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-codeberg
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push branches and tags to Codeberg
+        env:
+          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+          CODEBERG_REPO: ${{ vars.CODEBERG_REPO || 'DinosaursAreCute/DinosAmazingBashTui' }}
+        run: |
+          if [[ -z "$CODEBERG_TOKEN" ]]; then
+            echo "::error::Secret CODEBERG_TOKEN is not set"; exit 1
+          fi
+          user="${CODEBERG_REPO%%/*}"
+          # Explicit refs (not --mirror): the checkout also carries refs/pull/* which Codeberg rejects.
+          git push --prune \
+            "https://${user}:${CODEBERG_TOKEN}@codeberg.org/${CODEBERG_REPO}.git" \
+            'refs/remotes/origin/*:refs/heads/*' 'refs/tags/*:refs/tags/*'

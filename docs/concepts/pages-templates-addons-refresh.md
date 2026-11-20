@@ -94,18 +94,4 @@ All of these live in variables named `_TUI_P_...`, so the page snapshot carries 
 
 A page's signature is the modification time of every file it depends on: the page, each `<include>` (found by `tui.cache.deps_of`), and every addon file and addon folder. A folder's time changes when a file is added or removed, so a new addon is noticed without listing the folder on every load. The signature is checked at start-up; afterwards the cache is trusted (`TUI_CACHE_TRUST=0` keeps checking), which is why a page changed on purpose while the app runs uses `tui.page.refresh` or `tui.cache.forget`, not a file touch.
 
-## 7. How it is tested
 
-- `tests/unit/ops.t.sh`, `compose.t.sh`, `addon.t.sh`: the operations, every directive and every addon op on small fixtures.
-- `tests/unit/refresh.t.sh`: the central property. A page refreshed from "none" to "all five addons" and back equals a full load in both directions (a sorted dump of all pane and widget arrays plus the widget order); the Generated page refreshed equals a full load and keeps what was typed outside the regenerated pane; focus on a removed widget is cleared; a change outside the panes falls back to a rebuild; a no-change refresh rebuilds nothing; the compute part stays under 100 ms.
-- `tests/unit/job.t.sh`: results, exit status, cancel, replacement, the spinner's lifecycle and that it is gone before DONEFN.
-- `tests/unit/docs_examples.t.sh`: the page examples in the guides validate.
-- `tools/benchmarks/profiler/profile.sh --scenario addons` and `--scenario generated` rate the real app against the 100 ms budget.
-
-## 8. Limits and the next steps
-
-- The redraw after a refresh is a full frame. Painting only the rebuilt panes' rectangles would save most of the 15 ms; it needs a check that nothing outside moved.
-- `<tabs>` and anything not in the plain set force the background rebuild. Supporting them in place means giving them signatures and teardown of their own state.
-- Anonymous panes cannot be targets; the answer is an id.
-- Factories (`tui.factory.*`) still use their own bookkeeping to create and drop widgets; they are the natural next client of the node operations.
-- A generated page (see the Board tab of the Compose demo page, `share/demo/compose.xml`) is bound by what bash can create per widget. A list or table widget holds any number of rows in one widget; use it for long lists.

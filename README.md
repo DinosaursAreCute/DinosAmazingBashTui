@@ -1,5 +1,3 @@
-## Table of Contents
-
 <p align="center">
   <img alt="D.A.B.T - DinosAmazingBashTui" src="https://raw.githubusercontent.com/DinosaursAreCute/DinosAmazingBashTui/main/assets/logo-transparent.png" width="800" height="400"/>
 

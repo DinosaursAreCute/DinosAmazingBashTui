@@ -43,13 +43,17 @@ WORK_FRAMES = {"_tui_input.key_event", "_tui._handle_mouse", "_tui._apply_resize
 KINDS = ("sh", "ex", "fk", "idle", "wait", "probe")
 
 
+NOT_A_CALL = frozenset(("main", "source", "⟨main⟩"))   # stack entries that are not function calls: the script itself and sourced files
+
+
 class Bucket:
-    __slots__ = ("stacks", "lines", "calls", "edges", "forks", "execs", "tot", "nlines", "pids", "focus")
+    __slots__ = ("stacks", "lines", "calls", "depth", "edges", "forks", "execs", "tot", "nlines", "pids", "focus")
 
     def __init__(self):
         self.stacks = {}   # (stack id, kind key) -> [us, n]
         self.lines = {}    # "file:line" -> [sh_us, ex_us, fk_us, hits]
         self.calls = collections.Counter()
+        self.depth = collections.Counter()   # (function, call depth) -> calls; depth = real function frames on the stack (not main/source), 1 = called from the top level
         self.edges = collections.Counter()
         self.forks = collections.Counter()   # (function, "file:line") -> new subshells
         self.execs = {}    # (word, function) -> [count, us]
@@ -263,8 +267,12 @@ class Aggregator:
                 cp, m = 0, min(len(last), len(frames))
                 while cp < m and last[cp] == frames[cp]:
                     cp += 1
+                real = sum(1 for fr in frames[:cp] if fr not in NOT_A_CALL)
                 for j in range(cp, len(frames)):
                     bucket.calls[frames[j]] += 1
+                    if frames[j] not in NOT_A_CALL:
+                        real += 1
+                        bucket.depth[(frames[j], real)] += 1
                     if j:
                         bucket.edges[(frames[j - 1], frames[j])] += 1
                 self.last_frames[pid] = frames
@@ -284,7 +292,7 @@ class Aggregator:
         for key, b in self.buckets.items():
             out["buckets"][key] = {
                 "stacks": {(self.stack_info[sid][0], kk): v for (sid, kk), v in b.stacks.items()},
-                "lines": b.lines, "calls": dict(b.calls), "edges": dict(b.edges),
+                "lines": b.lines, "calls": dict(b.calls), "depth": dict(b.depth), "edges": dict(b.edges),
                 "forks": dict(b.forks), "focus": dict(b.focus),
                 "execs": {(w.decode("utf-8", "replace"), f): v for (w, f), v in b.execs.items()},
                 "tot": b.tot, "nlines": b.nlines, "pids": len(b.pids),

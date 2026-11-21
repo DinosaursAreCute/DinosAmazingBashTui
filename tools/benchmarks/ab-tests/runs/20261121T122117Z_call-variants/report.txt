@@ -1,0 +1,44 @@
+ ◆ A/B  call-variants  f2079c0 call overhead with args, locals and realistic bodies · dirty               30 rounds · 9s · 2026-11-21 12:21
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─ RESULT ───────────────────────────────────────────────────────────── "average" = median over 30 rounds · one sample = 10,000 iterations ╮
+│ empty                    median 18.7 ms      slowest 19.7 ms      fastest 18.2 ms      (base)                                            │
+│                          1.87 µs per iteration                                                                                           │
+│ call0                    median 35.0 ms      slowest 36.7 ms      fastest 34.0 ms                                                        │
+│                          3.50 µs per iteration  ·  net 1.64 µs per iteration  ·  = 1.64 µs per call                                      │
+│ call3args                median 39.0 ms      slowest 39.8 ms      fastest 38.0 ms                                                        │
+│                          3.90 µs per iteration  ·  net 2.04 µs per iteration  ·  = 2.04 µs per call                                      │
+│ local3                   median 54.3 ms      slowest 55.6 ms      fastest 52.8 ms                                                        │
+│                          5.43 µs per iteration  ·  net 3.57 µs per iteration  ·  = 3.57 µs per call                                      │
+│ expr_inline              median 23.6 ms      slowest 24.1 ms      fastest 23.1 ms                                                        │
+│                          2.36 µs per iteration  ·  net 493 ns per iteration                                                              │
+│ expr_call                median 40.6 ms      slowest 42.2 ms      fastest 39.8 ms                                                        │
+│                          4.06 µs per iteration  ·  net 2.19 µs per iteration  ·  = 2.19 µs per call                                      │
+│ test_inline              median 21.4 ms      slowest 22.4 ms      fastest 20.9 ms                                                        │
+│                          2.14 µs per iteration  ·  net 277 ns per iteration                                                              │
+│ test_call                median 39.5 ms      slowest 41.1 ms      fastest 38.6 ms                                                        │
+│                          3.95 µs per iteration  ·  net 2.08 µs per iteration  ·  = 2.08 µs per call                                      │
+│                                                                                                                                          │
+│ call0 is SLOWER than empty by an average of 87.8% / 16.4 ms = +1.64 µs per iteration, 1.64 µs per call                                   │
+│ call3args is SLOWER than empty by an average of 109.1% / 20.4 ms = +2.04 µs per iteration, 2.04 µs per call                              │
+│ local3 is SLOWER than empty by an average of 191.3% / 35.7 ms = +3.57 µs per iteration, 3.57 µs per call                                 │
+│ expr_inline is SLOWER than empty by an average of 26.4% / 4.93 ms = +493 ns per iteration                                                │
+│ expr_call is SLOWER than empty by an average of 117.5% / 21.9 ms = +2.19 µs per iteration, 2.19 µs per call                              │
+│ test_inline is SLOWER than empty by an average of 14.9% / 2.77 ms = +277 ns per iteration                                                │
+│ test_call is SLOWER than empty by an average of 111.7% / 20.8 ms = +2.08 µs per iteration, 2.08 µs per call                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ SCORECARD ───────────────────────────────────────────────── typical = median per sample · ┃ = base side (empty) median · bar runs to 2x ╮
+│ side                             n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● empty                         30    18.7 ms    19.7 ms  █████████|........  ▁▁▂▂█▄▃▃▄▂                                                 │
+│ ● call0                         30    35.0 ms    36.7 ms  █████████████████.  ▁▇▂▁▂█▆▅▄▄                                                 │
+│ ● call3args                     30    39.0 ms    39.8 ms  ██████████████████  ▁▄▆▃▅█▇▆▅▂                                                 │
+│ ● local3                        30    54.3 ms    55.6 ms  ██████████████████  ▁▅▅▆▅█▄▆▆▂                                                 │
+│ ● expr_inline                   30    23.6 ms    24.1 ms  ███████████.......  ▁▁▄▅▆█▄▃▆▇                                                 │
+│ ● expr_call                     30    40.6 ms    42.2 ms  ██████████████████  ▁▁█▅▆▆▇▂▃▃                                                 │
+│ ● test_inline                   30    21.4 ms    22.4 ms  ██████████........  ▂▇▁▃▅▅▂▅▇█                                                 │
+│ ● test_call                     30    39.5 ms    41.1 ms  ██████████████████  ▁▁█▃▃█▆▅▅▄                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+sides run interleaved, starting side rotates each round · verdict: Welch t on the means, |t|<2 = within noise
+summary: test_call vs empty: +111.7% slower (t=158.8)

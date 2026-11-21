@@ -1,0 +1,13 @@
+name	hit
+stamp	20261121T123904Z
+cmd	tools/bench/hit.sh
+git	f2079c0+dirty
+paths	lib
+functions_instrumented	2178
+baseline_ms	1592.3
+counted_ms	2602.6
+exit	0
+calls	29701
+max_depth	6
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos

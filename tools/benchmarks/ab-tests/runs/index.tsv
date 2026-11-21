@@ -1,0 +1,9 @@
+20261121T122048Z	call-depth	f2079c0+dirty	slope=2739.3 ns/unit per x, intercept=-1595.3 ns/unit
+20261121T122117Z	call-variants	f2079c0+dirty	test_call vs empty: +111.7% slower (t=158.8)
+20261121T122126Z	call-subshell	f2079c0+dirty	cmdsub vs loop: +16973.4% slower (t=339.6)
+20261121T122129Z	selfcheck	f2079c0+dirty	a2 vs a1: +0.4% ~noise (t=1.9)
+20261121T123640Z	call-depth	f2079c0+dirty	slope=2772.6 ns/unit per x, intercept=-1609.4 ns/unit
+20261121T123718Z	call-variants	f2079c0+dirty	test_call vs empty: +108.7% slower (t=256.3)
+20261121T123730Z	call-subshell	f2079c0+dirty	cmdsub vs loop: +17430.1% slower (t=228.8)
+20261121T123734Z	selfcheck	f2079c0+dirty	a2 vs a1: +0.5% ~noise (t=1.0)
+20261121T125308Z	inline-attr-get	f2079c0+dirty	inlined vs original: -3.1% faster (t=11.5)

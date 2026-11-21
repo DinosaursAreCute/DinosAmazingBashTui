@@ -1,0 +1,31 @@
+╭─ SUITE SUMMARY ──────────────── 4 runs · median per sample · per unit = one loop iteration · *per call = net of the control, one call/op ╮
+│ scenario          side                   median    slowest    fastest   per unit  per call*  vs base                                     │
+│ ────────────────────────────────────────────────────────────────────────────────────────────────────                                     │
+│ call-depth        inline                18.8 ms    19.4 ms    18.3 ms    1.88 µs             (base)                                      │
+│                   d1                    35.6 ms    36.7 ms    34.2 ms    3.56 µs    1.69 µs  90% SLOWER                                  │
+│                   d2                    55.3 ms    56.4 ms    53.0 ms    5.53 µs    1.82 µs  195% SLOWER                                 │
+│                   d4                     103 ms     104 ms     100 ms   10.30 µs    2.11 µs  449% SLOWER                                 │
+│                   d8                     203 ms     206 ms     200 ms   20.32 µs    2.31 µs  984% SLOWER                                 │
+│                   d16                    460 ms     464 ms     455 ms   45.95 µs    2.75 µs  2351% SLOWER                                │
+│ ────────────────────────────────────────────────────────────────────────────────────────────────────                                     │
+│ call-variants     empty                 18.2 ms    18.6 ms    17.7 ms    1.82 µs             (base)                                      │
+│                   call0                 34.4 ms    36.1 ms    33.3 ms    3.44 µs    1.62 µs  89% SLOWER                                  │
+│                   call3args             38.2 ms    39.9 ms    37.0 ms    3.82 µs    2.00 µs  110% SLOWER                                 │
+│                   local3                53.4 ms    54.8 ms    52.2 ms    5.34 µs    3.52 µs  193% SLOWER                                 │
+│                   expr_inline           22.7 ms    23.1 ms    22.1 ms    2.27 µs             25% SLOWER                                  │
+│                   expr_call             39.1 ms    39.9 ms    38.4 ms    3.91 µs    2.09 µs  115% SLOWER                                 │
+│                   test_inline           21.0 ms    21.5 ms    20.5 ms    2.10 µs             16% SLOWER                                  │
+│                   test_call             38.0 ms    38.9 ms    36.8 ms    3.80 µs    1.98 µs  109% SLOWER                                 │
+│ ────────────────────────────────────────────────────────────────────────────────────────────────────                                     │
+│ call-subshell     loop                  0.58 ms    0.74 ms    0.57 ms    1.94 µs             (base)                                      │
+│                   direct                1.03 ms    1.07 ms    1.01 ms    3.42 µs    1.48 µs  76% SLOWER                                  │
+│                   cmdsub                 102 ms     108 ms    96.5 ms  340.67 µs  338.73 µs  17430% SLOWER                               │
+│ ────────────────────────────────────────────────────────────────────────────────────────────────────                                     │
+│ selfcheck         a1                    9.20 ms    9.77 ms    8.92 ms                        (base)                                      │
+│                   a2                    9.25 ms    11.0 ms    8.97 ms                        ~noise (+0.5%, t=1.0)                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests/runs/20261121T123640Z_call-depth
+/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests/runs/20261121T123718Z_call-variants
+/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests/runs/20261121T123730Z_call-subshell
+/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests/runs/20261121T123734Z_selfcheck

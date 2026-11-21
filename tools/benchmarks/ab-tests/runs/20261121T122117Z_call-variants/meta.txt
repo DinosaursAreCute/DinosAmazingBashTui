@@ -1,0 +1,104 @@
+name	call-variants
+desc	call overhead with args, locals and realistic bodies
+stamp	20261121T122117Z
+rounds	30
+warmup	3
+units	10000
+control	empty
+unit_name	iteration
+per_name	call
+side	empty	run_empty		0
+side	call0	run_call0		1
+side	call3args	run_call3args		1
+side	local3	run_local3		1
+side	expr_inline	run_expr_inline		0
+side	expr_call	run_expr_call		1
+side	test_inline	run_test_inline		0
+side	test_call	run_test_call		1
+scenario_sha	266abfab2bbffc3e
+git	f2079c0+dirty
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos
+cpu	AMD Ryzen 7 2700X Eight-Core Processor | governor=? | load=2.58 2.30 2.05
+cwd	/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests
+bash	5.3.20(1)-release
+
+--- empty body ---
+run_empty () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        :;
+    done
+}
+
+--- call0 body ---
+run_call0 () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        c0;
+    done
+}
+
+--- call3args body ---
+run_call3args () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        c3 a b c;
+    done
+}
+
+--- local3 body ---
+run_local3 () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        l3;
+    done
+}
+
+--- expr_inline body ---
+run_expr_inline () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        x=$((i + 1));
+    done
+}
+
+--- expr_call body ---
+run_expr_call () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        e1;
+    done
+}
+
+--- test_inline body ---
+run_test_inline () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        [[ $i -gt 5 ]];
+    done
+}
+
+--- test_call body ---
+run_test_call () 
+{ 
+    local i x;
+    for ((i = 0; i < 10000; i++))
+    do
+        t1;
+    done
+}

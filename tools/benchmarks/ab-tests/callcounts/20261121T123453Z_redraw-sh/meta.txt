@@ -1,0 +1,13 @@
+name	redraw-sh
+stamp	20261121T123453Z
+cmd	tools/bench/redraw.sh
+git	f2079c0+dirty
+paths	lib
+functions_instrumented	2178
+baseline_ms	5827.4
+counted_ms	8808.3
+exit	0
+calls	99292
+max_depth	32
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos

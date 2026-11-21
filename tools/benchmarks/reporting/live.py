@@ -43,10 +43,12 @@ class LiveUI:
     FOOT = 4
     SECTION_LINES = 4   # a running unit's section shows this many of its latest steps
 
-    def __init__(self, phases, out=None, tty=None, events=None, info_of=None):
+    def __init__(self, phases, out=None, tty=None, events=None, info_of=None, hint=None, show_trace=True):
         """phases: [(key, label, weight_per_step, steps)] - weights let traced (slower) steps count for more.
         info_of(group) -> (title, kind, budget_ms) or None: what a step's group is rated against (called when a step is printed)."""
         self.info_of = info_of or (lambda group: None)
+        self.hint = hint or "ctrl+c aborts · the app under test runs in a hidden terminal"   # footer text until the first step is done
+        self.show_trace = show_trace                                                         # the trace line of the footer (benchmarks without a tracer hide it)
         self.out = out or sys.stdout
         self.events = open(events, "a", buffering=1) if events else None   # --events FILE: one JSON object per line for other tools (the Studio app)
         self.tty = term.is_tty() if tty is None else tty
@@ -372,8 +374,8 @@ class LiveUI:
         else:
             l3 = f"  {c('trace', 'faint')} {c('idle', 'faint')}"
         l4 = (f"  {c('slowest so far', 'dim')} {c(self.slowest[0], 'text')} {c(fmt_ms(self.slowest[1]), 'orange')}"
-              if self.slowest else c("  ctrl+c aborts · the app under test runs in a hidden terminal", "faint"))
-        lines = l1.split("\n") + [l2, l3, l4]
+              if self.slowest else c("  " + self.hint, "faint"))
+        lines = l1.split("\n") + [l2] + ([l3] if self.show_trace else []) + [l4]
         self._foot_n = len(lines)
         self.out.write("\n".join(term.clip(ln, w - 1) for ln in lines))
         self.drawn = True

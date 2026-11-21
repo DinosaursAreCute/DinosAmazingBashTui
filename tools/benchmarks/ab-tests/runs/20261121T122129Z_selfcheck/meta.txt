@@ -1,0 +1,38 @@
+name	selfcheck
+desc	A vs A, must show no difference
+stamp	20261121T122129Z
+rounds	30
+warmup	3
+units	
+control	
+unit_name	unit
+per_name	call
+side	a1	work		
+side	a2	work		
+scenario_sha	e27b9304132e6a33
+git	f2079c0+dirty
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos
+cpu	AMD Ryzen 7 2700X Eight-Core Processor | governor=? | load=2.49 2.29 2.05
+cwd	/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests
+bash	5.3.20(1)-release
+
+--- a1 body ---
+work () 
+{ 
+    local i;
+    for ((i = 0; i < 5000; i++))
+    do
+        :;
+    done
+}
+
+--- a2 body ---
+work () 
+{ 
+    local i;
+    for ((i = 0; i < 5000; i++))
+    do
+        :;
+    done
+}

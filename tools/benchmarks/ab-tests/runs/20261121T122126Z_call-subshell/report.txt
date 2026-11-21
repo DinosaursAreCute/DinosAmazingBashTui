@@ -1,0 +1,24 @@
+ ◆ A/B  call-subshell  f2079c0 direct call vs command substitution (fork) · dirty                         20 rounds · 2s · 2026-11-21 12:21
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─ RESULT ──────────────────────────────────────────────────────────────── "average" = median over 20 rounds · one sample = 300 iterations ╮
+│ loop                     median 0.59 ms      slowest 0.69 ms      fastest 0.58 ms      (base)                                            │
+│                          1.98 µs per iteration                                                                                           │
+│ direct                   median 1.03 ms      slowest 1.08 ms      fastest 1.02 ms                                                        │
+│                          3.44 µs per iteration  ·  net 1.46 µs per iteration  ·  = 1.46 µs per call                                      │
+│ cmdsub                   median 101 ms       slowest 105 ms       fastest 99.6 ms                                                        │
+│                          337.49 µs per iteration  ·  net 335.51 µs per iteration  ·  = 335.51 µs per call                                │
+│                                                                                                                                          │
+│ direct is SLOWER than loop by an average of 73.9% / 0.44 ms = +1.46 µs per iteration, 1.46 µs per call                                   │
+│ cmdsub is SLOWER than loop by an average of 16973.4% / 101 ms = +335.51 µs per iteration, 335.51 µs per call                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ SCORECARD ────────────────────────────────────────────────── typical = median per sample · ┃ = base side (loop) median · bar runs to 2x ╮
+│ side                             n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● loop                          20    0.59 ms    0.69 ms  █████████|........  ▃▂█▃▁▂▁▁▂▂                                                 │
+│ ● direct                        20    1.03 ms    1.08 ms  ████████████████..  ▃▁▇█▃▆▄▂▁▁                                                 │
+│ ● cmdsub                        20     101 ms     105 ms  ██████████████████  ▃▁▃▃▁▇▆█▇▂                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+sides run interleaved, starting side rotates each round · verdict: Welch t on the means, |t|<2 = within noise
+summary: cmdsub vs loop: +16973.4% slower (t=339.6)

@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `TUI_FRAME_BUDGET_US` setting.
 - `tui.perf.report` counters `ticks_dropped`, `paced_deferred` and a `tick:ID` span per timer.
 - `tools/bench/live_updates.sh`.
+- `tools/benchmarks/ab-tests`: `ab.sh` (traceable A/B timing from scenario files, suites, live view and report through `tools/benchmarks/reporting`), `callcount.py` (exact function calls by name and depth of a headless command) and `callmodel.py`.
+- Profiler report: calls per call depth and interaction (`attr.functions[].depths_by_group`).
 - Datasets: `tui.data.new`, `drop`, `append`, `set`, `replace`, `remove`, `clear`, `count`, `has`, `get`, `cell`, `rows`, `col`, `find`, `stat`, `sort`, `bind`, `unbind`, `flush`, `gen`, `save`, `load`; keyed rows, `--max` windows, scopes `page`, `session`, `disk`.
 - Markup `<data>`, `<spark>`, `<gauge>`, `<chart>` and `from=` on `<table>`, `<list>`, `<label>`.
 - `tui.chart KIND VAR` for every renderer, `--data` to chart a dataset; `tui.chart.spark`, `tui.chart.gauge`.
@@ -38,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 - `tools/t.sh` snapshot includes `_TUI_RUNNING`, `_TUI_BATCH_*`, `_TUI_PACE*`, `_TUI_OUT_LAST`.
+- `_tui_build.attrv` reads the attribute table directly instead of calling `tui_node.attr_get`: one function call less per attribute read while a page is built.
 - `tui.chart` of an empty dataset gives an empty string; the renderer no longer waits for stdin.
 - `tui.chart` refuses a size or scale flag whose value is not a number (`-w fit`): the renderers looped forever on one.
 - `tui.chart` turns a renderer's literal `\033` colours into escapes.

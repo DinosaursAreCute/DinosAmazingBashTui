@@ -1,0 +1,13 @@
+name	live-updates
+stamp	20261121T123834Z
+cmd	tools/bench/live_updates.sh
+git	f2079c0+dirty
+paths	lib
+functions_instrumented	2178
+baseline_ms	8326.7
+counted_ms	14609.5
+exit	0
+calls	223401
+max_depth	10
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos

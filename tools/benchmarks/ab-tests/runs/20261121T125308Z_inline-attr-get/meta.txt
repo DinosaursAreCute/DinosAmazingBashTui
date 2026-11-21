@@ -1,0 +1,30 @@
+name	inline-attr-get
+desc	page_switch.sh with and without the attr_get call inside _tui_build.attrv
+stamp	20261121T125308Z
+rounds	40
+warmup	2
+units	20
+control	
+unit_name	switch
+per_name	call
+side	original	run_original		
+side	inlined	run_inlined		
+scenario_sha	184ae9d6c7d097b7
+git	f2079c0+dirty
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos
+cpu	AMD Ryzen 7 2700X Eight-Core Processor | governor=? | load=1.94 1.93 2.05
+cwd	/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests
+bash	5.3.20(1)-release
+
+--- original body ---
+run_original () 
+{ 
+    bash "$_ia_tmp/original/tools/bench/page_switch.sh" 20
+}
+
+--- inlined body ---
+run_inlined () 
+{ 
+    bash "$_ia_tmp/inlined/tools/bench/page_switch.sh" 20
+}

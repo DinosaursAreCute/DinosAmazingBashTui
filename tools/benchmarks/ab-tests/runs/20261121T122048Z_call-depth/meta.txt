@@ -1,0 +1,82 @@
+name	call-depth
+desc	cost per nested function call layer, empty body
+stamp	20261121T122048Z
+rounds	30
+warmup	3
+units	10000
+control	inline
+unit_name	iteration
+per_name	call
+side	inline	run_d0	0	0
+side	d1	run_d1	1	1
+side	d2	run_d2	2	2
+side	d4	run_d4	4	4
+side	d8	run_d8	8	8
+side	d16	run_d16	16	16
+scenario_sha	42679a01c6325825
+git	f2079c0+dirty
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos
+cpu	AMD Ryzen 7 2700X Eight-Core Processor | governor=? | load=2.46 2.24 2.02
+cwd	/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests
+bash	5.3.20(1)-release
+
+--- inline body ---
+run_d0 () 
+{ 
+    local i;
+    for ((i = 0; i < 10000; i++))
+    do
+        :;
+    done
+}
+
+--- d1 body ---
+run_d1 () 
+{ 
+    local i;
+    for ((i = 0; i < 10000; i++))
+    do
+        f1;
+    done
+}
+
+--- d2 body ---
+run_d2 () 
+{ 
+    local i;
+    for ((i = 0; i < 10000; i++))
+    do
+        f2;
+    done
+}
+
+--- d4 body ---
+run_d4 () 
+{ 
+    local i;
+    for ((i = 0; i < 10000; i++))
+    do
+        f4;
+    done
+}
+
+--- d8 body ---
+run_d8 () 
+{ 
+    local i;
+    for ((i = 0; i < 10000; i++))
+    do
+        f8;
+    done
+}
+
+--- d16 body ---
+run_d16 () 
+{ 
+    local i;
+    for ((i = 0; i < 10000; i++))
+    do
+        f16;
+    done
+}

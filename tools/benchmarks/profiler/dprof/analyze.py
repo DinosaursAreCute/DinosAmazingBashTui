@@ -385,6 +385,7 @@ def attribution(traces, latency_list, repo_files):
 
     out = {"global_k": global_k, "groups": {}, "files": funcfile, "focus": {}}
     total_calls = {}
+    depth_calls = {}   # function -> group -> depth -> calls per action (the call-depth model of ab-tests/callmodel.py)
     fn_tot = {}
     edge_tot = {}
     flow = {}
@@ -453,6 +454,9 @@ def attribution(traces, latency_list, repo_files):
             out["focus"][gid] = foc
         for fn, c in b["calls"].items():
             total_calls.setdefault(fn, {})[gid] = c / n
+        for (fn, dp), c in (b.get("depth") or {}).items():
+            per_gid = depth_calls.setdefault(fn, {}).setdefault(gid, {})
+            per_gid[dp] = per_gid.get(dp, 0.0) + c / n
         for fn in self_ms:
             fn_tot.setdefault(fn, {})[gid] = (self_ms[fn], incl_ms.get(fn, 0.0))
         for src, (sh, ex, fk, hits) in b["lines"].items():
@@ -473,7 +477,7 @@ def attribution(traces, latency_list, repo_files):
             e["count"] += cnt / n
             e["groups"][gid] = cnt / n
 
-    out["functions"] = _function_table(fn_tot, total_calls, funcfile)
+    out["functions"] = _function_table(fn_tot, total_calls, funcfile, depth_calls)
     out["edges"] = sorted(({"from": a, "to": b_, "ms": v} for (a, b_), v in edge_tot.items()), key=lambda d: -d["ms"])[:60]
     out["flow"] = [{"from": a, "to": b_, "ms": v} for (a, b_), v in sorted(flow.items(), key=lambda kv: -kv[1])]
     out["hot_lines"] = _hot_lines(hot_lines)
@@ -520,7 +524,7 @@ def _focus(stacks, focus_lines, k, n):
     return out
 
 
-def _function_table(fn_tot, calls, funcfile):
+def _function_table(fn_tot, calls, funcfile, depth_calls=None):
     rows = []
     for fn, per in fn_tot.items():
         self_ms = sum(v[0] for v in per.values())
@@ -529,7 +533,8 @@ def _function_table(fn_tot, calls, funcfile):
         rows.append({"name": fn, "file": funcfile.get(fn, ""), "layer": layer_of(fn, funcfile.get(fn, "")),
                      "self_ms": self_ms, "incl_ms": incl_ms, "calls": ncalls,
                      "per_call_us": (self_ms / ncalls * 1000) if ncalls else None,
-                     "groups": {g: v[0] for g, v in per.items()}})
+                     "groups": {g: v[0] for g, v in per.items()},
+                     "depths_by_group": (depth_calls or {}).get(fn, {})})   # {group: {depth: calls per action}}
     rows.sort(key=lambda r: -r["self_ms"])
     return rows[:200]
 

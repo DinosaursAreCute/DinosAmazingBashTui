@@ -1,0 +1,20 @@
+ ◆ A/B  inline-attr-get  f2079c0 page_switch.sh with and without the attr_get call inside _tui_build.attrv · dirty 40 rounds · 355s · 2026-11-21 12:53
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─ RESULT ──────────────────────────────────────────────────────────────────── "average" = median over 40 rounds · one sample = 20 switchs ╮
+│ original                 median 4.29 s       slowest 4.41 s       fastest 4.20 s       (base)                                            │
+│                          214.70 ms per switch                                                                                            │
+│ inlined                  median 4.16 s       slowest 4.26 s       fastest 4.08 s                                                         │
+│                          208.15 ms per switch                                                                                            │
+│                                                                                                                                          │
+│ inlined is FASTER than original by an average of 3.1% / 131 ms = -6.56 ms per switch                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ SCORECARD ────────────────────────────────────────────── typical = median per sample · ┃ = base side (original) median · bar runs to 2x ╮
+│ side                             n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● original                      40     4.29 s     4.41 s  █████████|........  ▆▅▃▇█▆▃▁▆▆                                                 │
+│ ● inlined                       40     4.16 s     4.26 s  █████████|........  ▃▃▆▅█▅▃▁▃▃                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+sides run interleaved, starting side rotates each round · verdict: Welch t on the means, |t|<2 = within noise
+summary: inlined vs original: -3.1% faster (t=11.5)

@@ -50,7 +50,7 @@ _tui_build.attr() {
 # into VARNAME (a nameref) instead of stdout: no `$(...)` fork.
 _tui_build.attrv() {
 	local -n _bv_out="$3"
-	tui_node.attr_get "$1" "$2" && _bv_out="$_N_ATTR_V" || _bv_out=""
+	_bv_out="${_N_ATTR["$1.$2"]:-}" #inlined to reduce performance cost (only here because this is called like a billion times)
 }
 
 _tui_build.auto_id() {

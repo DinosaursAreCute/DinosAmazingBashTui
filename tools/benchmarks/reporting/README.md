@@ -8,7 +8,7 @@ Python standard library only. A tool puts `tools/benchmarks` on `sys.path` and i
 | `term.py` | colours, bars, sparklines, panels, heat colours; degrades to plain text (`term.init(False)` for no colour) |
 | `stats.py` | `pct`, `med`, `stats`, `rate`, `group(...)` (one scorecard row from samples), `compare_groups` (diff against an earlier report) |
 | `default_reporter.py` | `render(report, W)`: header, scorecard, one case table per group, optional "where the time goes" panels, diff against the previous run |
-| `live.py` | `LiveUI`: a scrolling log of finished steps with a footer for what runs now, phases, ETA, and parallel units (`--jobs`) |
+| `live.py` | `LiveUI` (`hint=`, `show_trace=` adapt the footer): a scrolling log of finished steps with a footer for what runs now, phases, ETA, and parallel units (`--jobs`) |
 | `watch.py` | `Watch(rows, cols)`: a second terminal window (Hyprland aware) that replays whatever you `write()` to it |
 
 ## The results shape

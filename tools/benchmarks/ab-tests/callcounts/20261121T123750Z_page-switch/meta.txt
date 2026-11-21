@@ -1,0 +1,13 @@
+name	page-switch
+stamp	20261121T123750Z
+cmd	tools/bench/page_switch.sh 20
+git	f2079c0+dirty
+paths	lib
+functions_instrumented	2178
+baseline_ms	4314.9
+counted_ms	6606.0
+exit	0
+calls	75283
+max_depth	32
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos

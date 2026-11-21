@@ -1,0 +1,48 @@
+ ◆ A/B  call-depth  f2079c0 cost per nested function call layer, empty body · dirty                      40 rounds · 37s · 2026-11-21 12:36
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╭─ RESULT ───────────────────────────────────────────────────────────── "average" = median over 40 rounds · one sample = 10,000 iterations ╮
+│ inline                   median 18.8 ms      slowest 19.4 ms      fastest 18.3 ms      (base)                                            │
+│                          1.88 µs per iteration                                                                                           │
+│ d1                       median 35.6 ms      slowest 36.7 ms      fastest 34.2 ms                                                        │
+│                          3.56 µs per iteration  ·  net 1.69 µs per iteration  ·  = 1.69 µs per call                                      │
+│ d2                       median 55.3 ms      slowest 56.4 ms      fastest 53.0 ms                                                        │
+│                          5.53 µs per iteration  ·  net 3.65 µs per iteration  ·  = 1.82 µs per call                                      │
+│ d4                       median 103 ms       slowest 104 ms       fastest 100 ms                                                         │
+│                          10.30 µs per iteration  ·  net 8.43 µs per iteration  ·  = 2.11 µs per call                                     │
+│ d8                       median 203 ms       slowest 206 ms       fastest 200 ms                                                         │
+│                          20.32 µs per iteration  ·  net 18.45 µs per iteration  ·  = 2.31 µs per call                                    │
+│ d16                      median 460 ms       slowest 464 ms       fastest 455 ms                                                         │
+│                          45.95 µs per iteration  ·  net 44.08 µs per iteration  ·  = 2.75 µs per call                                    │
+│                                                                                                                                          │
+│ d1 is SLOWER than inline by an average of 90.1% / 16.9 ms = +1.69 µs per iteration, 1.69 µs per call                                     │
+│ d2 is SLOWER than inline by an average of 194.7% / 36.5 ms = +3.65 µs per iteration, 1.82 µs per call                                    │
+│ d4 is SLOWER than inline by an average of 449.4% / 84.3 ms = +8.43 µs per iteration, 2.11 µs per call                                    │
+│ d8 is SLOWER than inline by an average of 984.0% / 184 ms = +18.45 µs per iteration, 2.31 µs per call                                    │
+│ d16 is SLOWER than inline by an average of 2350.9% / 441 ms = +44.08 µs per iteration, 2.75 µs per call                                  │
+│                                                                                                                                          │
+│ cost per x: 2772.6 ns/unit   intercept -1609.4 ns/unit                                                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ SCORECARD ──────────────────────────────────────────────── typical = median per sample · ┃ = base side (inline) median · bar runs to 2x ╮
+│ side                             n    typical      worst  vs budget (┃)        spread     frames    bytes                                │
+│ ● inline                        40    18.8 ms    19.4 ms  █████████|........  ▆██▁▄▃██▃▆                                                 │
+│ ● d1                            40    35.6 ms    36.7 ms  █████████████████.  ▄▅▆▄▆▄▄█▄▁                                                 │
+│ ● d2                            40    55.3 ms    56.4 ms  ██████████████████  ▄▇▁▃▁▂▆█▂▃                                                 │
+│ ● d4                            40     103 ms     104 ms  ██████████████████  ▇██▃▆██▇▇▁                                                 │
+│ ● d8                            40     203 ms     206 ms  ██████████████████  █▄▂▃▁▆▆▄▆▁                                                 │
+│ ● d16                           40     460 ms     464 ms  ██████████████████  █▆▂▇▅▄▇█▁▁                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VS PREVIOUS RUN ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ against f2079c0 (2026-11-21 12:20)                                                                                                       │
+│ inline                                18.9 ms →    18.8 ms  -1%                                                                          │
+│ d1                                    35.7 ms →    35.6 ms  -0%                                                                          │
+│ d2                                    54.8 ms →    55.3 ms  +1%                                                                          │
+│ d4                                     101 ms →     103 ms  +2%                                                                          │
+│ d8                                     202 ms →     203 ms  +1%                                                                          │
+│ d16                                    454 ms →     460 ms  +1%                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+sides run interleaved, starting side rotates each round · verdict: Welch t on the means, |t|<2 = within noise
+summary: slope=2772.6 ns/unit per x, intercept=-1609.4 ns/unit

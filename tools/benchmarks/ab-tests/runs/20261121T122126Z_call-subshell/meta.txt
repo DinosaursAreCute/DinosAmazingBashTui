@@ -1,0 +1,49 @@
+name	call-subshell
+desc	direct call vs command substitution (fork)
+stamp	20261121T122126Z
+rounds	20
+warmup	3
+units	300
+control	loop
+unit_name	iteration
+per_name	call
+side	loop	run_loop		0
+side	direct	run_direct		1
+side	cmdsub	run_cmdsub		1
+scenario_sha	bf3e5740f408d796
+git	f2079c0+dirty
+host	cachyos-x8664
+kernel	Linux 7.3.4-1-cachyos
+cpu	AMD Ryzen 7 2700X Eight-Core Processor | governor=? | load=2.49 2.29 2.05
+cwd	/home/dino/DinosAmazingScripts/DinosAmazingBashTui/tools/benchmarks/ab-tests
+bash	5.3.20(1)-release
+
+--- loop body ---
+run_loop () 
+{ 
+    local i;
+    for ((i = 0; i < 300; i++))
+    do
+        :;
+    done
+}
+
+--- direct body ---
+run_direct () 
+{ 
+    local i r;
+    for ((i = 0; i < 300; i++))
+    do
+        g;
+    done
+}
+
+--- cmdsub body ---
+run_cmdsub () 
+{ 
+    local i r;
+    for ((i = 0; i < 300; i++))
+    do
+        r=$(h);
+    done
+}

@@ -200,11 +200,13 @@ tui_ops.insert() {
 
 # tui_ops.remove N - detach and free N's whole subtree.
 tui_ops.remove() {
-	local n="$1" node
+	local n="$1" node id
 	_tui_ops.detach "$n"
 	_tui_ops.collect "$n"
 	for node in "${_OP_LIST[@]}"; do
-		[[ -n "${_N_ID[$node]:-}" && "${_N_BY_ID[${_N_ID[$node]}]:-}" == "$node" ]] && unset '_N_BY_ID[${_N_ID[$node]}]'
+		# plain-var subscript: bash <5.2 ends an assoc unset subscript at the first ']'
+		id="${_N_ID[$node]:-}"
+		if [[ -n "$id" && "${_N_BY_ID[$id]:-}" == "$node" ]]; then unset '_N_BY_ID[$id]'; fi
 		unset '_N_TYPE[$node]' '_N_PARENT[$node]' '_N_KIDS[$node]' '_N_ID[$node]'
 	done
 	for node in "${_OP_LIST[@]}"; do tui_node.attr_unset_all "$node"; done

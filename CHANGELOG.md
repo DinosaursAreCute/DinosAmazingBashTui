@@ -6,18 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-### Changed
-- `tui.set_label` draws inside a callback batch instead of flushing on its own.
-- `tui.set_label` does nothing when the label is unchanged.
-- `tui.output` does nothing when the text is unchanged.
-- `tui.update` does nothing inside a callback when the value is unchanged.
-- Dataset-bound widgets are drawn in the same batch as the timer callback.
-- Timer-driven draws are limited to one flush per `TUI_FRAME_BUDGET_US` (default 16666).
-- The main loop polls with `TUI_INPUT_SETTLE_TIMEOUT` while a timer draw is waiting.
-- A timer that is late by whole intervals skips those ticks.
-- A timer that runs longer than its interval waits as long as it ran before the next run.
-- `tools/t.sh` snapshot includes `_TUI_RUNNING`, `_TUI_BATCH_*`, `_TUI_PACE*`, `_TUI_OUT_LAST`.
-
 ### Added
 - `TUI_FRAME_BUDGET_US` setting.
 - `tui.perf.report` counters `ticks_dropped`, `paced_deferred` and a `tick:ID` span per timer.
@@ -49,20 +37,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Guide: Components and templates, Navigation, `dabt:` paths.
 
 ### Changed
+- `tools/t.sh` snapshot includes `_TUI_RUNNING`, `_TUI_BATCH_*`, `_TUI_PACE*`, `_TUI_OUT_LAST`.
 - `tui.chart` of an empty dataset gives an empty string; the renderer no longer waits for stdin.
-- `tui.chart` turns a renderer's literal `\033` colours into escapes.
 - `tui.chart` refuses a size or scale flag whose value is not a number (`-w fit`): the renderers looped forever on one.
-- Layer tags take no row in their pane.
-- `tui.update` on an input moves the cursor to the end.
-- Theme load problems are logged once per requesting file, with the caller and a nearby or `dabt:` file when one exists.
+- `tui.chart` turns a renderer's literal `\033` colours into escapes.
+- `tui.output` does nothing when the text is unchanged.
+- `tui.set_label` does nothing when the label is unchanged.
+- `tui.set_label` draws inside a callback batch instead of flushing on its own.
 - `tui.theme.set` returns 1 and keeps the current theme for a file it cannot read.
-- The start-up check skips a file without a `<tui>` root that another page names in `src`.
-- Shipped themes import glyphs with `dabt:glyphs/…`.
+- `tui.update` does nothing inside a callback when the value is unchanged.
+- `tui.update` on an input moves the cursor to the end.
 - `workspace.xml`, `settings.xml` and the first-app example use `Nc` sizes.
-
+- A timer that is late by whole intervals skips those ticks.
+- A timer that runs longer than its interval waits as long as it ran before the next run.
+- Dataset-bound widgets are drawn in the same batch as the timer callback.
+- Layer tags take no row in their pane.
+- Shipped themes import glyphs with `dabt:glyphs/…`.
+- The main loop polls with `TUI_INPUT_SETTLE_TIMEOUT` while a timer draw is waiting.
+- The start-up check skips a file without a `<tui>` root that another page names in `src`.
+- Theme load problems are logged once per requesting file, with the caller and a nearby or `dabt:` file when one exists.
+- Timer-driven draws are limited to one flush per `TUI_FRAME_BUDGET_US` (default 16666).
+  
 ### Fixed
 - `tui.job.run --silent` added to the API page.
 - `focus_on_enter="first"` focuses the first widget.
+- `bad substitution` on bash < 5.2 when removing markup nodes or closing a context menu.
 
 ## [0.0.31] - 2026-11-13
 

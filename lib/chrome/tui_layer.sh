@@ -74,7 +74,7 @@ _tui_layer.expire() {
 
 # _tui_layer.forget ID - drops layer ID's bookkeeping (not its panes: tui.reset_ui or the shell does that)
 _tui_layer.forget() {
-	local id="$1" f k
+	local id="$1" f k owner
 	local -a keep=()
 	for f in "${_TUI_L_ORDER[@]}"; do [[ "$f" == "$id" ]] || keep+=("$f"); done
 	_TUI_L_ORDER=("${keep[@]}")
@@ -84,8 +84,10 @@ _tui_layer.forget() {
 		'_TUI_L_ROW[$id]' '_TUI_L_COL[$id]' '_TUI_L_H[$id]' '_TUI_L_W[$id]' '_TUI_L_SAVED_FOCUS[$id]'
 	for k in ${_TUI_L_PANES[$id]:-}; do unset '_TUI_P_LAYER[$k]'; done
 	unset '_TUI_L_PANES[$id]'
-	if [[ -n "${_TUI_L_CM_OF[$id]:-}" ]]; then
-		[[ "${_TUI_L_CM[${_TUI_L_CM_OF[$id]}]:-}" == "$id" ]] && unset '_TUI_L_CM[${_TUI_L_CM_OF[$id]}]'
+	owner="${_TUI_L_CM_OF[$id]:-}"
+	if [[ -n "$owner" ]]; then
+		# plain-var subscript: bash <5.2 ends an assoc unset subscript at the first ']'
+		if [[ "${_TUI_L_CM[$owner]:-}" == "$id" ]]; then unset '_TUI_L_CM[$owner]'; fi
 		unset '_TUI_L_CM_OF[$id]'
 	fi
 	_tui_layer.sync

@@ -1457,8 +1457,7 @@ tui.start_cached() {
 	# the pool driver is forked here, before the terminal is taken over, and stays up: it serves the pages still to build
 	# and every later resize
 	if ((TUI_CACHE_LAZY && _TUI_CACHES && ${#pages[@]} && (${#later[@]} || TUI_CACHE_RESIZE_DEBOUNCE_MS > 0))); then
-		_tui_cache_lazy.start "${pages[@]}"
-		((${#later[@]})) && _tui_cache_lazy.request "${later[@]}"
+		_tui_cache_lazy.start "${pages[@]}" && ((${#later[@]})) && _tui_cache_lazy.request "${later[@]}"
 	fi
 	_tui_validate.finish || return 1 # nothing to build: the check is joined here (a no-op when already done)
 	# every page is now cached and checked against its files: from here on the files are assumed unchanged

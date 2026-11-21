@@ -9,7 +9,7 @@
 # mkdir is atomic, so a name already taken is just retried.
 _tui_mkdtemp() {
 	local -n _mkd_out="$1"
-	local _mkd_root="${TMPDIR:-/tmp}" _mkd_n=0 _mkd_d
+	local _mkd_root="${TMPDIR:-${TMP:-${TEMP:-/tmp}}}" _mkd_n=0 _mkd_d
 	[[ -d "$_mkd_root" && -w "$_mkd_root" ]] || return 1
 	while ((_mkd_n++ < 50)); do
 		_mkd_d="$_mkd_root/$2.$$.$RANDOM$RANDOM"
@@ -24,7 +24,7 @@ _tui_mkdtemp() {
 # noclobber turns > into an exclusive create; the subshell scopes it and the umask (one fork, no exec).
 _tui_mktemp() {
 	local -n _mkt_out="$1"
-	local _mkt_root="${TMPDIR:-/tmp}" _mkt_n=0 _mkt_f
+	local _mkt_root="${TMPDIR:-${TMP:-${TEMP:-/tmp}}}" _mkt_n=0 _mkt_f
 	[[ -d "$_mkt_root" && -w "$_mkt_root" ]] || return 1
 	while ((_mkt_n++ < 50)); do
 		_mkt_f="$_mkt_root/$2.$$.$RANDOM$RANDOM"

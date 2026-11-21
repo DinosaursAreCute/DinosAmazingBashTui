@@ -93,5 +93,3 @@ All of these live in variables named `_TUI_P_...`, so the page snapshot carries 
 ## 6. The cache signature
 
 A page's signature is the modification time of every file it depends on: the page, each `<include>` (found by `tui.cache.deps_of`), and every addon file and addon folder. A folder's time changes when a file is added or removed, so a new addon is noticed without listing the folder on every load. The signature is checked at start-up; afterwards the cache is trusted (`TUI_CACHE_TRUST=0` keeps checking), which is why a page changed on purpose while the app runs uses `tui.page.refresh` or `tui.cache.forget`, not a file touch.
-
-

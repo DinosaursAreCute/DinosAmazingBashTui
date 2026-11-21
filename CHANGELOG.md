@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.33] - 2026-11-21
+
 ### News
 - Datasets: `tui.data.*` and markup `<data>`; `<table>`, `<list>` and `<label>` bind to them with `from=`.
 - Live charts: `<spark>`, `<gauge>`, `<chart>` and `tui.chart` for every renderer, fed from a dataset.

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### News
+- Datasets: `tui.data.*` and markup `<data>`; `<table>`, `<list>` and `<label>` bind to them with `from=`.
+- Live charts: `<spark>`, `<gauge>`, `<chart>` and `tui.chart` for every renderer, fed from a dataset.
+- Context menus: `<contextmenu for="#id">` opens on right click.
+- Navigation: `<nav>` with `<item>`s, the current page highlighted.
+- Timer-driven draws are limited to one flush per `TUI_FRAME_BUDGET_US`.
+- Size unit `Nc`: exactly N cells.
+- Dev-tools tab `Console`: the app log as it is written.
+- Guides: Data, Components and templates, Navigation; tutorial: A live dashboard.
+- A/B timing and function-call cost tools: `tools/benchmarks/ab-tests`.
+
 ### Added
 - `TUI_FRAME_BUDGET_US` setting.
 - `tui.perf.report` counters `ticks_dropped`, `paced_deferred` and a `tick:ID` span per timer.
